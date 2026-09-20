@@ -66,6 +66,12 @@ public record RegistrationSearchRequest
     // Implicitly restricts to active Player registrations.
     public string? UsLaxMembershipStatus { get; init; }
 
+    // Invitations filter. Null/empty = the search is EXACTLY what it is today: no invite table is
+    // referenced, no join, no extra query, no column. That is the objective this field protects —
+    // anything that reads invite data unconditionally breaks it.
+    //   "any" | "accepted" | "offered" | "expired" | "failed" | "opted-out" | "sent" | "never"
+    public string? InviteStatus { get; init; }
+
     // Explicit registration ID list. When non-empty, the search constrains to exactly
     // these registrations (AND-combined with any other filters the caller sends).
     // Used by action-style lookups (e.g. ARB CC expiring this month) that pre-compute
@@ -145,6 +151,17 @@ public record RegistrationSearchResultDto
     /// since teams may stagger).
     /// </summary>
     public DateTime? NextChargeDate { get; init; }
+
+    /// <summary>
+    /// Invitation status for the Invite column — "Accepted", "Offered", "Expired", ...
+    /// NULL unless an Invitations filter is active: with no filter the column is hidden and the
+    /// lookup that fills this never runs, which is what keeps an unfiltered search unchanged.
+    /// Null also means "Not invited" for a row that came back under an "any invite" filter.
+    /// </summary>
+    public string? InviteStatusName { get; init; }
+
+    /// <summary>The event they were invited to. Cell reads "Offered · 2027 Spring A".</summary>
+    public string? InviteTargetJobName { get; init; }
 }
 
 /// <summary>
@@ -167,6 +184,15 @@ public record RegistrationSearchResponse
 public record RegistrationFilterOptionsDto
 {
     // Organization
+    /// <summary>
+    /// Options for the Invitations filter category, labelled from <c>invites.InviteStatuses</c> so
+    /// the dropdown and the Invite column always read the same words.
+    /// EMPTY when this event can't send invitations at all — the category then never renders, and
+    /// nothing about invitations is queried on a search. Populated only alongside a non-empty
+    /// eligible-target list, so it costs one 7-row read on the events where it can be used.
+    /// </summary>
+    public List<FilterOption> InviteStatusOptions { get; init; } = [];
+
     public required List<FilterOption> Roles { get; init; }
     public required List<FilterOption> Teams { get; init; }
     public required List<FilterOption> Agegroups { get; init; }
@@ -210,4 +236,25 @@ public record FilterOption
     public required string Text { get; init; }
     public int Count { get; init; }
     public bool DefaultChecked { get; init; }
+}
+
+/// <summary>
+/// One registration's invitation status, as the Invite column shows it.
+/// Produced ONLY by <c>IRegistrationRepository.GetInviteStatusesAsync</c> — the single place the
+/// seven statuses are decided, so the grid column and the Invitations filter can never disagree.
+/// Nothing here is stored: the status is derived on every read from the send record plus what
+/// currently exists in the target event.
+/// </summary>
+public record InviteStatusDto
+{
+    public required Guid RegistrationId { get; init; }
+
+    /// <summary>Id from <c>invites.InviteStatuses</c>.</summary>
+    public required int InviteStatusId { get; init; }
+
+    /// <summary>Display name from <c>invites.InviteStatuses</c> — "Accepted", "Offered", ...</summary>
+    public required string InviteStatusName { get; init; }
+
+    /// <summary>The event they were invited to. Cell reads "Offered · 2027 Spring A".</summary>
+    public required string TargetJobName { get; init; }
 }

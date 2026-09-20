@@ -194,8 +194,17 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             jobId, Contracts.Dtos.RegistrationSearch.InviteRegistrationKind.Team, ct);
         var schedulePreviewTarget = await _jobRepo.GetSchedulePreviewInviteTargetAsync(jobId, ct);
 
+        // The Invitations category exists only where invitations can exist. No eligible target of
+        // any kind means the 7-row lookup is never read and the filter never renders — so an event
+        // that can't invite anyone pays nothing at all for the feature, on init load or on search.
+        var canInvite = playerTargets.Count > 0 || clubRepTargets.Count > 0 || schedulePreviewTarget is not null;
+        var inviteStatusOptions = canInvite
+            ? await _registrationRepo.GetInviteStatusOptionsAsync(ct)
+            : [];
+
         return options with
         {
+            InviteStatusOptions = inviteStatusOptions,
             EligiblePlayerInviteTargetJobs = playerTargets,
             EligibleClubRepInviteTargetJobs = clubRepTargets,
             EligibleSchedulePreviewInviteTargetJobs = schedulePreviewTarget is null ? [] : [schedulePreviewTarget]

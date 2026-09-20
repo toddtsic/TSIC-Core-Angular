@@ -558,6 +558,29 @@ public interface IRegistrationRepository
     Task<List<Guid>> GetMatchingRegistrationIdsAsync(Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default);
 
     /// <summary>
+    /// Invitation status for registrations invited FROM <paramref name="sourceJobId"/> — the single
+    /// place the seven statuses are decided, so the Invite column and the Invitations filter can
+    /// never disagree.
+    ///
+    /// Pass <paramref name="registrationIds"/> for one page of the grid (a clustered-key seek);
+    /// pass null for every invited registration in the job, which is what the filter needs.
+    /// Registrations with no invite rows are simply absent from the result — "Not invited" is the
+    /// absence of a row, never a stored value.
+    ///
+    /// Take-up is inferred live and nothing is written: Accepted means the invited player has a
+    /// registration in the target event, or a team of the invited club is in it. Neither active flag
+    /// is consulted, and no date is compared against the invitation's expiry.
+    /// </summary>
+    Task<List<InviteStatusDto>> GetInviteStatusesAsync(
+        Guid sourceJobId, IReadOnlyList<Guid>? registrationIds = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Options for the Invitations filter category, labelled from <c>invites.InviteStatuses</c>.
+    /// Called only when the event has at least one eligible invite target.
+    /// </summary>
+    Task<List<FilterOption>> GetInviteStatusOptionsAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Returns distinct roles, teams, agegroups, divisions, club names for this job's registrations.
     /// Used to populate filter dropdowns. AsNoTracking.
     /// </summary>
