@@ -372,7 +372,6 @@ builder.Services.AddScoped<ITeamDocsRepository, TeamDocsRepository>();
 builder.Services.AddScoped<ITeamManagementService, TeamManagementService>();
 builder.Services.AddScoped<ITeamAttendanceRepository, TeamAttendanceRepository>();
 builder.Services.AddScoped<ITeamAttendanceService, TeamAttendanceService>();
-builder.Services.AddScoped<IChatRepository, ChatRepository>();
 builder.Services.AddScoped<IFileUploadService, TSIC.API.Services.Shared.Files.FileUploadService>();
 // Uniform Number Upload (admin bulk update)
 builder.Services.AddScoped<IUniformUploadService, UniformUploadService>();

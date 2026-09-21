@@ -6,7 +6,6 @@ using Moq;
 using TSIC.API.Controllers;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos;
-using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
 
@@ -142,21 +141,7 @@ public class CrossJobTeamScopeTests
         svc.VerifyNoOtherCalls();
     }
 
-    // ── The other two controllers carry the same guard ──
-
-    [Fact(DisplayName = "TeamChatController refuses cross-job")]
-    public async Task Chat_RefusesCrossJob()
-    {
-        var chatRepo = new Mock<IChatRepository>();
-        var c = new TeamChatController(chatRepo.Object, Lookup(CallerJob, OtherJob).Object);
-        Attach(c);
-
-        var result = await c.GetMessages(
-            TeamId, new GetChatMessagesRequest { TeamId = TeamId, PageNumber = 1, RowsPerPage = 20 }, CancellationToken.None);
-
-        ShouldBe403(result);
-        chatRepo.VerifyNoOtherCalls();
-    }
+    // ── TeamAttendanceController carries the same guard ──
 
     [Fact(DisplayName = "TeamAttendanceController refuses cross-job on every teamId action")]
     public async Task Attendance_RefusesCrossJob()
