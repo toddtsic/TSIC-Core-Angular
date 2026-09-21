@@ -5,7 +5,7 @@
   Drafted by    : Claude (DDL text only -- not applied, not scaffolded)
   Applied by    : Todd, by hand
   Target        : TSICV5
-  Drafted       : 2026-08-27      Revised: 2026-08-30
+  Drafted       : 2026-08-27      Revised: 2026-09-21
   Apply order   : dev (.\SS2016) first, then PHOENIX
 
   Prior draft kept as 01-create-teamchat-schema.sql.20260827-superseded.
@@ -17,16 +17,67 @@
     service: 1 sequence, 7 tables, and the indexes and foreign keys they need.
 
   WHAT THIS DOES NOT DO
-    Nothing existing is altered, dropped, renamed or read. The legacy
-    `chat.ChatMessages` table -- still written by the legacy Unify API -- is left
-    completely untouched and keeps working exactly as it does today.
+    Nothing existing is altered, dropped, renamed, written to or read. Every
+    CREATE targets the new `teamchat` schema. The only way this script touches an
+    existing object is the FOREIGN KEY declarations, which take a brief
+    schema-modification lock on each parent table as they are created -- see
+    RUNNING THIS IN PRODUCTION below.
 
-  >>> BLOCKING BEFORE APPLY: re-run the legacy row count on PHOENIX. <<<
-      SELECT COUNT(*) AS Rows_Total, MIN(Created) AS Oldest, MAX(Created) AS Newest
-      FROM chat.ChatMessages;
-    Dev (2026-08-27) showed 134 rows, newest 2024-06-15 -- 14 months dead, which is
-    what made isolating cheaper than altering. If PROD shows recent rows, the legacy
-    writer is live and the cutover plan needs revisiting before this lands.
+  LEGACY ROW COUNT -- ANSWERED 2026-09-21, no longer blocking
+    Todd: the dev database is a fresh prod restore, hours old, and TSIC-TEAMS chat
+    has never been used. So the dev reading IS production: 134 rows, newest
+    2024-06-15. Nothing to migrate, nobody to strand, and the one legacy writer
+    (Unify's ChatHub.AddTeamChatMessage -- the ONLY writer in either codebase) has
+    never been meaningfully exercised. Do not re-run this count; do not re-raise it.
+
+    The legacy read endpoint in THIS stack was deleted on the back of that ruling
+    (fe672f167). `chat.ChatMessages` itself is still untouched by this script.
+
+--------------------------------------------------------------------------------
+  IS THIS IDEMPOTENT?  Yes. Re-running it is a no-op.
+--------------------------------------------------------------------------------
+    Every one of the 16 created objects -- 1 schema, 1 sequence, 7 tables, 7
+    indexes -- sits behind its own existence check, and each index is guarded
+    SEPARATELY from its table.
+
+    That separation is the whole point, and an earlier draft got it wrong: three
+    indexes (Attachments, MessageReports, MessageRevisions) were written INSIDE
+    their table's IF block. DDL autocommits per statement, so a table that is
+    created and then fails on its index would be left half-built, and every
+    re-run would skip straight past it because the table now exists. Fixed
+    2026-09-21. If you add a table here, guard its indexes separately too.
+
+    There is no explicit transaction and there are 15 GO batches, so a failure
+    part-way leaves whatever already committed. That is fine BECAUSE of the
+    guards: fix the cause, run the whole file again.
+
+--------------------------------------------------------------------------------
+  RUNNING THIS IN PRODUCTION
+--------------------------------------------------------------------------------
+    Safe. It creates and it never modifies. There is no ALTER, DROP, INSERT,
+    UPDATE, DELETE, TRUNCATE, MERGE or GRANT anywhere in the file -- verified by
+    grep, not by eye -- and every CREATE targets the new `teamchat` schema.
+    Nothing existing is read at runtime either.
+
+    VERIFIED against the dev database 2026-09-21 (a prod restore hours old, so
+    this IS the production picture):
+      - No schema named `teamchat` exists. No collision, nothing to merge into.
+      - All four FK parents exist, are NOT NULL, are the PRIMARY KEY, and carry a
+        unique index -- so every FK below will create cleanly:
+            Leagues.teams.teamID              uniqueidentifier
+            Jobs.Jobs.jobID                   uniqueidentifier
+            Jobs.Registrations.RegistrationID uniqueidentifier
+            dbo.AspNetUsers.Id                nvarchar(450)
+        Child column types in this script match each parent exactly.
+
+    THE ONE CAVEAT -- the only way this touches an existing object: creating a
+    FOREIGN KEY takes a brief schema-modification lock on the PARENT table. This
+    script declares FKs against Jobs.Registrations and dbo.AspNetUsers many times
+    over, and both are busy in production. The child tables are empty, so there is
+    no data-validation scan and each lock is metadata-only and momentary -- but a
+    Sch-M lock still queues behind running queries and blocks new ones while it
+    waits. Run it off-peak. It is seconds, not minutes, and it is the only
+    production-impact this script has.
 
 --------------------------------------------------------------------------------
   RULINGS BAKED INTO THIS SCRIPT -- do not "improve" these away
@@ -57,6 +108,20 @@
   4. BROAD ON PURPOSE. Several tables and columns below are inert on day one and
      are limited in code, not in schema -- so this schema is applied ONCE. Each
      is marked [Day 1] or [inert].
+
+  5. EVERY MESSAGE HAS A HUMAN AUTHOR. Todd's ruling 2026-09-21: "every user is
+     logged in." Nothing in this system posts to a team chat on its own -- a
+     person cancelled the practice, a person added Jimmy to the roster -- so
+     CreatorUserId and RegId are NOT NULL for every Kind, including Kind 1.
+     An authorless-system-message design was proposed and REJECTED; do not make
+     either column nullable to revive it.
+
+     Display, same ruling: a Player posts as "{player name} Account" (player from
+     RegId); everyone else posts under their own name from CreatorUserId with no
+     suffix. On a family login the typist is usually the parent but the roster is
+     players -- the suffix names the player without claiming the child typed it,
+     and the login picked one registration so a parent with two kids on the team
+     is never ambiguous. CreatorUserId remains the exact login for moderation.
 
   AFTER APPLYING
     Re-scaffold EF entities by hand: scripts/3) RE-Scaffold-Db-Entities.ps1
@@ -128,19 +193,53 @@ GO
      RegId          The registration the message was sent FROM. Distinct from
                     CreatorUserId (the login) because a family account posts on
                     behalf of a child. Two different facts; cannot be backfilled.
-                    NOTE for the read DTO: AuthorName resolves from CreatorUserId,
-                    NOT from the player named on RegId -- otherwise an adult's
-                    words appear under a minor's name and a coach cannot tell
-                    whether they are talking to the parent or the kid.
 
-     Kind           0 = member message, 1 = system message posted by the app
-                    ("practice cancelled", "Jimmy added to roster"). Lets the
-                    client render system rows distinctly without a second table.
+                    DISPLAY NAME RULE (Todd, 2026-09-21) -- for the read DTO:
+
+                      Player role    ->  "{player name} Account", the player taken
+                                         from RegId. The household picked ONE
+                                         registration at login, so a parent with
+                                         two kids on this team is unambiguous.
+                      Everyone else  ->  their own name, from CreatorUserId, with
+                                         no suffix. A coach, director or staff
+                                         member is who they are.
+
+                    The suffix is the honest answer to a real ambiguity: on a
+                    family login the typist is usually the parent, but the roster
+                    is players. The parent's own name would mean nothing to a
+                    coach; the bare player name would claim a twelve-year-old
+                    wrote it. "Account" says household, names the player.
+
+                    An earlier draft of this comment said to display CreatorUserId
+                    for everyone. That was wrong and is superseded.
+
+                    ⚠ DISPLAY ONLY. CreatorUserId is always the exact login that
+                    typed the message, and it is what moderation reads -- the team
+                    sees the account, the record names the adult at the keyboard.
+
+     Kind           0 = typed by a member, 1 = GENERATED by the app on the back of
+                    something a person did ("Coach Dave cancelled Tuesday's
+                    practice"). A render hint only.
+
+                    ⚠ Kind 1 does NOT mean "no author". Todd, 2026-09-21: every
+                    user is logged in. Nothing in this system posts to a team chat
+                    without a person behind it -- somebody cancelled the practice,
+                    somebody added Jimmy to the roster -- so CreatorUserId and
+                    RegId stay NOT NULL for every Kind. An authorless-message
+                    design was proposed and REJECTED; do not re-raise it, and do
+                    not make either column nullable for it.
+
+                    Edge case worth handling in the client, not the schema: a
+                    Superuser acting for a club they are not part of stamps their
+                    own RegId, which is not on that team. Harmless and honest --
+                    just do not assume the author is always a teammate.
 
      ClientMessageId  Phone-generated idempotency key. Makes a retry over a flaky
                     connection safe; UX_teamchat_Messages_Idem is the backstop for
                     the concurrent-retry race -- the service must catch its
                     violation and return the existing row, never throw a 500.
+                    Defaults to newid() so a Kind 1 message, which the server
+                    writes with no phone in the loop, needs no invented key.
 
      Created        datetime2, ARIZONA local (ruling 2 above). Not UTC.
 
@@ -165,14 +264,19 @@ BEGIN
     (
         MessageId        uniqueidentifier NOT NULL CONSTRAINT DF_teamchat_Messages_MessageId DEFAULT (newid()),
         TeamId           uniqueidentifier NOT NULL,
-        JobId            uniqueidentifier NOT NULL,   -- denormalized from the team: saves a join on the cross-job gate. Kept deliberately.
+        -- Denormalized from the team: saves a join on the cross-job gate. Kept deliberately.
+        -- ⚠ MUST be looked up from Leagues.teams at the write, NEVER taken from the request.
+        --   This column is what the cross-job gate reads, so a client-supplied value would be
+        --   the caller choosing which event they appear to belong to. The FK below only proves
+        --   the job EXISTS -- it cannot prove the job owns this team.
+        JobId            uniqueidentifier NOT NULL,
         Seq              bigint           NOT NULL,
         LastTouchSeq     bigint           NOT NULL,
         Kind             tinyint          NOT NULL CONSTRAINT DF_teamchat_Messages_Kind    DEFAULT (0),
         Message          nvarchar(4000)   NOT NULL,   -- storage headroom; the write path enforces 2000 until told otherwise
         CreatorUserId    nvarchar(450)    NOT NULL,
         RegId            uniqueidentifier NOT NULL,
-        ClientMessageId  uniqueidentifier NOT NULL,
+        ClientMessageId  uniqueidentifier NOT NULL CONSTRAINT DF_teamchat_Messages_ClientMessageId DEFAULT (newid()),
         ReplyToMessageId uniqueidentifier NULL,
         Created          datetime2(7)     NOT NULL CONSTRAINT DF_teamchat_Messages_Created DEFAULT (sysdatetime()),
 
@@ -261,7 +365,17 @@ GO
      LastReadSeq   Drives the unread badge, which is DERIVED, never stored:
 
                        SELECT COUNT(*) FROM teamchat.Messages
-                       WHERE TeamId = @t AND Seq > @lastReadSeq AND DeletedSeq IS NULL;
+                       WHERE TeamId        = @t
+                         AND Seq           > @lastReadSeq
+                         AND DeletedSeq   IS NULL
+                         AND CreatorUserId <> @me;   -- <<< do not badge me for my own words
+
+                   ⚠ The author filter is NOT optional and an earlier draft of this
+                   comment omitted it. Without it you post to your team and the app
+                   immediately tells you that you have an unread message. Filter on
+                   CreatorUserId (the login that typed it), not RegId -- a parent
+                   posting under one child's registration must not light up the
+                   badge on their other child's.
 
                    The upsert must take MAX(existing, incoming) -- never move the
                    cursor backwards, since pushes and fetches land out of order.
@@ -375,10 +489,18 @@ BEGIN
         CONSTRAINT FK_teamchat_Attachments_leb
             FOREIGN KEY (lebUserID) REFERENCES dbo.AspNetUsers   (Id)
     );
+END
+GO
 
+/*  Guarded separately from the CREATE TABLE above, like the Messages indexes. DDL
+    autocommits per statement, so a table that is created and then fails on its index
+    leaves a half-built object that a re-run inside the table's own IF block would
+    skip forever. Keep every index independently guarded.                          */
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+               WHERE name = 'IX_teamchat_Attachments_Message'
+                 AND object_id = OBJECT_ID('teamchat.Attachments'))
     CREATE CLUSTERED INDEX IX_teamchat_Attachments_Message
         ON teamchat.Attachments (MessageId, SortOrder);
-END
 GO
 
 /*------------------------------------------------------------------------------
@@ -485,10 +607,14 @@ BEGIN
         CONSTRAINT FK_teamchat_Reports_leb
             FOREIGN KEY (lebUserID)        REFERENCES dbo.AspNetUsers    (Id)
     );
+END
+GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+               WHERE name = 'IX_teamchat_Reports_Status_Created'
+                 AND object_id = OBJECT_ID('teamchat.MessageReports'))
     CREATE CLUSTERED INDEX IX_teamchat_Reports_Status_Created
         ON teamchat.MessageReports (Status, Created);
-END
 GO
 
 /*------------------------------------------------------------------------------
@@ -519,10 +645,14 @@ BEGIN
         CONSTRAINT FK_teamchat_Revisions_leb
             FOREIGN KEY (lebUserID)      REFERENCES dbo.AspNetUsers   (Id)
     );
+END
+GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+               WHERE name = 'IX_teamchat_Revisions_Message_ReplacedAt'
+                 AND object_id = OBJECT_ID('teamchat.MessageRevisions'))
     CREATE CLUSTERED INDEX IX_teamchat_Revisions_Message_ReplacedAt
         ON teamchat.MessageRevisions (MessageId, ReplacedAt);
-END
 GO
 
 /*------------------------------------------------------------------------------
