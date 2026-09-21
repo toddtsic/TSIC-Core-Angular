@@ -1,5 +1,6 @@
 using System.Data.Common;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Usage;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -157,6 +158,21 @@ public interface IReportingRepository
         Guid registrationId,
         string? storedProcedureName,
         string? reportName,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every run of the Third-Party Roster Export against <paramref name="jobIds"/> since
+    /// <paramref name="since"/>, newest first, named from the registration that ran it.
+    ///
+    /// The export history carries no job of its own -- it is keyed by registration, and a
+    /// registration belongs to exactly one job, which is what scopes this. Vendor logins are
+    /// per-event aliases, so that mapping is the vendor's own event and nothing else's.
+    ///
+    /// Only successful runs exist to find: the history row is written after the file is built.
+    /// </summary>
+    Task<List<ThirdPartyExportLogEntryDto>> GetThirdPartyExportHistoryAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
         CancellationToken cancellationToken = default);
 
     // ── Reports LIBRARY (reporting.ReportLibrary) — what a (job, role) shelf may be stocked from ──

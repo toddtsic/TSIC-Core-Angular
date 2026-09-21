@@ -206,6 +206,30 @@ public class UsageAnalysisController : ControllerBase
         return Ok(await _reports.GetRegistrationsOverTimeAsync(resolution!, unit, since, ct));
     }
 
+    /// <summary>
+    /// Third-Party Roster Exports -- every run of the vendor roster/schedule export against
+    /// the scoped live events in the window, per event, with the dated log behind it.
+    ///
+    /// Reads Jobs.JobReportExportHistory in TSICV5, not TSICLogs: the endpoint has written a
+    /// history row per successful run since the export shipped, where the usage log begins
+    /// 2026-09-04 and admits a row only when the request carried a client tag. For a record of
+    /// minors' data leaving an event, the complete source wins. No clientId for the same
+    /// reason a registration has none -- there is no client on a history row to filter by.
+    /// </summary>
+    [HttpGet("third-party-exports")]
+    public async Task<ActionResult<ThirdPartyExportsDto>> GetThirdPartyExports(
+        [FromQuery] string? scope,
+        [FromQuery] int windowDays = 7,
+        [FromQuery] Guid? eventId = null,
+        CancellationToken ct = default)
+    {
+        var (failure, resolution) = await ResolveForReportAsync(scope, eventId, ct);
+        if (failure is not null) return failure;
+
+        var days = Math.Clamp(windowDays, 1, 365);
+        return Ok(await _reports.GetThirdPartyExportsAsync(resolution!, days, ct));
+    }
+
     /// <summary>Resolve scope + event lens for a report, or the ActionResult that refuses it. <paramref name="liveAsOf"/> null = live now.</summary>
     private async Task<(ActionResult? Failure, UsageScopeResolution? Resolution)> ResolveForReportAsync(
         string? scope, Guid? eventId, CancellationToken ct, DateTime? liveAsOf = null)

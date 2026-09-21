@@ -11,6 +11,7 @@ import { PublicRequestsByRouteComponent } from './reports/public-requests-by-rou
 import { UsersByRoleOverTimeComponent } from './reports/users-by-role-over-time.component';
 import { UserRequestsByRouteComponent } from './reports/user-requests-by-route.component';
 import { RegistrationsOverTimeComponent } from './reports/registrations-over-time.component';
+import { ThirdPartyExportsComponent } from './reports/third-party-exports.component';
 
 /**
  * Usage Analysis — the drill behind the UsageStatsPerJob widget's glance.
@@ -33,7 +34,7 @@ import { RegistrationsOverTimeComponent } from './reports/registrations-over-tim
 @Component({
 	selector: 'app-usage-analysis',
 	standalone: true,
-	imports: [AdminNavPillComponent, UsageReportDebugComponent, UsersByRoleComponent, PublicRequestsByRouteComponent, UsersByRoleOverTimeComponent, UserRequestsByRouteComponent, RegistrationsOverTimeComponent],
+	imports: [AdminNavPillComponent, UsageReportDebugComponent, UsersByRoleComponent, PublicRequestsByRouteComponent, UsersByRoleOverTimeComponent, UserRequestsByRouteComponent, RegistrationsOverTimeComponent, ThirdPartyExportsComponent],
 	providers: [UsageAnalysisStateService],
 	templateUrl: './usage-analysis.component.html',
 	styleUrl: './usage-analysis.component.scss',

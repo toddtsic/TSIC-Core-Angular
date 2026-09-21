@@ -1,0 +1,80 @@
+<app-usage-pivot-report
+	[isLoading]="fetch.isLoading()"
+	[error]="fetch.error()"
+	[isEmpty]="isEmpty()"
+	loadingMessage="Reading export history…"
+	emptyMessage="No roster exports from these events in this window."
+	[tiles]="tiles()"
+	[columns]="columns"
+	[rows]="rows()"
+	[rowsAreEvents]="false"
+	rowHeader="Event"
+	totalHeader="Exports"
+	[chartTitle]="chartTitle()"
+	[chartSubtitle]="chartSubtitle()"
+	[chartSeries]="chartSeries()"
+	[primaryXAxis]="primaryXAxis()"
+	[primaryYAxis]="primaryYAxis()"
+	[chartMargin]="chartMargin"
+	[tooltip]="tooltip"
+	chartHeight="300px"
+	chartEmptyMessage="No exports in the window.">
+
+	<!-- The counts say data left; these rows say who took it and when. -->
+	<div usageAfterChart class="tpe">
+		<div class="tpe-title">
+			Every export
+			<span class="tpe-sub">
+				{{ log().length.toLocaleString() }} {{ log().length === 1 ? 'run' : 'runs' }}, newest first
+				@if (fetch.data()?.logTruncated) {
+					· showing the most recent {{ log().length }} of {{ fetch.data()?.totalExports }}
+				}
+			</span>
+		</div>
+
+		@if (log().length === 0) {
+			<div class="tpe-empty">Nothing exported in this window.</div>
+		} @else {
+			<div class="tpe-wrap">
+				<table class="tpe-table">
+					<thead>
+						<tr>
+							<th scope="col">Exported</th>
+							<th scope="col">Event</th>
+							<th scope="col">Who</th>
+						</tr>
+					</thead>
+					<tbody>
+						@for (e of log(); track e.exportedAt + e.jobId + e.exporterLogin) {
+							<tr>
+								<td class="tpe-when">{{ e.exportedAt | date: 'MMM d, y · h:mm a' }}</td>
+								<td class="tpe-event">{{ e.jobName }}</td>
+								<td class="tpe-who">
+									<div class="tpe-who-name">
+										{{ e.exporterName }}
+										@if (e.isThirdParty) {
+											<span class="tpe-chip" title="An outside agency, signed in with a third-party export login">Third party</span>
+										} @else {
+											<span class="tpe-chip tpe-chip--own" [title]="'Run by an administrator of this event (' + e.roleName + ')'">{{ e.roleName }}</span>
+										}
+									</div>
+									<div class="tpe-who-login">{{ e.exporterLogin }}</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+
+	An export is one successful run of the Authorized Rosters and Schedule Export — the whole
+	roster of every age group the event has released, plus its schedule, downloaded as a file
+	that then lives outside TSIC. Runs that were refused are not counted: they exported nothing.
+	The rosters are gated per age group by Third-Party Roster Access in the L-A-D-T Editor; the
+	schedule tab is the whole event and is not gated, because schedules are public. This report
+	counts runs, not what was in them: which age groups a given run carried is not recorded
+	anywhere. Third party is an outside agency signed in with an export-only login; any other
+	role is one of the event's own administrators running the same export. Events that exported
+	nothing are left out rather than drawn as zero.
+</app-usage-pivot-report>

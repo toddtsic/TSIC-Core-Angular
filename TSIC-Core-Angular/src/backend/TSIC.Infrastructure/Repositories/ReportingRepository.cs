@@ -4,6 +4,7 @@ using System.Globalization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Usage;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
@@ -418,6 +419,59 @@ public class ReportingRepository : IReportingRepository
 
         _context.JobReportExportHistory.Add(record);
         await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<List<ThirdPartyExportLogEntryDto>> GetThirdPartyExportHistoryAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobIds.Count == 0)
+            return [];
+
+        // Shaped in memory after the join so the name fallback is one rule in one place:
+        // vendor aliases routinely carry no first or last name, and an empty lead line on a
+        // report about who took minors' data out is the one thing it must never render.
+        var raw = await (
+            from h in _context.JobReportExportHistory
+            join r in _context.Registrations on h.RegistrationId equals r.RegistrationId
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            where h.ReportName == ReportActionConstants.ThirdPartyRosterExport
+                  && h.ExportDate != null
+                  && h.ExportDate >= since
+                  && jobIds.Contains(r.JobId)
+            select new
+            {
+                r.JobId,
+                r.Job.JobName,
+                UserName = r.User!.UserName,
+                r.User.FirstName,
+                r.User.LastName,
+                RoleName = role.Name,
+                r.RoleId,
+                ExportedAt = h.ExportDate!.Value,
+            })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return raw
+            .OrderByDescending(x => x.ExportedAt)
+            .Select(x =>
+            {
+                var login = x.UserName ?? string.Empty;
+                var name = $"{x.FirstName} {x.LastName}".Trim();
+                return new ThirdPartyExportLogEntryDto
+                {
+                    JobId = x.JobId,
+                    JobName = x.JobName ?? string.Empty,
+                    ExporterName = name.Length > 0 ? name : login,
+                    ExporterLogin = login,
+                    RoleName = x.RoleName ?? string.Empty,
+                    IsThirdParty = string.Equals(x.RoleId, RoleConstants.ApiAuthorized, StringComparison.OrdinalIgnoreCase),
+                    ExportedAt = x.ExportedAt,
+                };
+            })
+            .ToList();
     }
 
     public async Task<List<ScheduleGameForICalDto>> GetScheduleGamesForICalAsync(

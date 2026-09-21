@@ -1,0 +1,112 @@
+// The dated export log beneath the chart. Class prefix tpe- = third party exports.
+// Surface and table rules match the pivot layout's and the route table's.
+:host {
+	display: block;
+}
+
+.tpe {
+	margin-bottom: var(--space-4);
+	background: var(--brand-surface);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-md, 0.375rem);
+}
+
+.tpe-title {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-3) var(--space-2);
+	font-size: var(--font-size-sm);
+	font-weight: 600;
+	color: var(--brand-text);
+}
+
+.tpe-sub {
+	font-size: var(--font-size-xs);
+	font-weight: 400;
+	color: var(--brand-text-muted);
+}
+
+.tpe-empty {
+	padding: var(--space-5) var(--space-3);
+	text-align: center;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text-muted);
+}
+
+.tpe-wrap {
+	max-height: 28rem;
+	overflow: auto;
+}
+
+.tpe-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text);
+
+	th, td {
+		padding: var(--space-2) var(--space-3);
+		border-bottom: 1px solid var(--brand-border);
+		text-align: left;
+		vertical-align: top;
+	}
+
+	thead th {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		background: var(--brand-surface);
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--brand-text-muted);
+		white-space: nowrap;
+	}
+}
+
+.tpe-when {
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.tpe-event {
+	max-width: 22rem;
+}
+
+.tpe-who-name {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	font-weight: 600;
+}
+
+// Vendor logins are email addresses and run long — wrap rather than force the table wide.
+.tpe-who-login {
+	margin-top: var(--space-1);
+	font-family: var(--bs-font-monospace, monospace);
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+	overflow-wrap: anywhere;
+}
+
+// Never colour alone: the chip always carries its own word.
+.tpe-chip {
+	padding: 0.05rem var(--space-2);
+	border: 1px solid var(--bs-warning);
+	border-radius: var(--radius-pill, 50rem);
+	background: var(--bs-warning-bg-subtle, transparent);
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	white-space: nowrap;
+	color: var(--brand-text);
+}
+
+.tpe-chip--own {
+	border-color: var(--brand-border);
+	background: var(--brand-surface-alt, transparent);
+	color: var(--brand-text-muted);
+}

@@ -74,6 +74,18 @@ public interface IUsageAnalysisService
         UsageBucket bucket,
         DateTime since,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Third-Party Roster Exports: runs of the vendor export against the scoped live events
+    /// in the window, counted per event, with the dated log behind them. Reads
+    /// Jobs.JobReportExportHistory in TSICV5 and never the log, so there is no client lens
+    /// and no "log unavailable" state -- and, unlike the log, it goes back to the day the
+    /// export shipped.
+    /// </summary>
+    Task<ThirdPartyExportsDto> GetThirdPartyExportsAsync(
+        UsageScopeResolution scope,
+        int windowDays,
+        CancellationToken ct = default);
 }
 
 public sealed class UsageAnalysisService : IUsageAnalysisService
@@ -111,21 +123,31 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
     /// <summary>The team series' name. Not a role and not a person: its own column, its own axis, outside the People total.</summary>
     public const string TeamsSeriesName = "Teams";
 
+    /// <summary>
+    /// How many runs the dated log carries. The counts above it are always whole; this caps
+    /// only the listing, and the answer says when it bit. Exports are rare enough that the cap
+    /// is a guard rather than a paging story -- eight runs existed in the first six weeks.
+    /// </summary>
+    private const int ExportLogCap = 200;
+
     private readonly IUsageStatsRepository _usageRepo;
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IFamilyRepository _familyRepo;
     private readonly ITeamRepository _teamRepo;
+    private readonly IReportingRepository _reportingRepo;
 
     public UsageAnalysisService(
         IUsageStatsRepository usageRepo,
         IRegistrationRepository registrationRepo,
         IFamilyRepository familyRepo,
-        ITeamRepository teamRepo)
+        ITeamRepository teamRepo,
+        IReportingRepository reportingRepo)
     {
         _usageRepo = usageRepo;
         _registrationRepo = registrationRepo;
         _familyRepo = familyRepo;
         _teamRepo = teamRepo;
+        _reportingRepo = reportingRepo;
     }
 
     public async Task<UsageClientsDto> GetClientsAsync(
@@ -494,6 +516,47 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
                 roleByReg[r.RegistrationId] = r;
         }
         return roleByReg;
+    }
+
+    public async Task<ThirdPartyExportsDto> GetThirdPartyExportsAsync(
+        UsageScopeResolution scope,
+        int windowDays,
+        CancellationToken ct = default)
+    {
+        // One read, one database. The history is keyed by registration and a registration
+        // belongs to one job, so the repository's job filter IS the scope -- there is no
+        // second source to pair with and nothing to reconcile.
+        var log = await _reportingRepo.GetThirdPartyExportHistoryAsync(scope.GetJobIds(), Since(windowDays), ct);
+
+        // Busiest event first, so the chart reads left to right. An event that exported
+        // nothing is not a row and not a bar: a zero here would be a claim about an event
+        // whose age groups may simply never have been released.
+        var rows = log
+            .GroupBy(e => new { e.JobId, e.JobName })
+            .Select(g => new ThirdPartyExportRowDto
+            {
+                JobId = g.Key.JobId,
+                JobName = g.Key.JobName,
+                Exports = g.Count(),
+                LastExport = g.Max(e => e.ExportedAt),
+            })
+            .OrderByDescending(r => r.Exports)
+            .ThenBy(r => r.JobName, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        return new ThirdPartyExportsDto
+        {
+            WindowDays = windowDays,
+            JobCount = scope.Jobs.Count,
+            Rows = rows,
+            Log = log.Take(ExportLogCap).ToList(),
+            TotalExports = log.Count,
+            EventsExported = rows.Count,
+            // By login: one agency works several events under per-event aliases, and each
+            // alias is the party that holds that event's data.
+            Exporters = log.Select(e => e.ExporterLogin).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+            LogTruncated = log.Count > ExportLogCap,
+        };
     }
 
     /// <summary>TSICV5: which of the logins are family accounts, in slices.</summary>

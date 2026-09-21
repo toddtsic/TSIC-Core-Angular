@@ -157,7 +157,9 @@ export class UsageAnalysisStateService {
 			const b = USAGE_BUCKETS.find(o => o.bucket === this.bucket());
 			return b ? `${b.label.toLowerCase()} · ${b.span}` : this.bucket();
 		}
-		return this.windowDays() === 1 ? '24h' : `${this.windowDays()}d`;
+		const days = this.windowDays();
+		if (days === 1) return '24h';
+		return days === 365 ? '1y' : `${days}d`;
 	});
 
 	readonly jobCount = computed(() => this.scopeInfo()?.jobs.length ?? 0);

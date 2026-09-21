@@ -395,7 +395,9 @@ public class ReportingController : ControllerBase
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest("Job ID could not be determined from user token");
 
-        const string action = "ThirdPartyRosterExport";
+        // Shared with the reader: Third-Party Roster Exports on the usage page counts the
+        // history rows this call writes, and a second literal could drift out from under it.
+        const string action = ReportActionConstants.ThirdPartyRosterExport;
         var entitled = User.IsInRole("Superuser")
             ? await _reportingService.HasCrystalActionEntitlementAnyRoleAsync(jobId.Value, action, cancellationToken)
             : await _reportingService.HasCrystalActionEntitlementAsync(jobId.Value, GetCallerRoleIds(), action, cancellationToken);

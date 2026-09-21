@@ -26,11 +26,19 @@ export const USAGE_SCOPE_OPTIONS: readonly UsageScopeOption[] = [
 	{ scope: 'tsic',     label: 'All TSIC',   icon: 'bi-globe2',    description: 'Every live event on the platform' },
 ];
 
-/** Windows offered by the selector. The server clamps to 1–365 regardless. */
+/**
+ * Windows offered by the selector. The server clamps to 1–365 regardless.
+ *
+ * A year is offered because some reports count events that happen a handful of times a
+ * year: Third-Party Roster Exports over 30 days shows one of the eight runs that actually
+ * happened, which reads as "they have barely touched it". A rare event needs a window long
+ * enough to contain it.
+ */
 export const USAGE_WINDOWS = [
 	{ days: 1, label: '24h' },
 	{ days: 7, label: '7d' },
 	{ days: 30, label: '30d' },
+	{ days: 365, label: '1y' },
 ] as const;
 
 /**
@@ -79,7 +87,7 @@ export const USAGE_REPORT_GROUPS: readonly { readonly group: UsageReportGroup; r
 	{ group: 'registrations', label: 'Registrations (what came in)' },
 ];
 
-export type UsageReportKey = 'report-01' | 'report-02' | 'report-03' | 'report-04' | 'report-05' | 'report-06';
+export type UsageReportKey = 'report-01' | 'report-02' | 'report-03' | 'report-04' | 'report-05' | 'report-06' | 'report-07';
 
 export interface UsageReportDef {
 	readonly key: UsageReportKey;
@@ -115,6 +123,9 @@ export const USAGE_REPORTS: readonly UsageReportDef[] = [
 	{ key: 'report-01', label: 'Users by Role', group: 'users', roles: ALL_ADMINS, built: true, timeAxis: 'window' },
 	{ key: 'report-03', label: 'Users by Role over Time', group: 'users', roles: ALL_ADMINS, built: true, timeAxis: 'bucket' },
 	{ key: 'report-04', label: 'User Requests by Route', group: 'users', roleLens: true, roles: ALL_ADMINS, built: true, timeAxis: 'window' },
+	// Reads Jobs.JobReportExportHistory, never the log — so no client lens, for the same
+	// reason Registrations over Time has none: its rows carry no client to filter by.
+	{ key: 'report-07', label: 'Third-Party Roster Exports', group: 'users', roles: ALL_ADMINS, built: true, timeAxis: 'window', clientLens: false },
 	{ key: 'report-02', label: 'Public Requests by Route', group: 'public', roles: ALL_ADMINS, built: true, timeAxis: 'window' },
 	{ key: 'report-05', label: 'Registrations over Time', group: 'registrations', roles: ALL_ADMINS, built: true, timeAxis: 'bucket', clientLens: false },
 	{ key: 'report-06', label: 'Report-06', group: 'users', roles: SUPERUSER, built: false, timeAxis: 'window' },
