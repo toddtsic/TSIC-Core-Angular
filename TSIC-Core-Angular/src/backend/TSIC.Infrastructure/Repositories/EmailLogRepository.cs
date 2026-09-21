@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.EmailTroubleshooter;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -29,6 +30,17 @@ public class EmailLogRepository : IEmailLogRepository
                 EmailId = e.EmailId,
                 SendTs = e.SendTs,
                 SendFrom = e.SendFrom,
+                // WHO PRESSED SEND, resolved from senderUserID rather than read off sendFrom.
+                // sendFrom is a caller-supplied label (job display name on batch email, the club
+                // director on ARB), so it cannot answer this; senderUserID is stamped from the JWT
+                // on every human path and is already correct on historical rows, which is why
+                // deriving here — one LEFT JOIN over the existing FK — repairs the log backwards.
+                // The unattended sweep stamps SuperUserId (no human acted) and old rows may be
+                // null; both resolve to the support address, which is the true sending identity
+                // (SES forces every From to it) and leaves no hole in an audited column.
+                SenderEmail = e.SenderUserId == null || e.SenderUserId == TsicConstants.SuperUserId
+                    ? TsicConstants.SupportEmail
+                    : e.SenderUser!.Email,
                 Count = e.Count,
                 Subject = e.Subject
             })
