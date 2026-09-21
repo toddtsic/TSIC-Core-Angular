@@ -809,6 +809,7 @@ export type { TestValidationRequest } from './models/TestValidationRequest';
 export type { ThirdPartyAccessOverviewDto } from './models/ThirdPartyAccessOverviewDto';
 export type { ThirdPartyAssignmentDto } from './models/ThirdPartyAssignmentDto';
 export type { ThirdPartyExportLogEntryDto } from './models/ThirdPartyExportLogEntryDto';
+export type { ThirdPartyExportMonthDto } from './models/ThirdPartyExportMonthDto';
 export type { ThirdPartyExportRowDto } from './models/ThirdPartyExportRowDto';
 export type { ThirdPartyExportsDto } from './models/ThirdPartyExportsDto';
 export type { ThirdPartyJobRowDto } from './models/ThirdPartyJobRowDto';

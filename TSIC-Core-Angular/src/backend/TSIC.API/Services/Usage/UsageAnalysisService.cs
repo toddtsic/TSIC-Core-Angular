@@ -1,3 +1,4 @@
+using System.Globalization;
 using TSIC.Contracts.Dtos.Usage;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
@@ -531,6 +532,9 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
         // Busiest event first, so the chart reads left to right. An event that exported
         // nothing is not a row and not a bar: a zero here would be a claim about an event
         // whose age groups may simply never have been released.
+        //
+        // Counted off the WHOLE history, not the capped log: the cap trims the listing and
+        // must never reach the numbers above it.
         var rows = log
             .GroupBy(e => new { e.JobId, e.JobName })
             .Select(g => new ThirdPartyExportRowDto
@@ -539,9 +543,21 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
                 JobName = g.Key.JobName,
                 Exports = g.Count(),
                 LastExport = g.Max(e => e.ExportedAt),
+                MonthCounts = g
+                    .GroupBy(e => MonthKey(e.ExportedAt))
+                    .Select(m => new ThirdPartyExportMonthDto { Month = m.Key, Exports = m.Count() })
+                    .OrderBy(m => m.Month, StringComparer.Ordinal)
+                    .ToList(),
             })
             .OrderByDescending(r => r.Exports)
             .ThenBy(r => r.JobName, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        // Ordinal on "yyyy/MM" IS chronological order -- the format exists for that.
+        var months = log
+            .Select(e => MonthKey(e.ExportedAt))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(m => m, StringComparer.Ordinal)
             .ToList();
 
         return new ThirdPartyExportsDto
@@ -549,6 +565,7 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             WindowDays = windowDays,
             JobCount = scope.Jobs.Count,
             Rows = rows,
+            Months = months,
             Log = log.Take(ExportLogCap).ToList(),
             TotalExports = log.Count,
             EventsExported = rows.Count,
@@ -574,6 +591,12 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
 
     /// <summary>Server-local, like OccurredAt. UtcNow would shift the window by the AZ offset.</summary>
     private static DateTime Since(int windowDays) => DateTime.Now.AddDays(-windowDays);
+
+    /// <summary>
+    /// The month an export belongs to, "yyyy/MM". Invariant so the key is the same string on
+    /// any box -- it is an identifier the page groups and sorts by, not a date it displays.
+    /// </summary>
+    private static string MonthKey(DateTime when) => when.ToString("yyyy/MM", CultureInfo.InvariantCulture);
 
     private static UsersByRoleDto Empty(UsageScopeResolution scope, int windowDays, bool available) => new()
     {

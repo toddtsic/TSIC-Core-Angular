@@ -8,6 +8,7 @@ export type ThirdPartyExportsDto = {
     windowDays: number;
     jobCount: number;
     rows: Array<ThirdPartyExportRowDto>;
+    months: Array<string>;
     log: Array<ThirdPartyExportLogEntryDto>;
     totalExports: number;
     eventsExported: number;

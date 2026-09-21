@@ -5,7 +5,7 @@
 	loadingMessage="Reading export history…"
 	emptyMessage="No roster exports from these events in this window."
 	[tiles]="tiles()"
-	[columns]="columns"
+	[columns]="columns()"
 	[rows]="rows()"
 	[rowsAreEvents]="false"
 	rowHeader="Event"
@@ -16,6 +16,7 @@
 	[primaryXAxis]="primaryXAxis()"
 	[primaryYAxis]="primaryYAxis()"
 	[chartMargin]="chartMargin"
+	[legendSettings]="legendSettings"
 	[tooltip]="tooltip"
 	chartHeight="300px"
 	chartEmptyMessage="No exports in the window.">
@@ -74,7 +75,9 @@
 	The rosters are gated per age group by Third-Party Roster Access in the L-A-D-T Editor; the
 	schedule tab is the whole event and is not gated, because schedules are public. This report
 	counts runs, not what was in them: which age groups a given run carried is not recorded
-	anywhere. Third party is an outside agency signed in with an export-only login; any other
-	role is one of the event's own administrators running the same export. Events that exported
-	nothing are left out rather than drawn as zero.
+	anywhere. Each event is a group of monthly bars, yyyy/mm: a month nobody exported in is not a
+	column at all, and a month one event sat out is a gap in its group rather than a zero. Third
+	party is an outside agency signed in with an export-only login; any other role is one of the
+	event's own administrators running the same export. Events that exported nothing are left out
+	rather than drawn as zero.
 </app-usage-pivot-report>
