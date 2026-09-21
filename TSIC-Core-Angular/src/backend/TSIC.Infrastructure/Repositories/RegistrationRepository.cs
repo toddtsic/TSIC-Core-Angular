@@ -1477,11 +1477,18 @@ public partial class RegistrationRepository : IRegistrationRepository
             .Where(r => r.JobId == jobId
                 && r.RoleId == RoleConstants.ClubRep
                 && r.ClubName != null)
+            // The rep's name comes along so the target-club picker can disambiguate. Club names
+            // repeat here for two reasons - duplicates carried over by the migration, and one club
+            // legitimately holding several rep registrations in a job - and a move targets a
+            // REGISTRATION, so the person is what identifies the destination. One LEFT JOIN over
+            // the existing User navigation; AR-103.
             .Select(r => new ClubRegistrationInfo
             {
                 RegistrationId = r.RegistrationId,
                 ClubName = r.ClubName!,
-                UserId = r.UserId ?? ""
+                UserId = r.UserId ?? "",
+                RepFirstName = r.User!.FirstName,
+                RepLastName = r.User!.LastName
             })
             .ToListAsync(ct);
     }

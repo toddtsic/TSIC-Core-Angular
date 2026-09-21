@@ -5,5 +5,6 @@
 export type ClubRegistrationDto = {
     registrationId: string;
     clubName: string;
+    repName?: string | null;
 };
 

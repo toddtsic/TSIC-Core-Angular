@@ -197,8 +197,10 @@
                         (ngModelChange)="selectedTargetRegId.set($event)"
                         [ngModelOptions]="{standalone: true}">
                         <option value="">Select target club...</option>
+                        <!-- Rep name in parens: club names alone do not identify the club (AR-103).
+                             Each option IS one club-rep registration, so the name is the destination. -->
                         @for (club of clubRegistrations(); track club.registrationId) {
-                          <option [value]="club.registrationId">{{ club.clubName }}</option>
+                          <option [value]="club.registrationId">{{ club.clubName }}@if (club.repName) { ({{ club.repName }})}</option>
                         }
                       </select>
                       <div class="d-flex gap-2">
@@ -230,8 +232,10 @@
                         (ngModelChange)="transferTargetRegId.set($event)"
                         [ngModelOptions]="{standalone: true}">
                         <option value="">Select target club...</option>
+                        <!-- Same label as the single-team move. This is the BULK operation, so a
+                             mis-pick costs the whole source club's roster — AR-103. -->
                         @for (club of clubRegistrations(); track club.registrationId) {
-                          <option [value]="club.registrationId">{{ club.clubName }}</option>
+                          <option [value]="club.registrationId">{{ club.clubName }}@if (club.repName) { ({{ club.repName }})}</option>
                         }
                       </select>
                       <div class="d-flex gap-2">

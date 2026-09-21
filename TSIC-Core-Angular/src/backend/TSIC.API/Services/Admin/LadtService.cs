@@ -1467,8 +1467,17 @@ public sealed class LadtService : ILadtService
         return clubs.Select(c => new ClubRegistrationDto
         {
             RegistrationId = c.RegistrationId,
-            ClubName = c.ClubName
-        }).OrderBy(c => c.ClubName).ToList();
+            ClubName = c.ClubName,
+            // Null, not "", when nothing is on file — the picker renders the club name alone
+            // rather than trailing empty parentheses, which read as a rendering fault.
+            RepName = string.IsNullOrWhiteSpace($"{c.RepFirstName} {c.RepLastName}".Trim())
+                ? null
+                : $"{c.RepFirstName} {c.RepLastName}".Trim()
+        })
+        // Then-by the rep so same-named clubs hold a stable order between loads; without it the
+        // two entries a user is trying to tell apart can swap places, which is the exact confusion
+        // this label exists to remove.
+        .OrderBy(c => c.ClubName).ThenBy(c => c.RepName).ToList();
     }
 
     public async Task<MoveTeamToClubResultDto> MoveTeamToClubAsync(

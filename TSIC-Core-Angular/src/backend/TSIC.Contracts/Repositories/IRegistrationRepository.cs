@@ -994,6 +994,14 @@ public record ClubRegistrationInfo
     public required Guid RegistrationId { get; init; }
     public required string ClubName { get; init; }
     public required string UserId { get; init; }
+
+    /// <summary>
+    /// The rep behind THIS registration, off <c>Registrations.User</c>. One row = one club rep, so
+    /// this names the exact destination a move targets — it is not "the club's reps" plural.
+    /// Nullable because the user row or either name part can be missing; callers must tolerate it.
+    /// </summary>
+    public string? RepFirstName { get; init; }
+    public string? RepLastName { get; init; }
 }
 
 public record UniformTemplateRow

@@ -170,4 +170,13 @@ public record ClubRegistrationDto
 {
     public required Guid RegistrationId { get; init; }
     public required string ClubName { get; init; }
+
+    /// <summary>
+    /// The club rep this option belongs to, as "First Last". **One option = one club-rep
+    /// registration**, so this names the exact destination of a move, not a list of a club's reps.
+    /// Null when no name is on file — render the club name alone rather than empty parentheses.
+    /// AR-103: club names alone do not identify the club (migration duplicates, near-identical
+    /// names, and one club holding several rep registrations).
+    /// </summary>
+    public string? RepName { get; init; }
 }
