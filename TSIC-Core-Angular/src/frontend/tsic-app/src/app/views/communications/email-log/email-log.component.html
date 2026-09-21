@@ -51,9 +51,13 @@
                     <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
                               [customAttributes]="{ class: 'row-number-cell' }"></e-column>
                     <e-column field="sendTs" headerText="Sent" width="145" type="date" format="M/d/yy h:mm a"></e-column>
-                    <e-column field="sendFrom" headerText="Sender" width="200">
+                    <!-- senderEmail, NOT sendFrom. sendFrom is a caller-supplied label (the job's
+                         display name on batch email, the club director on ARB), so it cannot say who
+                         sent this. senderEmail derives from emailLogs.senderUserID - the login that
+                         pressed send - and is correct on historical rows too. AR-102 / AR-090. -->
+                    <e-column field="senderEmail" headerText="Sender" width="200">
                         <ng-template #template let-data>
-                            <span class="text-truncate d-inline-block" style="max-width: 180px;">{{ data.sendFrom }}</span>
+                            <span class="text-truncate d-inline-block" style="max-width: 180px;">{{ data.senderEmail }}</span>
                         </ng-template>
                     </e-column>
                     <e-column field="count" headerText="Recipients" width="100" textAlign="Center">
