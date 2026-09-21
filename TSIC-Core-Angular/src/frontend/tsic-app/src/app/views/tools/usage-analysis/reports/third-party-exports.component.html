@@ -75,9 +75,10 @@
 	The rosters are gated per age group by Third-Party Roster Access in the L-A-D-T Editor; the
 	schedule tab is the whole event and is not gated, because schedules are public. This report
 	counts runs, not what was in them: which age groups a given run carried is not recorded
-	anywhere. Each event is a group of monthly bars, yyyy/mm: a month nobody exported in is not a
-	column at all, and a month one event sat out is a gap in its group rather than a zero. Third
-	party is an outside agency signed in with an export-only login; any other role is one of the
-	event's own administrators running the same export. Events that exported nothing are left out
-	rather than drawn as zero.
+	anywhere. The chart is one line per event over the months, yyyy/mm: a month nobody exported in
+	at all is not a column, but within the months that did happen an event that took nothing is
+	zero and its line drops to the axis. Third party is an outside agency signed in with an
+	export-only login; any other role is one of the event's own administrators running the same
+	export. Events that exported nothing all window are left out rather than drawn as a flat line
+	along zero.
 </app-usage-pivot-report>

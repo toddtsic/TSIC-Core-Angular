@@ -8,7 +8,6 @@ import { UsagePivotReportComponent } from './usage-pivot-report.component';
 import {
 	categoryAxis,
 	countAxis,
-	outerDataLabel,
 	resolveChartTheme,
 	resolvePalette,
 	useUsageReportFetch,
@@ -20,15 +19,19 @@ import {
  * Third-Party Roster Exports — who has taken roster data out of an event, from which
  * event, and when.
  *
- * The EVENT is the group and its months are the bars inside it (Todd, 2026-09-20), each
- * bar a month's successful exports — successes only, because a refused run exported
- * nothing. The dated log beneath is the report's real answer: a count says data left, a
- * row says who took it and on what day.
+ * Months run along the x axis and each event is its own LINE (Todd, 2026-09-20), so the
+ * report reads as a trend: when an agency started pulling, and whether it still is.
+ * Successes only, because a refused run exported nothing. The dated log beneath is the
+ * report's real answer: a count says data left, a row says who took it and on what day.
  *
  * Columns are the months that saw an export anywhere in the window, "yyyy/MM", oldest
  * first. Months nobody exported in are not columns: a year-long window would otherwise be
- * mostly empty. A month one event sat out is a gap in its group, never a zero bar with a
- * "0" printed over it.
+ * mostly empty. Within the months that did happen, an event that took nothing is 0 and its
+ * line drops to the axis — the month is real and so is the nothing.
+ *
+ * Opens on a 1y window (`defaultWindowDays`). At the page's 7d default this report is
+ * empty almost every day of the year, which reads as "never used" rather than "not this
+ * week".
  *
  * SOURCE IS NOT THE USAGE LOG. Every other report on this page reads logs.AppUsage; this
  * one reads Jobs.JobReportExportHistory, written by the export endpoint itself on each
@@ -75,7 +78,10 @@ export class ThirdPartyExportsComponent {
 			id: r.jobId,
 			name: r.jobName,
 			total: r.exports,
-			cells: new Map<string, number>(r.monthCounts.map(m => [m.month, m.exports])),
+			// ?? [] guards an API older than this page: the field is required by the contract,
+			// but a half-rendered view with stale tiles beside an empty chart is a worse
+			// failure than an honest empty one.
+			cells: new Map<string, number>((r.monthCounts ?? []).map(m => [m.month, m.exports])),
 		})));
 
 	readonly log = computed(() => this.fetch.data()?.log ?? []);
@@ -101,37 +107,33 @@ export class ThirdPartyExportsComponent {
 		if (!d) return '';
 		const quiet = d.jobCount - d.eventsExported;
 		const tail = quiet > 0 ? ` — ${quiet} live ${quiet === 1 ? 'event' : 'events'} exported nothing and ${quiet === 1 ? 'is' : 'are'} not drawn` : '';
-		return `successful exports per event, by month${tail}`;
+		return `successful exports per month, one line per event${tail}`;
 	});
 
 	/**
-	 * The event is the group, its months are the bars inside it. A month the event did not
-	 * export in is null rather than 0 — ej2 draws no column and, more to the point, prints
-	 * no "0" label over an empty slot.
+	 * Time on the x axis, one line per event. A month an event did not export in is 0 and
+	 * its line drops to the axis rather than breaking — the same honesty rule report 03
+	 * keeps, and here it is the true reading: the month happened and that event took
+	 * nothing. Only a month NOBODY exported in is absent, and then it is not a column.
 	 */
 	readonly chartSeries = computed<SeriesModel[]>(() => {
 		const months = this.columns();
 		const rows = this.rows();
 		if (rows.length === 0 || months.length === 0) return [];
-		const data = rows.map(r => {
-			const point: Record<string, string | number | null> = { x: r.name };
-			months.forEach((m, i) => { point['m' + i] = r.cells.get(m) ?? null; });
+		const data = months.map(m => {
+			const point: Record<string, string | number> = { x: m };
+			rows.forEach((r, i) => { point['j' + i] = r.cells.get(m) ?? 0; });
 			return point;
 		});
-		return months.map((m, i) => ({
-			type: 'Column',
+		return rows.map((r, i) => ({
+			type: 'Line',
 			dataSource: data,
 			xName: 'x',
-			yName: 'm' + i,
-			name: m,
+			yName: 'j' + i,
+			name: r.name,
 			fill: this.palette[i % this.palette.length],
-			opacity: 0.85,
-			// Fixed width: a proportional width lets one lone month fill an event's whole band.
-			columnWidthInPixel: 28,
-			cornerRadius: { topLeft: 3, topRight: 3 },
-			emptyPointSettings: { mode: 'Gap' },
-			// ej2 reads the label off the MARKER, not the series — at series level it silently does nothing.
-			marker: outerDataLabel(this.theme),
+			width: 2,
+			marker: { visible: true, width: 7, height: 7, shape: 'Circle' },
 		}));
 	});
 
@@ -140,13 +142,11 @@ export class ThirdPartyExportsComponent {
 		Math.max(0, ...this.rows().flatMap(r => [...r.cells.values()])));
 
 	/**
-	 * Event names are long ("American Select Lacrosse:New Jersey 2026"). Rotated and given
-	 * room rather than truncated: the whole point of the axis is knowing WHICH event.
+	 * Months, so the labels are short and upright. Putting time here is also what gets the
+	 * event names off the axis: "American Select Lacrosse:New Jersey 2026" is unreadable
+	 * rotated under a bar, and belongs in the legend, where it has a whole line to itself.
 	 */
-	readonly primaryXAxis = computed(() => categoryAxis(this.theme, {
-		labelIntersectAction: 'Rotate45',
-		labelStyle: { color: this.theme.muted, size: '11px', fontFamily: this.theme.fontFamily },
-	}));
+	readonly primaryXAxis = computed(() => categoryAxis(this.theme));
 
 	readonly primaryYAxis = computed(() => countAxis(this.theme, this.maxExports()));
 

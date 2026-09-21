@@ -99,7 +99,20 @@ export class UsageAnalysisStateService {
 		computation: ceiling => ceiling,
 	});
 
-	readonly windowDays = signal<number>(7);
+	/**
+	 * The window, reseeded whenever the report changes to whatever that report asks for
+	 * (`defaultWindowDays`, else 7 days).
+	 *
+	 * A report that counts something rare needs a window long enough to contain it: the
+	 * page's 7d default left Third-Party Roster Exports on an empty chart roughly every day
+	 * of the year, which reads as "they have never touched it" rather than "not this week".
+	 * A linkedSignal on the report, so picking a different one reseeds while any window the
+	 * user then chooses still sticks for as long as they stay on it.
+	 */
+	readonly windowDays = linkedSignal<UsageReportDef, number>({
+		source: this.activeReport,
+		computation: report => report.defaultWindowDays ?? 7,
+	});
 
 	/** The bucket a bucketed report groups by. Daily first: the only unit with more than a few bars until the log ages. */
 	readonly bucket = signal<UsageBucket>('day');

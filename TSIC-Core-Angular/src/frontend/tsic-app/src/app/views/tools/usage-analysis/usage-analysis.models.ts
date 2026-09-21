@@ -108,6 +108,12 @@ export interface UsageReportDef {
 	readonly built: boolean;
 	/** 'bucket' swaps the Window dropdown for the Bucket dropdown while the report is on screen. */
 	readonly timeAxis: UsageTimeAxis;
+	/**
+	 * The window this report opens on, when 7 days is the wrong place to start. Picking the
+	 * report reseeds the Window dropdown to it; the user's own pick then holds. Ignored by a
+	 * report on the bucket axis, which has no Window dropdown.
+	 */
+	readonly defaultWindowDays?: number;
 }
 
 const ALL_ADMINS = [Roles.Superuser, Roles.SuperDirector, Roles.Director] as const;
@@ -125,7 +131,8 @@ export const USAGE_REPORTS: readonly UsageReportDef[] = [
 	{ key: 'report-04', label: 'User Requests by Route', group: 'users', roleLens: true, roles: ALL_ADMINS, built: true, timeAxis: 'window' },
 	// Reads Jobs.JobReportExportHistory, never the log — so no client lens, for the same
 	// reason Registrations over Time has none: its rows carry no client to filter by.
-	{ key: 'report-07', label: 'Third-Party Roster Exports', group: 'users', roles: ALL_ADMINS, built: true, timeAxis: 'window', clientLens: false },
+	// Opens on a year: exports happen a handful of times a year, so 7d is empty almost always.
+	{ key: 'report-07', label: 'Third-Party Roster Exports', group: 'users', roles: ALL_ADMINS, built: true, timeAxis: 'window', clientLens: false, defaultWindowDays: 365 },
 	{ key: 'report-02', label: 'Public Requests by Route', group: 'public', roles: ALL_ADMINS, built: true, timeAxis: 'window' },
 	{ key: 'report-05', label: 'Registrations over Time', group: 'registrations', roles: ALL_ADMINS, built: true, timeAxis: 'bucket', clientLens: false },
 	{ key: 'report-06', label: 'Report-06', group: 'users', roles: SUPERUSER, built: false, timeAxis: 'window' },
