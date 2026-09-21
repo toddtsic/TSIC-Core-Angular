@@ -167,7 +167,6 @@ export type { ChangePasswordRoleOptionDto } from './models/ChangePasswordRoleOpt
 export type { ChangePasswordSearchRequest } from './models/ChangePasswordSearchRequest';
 export type { ChangePasswordSearchResultDto } from './models/ChangePasswordSearchResultDto';
 export type { ChargeTypeRefDto } from './models/ChargeTypeRefDto';
-export type { ChatMessageDto } from './models/ChatMessageDto';
 export type { CheckExistingRegistrationsResponse } from './models/CheckExistingRegistrationsResponse';
 export type { CheckinStateDto } from './models/CheckinStateDto';
 export type { ChecklistAgegroupDivisionsDto } from './models/ChecklistAgegroupDivisionsDto';
@@ -353,8 +352,6 @@ export type { GameShiftTarget } from './models/GameShiftTarget';
 export type { GamesPerDayDto } from './models/GamesPerDayDto';
 export type { GameStatusOptionDto } from './models/GameStatusOptionDto';
 export type { GameSummaryResponse } from './models/GameSummaryResponse';
-export type { GetChatMessagesRequest } from './models/GetChatMessagesRequest';
-export type { GetChatMessagesResponse } from './models/GetChatMessagesResponse';
 export type { GetConfirmationTextRequest } from './models/GetConfirmationTextRequest';
 export type { GrantThirdPartyAccessRequest } from './models/GrantThirdPartyAccessRequest';
 export type { IdentityExistsResponse } from './models/IdentityExistsResponse';
