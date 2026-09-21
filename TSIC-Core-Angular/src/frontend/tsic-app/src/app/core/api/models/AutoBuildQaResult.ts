@@ -7,6 +7,7 @@ import type { CrossEventQaResult } from './CrossEventQaResult';
 import type { QaBackToBack } from './QaBackToBack';
 import type { QaBracketGame } from './QaBracketGame';
 import type { QaDoubleBooking } from './QaDoubleBooking';
+import type { QaDuplicateFieldName } from './QaDuplicateFieldName';
 import type { QaGamesPerDate } from './QaGamesPerDate';
 import type { QaGamesPerFieldPerDay } from './QaGamesPerFieldPerDay';
 import type { QaGamesPerTeam } from './QaGamesPerTeam';
@@ -24,6 +25,7 @@ export type AutoBuildQaResult = {
     fieldDoubleBookings: Array<QaDoubleBooking>;
     teamDoubleBookings: Array<QaDoubleBooking>;
     rankMismatches: Array<QaRankMismatch>;
+    duplicateFieldNames: Array<QaDuplicateFieldName>;
     backToBackGames: Array<QaBackToBack>;
     repeatedMatchups: Array<QaRepeatedMatchup>;
     inactiveTeamsInGames: Array<QaInactiveTeamInGame>;

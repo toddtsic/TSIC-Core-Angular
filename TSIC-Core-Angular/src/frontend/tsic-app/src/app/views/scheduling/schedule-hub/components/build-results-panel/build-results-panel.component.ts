@@ -45,6 +45,7 @@ export class BuildResultsPanelComponent {
             ? (qa.fieldDoubleBookings?.length ?? 0)
             + (qa.teamDoubleBookings?.length ?? 0)
             + (qa.rankMismatches?.length ?? 0)
+            + (qa.duplicateFieldNames?.length ?? 0)
             : 0;
         if (criticalCount > 0) return 'error';
         if (r.gamesFailedToPlace > 0) return 'warning';
@@ -70,7 +71,8 @@ export class BuildResultsPanelComponent {
         if (!qa) return 0;
         return (qa.fieldDoubleBookings?.length ?? 0)
             + (qa.teamDoubleBookings?.length ?? 0)
-            + (qa.rankMismatches?.length ?? 0);
+            + (qa.rankMismatches?.length ?? 0)
+            + (qa.duplicateFieldNames?.length ?? 0);
     });
 
     readonly qaWarningCount = computed(() => {

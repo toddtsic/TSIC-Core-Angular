@@ -81,6 +81,7 @@ public class ScheduleQaController : ControllerBase
         WriteCheckRow(summary, ref sRow, "Field Double Bookings", qa.FieldDoubleBookings.Count, "Critical");
         WriteCheckRow(summary, ref sRow, "Team Double Bookings", qa.TeamDoubleBookings.Count, "Critical");
         WriteCheckRow(summary, ref sRow, "Rank Mismatches", qa.RankMismatches.Count, "Critical");
+        WriteCheckRow(summary, ref sRow, "Duplicate Field Names", qa.DuplicateFieldNames.Count, "Critical");
         WriteCheckRow(summary, ref sRow, "Unscheduled Teams", qa.UnscheduledTeams.Count, "Warning");
         WriteCheckRow(summary, ref sRow, "Back-to-Back Games", qa.BackToBackGames.Count, "Warning");
         WriteCheckRow(summary, ref sRow, "Repeated Matchups", qa.RepeatedMatchups.Count, "Warning");
@@ -115,6 +116,15 @@ public class ScheduleQaController : ControllerBase
         if (qa.RankMismatches.Count > 0)
             AddSheet(workbook, "Rank Mismatches", new[] { "AgeGroup", "Division", "Team", "Field", "GameTime", "SchedNo", "ActualRank" },
                 qa.RankMismatches.Select(i => new object[] { i.AgegroupName, i.DivName, i.TeamName, i.FieldName, i.GameDate, i.ScheduleNo, i.ActualDivRank }));
+
+        // One row per colliding field record, grouped under the shared name.
+        if (qa.DuplicateFieldNames.Count > 0)
+            AddSheet(workbook, "Duplicate Field Names",
+                new[] { "Name On Schedule", "Stored Name", "Location", "Games", "FieldId" },
+                qa.DuplicateFieldNames.SelectMany(d => d.Fields.Select(f => new object[]
+                {
+                    d.FieldName, f.StoredName, f.Location, f.GameCount, f.FieldId.ToString()
+                })));
 
         if (qa.UnscheduledTeams.Count > 0)
             AddSheet(workbook, "Unscheduled Teams", new[] { "AgeGroup", "Division", "Team", "Rank" },

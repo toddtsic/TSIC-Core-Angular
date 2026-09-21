@@ -217,6 +217,15 @@
     overflow-y: auto;
 }
 
+// Guidance under a detail table — how to read the rows above it.
+.detail-note {
+    margin: var(--space-3) 0 0;
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border-color);
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+}
+
 .detail-table {
     width: 100%;
     border-collapse: collapse;

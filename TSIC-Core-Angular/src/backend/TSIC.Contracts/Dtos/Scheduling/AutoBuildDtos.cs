@@ -117,6 +117,7 @@ public record AutoBuildQaResult
     public required List<QaDoubleBooking> FieldDoubleBookings { get; init; }
     public required List<QaDoubleBooking> TeamDoubleBookings { get; init; }
     public required List<QaRankMismatch> RankMismatches { get; init; }
+    public required List<QaDuplicateFieldName> DuplicateFieldNames { get; init; }
 
     // ── Warnings ──
     public required List<QaBackToBack> BackToBackGames { get; init; }
@@ -188,6 +189,37 @@ public record QaDoubleBooking
     public required string Label { get; init; }
     public required DateTime GameDate { get; init; }
     public required int Count { get; init; }
+}
+
+/// <summary>
+/// Two or more DISTINCT field records (different FieldId) whose names collide on this
+/// job's schedule. Either the director duplicated one physical field in the catalog — in
+/// which case the FieldId-keyed double-booking check cannot see the resulting collisions,
+/// because two games on the same grass look like two fields — or the fields are genuinely
+/// different and nobody reading the printed schedule can tell which one to drive to.
+/// Matching is case- and whitespace-insensitive, so "Field 3 " and "field 3" collide.
+/// </summary>
+public record QaDuplicateFieldName
+{
+    /// <summary>The colliding name, trimmed — the label as a parent reads it.</summary>
+    public required string FieldName { get; init; }
+    /// <summary>The distinct field records sharing that name (always 2+).</summary>
+    public required List<QaDuplicateFieldEntry> Fields { get; init; }
+}
+
+/// <summary>
+/// One field record participating in a name collision. Address is carried so the director
+/// can tell a duplicated catalog row from two real fields that happen to share a name.
+/// </summary>
+public record QaDuplicateFieldEntry
+{
+    public required Guid FieldId { get; init; }
+    /// <summary>Name exactly as stored — exposes casing and trailing-space variants.</summary>
+    public required string StoredName { get; init; }
+    /// <summary>Address / city / state, joined for display. Empty when the field has none.</summary>
+    public required string Location { get; init; }
+    /// <summary>Scheduled games booked on this field record in this job.</summary>
+    public required int GameCount { get; init; }
 }
 
 /// <summary>

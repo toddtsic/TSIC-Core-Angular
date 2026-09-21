@@ -427,6 +427,9 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
         // 15) Teams below game guarantee
         var teamsBelowGuarantee = await GetTeamsBelowGuaranteeAsync(jobId, gamesPerTeam, ct);
 
+        // 16) Duplicate field names — distinct FieldIds sharing one name
+        var duplicateFieldNames = await GetDuplicateFieldNamesAsync(jobId, ct);
+
         return new AutoBuildQaResult
         {
             TotalGames = totalGames,
@@ -434,6 +437,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             FieldDoubleBookings = fieldDoubleBookings,
             TeamDoubleBookings = teamDoubleBookings,
             RankMismatches = rankMismatches,
+            DuplicateFieldNames = duplicateFieldNames,
             BackToBackGames = backToBackGames,
             RepeatedMatchups = repeatedMatchups,
             InactiveTeamsInGames = inactiveTeamsInGames,
@@ -576,6 +580,74 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             })
             .OrderBy(d => d.GameDate)
             .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Distinct field records (different FieldId) whose names collide on this job's
+    /// schedule. This is the blind spot behind GetFieldDoubleBookingsAsync: that check
+    /// keys on FieldId, so if one physical field was entered into the catalog twice,
+    /// two games on the same grass at the same hour key differently and pass clean.
+    /// Names are compared trimmed and case-insensitively, so "Field 3 " collides with
+    /// "field 3" — a parent reading the schedule cannot see that difference either.
+    /// Scope is fields actually booked in this job; an unused duplicate hurts nobody.
+    /// </summary>
+    private async Task<List<QaDuplicateFieldName>> GetDuplicateFieldNamesAsync(
+        Guid jobId, CancellationToken ct)
+    {
+        // Fields this job actually books, with their game counts.
+        var usage = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate != null && s.FieldId != null)
+            .GroupBy(s => s.FieldId!.Value)
+            .Select(g => new { FieldId = g.Key, GameCount = g.Count() })
+            .ToListAsync(ct);
+
+        if (usage.Count < 2)
+            return []; // Need two booked fields before names can collide
+
+        var fieldIds = usage.Select(u => u.FieldId).ToList();
+
+        // Names come from the catalog, not Schedule.FName: the catalog is the source of
+        // truth the schedule grid builds its column headers from.
+        var fields = await _context.Fields
+            .AsNoTracking()
+            .Where(f => fieldIds.Contains(f.FieldId))
+            .Select(f => new
+            {
+                f.FieldId,
+                StoredName = f.FName ?? "",
+                f.Address,
+                f.City,
+                f.State
+            })
+            .ToListAsync(ct);
+
+        var gameCountById = usage.ToDictionary(u => u.FieldId, u => u.GameCount);
+
+        return fields
+            .Where(f => !string.IsNullOrWhiteSpace(f.StoredName))
+            .GroupBy(f => f.StoredName.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => new QaDuplicateFieldName
+            {
+                FieldName = g.Key,
+                Fields = g
+                    .Select(f => new QaDuplicateFieldEntry
+                    {
+                        FieldId = f.FieldId,
+                        StoredName = f.StoredName,
+                        Location = string.Join(", ",
+                            new[] { f.Address, f.City, f.State }
+                                .Where(p => !string.IsNullOrWhiteSpace(p))
+                                .Select(p => p!.Trim())),
+                        GameCount = gameCountById.GetValueOrDefault(f.FieldId)
+                    })
+                    .OrderByDescending(e => e.GameCount)
+                    .ThenBy(e => e.Location, StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+            })
+            .OrderBy(d => d.FieldName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task<List<QaDoubleBooking>> GetTeamDoubleBookingsAsync(

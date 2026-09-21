@@ -35,7 +35,8 @@ export class QaResultsComponent {
         const qa = this.qaResult();
         if (!qa) return 'empty';
         if (qa.fieldDoubleBookings.length > 0 || qa.teamDoubleBookings.length > 0
-            || qa.rankMismatches.length > 0 || this.bracketErrors().length > 0) return 'error';
+            || qa.rankMismatches.length > 0 || qa.duplicateFieldNames.length > 0
+            || this.bracketErrors().length > 0) return 'error';
         if (qa.unscheduledTeams.length > 0 || qa.backToBackGames.length > 0
             || qa.repeatedMatchups.length > 0 || qa.inactiveTeamsInGames.length > 0
             || this.bracketWarnings().length > 0) return 'warning';
@@ -48,6 +49,7 @@ export class QaResultsComponent {
         return qa.fieldDoubleBookings.length
             + qa.teamDoubleBookings.length
             + qa.rankMismatches.length
+            + qa.duplicateFieldNames.length
             + qa.unscheduledTeams.length
             + qa.backToBackGames.length
             + qa.repeatedMatchups.length

@@ -548,6 +548,8 @@ export type { PushTeamOptionDto } from './models/PushTeamOptionDto';
 export type { QaBackToBack } from './models/QaBackToBack';
 export type { QaBracketGame } from './models/QaBracketGame';
 export type { QaDoubleBooking } from './models/QaDoubleBooking';
+export type { QaDuplicateFieldEntry } from './models/QaDuplicateFieldEntry';
+export type { QaDuplicateFieldName } from './models/QaDuplicateFieldName';
 export type { QaGamesPerDate } from './models/QaGamesPerDate';
 export type { QaGamesPerFieldPerDay } from './models/QaGamesPerFieldPerDay';
 export type { QaGamesPerTeam } from './models/QaGamesPerTeam';

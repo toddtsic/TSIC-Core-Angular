@@ -203,6 +203,56 @@
                     </div>
                 }
             </div>
+
+            <!-- Duplicate Field Names -->
+            <div class="check-card" [class.check-pass]="qa.duplicateFieldNames.length === 0"
+                 [class.check-fail]="qa.duplicateFieldNames.length > 0">
+                <button class="check-header" (click)="toggleSection('duplicateFieldNames')"
+                        [disabled]="qa.duplicateFieldNames.length === 0">
+                    <div class="check-status">
+                        @if (qa.duplicateFieldNames.length === 0) {
+                            <i class="bi bi-check-circle text-success"></i>
+                        } @else {
+                            <i class="bi bi-x-circle text-danger"></i>
+                        }
+                    </div>
+                    <div class="check-info">
+                        <div class="check-title">Duplicate Field Names</div>
+                        <div class="check-subtitle">Two different fields share one name — double-booking checks can't see collisions between them</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge" [class.bg-success]="qa.duplicateFieldNames.length === 0"
+                              [class.bg-danger]="qa.duplicateFieldNames.length > 0">{{ qa.duplicateFieldNames.length }}</span>
+                        @if (qa.duplicateFieldNames.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('duplicateFieldNames')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('duplicateFieldNames') && qa.duplicateFieldNames.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Name On Schedule</th><th>Stored As</th><th>Location</th><th>Games</th></tr></thead>
+                            <tbody>
+                                @for (dup of qa.duplicateFieldNames; track dup.fieldName) {
+                                    @for (f of dup.fields; track f.fieldId) {
+                                        <tr>
+                                            <td class="fw-semibold">{{ $first ? dup.fieldName : '' }}</td>
+                                            <td>{{ f.storedName }}</td>
+                                            <td>{{ f.location || '—' }}</td>
+                                            <td>{{ f.gameCount }}</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                        <p class="detail-note">
+                            Same location on both rows usually means one physical field was entered
+                            into the catalog twice — merge them, then re-run QA. Different locations
+                            mean the fields are real but indistinguishable on a printed schedule.
+                        </p>
+                    </div>
+                }
+            </div>
         </div>
 
         <!-- ═══════════════ WARNING CHECKS ═══════════════ -->
