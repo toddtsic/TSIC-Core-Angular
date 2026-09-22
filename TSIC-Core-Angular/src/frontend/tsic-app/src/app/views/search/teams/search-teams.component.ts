@@ -17,6 +17,7 @@ import { LocalStorageService } from '@infrastructure/services/local-storage.serv
 import type {
 	TeamSearchRequest,
 	TeamSearchResponse,
+	TeamSearchResultDto,
 	TeamFilterOptionsDto,
 	TeamSearchDetailDto,
 	AccountingRecordDto,
@@ -523,11 +524,61 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		}
 	}
 
+	/**
+	 * Row ordinals for the in-flight export, keyed by teamId. The `#` column is unbound — the
+	 * number is stamped into the DOM by `tsicRowNumbers` and never reaches the row data — so the
+	 * exporter writes an empty column unless it is supplied in `excelQueryCellInfo`. Built here
+	 * because the export order is this array's order, not the grid's current sort.
+	 */
+	private exportRowOrdinals = new Map<string, number>();
+
 	exportExcel(): void {
 		const results = this.searchResults();
 		const grid = this.grid();
-  if (grid && results) {
+		if (grid && results) {
+			this.exportRowOrdinals = new Map(results.result.map((r, i) => [r.teamId, i + 1]));
 			grid.excelExport({ dataSource: results.result });
+		}
+	}
+
+	/**
+	 * Column templates do NOT travel into the Excel export — the exporter writes the raw field
+	 * value. Every column whose on-screen reading is composed in its template has to be composed
+	 * again here or the sheet disagrees with the grid: Team is `{club}: {team}` on screen but the
+	 * bare `teamName` in the sheet, Active reads Yes/No but exports TRUE/FALSE, `#` exports blank
+	 * (see above), and RegDate exports raw ISO text.
+	 *
+	 * LOP is deliberately left alone: the grid truncates `5 (strongest)` to `5` for column width,
+	 * a constraint the sheet does not have. Paid/Owed likewise stay numeric so Excel can sum them.
+	 */
+	onExcelQueryCellInfo(args: { column: { headerText: string }; data: TeamSearchResultDto; value: unknown }): void {
+		const d = args.data;
+		switch (args.column.headerText) {
+			case '#':
+				args.value = this.exportRowOrdinals.get(d.teamId) ?? '';
+				break;
+			case 'Team':
+				args.value = d.clubName ? `${d.clubName}: ${d.teamName}` : d.teamName;
+				break;
+			case 'Active':
+				args.value = d.active ? 'Yes' : 'No';
+				break;
+			case 'RegDate': {
+				// The DTO carries an ISO STRING. When the grid renders, its own DataManager revives
+				// that string into a Date, which is why the column's `type="date" format="M/d/yyyy
+				// h:mm a"` reads properly on screen — but the export is handed `results.result`
+				// directly, bypassing that revival, so the exporter wrote the raw ISO text.
+				//
+				// Reviving it here (rather than pre-formatting a string) makes it a REAL Excel
+				// datetime cell: the column's format travels with it as the Excel number format
+				// `m/d/yyyy h:mm AM/PM`, and the column stays sortable and filterable as a date.
+				//
+				// `new Date(iso)` matches the grid's own parse: the backend serializes an
+				// unspecified-kind DateTime with no offset, and both readers take that as LOCAL.
+				const ms = Date.parse(d.regDate);
+				args.value = isNaN(ms) ? d.regDate : new Date(ms);
+				break;
+			}
 		}
 	}
 

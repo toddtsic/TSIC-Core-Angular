@@ -391,6 +391,7 @@
         [frozenColumns]="isMobile() ? 1 : 3"
         [pageSettings]="pageSettings"
         [sortSettings]="sortSettings"
+        (excelQueryCellInfo)="onExcelQueryCellInfo($event)"
       >
         <e-columns>
           <!-- Row number (unbound — stamped by tsicRowNumbers; no offset binding, so the grid's
