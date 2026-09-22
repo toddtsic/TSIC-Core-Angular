@@ -1,5 +1,7 @@
+using System.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using TSIC.Contracts.Dtos.TeamChat;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Time;
@@ -37,13 +39,40 @@ public class TeamChatRepository : ITeamChatRepository
         IF @rc < 0
             RAISERROR('teamchat: could not acquire the thread lock (sp_getapplock returned %d)', 16, 1, @rc);";
 
-    private const string NextSeqSql = "SELECT NEXT VALUE FOR teamchat.MessageSequence AS Value";
+    /// <summary>
+    /// Drawn with raw ADO, NOT <c>SqlQueryRaw</c>. EF composes over a raw query the moment it is
+    /// enumerated -- it wraps the text as <c>SELECT TOP(1) [s].[Value] FROM (&lt;sql&gt;) AS [s]</c>
+    /// -- and SQL Server forbids NEXT VALUE FOR inside a sub-query, CTE or derived table
+    /// (Msg 11719). That made every post 500 before it reached an insert. ToListAsync does not
+    /// help; the wrapping is what is illegal, not the paging.
+    /// </summary>
+    private const string NextSeqSql = "SELECT NEXT VALUE FOR teamchat.MessageSequence";
 
     private readonly SqlDbContext _context;
 
     public TeamChatRepository(SqlDbContext context)
     {
         _context = context;
+    }
+
+    /// <summary>
+    /// Allocates the next subsystem-wide ordering number. MUST be called inside the caller's
+    /// transaction while the thread lock is held -- the command enlists in
+    /// <see cref="DatabaseFacade.CurrentTransaction"/>, and a draw outside that transaction is
+    /// exactly the out-of-order commit the lock exists to prevent.
+    /// </summary>
+    private async Task<long> NextSeqAsync(CancellationToken ct)
+    {
+        var connection = _context.Database.GetDbConnection();
+
+        if (connection.State != ConnectionState.Open)
+            await connection.OpenAsync(ct);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = NextSeqSql;
+        cmd.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
+
+        return (long)(await cmd.ExecuteScalarAsync(ct))!;
     }
 
     // ── Reads ───────────────────────────────────────────────────────────────────────────
@@ -215,7 +244,7 @@ public class TeamChatRepository : ITeamChatRepository
                 return new ChatAppendResult { Row = dup!, Created = false };
             }
 
-            var seq = await _context.Database.SqlQueryRaw<long>(NextSeqSql).FirstAsync(ct);
+            var seq = await NextSeqAsync(ct);
 
             var now = DateTime.Now;
             newMessageId = Guid.NewGuid();
@@ -269,7 +298,7 @@ public class TeamChatRepository : ITeamChatRepository
             [new SqlParameter("@resource", $"teamchat:{teamId}")],
             ct);
 
-        var seq = await _context.Database.SqlQueryRaw<long>(NextSeqSql).FirstAsync(ct);
+        var seq = await NextSeqAsync(ct);
 
         message.DeletedSeq = seq;
         message.LastTouchSeq = seq;
