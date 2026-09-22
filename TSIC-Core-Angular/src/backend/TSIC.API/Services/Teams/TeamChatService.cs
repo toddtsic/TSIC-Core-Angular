@@ -28,6 +28,27 @@ public class TeamChatService : ITeamChatService
     /// </summary>
     private const int PushBodyLength = 100;
 
+    /// <summary>
+    /// How long the fan-out may hold the POST before it is abandoned.
+    ///
+    /// The fan-out is awaited inside the request deliberately -- a 201 that means the doorbell
+    /// actually rang is worth more than a few hundred milliseconds, and firing it on a
+    /// background task disposes the scoped DbContext out from under it. But catching every
+    /// exception only covers FCM FAILING. It does nothing about FCM being SLOW: the await holds
+    /// the 201, the sender's optimistic bubble never reconciles, their HTTP client times out,
+    /// and they tap send again. Idempotency keeps that correct -- one row, a 200 on the replay
+    /// -- but the thread looks broken while it happens.
+    ///
+    /// So the fan-out gets its own budget, not the request's. A late doorbell is recoverable
+    /// from the cursor; a post that appears to have failed is not.
+    ///
+    /// NOTE FOR ANY FUTURE MOVE OFF THE REQUEST PATH: awaiting this is currently also the only
+    /// thing throttling a burst of posts, since every send costs the author a round trip. v1
+    /// ships without a rate limiter BECAUSE of that. Move the fan-out off the request and the
+    /// ceiling goes with it -- a limiter stops being optional at the same moment.
+    /// </summary>
+    private static readonly TimeSpan FanOutBudget = TimeSpan.FromSeconds(5);
+
     private readonly ITeamChatRepository _repo;
     private readonly IFirebasePushService _push;
     private readonly string _staticsBaseUrl;
@@ -114,15 +135,24 @@ public class TeamChatService : ITeamChatService
     /// Resolves recipients for the TEAM (not the job), filters on their own preferences, and
     /// sends one message per device with that device's badge.
     ///
-    /// Never throws. The message is already committed and every client catches up from the
-    /// cursor, so a failed doorbell is recoverable and a failed post is not.
+    /// Never throws, and never runs longer than <see cref="FanOutBudget"/>. The message is
+    /// already committed and every client catches up from the cursor, so a failed or abandoned
+    /// doorbell is recoverable and a failed post is not.
     /// </summary>
     private async Task<int> FanOutAsync(
         Guid teamId, Guid authorRegId, string authorUserId, ChatMessageDto message, CancellationToken ct)
     {
+        // The budget covers the WHOLE fan-out, not just the FCM call: the recipient lookups are
+        // database round trips and a stalled one holds the 201 exactly as hard as a stalled
+        // Firebase does. Linked to the request token so a disconnecting client still cuts it
+        // short -- the budget can only ever make this finish sooner.
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        budget.CancelAfter(FanOutBudget);
+        var fanOutCt = budget.Token;
+
         try
         {
-            var context = await _repo.GetTeamContextAsync(teamId, ct);
+            var context = await _repo.GetTeamContextAsync(teamId, fanOutCt);
             if (context == null) return 0;
 
             // ONE rule picks the pool AND the sender. Resolving them separately is how a push
@@ -146,7 +176,7 @@ public class TeamChatService : ITeamChatService
                 return 0;
             }
 
-            var targets = await _repo.GetFanoutTargetsAsync(teamId, authorRegId, authorUserId, ct);
+            var targets = await _repo.GetFanoutTargetsAsync(teamId, authorRegId, authorUserId, fanOutCt);
 
             var now = DateTime.Now;
             var nowTime = TimeOnly.FromDateTime(now);
@@ -172,7 +202,17 @@ public class TeamChatService : ITeamChatService
                     TeamId = teamId,
                     Seq = message.Seq
                 },
-                ct);
+                fanOutCt);
+        }
+        catch (OperationCanceledException ex) when (budget.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            // Our budget, not the caller going away. Warning rather than error: nothing is lost,
+            // every phone still picks the message up on its next poll. A run of these means
+            // Firebase is degraded, which is worth seeing without paging anyone.
+            _logger.LogWarning(ex,
+                "Chat push fan-out for message {MessageId} on team {TeamId} exceeded its {BudgetSeconds}s budget and was abandoned; the message is stored and clients will catch up from the cursor",
+                message.MessageId, teamId, FanOutBudget.TotalSeconds);
+            return 0;
         }
         catch (Exception ex)
         {

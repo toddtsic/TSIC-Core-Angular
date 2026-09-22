@@ -37,9 +37,12 @@ public interface ITeamChatService
     /// Posts a message and fans the push out. A replayed ClientMessageId returns the original
     /// row and sends NO second push.
     ///
-    /// The push is best-effort: a fan-out failure is logged and does not fail the post. The
-    /// message is already stored, and every client catches up from the cursor regardless --
-    /// losing the doorbell is recoverable, losing the message is not.
+    /// The push is best-effort AND time-boxed: a fan-out failure is logged and does not fail
+    /// the post, and a fan-out that runs long is abandoned rather than allowed to hold the
+    /// response. The message is already stored, and every client catches up from the cursor
+    /// regardless -- losing the doorbell is recoverable, losing the message is not.
+    ///
+    /// So <see cref="ChatPostResult.PushesSent"/> being 0 never means the post failed.
     /// </summary>
     Task<ChatPostResult> PostMessageAsync(
         Guid teamId, Guid regId, string userId, PostChatMessageRequest request, CancellationToken ct = default);
