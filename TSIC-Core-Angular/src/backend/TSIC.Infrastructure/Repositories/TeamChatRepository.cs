@@ -67,11 +67,33 @@ public class TeamChatRepository : ITeamChatRepository
     }
 
     public async Task<ChatMessagePage> GetPageAsync(
-        Guid teamId, long since, int take, CancellationToken ct = default)
+        Guid teamId, long? since, int take, CancellationToken ct = default)
     {
-        // take + 1 rather than a second COUNT: one extra row answers HasMore for free.
-        var rows = await ProjectMessages(_context.Messages.AsNoTracking()
-                .Where(m => m.TeamId == teamId && m.LastTouchSeq > since)
+        var thread = _context.Messages.AsNoTracking().Where(m => m.TeamId == teamId);
+
+        // take + 1 rather than a second COUNT: one extra row answers HasMore for free. In both
+        // modes the extra row is the LAST one read, so trimming the tail is what drops it --
+        // ascending that is the newest, descending it is the oldest.
+        if (since is not { } cursor)
+        {
+            // NEWEST PAGE. Read backwards from the end, then reverse: the caller always gets
+            // ascending rows, so nothing downstream has to know which mode produced them.
+            // The index is on (TeamId, LastTouchSeq), so descending is the same range scan
+            // walked the other way -- no sort, no extra cost.
+            var newest = await ProjectMessages(thread.OrderByDescending(m => m.LastTouchSeq))
+                .Take(take + 1)
+                .ToListAsync(ct);
+
+            var hasOlder = newest.Count > take;
+            if (hasOlder) newest.RemoveAt(newest.Count - 1);
+            newest.Reverse();
+
+            return new ChatMessagePage { Rows = newest, HasMore = hasOlder };
+        }
+
+        // CATCH-UP. Strictly after the cursor, ascending.
+        var rows = await ProjectMessages(thread
+                .Where(m => m.LastTouchSeq > cursor)
                 .OrderBy(m => m.LastTouchSeq))
             .Take(take + 1)
             .ToListAsync(ct);

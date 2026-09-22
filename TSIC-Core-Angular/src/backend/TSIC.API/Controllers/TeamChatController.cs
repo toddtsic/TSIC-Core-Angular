@@ -63,7 +63,7 @@ public class TeamChatController : ControllerBase
     public async Task<IActionResult> GetMessages(
         Guid teamId,
         CancellationToken ct,
-        [FromQuery] long since = 0,
+        [FromQuery] long? since = null,
         [FromQuery] int take = DefaultTake)
     {
         if (await DenyIfNotPermitted(teamId, ct) is { } denied) return denied;
@@ -72,7 +72,19 @@ public class TeamChatController : ControllerBase
         // Clamped rather than rejected: a client asking for 5,000 wants everything, and a 400
         // teaches it nothing a clamp does not.
         take = Math.Clamp(take, 1, MaxTake);
-        since = Math.Max(0, since);
+
+        // OMITTING `since` IS NOT `since=0`, AND THE DEFAULT MUST STAY NULL.
+        //
+        // Omitted means "open this thread" -- the newest page, which is what a client wants on
+        // first load. Zero means "from the beginning of time", which on a team carrying a season
+        // of history opens the app on its oldest hundred messages and makes the member page
+        // forward to reach today. A `long` defaulting to 0 cannot tell those apart, which is
+        // exactly how this shipped wrong the first time.
+        //
+        // A negative `since` is a client bug, not a request for the newest page: it is clamped
+        // to 0 (catch up from the start) rather than folded into null, so the mistake surfaces
+        // as a long scroll rather than silently meaning something else.
+        if (since is { } s) since = Math.Max(0, s);
 
         return Ok(await _chat.GetMessagesAsync(teamId, caller.RegId, caller.UserId, since, take, ct));
     }

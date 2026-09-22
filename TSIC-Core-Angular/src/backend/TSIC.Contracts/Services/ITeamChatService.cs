@@ -18,12 +18,20 @@ public interface ITeamChatService
     Task<bool> IsEnabledAsync(Guid teamId, CancellationToken ct = default);
 
     /// <summary>
-    /// Catch-up from a cursor. <paramref name="since"/> is a LastTouchSeq -- 0 for a first
-    /// load. The returned <see cref="ChatPageDto.NextCursor"/> is what to send next; see that
-    /// property for why it is not the high-water mark.
+    /// One page of a thread. <paramref name="since"/> NULL opens on the NEWEST
+    /// <paramref name="take"/> messages -- what a client wants on first load. A LastTouchSeq
+    /// catches up strictly after that cursor.
+    ///
+    /// NULL is not 0. 0 means "from the beginning of the thread", so a team carrying a season
+    /// of history opens on its oldest messages and pages forward to reach today.
+    ///
+    /// Either way the page comes back ascending, and the returned
+    /// <see cref="ChatPageDto.NextCursor"/> is what to send next; see that property for why it
+    /// is not the high-water mark, and <see cref="ChatPageDto.HasMore"/> for why "more" points
+    /// a different way in each mode.
     /// </summary>
     Task<ChatPageDto> GetMessagesAsync(
-        Guid teamId, Guid regId, string userId, long since, int take, CancellationToken ct = default);
+        Guid teamId, Guid regId, string userId, long? since, int take, CancellationToken ct = default);
 
     /// <summary>
     /// Posts a message and fans the push out. A replayed ClientMessageId returns the original

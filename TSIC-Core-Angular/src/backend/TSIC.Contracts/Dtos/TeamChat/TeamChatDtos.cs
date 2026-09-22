@@ -81,7 +81,8 @@ public record ChatPageDto
 
     /// <summary>
     /// What to send as <c>since</c> on the NEXT call: the highest LastTouchSeq IN THIS PAGE,
-    /// or the caller's own <c>since</c> when the page is empty.
+    /// or the caller's own <c>since</c> when the page is empty (0 when <c>since</c> was
+    /// omitted, which can only mean an empty thread).
     ///
     /// NEVER <see cref="HighWaterSeq"/>. An earlier draft of this contract echoed the
     /// team-wide maximum back as the cursor while also returning <see cref="HasMore"/> -- which
@@ -96,7 +97,20 @@ public record ChatPageDto
     /// </summary>
     public required long HighWaterSeq { get; init; }
 
-    /// <summary>True when more rows sit past <see cref="NextCursor"/>. Poll again immediately.</summary>
+    /// <summary>
+    /// More rows exist IN THE DIRECTION THIS PAGE WAS READ -- and that direction depends on how
+    /// the page was asked for:
+    ///
+    ///   `since` SENT     -> more NEWER rows past <see cref="NextCursor"/>. Poll again now.
+    ///   `since` OMITTED  -> more OLDER rows BEHIND this page. That is history, NOT a backlog:
+    ///                       do not poll on it. There is no way to fetch it in v1, so a client
+    ///                       that treats it as "keep asking" loops forever on the same page.
+    ///
+    /// One flag rather than two because only one direction is reachable per mode: a catch-up
+    /// caller is already holding everything older, and a newest-page caller is already at the
+    /// end. A second flag would be permanently false in one mode and read as "nothing more" by
+    /// someone checking the wrong one.
+    /// </summary>
     public required bool HasMore { get; init; }
 
     /// <summary>Where this reader's read-marker sits. Per team, not per job.</summary>

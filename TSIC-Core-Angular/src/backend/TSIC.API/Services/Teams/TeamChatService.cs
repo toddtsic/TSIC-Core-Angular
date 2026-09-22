@@ -54,7 +54,7 @@ public class TeamChatService : ITeamChatService
     // ── Read ────────────────────────────────────────────────────────────────────────────
 
     public async Task<ChatPageDto> GetMessagesAsync(
-        Guid teamId, Guid regId, string userId, long since, int take, CancellationToken ct = default)
+        Guid teamId, Guid regId, string userId, long? since, int take, CancellationToken ct = default)
     {
         var page = await _repo.GetPageAsync(teamId, since, take, ct);
         var highWater = await _repo.GetHighWaterSeqAsync(teamId, ct);
@@ -69,8 +69,13 @@ public class TeamChatService : ITeamChatService
         // which is when a chat thread matters most.
         //
         // An empty page returns the caller's own cursor unchanged, so a poll that finds
-        // nothing does not move the client backwards to zero.
-        var nextCursor = page.Rows.Count > 0 ? page.Rows[^1].LastTouchSeq : since;
+        // nothing does not move the client backwards to zero. An empty NEWEST page means an
+        // empty thread, and 0 is the honest cursor for one.
+        //
+        // One expression covers both modes because the page is always ascending: the last row
+        // holds the highest LastTouchSeq whether it was read forwards or read backwards and
+        // reversed.
+        var nextCursor = page.Rows.Count > 0 ? page.Rows[^1].LastTouchSeq : since ?? 0;
 
         return new ChatPageDto
         {
