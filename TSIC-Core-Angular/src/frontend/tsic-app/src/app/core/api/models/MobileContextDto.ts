@@ -17,6 +17,7 @@ export type MobileContextDto = {
     momLabel: string;
     dadLabel: string;
     teamsAppEnabled: boolean;
+    teamChatEnabled: boolean;
     isPlaced: boolean;
     isOpenable: boolean;
     unavailableReason?: string | null;

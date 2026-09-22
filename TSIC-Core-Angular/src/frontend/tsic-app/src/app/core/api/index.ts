@@ -167,6 +167,11 @@ export type { ChangePasswordRoleOptionDto } from './models/ChangePasswordRoleOpt
 export type { ChangePasswordSearchRequest } from './models/ChangePasswordSearchRequest';
 export type { ChangePasswordSearchResultDto } from './models/ChangePasswordSearchResultDto';
 export type { ChargeTypeRefDto } from './models/ChargeTypeRefDto';
+export type { ChatHistoryPageDto } from './models/ChatHistoryPageDto';
+export type { ChatMessageDto } from './models/ChatMessageDto';
+export type { ChatPageDto } from './models/ChatPageDto';
+export type { ChatPreferencesDto } from './models/ChatPreferencesDto';
+export type { ChatReadStateDto } from './models/ChatReadStateDto';
 export type { CheckExistingRegistrationsResponse } from './models/CheckExistingRegistrationsResponse';
 export type { CheckinStateDto } from './models/CheckinStateDto';
 export type { ChecklistAgegroupDivisionsDto } from './models/ChecklistAgegroupDivisionsDto';
@@ -428,6 +433,7 @@ export type { LegacyCompareResultDto } from './models/LegacyCompareResultDto';
 export type { LoginRequest } from './models/LoginRequest';
 export type { LoginResponseDto } from './models/LoginResponseDto';
 export type { LogRestockRequest } from './models/LogRestockRequest';
+export type { MarkChatReadRequest } from './models/MarkChatReadRequest';
 export type { MasterScheduleCell } from './models/MasterScheduleCell';
 export type { MasterScheduleDay } from './models/MasterScheduleDay';
 export type { MasterScheduleExportRequest } from './models/MasterScheduleExportRequest';
@@ -507,6 +513,7 @@ export type { PoolTransferPreviewRequest } from './models/PoolTransferPreviewReq
 export type { PoolTransferPreviewResponse } from './models/PoolTransferPreviewResponse';
 export type { PoolTransferRequest } from './models/PoolTransferRequest';
 export type { PoolTransferResultDto } from './models/PoolTransferResultDto';
+export type { PostChatMessageRequest } from './models/PostChatMessageRequest';
 export type { PreconfigureRequest } from './models/PreconfigureRequest';
 export type { PreFlightDisconnect } from './models/PreFlightDisconnect';
 export type { PrerequisiteCheckResponse } from './models/PrerequisiteCheckResponse';
