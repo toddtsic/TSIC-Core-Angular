@@ -272,6 +272,73 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
             .ToListAsync(ct);
     }
 
+    public async Task<List<AccountingRecordDto>> GetClubRepLedgerAsync(
+        Guid clubRepRegistrationId,
+        IReadOnlyCollection<Guid> teamIds,
+        CancellationToken ct = default)
+    {
+        // Two disjoint halves — a row either carries a team or it doesn't — so this is a single
+        // pass with no de-duplication to get wrong:
+        //   • the rep's teams' rows, WHOEVER tendered them. A moved team brings its payments to
+        //     the rep who now holds it, because that rep's fees are the sum of those same teams.
+        //   • the rep's own team-less rows. Nothing in the current code writes these for a club
+        //     rep, but the two ARB paths that post registration-keyed (ArbDefensiveService, the
+        //     ARB rounding credit) would the day team-level ARB is switched on for a job.
+        var rows = await _context.RegistrationAccounting
+            .AsNoTracking()
+            .Where(a => (a.TeamId != null && teamIds.Contains(a.TeamId.Value))
+                     || (a.RegistrationId == clubRepRegistrationId && a.TeamId == null))
+            .Join(_context.AccountingPaymentMethods,
+                a => a.PaymentMethodId,
+                pm => pm.PaymentMethodId,
+                (a, pm) => new { a, pm })
+            .OrderByDescending(x => x.a.Createdate)
+            .Select(x => new
+            {
+                x.a,
+                Method = x.pm.PaymentMethod,
+                // Only resolved when the payer is someone else — an ordinary ledger never reads
+                // these columns, and never renders a label.
+                PayerClub = x.a.RegistrationId == clubRepRegistrationId ? null : x.a.Registration!.ClubName,
+                PayerFirst = x.a.RegistrationId == clubRepRegistrationId ? null : x.a.Registration!.User!.FirstName,
+                PayerLast = x.a.RegistrationId == clubRepRegistrationId ? null : x.a.Registration!.User!.LastName
+            })
+            .ToListAsync(ct);
+
+        return rows.Select(x => new AccountingRecordDto
+        {
+            AId = x.a.AId,
+            TeamId = x.a.TeamId,
+            Date = x.a.Createdate,
+            PaymentMethod = x.Method ?? x.a.Paymeth ?? "",
+            DueAmount = x.a.Dueamt,
+            PaidAmount = x.a.Payamt,
+            Comment = x.a.Comment,
+            CheckNo = x.a.CheckNo,
+            PromoCode = x.a.PromoCode,
+            Active = x.a.Active,
+            AdnTransactionId = x.a.AdnTransactionId,
+            AdnCc4 = x.a.AdnCc4,
+            AdnCcExpDate = x.a.AdnCcexpDate,
+            AdnInvoiceNo = x.a.AdnInvoiceNo,
+            // Was PaymentMethod.Contains("Credit Card"), which also matched the refund method,
+            // the void and both failed variants — offering Refund on rows with nothing to
+            // return, our own refund rows included (they carry a transaction id too).
+            CanRefund = x.a.AdnTransactionId != null && x.a.AdnTransactionId != ""
+                && RefundableMethods.Contains(x.a.PaymentMethodId),
+            PaidByClubName = x.PayerClub,
+            // Null, never "" or a bare space — a blank name would render as empty parentheses
+            // that read as a bug (same reason AR-103 nulls RepName in the target-club picker).
+            PaidByRepName = BuildRepName(x.PayerFirst, x.PayerLast)
+        }).ToList();
+    }
+
+    private static string? BuildRepName(string? first, string? last)
+    {
+        var name = $"{first} {last}".Trim();
+        return string.IsNullOrWhiteSpace(name) ? null : name;
+    }
+
     public async Task<RegistrationAccounting?> GetByAIdAsync(int aId, CancellationToken ct = default)
     {
         return await _context.RegistrationAccounting

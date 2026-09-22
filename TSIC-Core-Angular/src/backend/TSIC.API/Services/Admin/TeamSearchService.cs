@@ -391,7 +391,13 @@ public sealed class TeamSearchService : ITeamSearchService
         // accounting grid renders identical per-method owed / proc-fee / discount columns.
         var rawTeams = await _teamRepo.GetRegisteredTeamsForClubRepAndJobAsync(clubRepRegistrationId: clubRepRegistrationId, jobId: jobId, cancellationToken: ct);
         var teams = await _shaper.ShapeAsync(jobId, rawTeams, ct: ct);
-        var accountingRecords = await _accountingRepo.GetByRegistrationIdAsync(clubRepRegistrationId, ct);
+        // Read the ledger by TEAM, not by payer. The grid above is sourced from the rep's teams;
+        // sourcing the rows from the rep's registration made the two halves of this screen answer
+        // different questions, so a rep who received moved teams saw a correct balance over an
+        // empty ledger (AR-108). Team ids come from rawTeams, which already includes waitlisted,
+        // dropped and inactive teams — no extra round trip.
+        var accountingRecords = await _accountingRepo.GetClubRepLedgerAsync(
+            clubRepRegistrationId, rawTeams.Select(t => t.TeamId).ToList(), ct);
         var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(jobId, ct);
         // Job CC proc rate (0 when proc disabled) — powers the ledger modal's correction
         // impact note and net-adjustment solver; authoritative even on settled balances.
@@ -554,11 +560,17 @@ public sealed class TeamSearchService : ITeamSearchService
             }
 
             // Update team financials
+            Guid? currentClubRepRegistrationId = null;
             if (original.TeamId.HasValue)
             {
                 var team = await _teamRepo.GetTeamFromTeamId(original.TeamId.Value, ct);
                 if (team != null)
                 {
+                    // Whose rollup this refund actually moves. Normally the same registration that
+                    // tendered the payment — but a moved team belongs to a DIFFERENT rep now, and
+                    // the rep's totals are the sum of the teams they hold, so it is the current
+                    // holder whose header this changes, not the payer's (AR-108).
+                    currentClubRepRegistrationId = team.ClubrepRegistrationid;
                     // Reverses what was PAID (captured before Payamt was zeroed above), not
                     // Dueamt — the two only coincide because team charges book Dueamt == Payamt.
                     // ReversedAmount is the full original on a void, the requested amount on a
@@ -574,9 +586,16 @@ public sealed class TeamSearchService : ITeamSearchService
             // SUM(Teams.PaidTotal) with a fresh SQL query, so the team decrement above must be
             // flushed first or the rep's stored PaidTotal is recomputed from pre-void values
             // (PL-064: Search grid showed the old paid amount after a void).
-            if (original.RegistrationId.HasValue)
+            // Sync the team's CURRENT holder first — that is the rep whose stored totals this
+            // refund actually changes. Then the payer, if it is a different registration: their
+            // own sum is unaffected (the team isn't theirs any more), but keeping the call means
+            // the ordinary case — payer and holder being the same rep — behaves exactly as before.
+            foreach (var regId in new[] { currentClubRepRegistrationId, original.RegistrationId }
+                         .Where(id => id.HasValue)
+                         .Select(id => id!.Value)
+                         .Distinct())
             {
-                await _registrationRepo.SynchronizeClubRepFinancialsAsync(original.RegistrationId.Value, userId, ct);
+                await _registrationRepo.SynchronizeClubRepFinancialsAsync(regId, userId, ct);
             }
 
             _logger.LogInformation("Team refund/{Action} processed: AId={AId}, Amount={Amount}, TransId={TransId}",

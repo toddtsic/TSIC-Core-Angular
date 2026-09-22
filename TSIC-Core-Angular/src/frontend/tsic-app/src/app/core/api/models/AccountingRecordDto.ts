@@ -23,5 +23,7 @@ export type AccountingRecordDto = {
     adnCcExpDate?: string | null;
     adnInvoiceNo?: string | null;
     canRefund?: boolean;
+    paidByClubName?: string | null;
+    paidByRepName?: string | null;
 };
 

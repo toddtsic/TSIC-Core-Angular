@@ -52,6 +52,19 @@ public record AccountingRecordDto
     public string? AdnCcExpDate { get; init; }
     public string? AdnInvoiceNo { get; init; }
     public bool CanRefund { get; init; }
+
+    /// <summary>
+    /// The club and rep who actually TENDERED this payment, set ONLY when that differs from the
+    /// club rep whose ledger is being viewed — i.e. the team has since been moved to another club
+    /// (<c>LadtService.MoveTeamToClubAsync</c>). The row is read by team, so it follows the team to
+    /// its new rep, but <c>RegistrationID</c> is never rewritten: the payment is a historical fact
+    /// about who paid, and the card that was charged is the card any refund credits. Null on every
+    /// ordinary row, so normal ledgers render exactly as before.
+    /// </summary>
+    public string? PaidByClubName { get; init; }
+
+    /// <summary>Rep name behind <see cref="PaidByClubName"/>; null when no name is on file.</summary>
+    public string? PaidByRepName { get; init; }
 }
 
 /// <summary>

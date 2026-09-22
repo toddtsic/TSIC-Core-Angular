@@ -345,6 +345,23 @@ export class AccountingLedgerComponent {
 		return ageGroup ? `${ageGroup} · ${teamLabel}` : teamLabel;
 	}
 
+	/** The club (and rep) who actually tendered a payment, when that is not the club rep whose
+	 *  ledger this is. Set only on rows whose team has since been moved to another club, so an
+	 *  ordinary ledger returns null throughout and renders unchanged. The row is here because it
+	 *  belongs to a team this rep now holds; this says where the money came from (AR-108). */
+	paidByName(record: AccountingRecordDto): string | null {
+		const club = record.paidByClubName?.trim();
+		if (!club) return null;
+		const rep = record.paidByRepName?.trim();
+		return rep ? `${club} (${rep})` : club;
+	}
+
+	/** Row-level phrasing of {@link paidByName}. */
+	paidByLabel(record: AccountingRecordDto): string | null {
+		const paidBy = this.paidByName(record);
+		return paidBy ? `Paid by ${paidBy}` : null;
+	}
+
 	/** True when the comment is the system-generated charge description, which embeds the
 	 *  player name as a colon-delimited segment ("{Job}:{Player}:{AgeGroup}:{Team}" with a
 	 *  team, or "{Role}:{Player}" without). Fully redundant in the family ledger now that the

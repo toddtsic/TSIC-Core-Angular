@@ -212,6 +212,23 @@
   word-break: break-word;
 }
 
+// Provenance for a payment tendered by a different club rep — the team was moved here after
+// it was paid for (AR-108). Rendered on a handful of rows at most, so it reads as an aside
+// rather than a status: muted like the comment line, with the icon carrying the emphasis so
+// the meaning does not rest on colour alone.
+.txn-paid-by {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: normal;
+  word-break: break-word;
+
+  i {
+    color: var(--bs-primary);
+    font-style: normal;
+  }
+}
+
 .cc4 {
   color: var(--text-muted);
   font-size: var(--font-size-xs);

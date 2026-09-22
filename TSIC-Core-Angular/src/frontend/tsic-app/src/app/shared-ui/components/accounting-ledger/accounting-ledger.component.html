@@ -82,6 +82,10 @@
         @if (teamNameFor(record); as owner) { <div class="txn-owner">{{ owner }}</div> }
         @if (ownerTeamLabel(record); as team) { <div class="txn-team"><i class="bi bi-person me-1"></i>{{ team }}</div> }
         <div class="txn-primary"><span class="txn-date-inline">{{ record.date | date:'M/d/yy' }} · </span>{{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
+        <!-- Only set when this team was moved here from another club: the row follows the team,
+             but the payment stays a fact about whoever tendered it (AR-108). Null on every
+             ordinary row, so ordinary ledgers render exactly as before. -->
+        @if (paidByLabel(record); as paidBy) { <div class="txn-paid-by"><i class="bi bi-arrow-return-right me-1"></i>{{ paidBy }}</div> }
         @if (displayComment(record); as cmt) { <div class="txn-comment">{{ cmt }}</div> }
       </td>
       <td class="text-end amount">{{ record.dueAmount | currency }}</td>
@@ -264,8 +268,16 @@
               <div class="cc-confirm">
                 <strong><i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Confirm CC Refund</strong>
                 <p class="cc-confirm-detail">
-                  Refunding <strong>{{ amountValue() | currency }}</strong> to card ending in <strong>{{ rec.adnCc4 ?? '—' }}</strong>.
+                  Refunding <strong>{{ amountValue() | currency }}</strong> to card ending in <strong>{{ rec.adnCc4 ?? '—' }}</strong>@if (paidByName(rec); as paidBy) { , which belongs to <strong>{{ paidBy }}</strong>}.
                 </p>
+                @if (paidByName(rec); as paidBy) {
+                  <!-- The team moved clubs after this payment. The credit follows the original
+                       transaction back to the card that was charged, which is not the rep whose
+                       ledger this is — say so before it is sent (AR-108). -->
+                  <p class="cc-confirm-warning">
+                    This team moved clubs after the payment. The money returns to the original payer, not to this club rep.
+                  </p>
+                }
                 <p class="cc-confirm-warning">This processes immediately via Authorize.Net and cannot be undone.</p>
                 <div class="cc-confirm-actions">
                   <button type="button" class="btn btn-sm btn-danger" (click)="confirmRefund()">

@@ -82,8 +82,38 @@ public interface IRegistrationAccountingRepository
     /// Get all accounting records for a registration, joined with payment method.
     /// Sets CanRefund = true for CC payments with a transaction ID.
     /// Ordered by Createdate desc. AsNoTracking.
+    ///
+    /// ⚠ This is the PAYER-keyed read, and it is correct for PLAYER and FAMILY money only —
+    /// that money is written with a RegistrationId and no TeamId, so the payer is the only key
+    /// it has. It is the WRONG read for a club rep: team money carries both keys, and a team can
+    /// be moved to another club rep (<c>LadtService.MoveTeamToClubAsync</c>) without its ledger
+    /// rows being rewritten. A club-rep screen built on this read shows the new rep an EMPTY
+    /// ledger beside a correct balance. Use <see cref="GetClubRepLedgerAsync"/> there.
     /// </summary>
     Task<List<AccountingRecordDto>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The club rep ledger: every row belonging to the teams this rep CURRENTLY holds, plus any
+    /// row tendered by the rep that carries no team at all. Rows follow the TEAM, which is what a
+    /// club rep's account is made of — their fees are the sum of their teams, so their ledger has
+    /// to be the sum of their teams' payments or the two halves of the screen disagree.
+    ///
+    /// <c>RegistrationID</c> is deliberately NOT rewritten when a team moves. The row stays a
+    /// truthful record of who paid, and any refund follows its <c>adnTransactionID</c> back to the
+    /// card that was actually charged. Where the payer differs from <paramref name="clubRepRegistrationId"/>,
+    /// the row carries <see cref="AccountingRecordDto.PaidByClubName"/> so it can explain itself
+    /// on screen instead of appearing unattributed.
+    ///
+    /// The two halves cannot overlap (one requires a TeamId, the other requires none), so there is
+    /// nothing to de-duplicate. Ordered by Createdate desc. AsNoTracking.
+    /// </summary>
+    /// <param name="clubRepRegistrationId">The rep whose ledger this is.</param>
+    /// <param name="teamIds">That rep's current teams — waitlisted, dropped and inactive included,
+    /// since their payments are still theirs to see.</param>
+    Task<List<AccountingRecordDto>> GetClubRepLedgerAsync(
+        Guid clubRepRegistrationId,
+        IReadOnlyCollection<Guid> teamIds,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Get a single accounting record by AId (tracked, for refund operations).
