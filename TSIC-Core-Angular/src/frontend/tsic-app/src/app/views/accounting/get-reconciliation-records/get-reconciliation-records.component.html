@@ -328,7 +328,7 @@
                                 <e-aggregates>
                                     <e-aggregate>
                                         <e-columns>
-                                            <e-column field="amount" type="Sum" format="C2">
+                                            <e-column field="amount" type="Sum" [format]="{ type: 'number', format: 'C2' }">
                                                 <ng-template #footerTemplate let-data>
                                                     <span class="ledger-agg">Total {{ data.Sum }}</span>
                                                 </ng-template>

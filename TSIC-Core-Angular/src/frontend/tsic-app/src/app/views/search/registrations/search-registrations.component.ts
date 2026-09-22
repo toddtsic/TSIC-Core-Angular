@@ -995,18 +995,105 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Export options. `includeHiddenColumn: true` deliberately exports columns the grid hides (the
-   *  Active column exists only for this), but that would also emit an empty "Invite" column on
-   *  every export made without an Invitations filter. This Syncfusion version has no per-column
-   *  `allowExporting`, so the column list is named explicitly instead when the filter is off. */
-  private excelExportProps(dataSource: RegistrationSearchResultDto[]): Record<string, unknown> {
-    const props: Record<string, unknown> = { dataSource, includeHiddenColumn: true };
-    const grid = this.grid();
-    if (!this.showInviteColumn() && grid) {
-      props['columns'] = grid.getColumns().filter(c => c.field !== 'inviteStatusName');
-    }
-    return props;
+  /**
+   * Run the export with the columns a human wants in the sheet.
+   *
+   * NEVER pass `columns` to `excelExport`. Handing Syncfusion an export column list makes it run
+   * `updateColumnTypeForExportColumns`, which copies column types BY INDEX from the grid's columns
+   * onto the array it was given:
+   *
+   *     exportColumns[i].type = gridColumns[i].type;
+   *
+   * `getColumns()` returns the grid's LIVE column objects, so a filtered list is those same
+   * objects one slot out of step — the loop walks a null down the whole array in one pass. This
+   * grid used to filter out the Invite column that way, and the cost was permanent: after a single
+   * export every column read `type: null`, including ones that declare `type="date"`. That killed
+   * the export outright (`aggregateStyle` does an unguarded `column.type.toLowerCase()`) and left
+   * the grid's filter and sort operators wrong until the page was reloaded.
+   *
+   * Column choice is expressed through `visible` instead, which the exporter honours by itself,
+   * and which costs nothing because the flags are put back when the export settles:
+   *
+   *   active           hidden on screen (the name is struck through instead) but wanted in the
+   *                    sheet — exporting it is the only reason the column exists
+   *   inviteStatusName already `[visible]="showInviteColumn()"`, so it drops out on its own
+   *   registrationId   already `[visible]="false"` — a primary key is not for readers
+   *   checkbox column  exports as a dead empty column; hide it for the duration
+   *
+   * Direct writes to `column.visible` are deliberate: `setProperties` would notify the grid and
+   * re-render it mid-export.
+   */
+  private runExcelExport(grid: GridComponent, rows: RegistrationSearchResultDto[]): void {
+    type GridColumn = ReturnType<GridComponent['getColumns']>[number];
+    const saved: { column: GridColumn; visible: boolean }[] = [];
+    const override = (column: GridColumn | undefined, visible: boolean): void => {
+      if (!column || column.visible === visible) return;
+      saved.push({ column, visible: column.visible });
+      column.visible = visible;
+    };
+
+    override(grid.getColumnByField('active'), true);
+    override(grid.getColumns().find(c => c.type === 'checkbox'), false);
+
+    this.exportRowOrdinals = new Map(rows.map((r, i) => [r.registrationId, i + 1]));
+
+    const restore = (): void => saved.forEach(s => (s.column.visible = s.visible));
+    Promise.resolve(grid.excelExport({ dataSource: rows })).then(restore, restore);
   }
+
+  /**
+   * Column templates do NOT travel into the Excel export — the exporter writes the raw bound
+   * field. Every column whose on-screen reading is composed in its template has to be composed
+   * again here, or the sheet disagrees with the grid.
+   *
+   * Registered and DOB need reviving rather than rewriting: the DTO carries ISO strings, and the
+   * grid reads correctly only because its own DataManager turns them into Dates before render.
+   * The export is handed `rows` directly, which skips that, so it wrote raw ISO text. A real
+   * `Date` makes Excel write a true datetime cell and carry the column's format across as the
+   * Excel number format, leaving the column sortable and filterable as a date.
+   *
+   * `#` is unbound — stamped into the DOM by `tsicRowNumbers` — so the exporter has nothing to
+   * write unless the ordinal is supplied. Paid/Owed stay numeric so Excel can sum them.
+   */
+  onExcelQueryCellInfo(args: { column: { headerText: string }; data: RegistrationSearchResultDto; value: unknown }): void {
+    const d = args.data;
+    switch (args.column.headerText) {
+      case '#':
+        args.value = this.exportRowOrdinals.get(d.registrationId) ?? '';
+        break;
+      case 'Name':
+        args.value = `${d.lastName}, ${d.firstName}`;
+        break;
+      case 'Invite':
+        args.value = this.inviteCellText(d);
+        break;
+      case 'Active':
+        args.value = d.active ? 'Yes' : 'No';
+        break;
+      case 'Role':
+        args.value = this.roleLabel(d.roleName);
+        break;
+      case 'Registered':
+        args.value = this.asExcelDate(d.registrationTs) ?? '';
+        break;
+      case 'DOB':
+        args.value = this.asExcelDate(d.dob) ?? '';
+        break;
+    }
+  }
+
+  /** ISO string → Date for the exporter, or the original text if it will not parse. */
+  private asExcelDate(iso: string | null | undefined): Date | string | null {
+    if (!iso) return null;
+    const ms = Date.parse(iso);
+    return isNaN(ms) ? iso : new Date(ms);
+  }
+
+  /**
+   * Row ordinals for the in-flight export, keyed by registrationId. The export order is the
+   * exported array's order, not the grid's current page or sort, so it is built per export.
+   */
+  private exportRowOrdinals = new Map<string, number>();
 
   exportExcel(): void {
     const grid = this.grid();
@@ -1015,7 +1102,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     // ARB card-expiring results are already the full unpaged set — export what's loaded.
     if (this.arbCardExpiringMode()) {
       const loaded = this.searchResults()?.result ?? [];
-      grid.excelExport(this.excelExportProps(loaded));
+      this.runExcelExport(grid, loaded);
       return;
     }
 
@@ -1026,7 +1113,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.searchService.search(req).subscribe({
       next: (full) => {
         this.isSearching.set(false);
-        grid.excelExport(this.excelExportProps(full.result));
+        this.runExcelExport(grid, full.result);
       },
       error: (err) => {
         this.isSearching.set(false);

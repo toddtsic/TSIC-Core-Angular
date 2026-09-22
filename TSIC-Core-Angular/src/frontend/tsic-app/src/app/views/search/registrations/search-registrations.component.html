@@ -798,6 +798,7 @@
             (rowSelected)="onRowSelected($event)"
             (rowDeselected)="onRowDeselected($event)"
             (dataBound)="onGridDataBound()"
+            (excelQueryCellInfo)="onExcelQueryCellInfo($event)"
           >
           <e-columns>
             <!-- Row number (unbound — stamped by tsicRowNumbers; the EXPLICIT offset carries the
@@ -919,15 +920,23 @@
             <e-column field="registrationId" [isPrimaryKey]="true" [visible]="false"></e-column>
           </e-columns>
 
+          <!-- `[format]` carries a `type` as a SEATBELT for Excel export, not for display. The
+               exporter's aggregateStyle runs `gridColumn.type.toLowerCase()` for every aggregate
+               column with no null guard, so one null-typed column takes the whole sheet down. A
+               `format` object short-circuits it: aggregateStyle sets `style.type` from
+               `format.type` and then skips the unguarded line. No `format` key inside, so nothing
+               is imposed as an Excel number format, and the footerTemplate still owns what shows
+               on screen. The null types that triggered this are fixed at the source in
+               `runExcelExport` — this keeps a future one from being fatal. -->
           <e-aggregates>
             <e-aggregate>
               <e-columns>
-                <e-column field="paidTotal" type="Custom">
+                <e-column field="paidTotal" type="Custom" [format]="{ type: 'number' }">
                   <ng-template #footerTemplate>
                     <div class="aggregate-value">{{ searchResults()!.totalPaid | currency }}</div>
                   </ng-template>
                 </e-column>
-                <e-column field="owedTotal" type="Custom">
+                <e-column field="owedTotal" type="Custom" [format]="{ type: 'number' }">
                   <ng-template #footerTemplate>
                     <div class="aggregate-value">{{ searchResults()!.totalOwed | currency }}</div>
                   </ng-template>

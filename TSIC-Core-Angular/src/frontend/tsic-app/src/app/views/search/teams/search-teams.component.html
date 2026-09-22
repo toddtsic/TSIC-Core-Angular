@@ -485,12 +485,12 @@
         <e-aggregates>
           <e-aggregate>
             <e-columns>
-              <e-column field="paidTotal" type="Custom">
+              <e-column field="paidTotal" type="Custom" [format]="{ type: 'number' }">
                 <ng-template #footerTemplate>
                   <div class="aggregate-value">{{ searchResults()!.totalPaid | currency }}</div>
                 </ng-template>
               </e-column>
-              <e-column field="owedTotal" type="Custom">
+              <e-column field="owedTotal" type="Custom" [format]="{ type: 'number' }">
                 <ng-template #footerTemplate>
                   <div class="aggregate-value">{{ searchResults()!.totalOwed | currency }}</div>
                 </ng-template>
