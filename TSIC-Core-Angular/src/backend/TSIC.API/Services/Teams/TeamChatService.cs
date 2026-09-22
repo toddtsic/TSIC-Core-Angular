@@ -110,6 +110,11 @@ public class TeamChatService : ITeamChatService
             HighWaterSeq = highWater,
             HasMore = !isNewestPage && page.HasMore,
             HasOlder = isNewestPage && page.HasMore,
+
+            // The Rows.Count check is redundant and stays anyway. HasMore is "the take + 1 row
+            // came back" and take is clamped to >= 1, so a page that has more cannot be empty --
+            // but the invariant HasOlder => PrevCursor != null is one the client is entitled to
+            // rely on, and a guard is cheaper than the bug where it stops holding.
             PrevCursor = isNewestPage && page.HasMore && page.Rows.Count > 0
                 ? page.Rows[0].Seq
                 : null,

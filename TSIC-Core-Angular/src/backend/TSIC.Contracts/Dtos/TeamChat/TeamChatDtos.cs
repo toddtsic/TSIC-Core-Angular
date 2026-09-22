@@ -76,7 +76,20 @@ public record ChatMessageDto
 /// </summary>
 public record ChatPageDto
 {
-    /// <summary>Ascending by <see cref="ChatMessageDto.LastTouchSeq"/>.</summary>
+    /// <summary>
+    /// Always ascending -- but on WHICH axis depends on how the page was asked for:
+    ///
+    ///   opening page (`since` omitted) -> ascending by Seq, the conversation's own order.
+    ///   catch-up     (`since` sent)    -> ascending by LastTouchSeq, the change order.
+    ///
+    /// This is not a wart. An opening page is a slice of the CONVERSATION and has to be the
+    /// last N things said; a catch-up page is a slice of the CHANGE LOG and has to be every
+    /// row touched since your cursor, edits to ancient messages included. They are different
+    /// questions and they sort on different axes.
+    ///
+    /// Render by Seq either way, and replace in place by MessageId -- then neither axis is
+    /// visible to a reader.
+    /// </summary>
     public required IReadOnlyList<ChatMessageDto> Messages { get; init; }
 
     /// <summary>
@@ -113,19 +126,35 @@ public record ChatPageDto
     /// Older messages exist BEHIND this page -- fetch them with
     /// <c>GET chat/messages/history?before=</c><see cref="PrevCursor"/>.
     ///
-    /// This is the flag a "load earlier" control binds to: it is true exactly when there is
-    /// something to load and tapping it will work. Always false on a catch-up page, which by
-    /// definition already holds everything older.
+    /// GUARANTEED: when this is true, <see cref="PrevCursor"/> is non-null. It can only be true
+    /// on a page that came back with more rows than <c>take</c>, and <c>take</c> is clamped to
+    /// at least 1, so such a page is never empty.
+    ///
+    /// ONLY EVER SET ON AN OPENING PAGE. On a catch-up page it is false -- empty or not -- and
+    /// that false means "NO INFORMATION", not "nothing above you". The server cannot answer the
+    /// question on a catch-up poll: whether history sits above you depends on the oldest row YOU
+    /// hold, which is yours to know and not in the request.
+    ///
+    /// SO DO NOT RE-BIND A "LOAD EARLIER" CONTROL FROM EVERY RESPONSE. Open the thread, latch
+    /// this, and from then on let the control's state follow the history responses. A client
+    /// that re-binds on each poll shows the button at open and loses it one poll later, which
+    /// reads as the feature flickering rather than as a paging bug.
     /// </summary>
     public required bool HasOlder { get; init; }
 
     /// <summary>
     /// The lowest <see cref="ChatMessageDto.Seq"/> in this page -- what to send as <c>before</c>
-    /// to walk backwards. Null when <see cref="HasOlder"/> is false.
+    /// to walk backwards. Null whenever <see cref="HasOlder"/> is false, and non-null whenever
+    /// it is true.
     ///
-    /// A Seq, NOT a LastTouchSeq: scrollback walks the conversation as it reads, and an edit to
-    /// an ancient message must not drag it to the top of "earlier". LastTouchSeq is the
-    /// catch-up axis and Seq is the display axis; scrollback belongs on the display axis.
+    /// A Seq, NOT a LastTouchSeq -- and the opening page is ordered by Seq precisely so that
+    /// this means what it says. On a LastTouchSeq-ordered page the lowest Seq present is merely
+    /// the oldest message that happens to have been touched recently, so everything between it
+    /// and the visually-oldest row on screen becomes unreachable through <c>before</c>. The two
+    /// decisions are one decision.
+    ///
+    /// Derivable from the page you already hold -- it is the Seq of the first message. It rides
+    /// the response so nothing has to rely on the client re-deriving it correctly.
     /// </summary>
     public long? PrevCursor { get; init; }
 
