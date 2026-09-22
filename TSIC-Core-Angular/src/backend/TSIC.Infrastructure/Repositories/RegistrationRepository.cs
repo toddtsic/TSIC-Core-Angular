@@ -2754,6 +2754,43 @@ public partial class RegistrationRepository : IRegistrationRepository
         if (adultRoleKey == AdultMetadataRoleResolver.UnassignedAdult)
             profileValues.Remove(nameof(Registrations.SpecialRequests));
 
+        // Where a row's team has since moved to a different club rep (AR-108), name the club that
+        // holds it now. This panel is the ONLY place those rows can still be seen: a rep who loses
+        // every team fails the IsClubRep test below (it needs an ACTIVE team), so they fall through
+        // to the generic payer-keyed ledger rendered from these records. Without the label their
+        // payments sit there unexplained beside a zeroed header — the rollup is the sum of teams
+        // they no longer hold. One query over the teams these rows actually reference; sequential,
+        // because every read here shares the one scoped DbContext.
+        var recordTeamIds = reg.RegistrationAccounting
+            .Where(a => a.TeamId.HasValue)
+            .Select(a => a.TeamId!.Value)
+            .Distinct()
+            .ToList();
+
+        var movedTeams = new Dictionary<Guid, (string? Club, string? Rep)>();
+        if (recordTeamIds.Count > 0)
+        {
+            var holders = await _context.Teams
+                .AsNoTracking()
+                .Where(t => recordTeamIds.Contains(t.TeamId)
+                    && t.ClubrepRegistrationid != null
+                    && t.ClubrepRegistrationid != reg.RegistrationId)
+                .Select(t => new
+                {
+                    t.TeamId,
+                    Club = t.ClubrepRegistration!.ClubName,
+                    First = t.ClubrepRegistration!.User!.FirstName,
+                    Last = t.ClubrepRegistration!.User!.LastName
+                })
+                .ToListAsync(ct);
+
+            foreach (var h in holders)
+            {
+                var rep = $"{h.First} {h.Last}".Trim();
+                movedTeams[h.TeamId] = (h.Club, string.IsNullOrWhiteSpace(rep) ? null : rep);
+            }
+        }
+
         // Build accounting records
         var accountingRecords = reg.RegistrationAccounting
             .OrderByDescending(a => a.Createdate)
@@ -2778,7 +2815,11 @@ public partial class RegistrationRepository : IRegistrationRepository
                 // variants — offering Refund on rows with nothing left to return.
                 CanRefund = !string.IsNullOrWhiteSpace(a.AdnTransactionId)
                     && (PaymentMethodIds.CcRefundable.Contains(a.PaymentMethodId)
-                        || IsRefundableLegacyMethodText(a.Paymeth))
+                        || IsRefundableLegacyMethodText(a.Paymeth)),
+                TeamNowWithClubName = a.TeamId.HasValue && movedTeams.TryGetValue(a.TeamId.Value, out var h)
+                    ? h.Club : null,
+                TeamNowWithRepName = a.TeamId.HasValue && movedTeams.TryGetValue(a.TeamId.Value, out var h2)
+                    ? h2.Rep : null
             })
             .ToList();
 

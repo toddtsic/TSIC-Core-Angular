@@ -86,6 +86,10 @@
              but the payment stays a fact about whoever tendered it (AR-108). Null on every
              ordinary row, so ordinary ledgers render exactly as before. -->
         @if (paidByLabel(record); as paidBy) { <div class="txn-paid-by"><i class="bi bi-arrow-return-right me-1"></i>{{ paidBy }}</div> }
+        <!-- The mirror, on the paying rep's own panel: where the team went. Mutually exclusive
+             with the label above — a row is either owed an explanation by its holder or by its
+             payer, never both. -->
+        @if (teamNowWithLabel(record); as movedTo) { <div class="txn-paid-by"><i class="bi bi-box-arrow-right me-1"></i>{{ movedTo }}</div> }
         @if (displayComment(record); as cmt) { <div class="txn-comment">{{ cmt }}</div> }
       </td>
       <td class="text-end amount">{{ record.dueAmount | currency }}</td>

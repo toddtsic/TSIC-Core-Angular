@@ -25,5 +25,7 @@ export type AccountingRecordDto = {
     canRefund?: boolean;
     paidByClubName?: string | null;
     paidByRepName?: string | null;
+    teamNowWithClubName?: string | null;
+    teamNowWithRepName?: string | null;
 };
 

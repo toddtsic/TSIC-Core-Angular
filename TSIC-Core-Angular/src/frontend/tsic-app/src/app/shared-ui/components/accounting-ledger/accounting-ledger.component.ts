@@ -362,6 +362,17 @@ export class AccountingLedgerComponent {
 		return paidBy ? `Paid by ${paidBy}` : null;
 	}
 
+	/** The mirror, shown to the rep who PAID: the club holding this row's team today. Set only
+	 *  when the team has moved away, which is the one case where these rows outlive the teams
+	 *  that explain them — a rep who loses every team drops out of the club-rep ledger entirely
+	 *  and lands on this generic one, with a zeroed header (AR-108). */
+	teamNowWithLabel(record: AccountingRecordDto): string | null {
+		const club = record.teamNowWithClubName?.trim();
+		if (!club) return null;
+		const rep = record.teamNowWithRepName?.trim();
+		return `Team now with ${rep ? `${club} (${rep})` : club}`;
+	}
+
 	/** True when the comment is the system-generated charge description, which embeds the
 	 *  player name as a colon-delimited segment ("{Job}:{Player}:{AgeGroup}:{Team}" with a
 	 *  team, or "{Role}:{Player}" without). Fully redundant in the family ledger now that the

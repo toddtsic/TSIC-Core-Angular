@@ -65,6 +65,20 @@ public record AccountingRecordDto
 
     /// <summary>Rep name behind <see cref="PaidByClubName"/>; null when no name is on file.</summary>
     public string? PaidByRepName { get; init; }
+
+    /// <summary>
+    /// The mirror of <see cref="PaidByClubName"/>, for the rep who PAID rather than the one who
+    /// now holds the team: the club this row's team belongs to today, set ONLY when that is not
+    /// the registration being viewed. A rep who loses every team stops being detected as a club
+    /// rep at all (<c>IsClubRep</c> requires an active team), so their panel falls through to the
+    /// generic payer-keyed ledger — where their old rows would otherwise sit unexplained beside a
+    /// zeroed header, their rollup being the sum of teams they no longer have. Null on every
+    /// ordinary row.
+    /// </summary>
+    public string? TeamNowWithClubName { get; init; }
+
+    /// <summary>Rep name behind <see cref="TeamNowWithClubName"/>; null when no name is on file.</summary>
+    public string? TeamNowWithRepName { get; init; }
 }
 
 /// <summary>
