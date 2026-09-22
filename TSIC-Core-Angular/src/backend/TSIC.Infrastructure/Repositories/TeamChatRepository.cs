@@ -74,13 +74,15 @@ public class TeamChatRepository : ITeamChatRepository
         // take + 1 rather than a second COUNT: one extra row answers HasMore for free. In both
         // modes the extra row is the LAST one read, so trimming the tail is what drops it --
         // ascending that is the newest, descending it is the oldest.
-        if (since is not { } cursor)
+        if (since is null)
         {
-            // NEWEST PAGE. Read backwards from the end, then reverse: the caller always gets
-            // ascending rows, so nothing downstream has to know which mode produced them.
-            // The index is on (TeamId, LastTouchSeq), so descending is the same range scan
-            // walked the other way -- no sort, no extra cost.
-            var newest = await ProjectMessages(thread.OrderByDescending(m => m.LastTouchSeq))
+            // NEWEST PAGE. Read backwards from the end of the CONVERSATION, then reverse: the
+            // caller always gets ascending rows, so nothing downstream has to know which mode
+            // produced them.
+            //
+            // Ordered by Seq, not LastTouchSeq -- see the interface. "Newest" to someone opening
+            // a thread means the end of the conversation, not the rows touched most recently.
+            var newest = await ProjectMessages(thread.OrderByDescending(m => m.Seq))
                 .Take(take + 1)
                 .ToListAsync(ct);
 
@@ -90,6 +92,8 @@ public class TeamChatRepository : ITeamChatRepository
 
             return new ChatMessagePage { Rows = newest, HasMore = hasOlder };
         }
+
+        var cursor = since.Value;
 
         // CATCH-UP. Strictly after the cursor, ascending.
         var rows = await ProjectMessages(thread
@@ -102,6 +106,24 @@ public class TeamChatRepository : ITeamChatRepository
         if (hasMore) rows.RemoveAt(rows.Count - 1);
 
         return new ChatMessagePage { Rows = rows, HasMore = hasMore };
+    }
+
+    public async Task<ChatMessagePage> GetHistoryPageAsync(
+        Guid teamId, long beforeSeq, int take, CancellationToken ct = default)
+    {
+        // Strictly before, so a client can hand back the lowest Seq it holds without re-fetching
+        // that row. Same take + 1 trick, same reverse: the page arrives ready to prepend.
+        var rows = await ProjectMessages(_context.Messages.AsNoTracking()
+                .Where(m => m.TeamId == teamId && m.Seq < beforeSeq)
+                .OrderByDescending(m => m.Seq))
+            .Take(take + 1)
+            .ToListAsync(ct);
+
+        var hasOlder = rows.Count > take;
+        if (hasOlder) rows.RemoveAt(rows.Count - 1);
+        rows.Reverse();
+
+        return new ChatMessagePage { Rows = rows, HasMore = hasOlder };
     }
 
     public async Task<long> GetHighWaterSeqAsync(Guid teamId, CancellationToken ct = default)

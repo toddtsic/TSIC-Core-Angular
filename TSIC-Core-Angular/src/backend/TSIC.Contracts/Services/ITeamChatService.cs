@@ -34,6 +34,17 @@ public interface ITeamChatService
         Guid teamId, Guid regId, string userId, long? since, int take, CancellationToken ct = default);
 
     /// <summary>
+    /// Scrollback: the <paramref name="take"/> messages immediately before
+    /// <paramref name="beforeSeq"/>, ascending, ready to prepend to the top of a thread.
+    ///
+    /// Returns a DIFFERENT shape from <see cref="GetMessagesAsync"/> on purpose --
+    /// <see cref="ChatHistoryPageDto"/> carries no live cursor, no unread count and no read
+    /// marker. Reading old messages is not catching up and must not move either one.
+    /// </summary>
+    Task<ChatHistoryPageDto> GetHistoryAsync(
+        Guid teamId, long beforeSeq, int take, CancellationToken ct = default);
+
+    /// <summary>
     /// Posts a message and fans the push out. A replayed ClientMessageId returns the original
     /// row and sends NO second push.
     ///

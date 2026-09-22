@@ -23,11 +23,17 @@ public interface ITeamChatRepository
     /// <summary>
     /// One page, always returned ascending by LastTouchSeq, in one of two modes.
     ///
-    /// <paramref name="since"/> NULL = the NEWEST <paramref name="take"/> rows -- what an app
-    /// opening a thread wants. Read descending and reversed before returning, so the caller
+    /// <paramref name="since"/> NULL = the NEWEST <paramref name="take"/> rows BY Seq -- what an
+    /// app opening a thread wants. Read descending and reversed before returning, so the caller
     /// sees the same ascending shape either way.
     ///
-    /// <paramref name="since"/> SET = catch-up, strictly after that cursor.
+    /// By Seq and not by LastTouchSeq, because "newest" to a reader means the end of the
+    /// CONVERSATION, not the most recently touched rows: ordering the opening page by
+    /// LastTouchSeq pulls an ancient message that was just edited into it and pushes a genuinely
+    /// recent one out. Nothing is lost by the swap -- that edited row carries a LastTouchSeq
+    /// above the page's maximum, so the next catch-up poll delivers it.
+    ///
+    /// <paramref name="since"/> SET = catch-up, strictly after that cursor, by LastTouchSeq.
     ///
     /// Null and 0 are DIFFERENT, and conflating them is the bug this overload exists to kill:
     /// 0 means "from the beginning of the thread", so a team with a season of history opened
@@ -42,6 +48,22 @@ public interface ITeamChatRepository
     /// </summary>
     Task<ChatMessagePage> GetPageAsync(
         Guid teamId, long? since, int take, CancellationToken ct = default);
+
+    /// <summary>
+    /// SCROLLBACK. The <paramref name="take"/> messages immediately BEFORE
+    /// <paramref name="beforeSeq"/> in thread order, returned ascending by Seq so they prepend
+    /// straight onto the top of a thread.
+    ///
+    /// By Seq in both the filter and the sort -- this walks the conversation as it reads. Using
+    /// LastTouchSeq here would make "earlier" mean "less recently edited", so an old message
+    /// someone fixed a typo in would jump out of its place in history.
+    ///
+    /// <see cref="ChatMessagePage.HasMore"/> on the result means OLDER rows still exist behind
+    /// this page. That is the only direction scrollback can travel, so there is no ambiguity in
+    /// reusing the flag here -- unlike on the forward path, where it has its own meaning.
+    /// </summary>
+    Task<ChatMessagePage> GetHistoryPageAsync(
+        Guid teamId, long beforeSeq, int take, CancellationToken ct = default);
 
     /// <summary>The team's current maximum LastTouchSeq. Zero on an empty thread, never null.</summary>
     Task<long> GetHighWaterSeqAsync(Guid teamId, CancellationToken ct = default);
@@ -179,16 +201,17 @@ public record ChatMessagePage
     public required IReadOnlyList<ChatMessageRow> Rows { get; init; }
 
     /// <summary>
-    /// More rows exist in THE DIRECTION THIS PAGE WAS READ -- which is not the same direction
-    /// in both modes, and is the one thing about this record that can be got wrong:
+    /// More rows exist beyond this page, in whichever direction the call was walking:
     ///
-    ///   catch-up (since SET)    -> more NEWER rows ahead; poll again immediately.
-    ///   newest page (since NULL) -> more OLDER rows behind; that is history, not a backlog.
+    ///   catch-up    -> more NEWER rows ahead.
+    ///   newest page -> more OLDER rows behind.
+    ///   scrollback  -> more OLDER rows behind.
     ///
-    /// Only one direction is reachable per mode -- a catch-up caller cannot ask for older, and
-    /// a newest-page caller is already at the end -- so a single flag is never ambiguous at the
-    /// call site. A second flag would be permanently false in one mode and invite exactly the
-    /// kind of "poll again" loop that a newest-page caller must NOT run.
+    /// This is a repository-level "the take+1 row was there", and the SERVICE is what splits it
+    /// into the two separate flags the wire carries -- ChatPageDto.HasMore (forward, poll again)
+    /// and ChatPageDto.HasOlder (backward, enable the control). They are deliberately NOT one
+    /// field on the wire: a client looping "while HasMore" on a direction-flipping flag never
+    /// terminates.
     /// </summary>
     public required bool HasMore { get; init; }
 }

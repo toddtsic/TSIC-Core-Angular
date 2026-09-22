@@ -90,6 +90,39 @@ public class TeamChatController : ControllerBase
     }
 
     /// <summary>
+    /// Scrollback -- the page of messages immediately above <paramref name="before"/> in thread
+    /// order. Its own route rather than a third mode on GetMessages, because it answers a
+    /// different question and must return a shape with no live cursor in it: a history page's
+    /// cursor fed back as `since` would rewind the reader through the whole season.
+    /// </summary>
+    [HttpGet("messages/history")]
+    [ProducesResponseType(typeof(ChatHistoryPageDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> GetHistory(
+        Guid teamId,
+        CancellationToken ct,
+        [FromQuery] long before = 0,
+        [FromQuery] int take = DefaultTake)
+    {
+        if (await DenyIfNotPermitted(teamId, ct) is { } denied) return denied;
+
+        // Resolved and discarded. Scrollback needs no identity of its own -- it moves no read
+        // marker and counts nothing -- but a token that cannot name a registration has no
+        // business on a team thread, and every other route on this controller says so.
+        if (Caller() is null) return CallerNotResolved();
+
+        // `before` is required here in a way `since` is not: omitting it would mean "everything
+        // before the beginning", which is silently always empty. A 400 says what went wrong.
+        if (before <= 0)
+            return BadRequest(new { error = "before must be a positive Seq from a page you already hold" });
+
+        take = Math.Clamp(take, 1, MaxTake);
+
+        return Ok(await _chat.GetHistoryAsync(teamId, before, take, ct));
+    }
+
+    /// <summary>
     /// Posts a message. Replaying a ClientMessageId returns the ORIGINAL message with 200 and
     /// sends no second push -- a retry on a flaky phone connection is the normal case.
     /// </summary>

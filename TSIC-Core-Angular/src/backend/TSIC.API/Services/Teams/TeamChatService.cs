@@ -93,17 +93,26 @@ public class TeamChatService : ITeamChatService
         // nothing does not move the client backwards to zero. An empty NEWEST page means an
         // empty thread, and 0 is the honest cursor for one.
         //
-        // One expression covers both modes because the page is always ascending: the last row
-        // holds the highest LastTouchSeq whether it was read forwards or read backwards and
-        // reversed.
-        var nextCursor = page.Rows.Count > 0 ? page.Rows[^1].LastTouchSeq : since ?? 0;
+        // MAX, NOT THE LAST ROW. A catch-up page is sorted by LastTouchSeq, so its last row is
+        // also its highest -- but a newest page is sorted by Seq, where the two come apart the
+        // moment anyone edits an old message. Taking the last row there would hand back a
+        // cursor lower than rows already in the page, and the next poll would re-deliver them.
+        var nextCursor = page.Rows.Count > 0 ? page.Rows.Max(r => r.LastTouchSeq) : since ?? 0;
+
+        // The forward and backward questions are answered separately on the wire. The repository
+        // reports one "there was a take+1 row"; which direction it was walking is known here.
+        var isNewestPage = since is null;
 
         return new ChatPageDto
         {
             Messages = page.Rows.Select(ToDto).ToList(),
             NextCursor = nextCursor,
             HighWaterSeq = highWater,
-            HasMore = page.HasMore,
+            HasMore = !isNewestPage && page.HasMore,
+            HasOlder = isNewestPage && page.HasMore,
+            PrevCursor = isNewestPage && page.HasMore && page.Rows.Count > 0
+                ? page.Rows[0].Seq
+                : null,
             LastReadSeq = readState.LastReadSeq,
             UnreadCount = readState.UnreadCount
         };
@@ -129,6 +138,21 @@ public class TeamChatService : ITeamChatService
         var pushesSent = await FanOutAsync(teamId, regId, userId, dto, ct);
 
         return new ChatPostResult { Message = dto, Created = true, PushesSent = pushesSent };
+    }
+
+    public async Task<ChatHistoryPageDto> GetHistoryAsync(
+        Guid teamId, long beforeSeq, int take, CancellationToken ct = default)
+    {
+        var page = await _repo.GetHistoryPageAsync(teamId, beforeSeq, take, ct);
+
+        return new ChatHistoryPageDto
+        {
+            Messages = page.Rows.Select(ToDto).ToList(),
+            HasOlder = page.HasMore,
+            // The oldest row in the page -- walk up from here. Null when there is nothing above
+            // it, so the control disables itself on the value rather than on a separate rule.
+            PrevCursor = page.HasMore && page.Rows.Count > 0 ? page.Rows[0].Seq : null
+        };
     }
 
     /// <summary>

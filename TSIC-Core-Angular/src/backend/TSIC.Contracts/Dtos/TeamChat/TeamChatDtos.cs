@@ -98,20 +98,36 @@ public record ChatPageDto
     public required long HighWaterSeq { get; init; }
 
     /// <summary>
-    /// More rows exist IN THE DIRECTION THIS PAGE WAS READ -- and that direction depends on how
-    /// the page was asked for:
+    /// More NEWER rows exist past <see cref="NextCursor"/>. Poll again immediately.
     ///
-    ///   `since` SENT     -> more NEWER rows past <see cref="NextCursor"/>. Poll again now.
-    ///   `since` OMITTED  -> more OLDER rows BEHIND this page. That is history, NOT a backlog:
-    ///                       do not poll on it. There is no way to fetch it in v1, so a client
-    ///                       that treats it as "keep asking" loops forever on the same page.
+    /// ONE MEANING, ONE DIRECTION -- forward, always. An earlier revision let this flag change
+    /// direction depending on how the page was asked for, which put two meanings in one bool
+    /// and made "keep asking while HasMore" an infinite loop on a newest page. Older history is
+    /// <see cref="HasOlder"/>, and the two are never the same question.
     ///
-    /// One flag rather than two because only one direction is reachable per mode: a catch-up
-    /// caller is already holding everything older, and a newest-page caller is already at the
-    /// end. A second flag would be permanently false in one mode and read as "nothing more" by
-    /// someone checking the wrong one.
+    /// False on a newest page: you are already at the end of the thread.
     /// </summary>
     public required bool HasMore { get; init; }
+
+    /// <summary>
+    /// Older messages exist BEHIND this page -- fetch them with
+    /// <c>GET chat/messages/history?before=</c><see cref="PrevCursor"/>.
+    ///
+    /// This is the flag a "load earlier" control binds to: it is true exactly when there is
+    /// something to load and tapping it will work. Always false on a catch-up page, which by
+    /// definition already holds everything older.
+    /// </summary>
+    public required bool HasOlder { get; init; }
+
+    /// <summary>
+    /// The lowest <see cref="ChatMessageDto.Seq"/> in this page -- what to send as <c>before</c>
+    /// to walk backwards. Null when <see cref="HasOlder"/> is false.
+    ///
+    /// A Seq, NOT a LastTouchSeq: scrollback walks the conversation as it reads, and an edit to
+    /// an ancient message must not drag it to the top of "earlier". LastTouchSeq is the
+    /// catch-up axis and Seq is the display axis; scrollback belongs on the display axis.
+    /// </summary>
+    public long? PrevCursor { get; init; }
 
     /// <summary>Where this reader's read-marker sits. Per team, not per job.</summary>
     public required long LastReadSeq { get; init; }
@@ -121,6 +137,36 @@ public record ChatPageDto
     /// the reader's own messages.
     /// </summary>
     public required int UnreadCount { get; init; }
+}
+
+/// <summary>
+/// One page of SCROLLBACK -- older messages, walked backwards from a point in the thread.
+///
+/// A SEPARATE SHAPE FROM <see cref="ChatPageDto"/>, AND DELIBERATELY SO: there is no
+/// NextCursor here, because a history page must never move the reader's live position. A
+/// scrollback page is full of old rows; feeding its cursor back as <c>since</c> would rewind
+/// the client and replay the season. Leaving the field out is the only version of that rule
+/// a caller cannot get wrong -- it is not a warning in a comment, it is an absence.
+///
+/// For the same reason this carries no unread count and no read marker: scrolling up through
+/// history is not reading new messages, and it must not move the badge.
+/// </summary>
+public record ChatHistoryPageDto
+{
+    /// <summary>
+    /// Ascending by <see cref="ChatMessageDto.Seq"/> -- display order, ready to prepend to the
+    /// top of the thread.
+    /// </summary>
+    public required IReadOnlyList<ChatMessageDto> Messages { get; init; }
+
+    /// <summary>
+    /// The lowest Seq in this page -- send as <c>before</c> for the page above it. Null when
+    /// <see cref="HasOlder"/> is false.
+    /// </summary>
+    public long? PrevCursor { get; init; }
+
+    /// <summary>Older messages still exist behind this page. Keep the control enabled.</summary>
+    public required bool HasOlder { get; init; }
 }
 
 /// <summary>Post a message to a team's thread.</summary>
