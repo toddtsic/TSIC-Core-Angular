@@ -4264,6 +4264,10 @@ public partial class RegistrationRepository : IRegistrationRepository
                 // Null in bEnableTSICTeams means never configured. Clone reset writes false
                 // explicitly, so null and false are the same answer: not on the app.
                 TeamsAppEnabled = r.Job.BEnableTsicteams == true,
+                // Same null-is-off reading as the flag above, for the same reason. Reported
+                // separately and NOT folded into IsOpenable: chat is a tab inside the app, not
+                // a condition on opening it.
+                TeamChatEnabled = r.Job.BEnableMobileTeamChat == true,
                 IsPlaced = r.AssignedTeamId != null,
                 IsOpenable = r.AssignedTeamId != null && r.Job.BEnableTsicteams == true,
                 // Precedence lives here, in one place: a club that is not on the app will never

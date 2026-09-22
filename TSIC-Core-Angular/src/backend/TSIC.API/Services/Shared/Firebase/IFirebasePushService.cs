@@ -1,4 +1,5 @@
 using TSIC.Domain.JobRules;
+using TSIC.Domain.Push;
 
 namespace TSIC.API.Services.Shared.Firebase;
 
@@ -28,6 +29,31 @@ public interface IFirebasePushService
         string body,
         string? imageUrl = null,
         IReadOnlyDictionary<string, string>? data = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// The NEW typed path, added for team chat. Sends one message PER RECIPIENT, because the
+    /// badge is per registration and only the server can compute it — a backgrounded iOS app
+    /// runs no code and cannot count its own unread.
+    ///
+    /// <paramref name="payload"/> is a closed union (<see cref="PushPayload"/>), not a
+    /// dictionary: the "type" key the clients fork on is derived from the variant rather than
+    /// typed in at the call site, so a push cannot claim to be one thing and carry another's
+    /// fields. Collapse key, Android channel and TTL come from the variant too.
+    ///
+    /// DELIBERATELY BESIDE <see cref="SendToDevicesAsync"/>, NOT REPLACING IT. The three live
+    /// senders keep their existing code path byte for byte, so shipping chat cannot change what
+    /// today's TSIC-Events or TSIC-Teams installs receive. Moving them onto this method is a
+    /// later, separate decision (Todd, 2026-09-21).
+    ///
+    /// Returns the number of messages FCM accepted, not the number attempted.
+    /// </summary>
+    Task<int> SendEachAsync(
+        PushAudience audience,
+        IReadOnlyList<PushRecipient> recipients,
+        string title,
+        string body,
+        PushPayload payload,
         CancellationToken ct = default);
 
     /// <summary>

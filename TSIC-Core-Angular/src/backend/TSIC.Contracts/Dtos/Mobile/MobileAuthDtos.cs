@@ -105,6 +105,21 @@ public record MobileContextDto
     /// <summary>Jobs.bEnableTSICTeams. Null in the column is reported as false.</summary>
     public required bool TeamsAppEnabled { get; init; }
 
+    /// <summary>
+    /// Jobs.bEnableMobileTeamChat. Null in the column is reported as false, and OFF IS THE
+    /// DEFAULT -- chat is the one feature that lets members, including minors, publish to each
+    /// other, so a club acquires that surface by deciding to and never by upgrading into it.
+    ///
+    /// Here so the client HIDES the Chat tab rather than showing one that 403s. It is a
+    /// convenience and never a control: every chat endpoint enforces the same flag server-side
+    /// whatever a client believes.
+    ///
+    /// Independent of <see cref="TeamsAppEnabled"/> in the column, but meaningless without it --
+    /// chat lives inside the Teams app, so a job with chat on and the app off has no surface to
+    /// show it on.
+    /// </summary>
+    public required bool TeamChatEnabled { get; init; }
+
     /// <summary>Registrations.AssignedTeamId is non-null.</summary>
     public required bool IsPlaced { get; init; }
 

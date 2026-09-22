@@ -2,6 +2,7 @@ using FirebaseAdmin;
 using FirebaseAdmin.Messaging;
 using Google.Apis.Auth.OAuth2;
 using TSIC.Domain.JobRules;
+using TSIC.Domain.Push;
 
 namespace TSIC.API.Services.Shared.Firebase;
 
@@ -141,6 +142,121 @@ public class FirebasePushService : IFirebasePushService
             "Push notification delivered to {Delivered} of {Attempted} {Audience} devices",
             totalSent, deviceTokens.Count, audience);
         return totalSent;
+    }
+
+    // ── The typed path (new; see IFirebasePushService.SendEachAsync) ─────────────────────
+    // Everything above this line is the live senders' path and is unchanged.
+
+    public async Task<int> SendEachAsync(
+        PushAudience audience,
+        IReadOnlyList<PushRecipient> recipients,
+        string title,
+        string body,
+        PushPayload payload,
+        CancellationToken ct = default)
+    {
+        // Resolve the sender FIRST, before any work. A missing Teams credential has to throw
+        // here rather than return 0 — a send that reports success while reaching nobody is the
+        // one failure mode nobody notices.
+        var messaging = MessagingFor(audience);
+
+        if (recipients.Count == 0)
+        {
+            _logger.LogInformation("No {Audience} recipients for a {Type} push — skipping", audience, payload.Type);
+            return 0;
+        }
+
+        var notification = new Notification { Title = title, Body = body };
+        var baseData = payload.ToData();
+        var ttlSeconds = payload.TimeToLive;
+        var expiration = ttlSeconds is { } t ? DateTime.UtcNow.Add(t) : (DateTime?)null;
+
+        var messages = new List<Message>(recipients.Count);
+        foreach (var r in recipients)
+        {
+            if (string.IsNullOrWhiteSpace(r.Token)) continue;
+
+            // regId is per recipient, so the data map cannot be shared across messages the way
+            // the untyped path shares it. Copy the payload's map and overlay this recipient's.
+            var data = new Dictionary<string, string>(baseData, StringComparer.Ordinal)
+            {
+                ["regId"] = r.RegId.ToString()
+            };
+
+            messages.Add(new Message
+            {
+                Token = r.Token,
+                Notification = notification,
+                Data = data,
+                Apns = new ApnsConfig
+                {
+                    Headers = BuildApnsHeaders(payload, expiration),
+                    Aps = new Aps { Badge = r.Badge, Sound = "default" }
+                },
+                Android = new AndroidConfig
+                {
+                    CollapseKey = payload.CollapseKey,
+                    TimeToLive = ttlSeconds,
+                    Notification = new AndroidNotification
+                    {
+                        Sound = "default",
+                        ChannelId = payload.AndroidChannelId,
+                        NotificationCount = r.Badge
+                    }
+                }
+            });
+        }
+
+        if (messages.Count == 0)
+        {
+            _logger.LogWarning("All {Audience} recipient tokens were empty — skipping {Type} push", audience, payload.Type);
+            return 0;
+        }
+
+        var totalSent = 0;
+        foreach (var chunk in Chunk(messages, MaxBatchSize))
+        {
+            var response = await messaging.SendEachAsync(chunk, ct);
+            totalSent += response.SuccessCount;
+
+            if (response.FailureCount > 0)
+            {
+                var codes = string.Join(", ", response.Responses
+                    .Where(r => !r.IsSuccess)
+                    .GroupBy(r => (r.Exception as FirebaseMessagingException)?.MessagingErrorCode?.ToString() ?? "Unknown")
+                    .Select(g => $"{g.Key}={g.Count()}"));
+
+                // Do NOT prune tokens on SenderIdMismatch — it means the audience was resolved
+                // to the wrong Firebase project, and the device is fine.
+                _logger.LogWarning(
+                    "Firebase {Audience} {Type} batch: {Success} succeeded, {Failed} failed out of {Total} [{Codes}]",
+                    audience, payload.Type, response.SuccessCount, response.FailureCount, chunk.Count, codes);
+            }
+        }
+
+        _logger.LogInformation(
+            "{Type} push delivered to {Delivered} of {Attempted} {Audience} devices",
+            payload.Type, totalSent, recipients.Count, audience);
+        return totalSent;
+    }
+
+    /// <summary>
+    /// APNs has no Android-style collapse_key or ttl field — it carries apns-collapse-id and an
+    /// absolute apns-expiration epoch in the request headers instead. Same two ideas, different
+    /// spelling; omit either header rather than sending an empty one.
+    /// </summary>
+    private static Dictionary<string, string>? BuildApnsHeaders(PushPayload payload, DateTime? expirationUtc)
+    {
+        var headers = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        if (!string.IsNullOrWhiteSpace(payload.CollapseKey))
+            headers["apns-collapse-id"] = payload.CollapseKey!;
+
+        if (expirationUtc is { } exp)
+            headers["apns-expiration"] = new DateTimeOffset(exp, TimeSpan.Zero)
+                .ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        return headers.Count == 0 ? null : headers;
     }
 
     private FirebaseMessaging MessagingFor(PushAudience audience) => audience switch

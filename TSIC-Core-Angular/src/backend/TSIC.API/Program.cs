@@ -198,6 +198,7 @@ builder.Services.AddScoped<IChangePasswordRepository, ChangePasswordRepository>(
 builder.Services.AddScoped<ICustomerJobRevenueRepository, CustomerJobRevenueRepository>();
 builder.Services.AddScoped<IPushNotificationRepository, PushNotificationRepository>();
 builder.Services.AddScoped<ITeamLinkRepository, TeamLinkRepository>();
+builder.Services.AddScoped<ITeamChatRepository, TeamChatRepository>();
 // Fees
 builder.Services.AddScoped<IFeeRepository, FeeRepository>();
 // Live check-in (staff station)
@@ -372,6 +373,7 @@ builder.Services.AddScoped<ITeamDocsRepository, TeamDocsRepository>();
 builder.Services.AddScoped<ITeamManagementService, TeamManagementService>();
 builder.Services.AddScoped<ITeamAttendanceRepository, TeamAttendanceRepository>();
 builder.Services.AddScoped<ITeamAttendanceService, TeamAttendanceService>();
+builder.Services.AddScoped<ITeamChatService, TeamChatService>();
 builder.Services.AddScoped<IFileUploadService, TSIC.API.Services.Shared.Files.FileUploadService>();
 // Uniform Number Upload (admin bulk update)
 builder.Services.AddScoped<IUniformUploadService, UniformUploadService>();
