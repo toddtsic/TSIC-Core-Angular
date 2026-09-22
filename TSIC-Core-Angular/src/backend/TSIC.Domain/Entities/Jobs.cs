@@ -325,6 +325,8 @@ public partial class Jobs
 
     public virtual ICollection<Menus> Menus { get; set; } = new List<Menus>();
 
+    public virtual ICollection<Messages> Messages { get; set; } = new List<Messages>();
+
     public virtual ICollection<MonthlyJobStats> MonthlyJobStats { get; set; } = new List<MonthlyJobStats>();
 
     public virtual ICollection<Nav> Nav { get; set; } = new List<Nav>();

@@ -233,6 +233,10 @@ public partial class Teams
 
     public virtual AspNetUsers? LebUser { get; set; }
 
+    public virtual ICollection<MemberTeamState> MemberTeamState { get; set; } = new List<MemberTeamState>();
+
+    public virtual ICollection<Messages> Messages { get; set; } = new List<Messages>();
+
     public virtual ICollection<PushNotifications> PushNotifications { get; set; } = new List<PushNotifications>();
 
     public virtual ICollection<PushSubscriptionTeams> PushSubscriptionTeams { get; set; } = new List<PushSubscriptionTeams>();

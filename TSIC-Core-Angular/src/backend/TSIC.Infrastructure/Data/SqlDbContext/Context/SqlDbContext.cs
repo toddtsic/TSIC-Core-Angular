@@ -58,6 +58,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<AspNetUsers> AspNetUsers { get; set; }
 
+    public virtual DbSet<Attachments> Attachments { get; set; }
+
     public virtual DbSet<BillingTypes> BillingTypes { get; set; }
 
     public virtual DbSet<BracketDataSingleElimination> BracketDataSingleElimination { get; set; }
@@ -248,11 +250,21 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<Masterpairingtable> Masterpairingtable { get; set; }
 
+    public virtual DbSet<MemberTeamState> MemberTeamState { get; set; }
+
+    public virtual DbSet<Mentions> Mentions { get; set; }
+
     public virtual DbSet<MenuItems> MenuItems { get; set; }
 
     public virtual DbSet<MenuTypes> MenuTypes { get; set; }
 
     public virtual DbSet<Menus> Menus { get; set; }
+
+    public virtual DbSet<MessageReports> MessageReports { get; set; }
+
+    public virtual DbSet<MessageRevisions> MessageRevisions { get; set; }
+
+    public virtual DbSet<Messages> Messages { get; set; }
 
     public virtual DbSet<MigrationHistoryOld> MigrationHistoryOld { get; set; }
 
@@ -293,6 +305,8 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<PushSubscriptionTeams> PushSubscriptionTeams { get; set; }
 
     public virtual DbSet<PushSubscriptions> PushSubscriptions { get; set; }
+
+    public virtual DbSet<Reactions> Reactions { get; set; }
 
     public virtual DbSet<RefGameAssigments> RefGameAssigments { get; set; }
 
@@ -1532,6 +1546,37 @@ public partial class SqlDbContext : DbContext
                     {
                         j.HasKey("UserId", "RoleId");
                     });
+        });
+
+        modelBuilder.Entity<Attachments>(entity =>
+        {
+            entity.HasKey(e => e.AttachmentId)
+                .HasName("PK_teamchat_Attachments")
+                .IsClustered(false);
+
+            entity.ToTable("Attachments", "teamchat");
+
+            entity.HasIndex(e => new { e.MessageId, e.SortOrder }, "IX_teamchat_Attachments_Message").IsClustered();
+
+            entity.Property(e => e.AttachmentId).HasDefaultValueSql("(newid())", "DF_teamchat_Attachments_Id");
+            entity.Property(e => e.ContentType).HasMaxLength(128);
+            entity.Property(e => e.Created).HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Attachments_Created");
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Attachments_modified")
+                .HasColumnName("modified");
+            entity.Property(e => e.OriginalFileName).HasMaxLength(260);
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.Attachments)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_teamchat_Attachments_leb");
+
+            entity.HasOne(d => d.Message).WithMany(p => p.Attachments)
+                .HasForeignKey(d => d.MessageId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Attachments_Message");
         });
 
         modelBuilder.Entity<BillingTypes>(entity =>
@@ -5131,6 +5176,65 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.TCnt).HasColumnName("tCnt");
         });
 
+        modelBuilder.Entity<MemberTeamState>(entity =>
+        {
+            entity.HasKey(e => new { e.RegId, e.TeamId }).HasName("PK_teamchat_MemberTeamState");
+
+            entity.ToTable("MemberTeamState", "teamchat");
+
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamchat_MTS_modified")
+                .HasColumnName("modified");
+            entity.Property(e => e.NotifyOnMention).HasDefaultValue(true, "DF_teamchat_MTS_NotifyOnMention");
+            entity.Property(e => e.QuietEndLocal).HasPrecision(0);
+            entity.Property(e => e.QuietStartLocal).HasPrecision(0);
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.MemberTeamState)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_teamchat_MTS_leb");
+
+            entity.HasOne(d => d.Reg).WithMany(p => p.MemberTeamState)
+                .HasForeignKey(d => d.RegId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_MTS_Reg");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.MemberTeamState)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_MTS_Team");
+        });
+
+        modelBuilder.Entity<Mentions>(entity =>
+        {
+            entity.HasKey(e => new { e.MessageId, e.RegId }).HasName("PK_teamchat_Mentions");
+
+            entity.ToTable("Mentions", "teamchat");
+
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Mentions_modified")
+                .HasColumnName("modified");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.Mentions)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_teamchat_Mentions_leb");
+
+            entity.HasOne(d => d.Message).WithMany(p => p.Mentions)
+                .HasForeignKey(d => d.MessageId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Mentions_Message");
+
+            entity.HasOne(d => d.Reg).WithMany(p => p.Mentions)
+                .HasForeignKey(d => d.RegId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Mentions_Reg");
+        });
+
         modelBuilder.Entity<MenuItems>(entity =>
         {
             entity.HasKey(e => e.MenuItemId).HasName("PK__Menu_Ite__8943F7224ED4E14A");
@@ -5189,6 +5293,156 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.Role).WithMany(p => p.Menus)
                 .HasForeignKey(d => d.RoleId)
                 .HasConstraintName("FK__Menus__RoleId__7D85288D");
+        });
+
+        modelBuilder.Entity<MessageReports>(entity =>
+        {
+            entity.HasKey(e => e.ReportId)
+                .HasName("PK_teamchat_MessageReports")
+                .IsClustered(false);
+
+            entity.ToTable("MessageReports", "teamchat");
+
+            entity.HasIndex(e => new { e.Status, e.Created }, "IX_teamchat_Reports_Status_Created").IsClustered();
+
+            entity.Property(e => e.ReportId).HasDefaultValueSql("(newid())", "DF_teamchat_Reports_Id");
+            entity.Property(e => e.Created).HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Reports_Created");
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Reports_modified")
+                .HasColumnName("modified");
+            entity.Property(e => e.Note).HasMaxLength(1000);
+            entity.Property(e => e.ReporterUserId).HasMaxLength(450);
+            entity.Property(e => e.ResolvedByUserId).HasMaxLength(450);
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.MessageReportsLebUser)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_teamchat_Reports_leb");
+
+            entity.HasOne(d => d.Message).WithMany(p => p.MessageReports)
+                .HasForeignKey(d => d.MessageId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Reports_Message");
+
+            entity.HasOne(d => d.ReporterReg).WithMany(p => p.MessageReports)
+                .HasForeignKey(d => d.ReporterRegId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Reports_ReporterReg");
+
+            entity.HasOne(d => d.ReporterUser).WithMany(p => p.MessageReportsReporterUser)
+                .HasForeignKey(d => d.ReporterUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Reports_Reporter");
+
+            entity.HasOne(d => d.ResolvedByUser).WithMany(p => p.MessageReportsResolvedByUser)
+                .HasForeignKey(d => d.ResolvedByUserId)
+                .HasConstraintName("FK_teamchat_Reports_ResolvedBy");
+        });
+
+        modelBuilder.Entity<MessageRevisions>(entity =>
+        {
+            entity.HasKey(e => e.RevisionId)
+                .HasName("PK_teamchat_MessageRevisions")
+                .IsClustered(false);
+
+            entity.ToTable("MessageRevisions", "teamchat");
+
+            entity.HasIndex(e => new { e.MessageId, e.ReplacedAt }, "IX_teamchat_Revisions_Message_ReplacedAt").IsClustered();
+
+            entity.Property(e => e.RevisionId).HasDefaultValueSql("(newid())", "DF_teamchat_Revisions_Id");
+            entity.Property(e => e.EditedByUserId).HasMaxLength(450);
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Revisions_modified")
+                .HasColumnName("modified");
+            entity.Property(e => e.PriorMessage).HasMaxLength(4000);
+            entity.Property(e => e.ReplacedAt).HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Revisions_ReplacedAt");
+
+            entity.HasOne(d => d.EditedByUser).WithMany(p => p.MessageRevisionsEditedByUser)
+                .HasForeignKey(d => d.EditedByUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Revisions_EditedBy");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.MessageRevisionsLebUser)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_teamchat_Revisions_leb");
+
+            entity.HasOne(d => d.Message).WithMany(p => p.MessageRevisions)
+                .HasForeignKey(d => d.MessageId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Revisions_Message");
+        });
+
+        modelBuilder.Entity<Messages>(entity =>
+        {
+            entity.HasKey(e => e.MessageId)
+                .HasName("PK_teamchat_Messages")
+                .IsClustered(false);
+
+            entity.ToTable("Messages", "teamchat");
+
+            entity.HasIndex(e => new { e.TeamId, e.LastTouchSeq }, "IX_teamchat_Messages_Team_LastTouch");
+
+            entity.HasIndex(e => new { e.TeamId, e.PinnedAt }, "IX_teamchat_Messages_Team_Pinned").HasFilter("([PinnedAt] IS NOT NULL)");
+
+            entity.HasIndex(e => new { e.TeamId, e.CreatorUserId, e.ClientMessageId }, "UX_teamchat_Messages_Idem").IsUnique();
+
+            entity.HasIndex(e => new { e.TeamId, e.Seq }, "UX_teamchat_Messages_Team_Seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.MessageId).HasDefaultValueSql("(newid())", "DF_teamchat_Messages_MessageId");
+            entity.Property(e => e.ClientMessageId).HasDefaultValueSql("(newid())", "DF_teamchat_Messages_ClientMessageId");
+            entity.Property(e => e.Created).HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Messages_Created");
+            entity.Property(e => e.DeletedByUserId).HasMaxLength(450);
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.Message).HasMaxLength(4000);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Messages_modified")
+                .HasColumnName("modified");
+            entity.Property(e => e.PinnedByUserId).HasMaxLength(450);
+
+            entity.HasOne(d => d.CreatorUser).WithMany(p => p.MessagesCreatorUser)
+                .HasForeignKey(d => d.CreatorUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Messages_Creator");
+
+            entity.HasOne(d => d.DeletedByUser).WithMany(p => p.MessagesDeletedByUser)
+                .HasForeignKey(d => d.DeletedByUserId)
+                .HasConstraintName("FK_teamchat_Messages_DeletedBy");
+
+            entity.HasOne(d => d.Job).WithMany(p => p.Messages)
+                .HasForeignKey(d => d.JobId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Messages_Job");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.MessagesLebUser)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_teamchat_Messages_leb");
+
+            entity.HasOne(d => d.PinnedByUser).WithMany(p => p.MessagesPinnedByUser)
+                .HasForeignKey(d => d.PinnedByUserId)
+                .HasConstraintName("FK_teamchat_Messages_PinnedBy");
+
+            entity.HasOne(d => d.Reg).WithMany(p => p.Messages)
+                .HasForeignKey(d => d.RegId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Messages_Reg");
+
+            entity.HasOne(d => d.ReplyToMessage).WithMany(p => p.InverseReplyToMessage)
+                .HasForeignKey(d => d.ReplyToMessageId)
+                .HasConstraintName("FK_teamchat_Messages_ReplyTo");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.Messages)
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Messages_Team");
         });
 
         modelBuilder.Entity<MigrationHistoryOld>(entity =>
@@ -5682,6 +5936,41 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.P256dh)
                 .IsUnicode(false)
                 .HasColumnName("P256DH");
+        });
+
+        modelBuilder.Entity<Reactions>(entity =>
+        {
+            entity.HasKey(e => new { e.MessageId, e.CreatorUserId, e.Emoji }).HasName("PK_teamchat_Reactions");
+
+            entity.ToTable("Reactions", "teamchat");
+
+            entity.Property(e => e.Emoji).HasMaxLength(16);
+            entity.Property(e => e.Created).HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Reactions_Created");
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamchat_Reactions_modified")
+                .HasColumnName("modified");
+
+            entity.HasOne(d => d.CreatorUser).WithMany(p => p.ReactionsCreatorUser)
+                .HasForeignKey(d => d.CreatorUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Reactions_Creator");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.ReactionsLebUser)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_teamchat_Reactions_leb");
+
+            entity.HasOne(d => d.Message).WithMany(p => p.Reactions)
+                .HasForeignKey(d => d.MessageId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Reactions_Message");
+
+            entity.HasOne(d => d.Reg).WithMany(p => p.Reactions)
+                .HasForeignKey(d => d.RegId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_teamchat_Reactions_Reg");
         });
 
         modelBuilder.Entity<RefGameAssigments>(entity =>
@@ -8234,6 +8523,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.RefereeRegConfirmationEmail).HasColumnName("RefereeReg_ConfirmationEmail");
             entity.Property(e => e.RefereeRegConfirmationOnScreen).HasColumnName("RefereeReg_ConfirmationOnScreen");
         });
+        modelBuilder.HasSequence("MessageSequence", "teamchat");
 
         OnModelCreatingPartial(modelBuilder);
     }

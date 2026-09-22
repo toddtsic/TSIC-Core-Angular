@@ -99,6 +99,8 @@ public partial class AspNetUsers
 
     public virtual ICollection<AspNetUserLogins> AspNetUserLogins { get; set; } = new List<AspNetUserLogins>();
 
+    public virtual ICollection<Attachments> Attachments { get; set; } = new List<Attachments>();
+
     public virtual ICollection<BillingTypes> BillingTypes { get; set; } = new List<BillingTypes>();
 
     public virtual ICollection<BracketInstances> BracketInstances { get; set; } = new List<BracketInstances>();
@@ -189,7 +191,29 @@ public partial class AspNetUsers
 
     public virtual ICollection<Leagues> Leagues { get; set; } = new List<Leagues>();
 
+    public virtual ICollection<MemberTeamState> MemberTeamState { get; set; } = new List<MemberTeamState>();
+
+    public virtual ICollection<Mentions> Mentions { get; set; } = new List<Mentions>();
+
     public virtual ICollection<MenuTypes> MenuTypes { get; set; } = new List<MenuTypes>();
+
+    public virtual ICollection<MessageReports> MessageReportsLebUser { get; set; } = new List<MessageReports>();
+
+    public virtual ICollection<MessageReports> MessageReportsReporterUser { get; set; } = new List<MessageReports>();
+
+    public virtual ICollection<MessageReports> MessageReportsResolvedByUser { get; set; } = new List<MessageReports>();
+
+    public virtual ICollection<MessageRevisions> MessageRevisionsEditedByUser { get; set; } = new List<MessageRevisions>();
+
+    public virtual ICollection<MessageRevisions> MessageRevisionsLebUser { get; set; } = new List<MessageRevisions>();
+
+    public virtual ICollection<Messages> MessagesCreatorUser { get; set; } = new List<Messages>();
+
+    public virtual ICollection<Messages> MessagesDeletedByUser { get; set; } = new List<Messages>();
+
+    public virtual ICollection<Messages> MessagesLebUser { get; set; } = new List<Messages>();
+
+    public virtual ICollection<Messages> MessagesPinnedByUser { get; set; } = new List<Messages>();
 
     public virtual ICollection<MobileUserData> MobileUserData { get; set; } = new List<MobileUserData>();
 
@@ -202,6 +226,10 @@ public partial class AspNetUsers
     public virtual ICollection<PairingsLeagueSeason> PairingsLeagueSeason { get; set; } = new List<PairingsLeagueSeason>();
 
     public virtual PersonContacts? PersonContacts { get; set; }
+
+    public virtual ICollection<Reactions> ReactionsCreatorUser { get; set; } = new List<Reactions>();
+
+    public virtual ICollection<Reactions> ReactionsLebUser { get; set; } = new List<Reactions>();
 
     public virtual ICollection<RefGameAssigments> RefGameAssigments { get; set; } = new List<RefGameAssigments>();
 
