@@ -11,7 +11,7 @@ import {
   AuthenticatedUser,
   RegistrationRoleDto
 } from '../view-models/auth.models';
-import { ForgotPasswordResponse, SuggestedEventDto } from '@core/api';
+import { ForgotPasswordResponse, SuggestedEventDto, ClubLibraryDoorDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 
@@ -226,6 +226,31 @@ export class AuthService {
    */
   selectRegistration(regId: string): Observable<AuthTokenResponse> {
     return this.http.post<AuthTokenResponse>(`${this.apiUrl}/select-registration`, { regId })
+      .pipe(
+        tap(response => {
+          this.setToken(response.accessToken!);
+          if (response.refreshToken) this.setRefreshToken(response.refreshToken);
+          this.initializeFromToken();
+          this.startTokenRefreshTimer();
+        })
+      );
+  }
+
+  /**
+   * The role-select screen's standalone Club Team Library door: the account's most recent
+   * Club Rep registration, expired events included. Null when the account was never a rep.
+   */
+  getClubLibraryDoor(): Observable<ClubLibraryDoorDto | null> {
+    return this.http.get<ClubLibraryDoorDto | null>(`${this.apiUrl}/club-library-door`)
+      .pipe(map(d => d ?? null));
+  }
+
+  /**
+   * Phase 2 for that door: the server picks the registration and mints the Club Rep token.
+   * Same token handling as selectRegistration.
+   */
+  selectClubLibrary(): Observable<AuthTokenResponse> {
+    return this.http.post<AuthTokenResponse>(`${this.apiUrl}/select-club-library`, {})
       .pipe(
         tap(response => {
           this.setToken(response.accessToken!);

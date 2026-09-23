@@ -133,24 +133,68 @@
     background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
     box-shadow: inset 3px 0 0 0 var(--bs-primary);
   }
-  &.is-past .role-card-title { color: var(--brand-text-muted); font-weight: var(--font-weight-medium); }
-  &.is-past .role-card-logo { opacity: 0.6; filter: grayscale(0.4); }
 }
 
-// "Past events" divider inside a ledger card
-.role-ledger-sub {
+// Standalone Club Team Library door — above the role groups, present even with no roles.
+.library-door {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  background: color-mix(in srgb, var(--bs-body-color) 3%, transparent);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--brand-text-muted);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--bs-primary) 30%, transparent);
+  border-left: 3px solid var(--bs-primary);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bs-primary) 6%, var(--surface-elevated-bg));
+  box-shadow: var(--shadow-sm);
+}
 
-  &--first { border-top: 0; }
+.library-door-icon {
+  font-size: var(--font-size-xl);
+  color: var(--bs-primary);
+  flex-shrink: 0;
+}
+
+.library-door-body { flex: 1; min-width: 0; }
+
+.library-door-title {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--brand-text);
+}
+
+.library-door-sub {
+  margin: 2px 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--brand-text-muted);
+  strong { color: var(--brand-text); }
+}
+
+.library-door-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--bs-primary);
+  border-radius: var(--radius-full);
+  background: var(--bs-primary);
+  color: var(--neutral-0);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+
+  &:hover:not(:disabled) { transform: translateY(-1px); }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  @media (prefers-reduced-motion: reduce) { transition: none; &:hover:not(:disabled) { transform: none; } }
+}
+
+@media (max-width: 575.98px) {
+  .library-door { flex-wrap: wrap; }
+  .library-door-btn { width: 100%; justify-content: center; }
 }
 
 .here-chip {
@@ -329,8 +373,6 @@
     color: var(--brand-text-muted);
     white-space: normal;
   }
-
-  &.is-past .item-text { color: var(--brand-text-muted); }
 
   // Club Rep rows only: the second door (Club Team Library) as a sibling of the item body.
   // Mirrors .role-card-aux in card mode; sits inside an ej2 list item, so it stops its own

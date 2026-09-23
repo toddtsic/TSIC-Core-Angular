@@ -9,20 +9,18 @@ import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsM
 import { Query } from '@syncfusion/ej2-data';
 import { SuggestedEventsModalComponent } from './suggested-events-modal.component';
 import { displayRoleName } from '@infrastructure/constants/roles.constants';
-import type { RegistrationDto, RegistrationRoleDto } from '@core/api';
+import type { RegistrationDto, RegistrationRoleDto, ClubLibraryDoorDto } from '@core/api';
 
-/** Two-bucket grouping. Named so ej2's alphabetical group order puts current first. */
-type RoleSection = 'Current & upcoming' | 'Past';
-
-/** One picker row: the API registration plus everything the two renderings need pre-derived. */
+/** One picker row: the API registration plus everything the two renderings need pre-derived.
+ *  The API offers only AVAILABLE registrations (job inside its ExpiryUsers window), so there is
+ *  no past/current split here — an event whose dates have passed but whose window is open is
+ *  still a live registration (balances, rosters). Ruling: Todd 2026-09-23. */
 export interface RoleRow extends RegistrationDto {
   title: string;
   /** The colon-mashed tail (player name, age group, team) — never the date/count, which follow. */
   detail: string;
   dateLabel: string;
   teamLabel: string | null;
-  section: RoleSection;
-  isPast: boolean;
   /** This row's job is the one whose page the user arrived from — flagged, never auto-opened. */
   isHere: boolean;
 }
@@ -30,10 +28,8 @@ export interface RoleRow extends RegistrationDto {
 interface RoleGroupView {
   roleName: string;
   isClubRep: boolean;
-  /** Every row, ordered: arrived-at first, then current/upcoming by start, then past by end desc. */
+  /** Every row, ordered: arrived-at first, then by event start date. */
   all: RoleRow[];
-  current: RoleRow[];
-  past: RoleRow[];
 }
 
 /** "Nov 14–15, 2026" / "Nov 14 – Dec 2, 2026" / "Nov 14, 2026" / "". */
@@ -132,14 +128,10 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
    * "JobName:FirstName LastName:AgegroupName:TeamName"; admin rows are just "JobName".
    * Then date the row from the event window and, for a Club Rep, count its teams.
    */
-  private toRow(reg: RegistrationDto, isClubRep: boolean, today: Date): RoleRow {
+  private toRow(reg: RegistrationDto, isClubRep: boolean): RoleRow {
     const parts = (reg.displayText ?? '').split(':');
     const title = parts[0]?.trim() ?? '';
     const detail = parts.slice(1).map(p => p.trim()).filter(Boolean).join(' • ');
-    const endRaw = reg.eventEndDate ?? reg.eventStartDate;
-    const end = endRaw ? new Date(endRaw) : null;
-    if (end) end.setHours(23, 59, 59, 999);
-    const isPast = !!end && end < today;
     const n = reg.teamCount;
     return {
       ...reg,
@@ -149,36 +141,52 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
       teamLabel: isClubRep && n !== null && n !== undefined
         ? (n === 0 ? 'no teams yet' : `${n} ${n === 1 ? 'team' : 'teams'}`)
         : null,
-      section: isPast ? 'Past' : 'Current & upcoming',
-      isPast,
       isHere: !!reg.jobPath && reg.jobPath.toLowerCase() === this.arrivedJobPath(),
     };
   }
 
-  /** The API groups, re-shaped for both renderings. */
+  /** The API groups, re-shaped for both renderings: "this event" first, then by start date. */
   readonly groups = computed<RoleGroupView[]>(() => {
-    const today = new Date();
     const time = (v: string | null | undefined) => (v ? new Date(v).getTime() : 0);
     return this.registrations().map((g: RegistrationRoleDto) => {
       const isClubRep = g.roleName === 'Club Rep';
-      const rows = g.roleRegistrations.map(r => this.toRow(r, isClubRep, today));
-      const current = rows.filter(r => !r.isPast).sort((a, b) =>
+      const all = g.roleRegistrations.map(r => this.toRow(r, isClubRep)).sort((a, b) =>
         Number(b.isHere) - Number(a.isHere)
         || time(a.eventStartDate) - time(b.eventStartDate)
         || a.title.localeCompare(b.title));
-      const past = rows.filter(r => r.isPast).sort((a, b) =>
-        Number(b.isHere) - Number(a.isHere)
-        || time(b.eventEndDate ?? b.eventStartDate) - time(a.eventEndDate ?? a.eventStartDate)
-        || a.title.localeCompare(b.title));
-      return { roleName: g.roleName, isClubRep, all: [...current, ...past], current, past };
+      return { roleName: g.roleName, isClubRep, all };
     });
   });
+
+  /**
+   * The standalone Club Team Library door. Present whenever the account has EVER been a club
+   * rep — including when the picker above is empty because every event has expired. The
+   * library is the club's list, not an event's; the rep must always be able to reach it.
+   */
+  readonly clubLibraryDoor = signal<ClubLibraryDoorDto | null>(null);
+
+  openClubLibrary(): void {
+    if (this.selectingRole()) return;
+    this.selectingRole.set(true);
+    this.authService.selectClubLibrary().subscribe({
+      next: () => {
+        this.menuState.requestCloseAllMenus();
+        const user = this.authService.getCurrentUser();
+        if (user?.jobPath) {
+          const routePath = user.jobPath.startsWith('/') ? user.jobPath : '/' + user.jobPath;
+          this.router.navigateByUrl(`${routePath}/club/library`);
+        } else {
+          this.selectingRole.set(false);
+        }
+      },
+      error: () => this.selectingRole.set(false),
+    });
+  }
 
   /** Local UI signal for selection in progress */
   readonly selectingRole = signal(false);
 
-  /** groupBy renders "Current & upcoming" above "Past" (ej2 orders groups alphabetically — named for it). */
-  public fields: FieldSettingsModel = { text: 'displayText', value: 'regId', groupBy: 'section' };
+  public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
 
   /** Optional returnUrl from query params — honored after role selection (e.g. store flow) */
   private _returnUrl: string | null = null;
@@ -201,6 +209,11 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     // Trigger fetch
     this.authService.loadAvailableRegistrations();
     this.authService.loadSuggestedEvents();
+    // Independent of the role list on purpose: the door must render even when that list is empty.
+    this.authService.getClubLibraryDoor().subscribe({
+      next: door => this.clubLibraryDoor.set(door),
+      error: () => this.clubLibraryDoor.set(null),
+    });
   }
 
   @ViewChildren(DropDownListComponent) readonly dropdowns!: QueryList<DropDownListComponent>;

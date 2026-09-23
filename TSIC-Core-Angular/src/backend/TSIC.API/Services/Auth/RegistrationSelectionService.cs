@@ -1,4 +1,5 @@
 using TSIC.Application.Services.Users;
+using TSIC.Contracts.Repositories;
 using TSIC.Infrastructure.Data.Identity;
 
 namespace TSIC.API.Services.Auth;
@@ -27,6 +28,15 @@ public sealed record RegistrationSelectionResult
 public interface IRegistrationSelectionService
 {
     Task<RegistrationSelectionResult> SelectAsync(ApplicationUser user, string regId);
+
+    /// <summary>
+    /// The standalone Club Team Library door: mint a Club Rep token for the user's most recent
+    /// club-rep registration even when that job has expired. The picker never offers expired
+    /// jobs (ExpiryUsers is the director's lever for that), but the library is the club's list,
+    /// not the event's, so its door stays open. Every job gate still applies once inside —
+    /// registering, editing and removing are capability-checked per request.
+    /// </summary>
+    Task<RegistrationSelectionResult> SelectClubLibraryAsync(ApplicationUser user);
 }
 
 public sealed class RegistrationSelectionService : IRegistrationSelectionService
@@ -34,15 +44,41 @@ public sealed class RegistrationSelectionService : IRegistrationSelectionService
     private readonly IRoleLookupService _roleLookupService;
     private readonly ITokenService _tokenService;
     private readonly IConfiguration _configuration;
+    private readonly IRegistrationRepository _registrations;
 
     public RegistrationSelectionService(
         IRoleLookupService roleLookupService,
         ITokenService tokenService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IRegistrationRepository registrations)
     {
         _roleLookupService = roleLookupService;
         _tokenService = tokenService;
         _configuration = configuration;
+        _registrations = registrations;
+    }
+
+    public async Task<RegistrationSelectionResult> SelectClubLibraryAsync(ApplicationUser user)
+    {
+        // Ownership is by construction: the lookup is keyed on user.Id, so the caller can only
+        // ever mint a token for a registration that is theirs.
+        var door = await _registrations.GetLatestClubRepRegistrationAsync(user.Id);
+        if (door == null || string.IsNullOrWhiteSpace(door.JobPath))
+        {
+            return RegistrationSelectionResult.NotAvailable();
+        }
+
+        var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
+        var token = _tokenService.GenerateEnrichedJwtToken(user, door.RegId, door.JobPath, door.JobLogo, "Club Rep");
+
+        return new RegistrationSelectionResult
+        {
+            Succeeded = true,
+            AccessToken = token,
+            ExpiresInSeconds = expirationMinutes * 60,
+            RoleName = "Club Rep",
+            JobPath = door.JobPath
+        };
     }
 
     public async Task<RegistrationSelectionResult> SelectAsync(ApplicationUser user, string regId)

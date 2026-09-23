@@ -35,6 +35,27 @@
             </div>
             }
 
+            <!-- Standalone Club Team Library door. Outside the registrations block on purpose:
+                 the picker offers only events still inside their ExpiryUsers window, but the
+                 library is the CLUB's list and outlives every event. A rep whose events have all
+                 expired still lands here with somewhere to go. -->
+            @if (clubLibraryDoor(); as door) {
+            <section class="library-door" aria-labelledby="library-door-title">
+              <i class="bi bi-collection library-door-icon" aria-hidden="true"></i>
+              <div class="library-door-body">
+                <h3 id="library-door-title" class="library-door-title">Club Team Library</h3>
+                <p class="library-door-sub">
+                  @if (door.clubName) { <strong>{{ door.clubName }}</strong> &middot; }
+                  {{ door.isCurrent ? 'current event' : 'last event' }}: {{ door.jobName }}
+                  @if ((door.teamCount ?? 0) > 0) { &middot; {{ door.teamCount }} {{ door.teamCount === 1 ? 'team' : 'teams' }} registered there }
+                </p>
+              </div>
+              <button type="button" class="library-door-btn" [disabled]="isLoading()" (click)="openClubLibrary()">
+                Open Library <i class="bi bi-arrow-right" aria-hidden="true"></i>
+              </button>
+            </section>
+            }
+
             @if (registrations() && registrations().length > 0) {
             @if (hasSuggestableRegistration() && hasSuggestedEvents()) {
             <p class="role-pivot">
@@ -57,7 +78,7 @@
                 [htmlAttributes]="{ 'aria-label': 'Select ' + roleLabel(group.roleName) + ' registration', 'aria-describedby': 'rs-help-' + i }"
                 (filtering)="onFiltering($event, group)" (change)="onDropdownChange($event)">
                 <ng-template #itemTemplate let-data>
-                  <div class="dropdown-item-custom" [class.is-past]="data.isPast">
+                  <div class="dropdown-item-custom">
                     @if (data.jobLogo) {
                     <img class="job-logo" [src]="data.jobLogo" [alt]="data.displayText" />
                     }
@@ -90,20 +111,10 @@
               <section class="role-ledger" [attr.aria-labelledby]="'rs-label-' + i">
                 <h3 class="role-ledger-header" [attr.id]="'rs-label-' + i">{{ roleLabel(group.roleName) }}</h3>
                 <ul class="role-ledger-list">
-                  @for (reg of group.current; track reg.regId) {
+                  @for (reg of group.all; track reg.regId) {
                   <li class="role-card-li" [class.is-here]="reg.isHere">
                     <ng-container *ngTemplateOutlet="roleRow; context: { $implicit: reg, group: group }" />
                   </li>
-                  }
-                  @if (group.past.length > 0) {
-                  <li class="role-ledger-sub" [class.role-ledger-sub--first]="group.current.length === 0">
-                    <i class="bi bi-clock-history" aria-hidden="true"></i>Past events
-                  </li>
-                  @for (reg of group.past; track reg.regId) {
-                  <li class="role-card-li is-past" [class.is-here]="reg.isHere">
-                    <ng-container *ngTemplateOutlet="roleRow; context: { $implicit: reg, group: group }" />
-                  </li>
-                  }
                   }
                 </ul>
               </section>

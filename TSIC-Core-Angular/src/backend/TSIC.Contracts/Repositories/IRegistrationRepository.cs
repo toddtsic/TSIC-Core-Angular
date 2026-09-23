@@ -129,6 +129,13 @@ public interface IRegistrationRepository
     Task<List<RegistrationDto>> GetClubRepRegistrationsAsync(string userId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The user's most recent active Club Rep registration, expired jobs INCLUDED (the one lookup
+    /// in this family that ignores ExpiryUsers). Feeds the role-select screen's standalone Club
+    /// Team Library door, which must exist even when the picker offers no current roles.
+    /// </summary>
+    Task<ClubLibraryDoorDto?> GetLatestClubRepRegistrationAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get Staff role registrations for a user
     /// </summary>
     Task<List<RegistrationDto>> GetStaffRegistrationsAsync(string userId, CancellationToken cancellationToken = default);

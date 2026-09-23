@@ -346,6 +346,37 @@ public partial class RegistrationRepository : IRegistrationRepository
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
+    public async Task<ClubLibraryDoorDto?> GetLatestClubRepRegistrationAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.Now;
+        return await (
+            from r in _context.Registrations
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join jdo in _context.JobDisplayOptions on j.JobId equals jdo.JobId
+            where
+                r.UserId == userId
+                && r.BActive == true
+                && r.RoleId == RoleConstants.ClubRep
+            // The most recently LIVE registration: a job still inside its ExpiryUsers window beats
+            // one that expired, and among expired jobs the latest to expire wins.
+            orderby (now < j.ExpiryUsers) descending, j.ExpiryUsers descending, j.EventStartDate descending
+            select new ClubLibraryDoorDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                JobPath = j.JobPath,
+                JobName = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                ClubName = r.ClubName,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate,
+                IsCurrent = now < j.ExpiryUsers,
+                TeamCount = _context.Teams.Count(t => t.ClubrepRegistrationid == r.RegistrationId)
+            }
+        ).AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<List<RegistrationDto>> GetStaffRegistrationsAsync(
         string userId,
         CancellationToken cancellationToken = default)

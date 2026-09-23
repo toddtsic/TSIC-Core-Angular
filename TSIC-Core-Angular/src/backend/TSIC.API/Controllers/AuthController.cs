@@ -401,6 +401,67 @@ namespace TSIC.API.Controllers
         }
 
         /// <summary>
+        /// The role-select screen's standalone Club Team Library door: the user's most recent
+        /// Club Rep registration, expired jobs included. 204 when the account has never been a
+        /// club rep. Phase-1 token suffices — this is the same trust level as GET registrations.
+        /// </summary>
+        [Authorize]
+        [HttpGet("club-library-door")]
+        [ProducesResponseType(typeof(ClubLibraryDoorDto), 200)]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(401)]
+        public async Task<IActionResult> GetClubLibraryDoor()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Unauthorized(new { Error = "Invalid token" });
+            }
+
+            var door = await _registrationRepository.GetLatestClubRepRegistrationAsync(userId);
+            return door == null ? NoContent() : Ok(door);
+        }
+
+        /// <summary>
+        /// Phase 2 for the standalone Club Team Library door: mint the Club Rep token for the
+        /// registration GET club-library-door reports. No regId in the body — the server picks
+        /// the registration, so a caller cannot name one that isn't theirs.
+        /// </summary>
+        [Authorize]
+        [HttpPost("select-club-library")]
+        [ProducesResponseType(typeof(AuthTokenResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
+        public async Task<IActionResult> SelectClubLibrary()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Unauthorized(new { Error = "Invalid token" });
+            }
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return Unauthorized(new { Error = "Invalid user" });
+            }
+
+            var result = await _selection.SelectClubLibraryAsync(user);
+            if (!result.Succeeded)
+            {
+                return BadRequest(new { Error = "This account has no Club Team Library" });
+            }
+
+            return Ok(new AuthTokenResponse
+            {
+                AccessToken = result.AccessToken!,
+                ExpiresIn = result.ExpiresInSeconds
+            });
+        }
+
+        /// <summary>
         /// Refresh access token using a valid refresh token
         /// </summary>
         [HttpPost("refresh")]

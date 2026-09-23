@@ -196,6 +196,7 @@ export type { CloneFieldsRequest } from './models/CloneFieldsRequest';
 export type { ClonePlanDto } from './models/ClonePlanDto';
 export type { ClonePlanStepDto } from './models/ClonePlanStepDto';
 export type { CloneTeamRequest } from './models/CloneTeamRequest';
+export type { ClubLibraryDoorDto } from './models/ClubLibraryDoorDto';
 export type { ClubOperationResultDto } from './models/ClubOperationResultDto';
 export type { ClubRegistrationDto } from './models/ClubRegistrationDto';
 export type { ClubRenameRequest } from './models/ClubRenameRequest';
