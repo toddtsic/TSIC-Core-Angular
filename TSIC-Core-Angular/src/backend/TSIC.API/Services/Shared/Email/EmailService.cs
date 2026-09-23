@@ -67,6 +67,29 @@ public sealed class EmailService : IEmailService
         {
             var message = BuildMimeMessage(messageDto);
             NormalizeFromHeader(message);
+
+            // RFC 5322 caps a line at 998 octets. We build HTML bodies as ONE unbroken line — a
+            // measured 22,983 characters in the worst logged case, and 7,244 of 24,868 logged bodies
+            // exceed 998. SES accepts those happily (SendRawEmail does no line-length validation), then
+            // the receiving MTA rejects them: "501 Syntax error - line too long". That is the ASL bounce.
+            //
+            // Prepare() walks the MIME tree and picks a Content-Transfer-Encoding per part. Any part
+            // whose longest line exceeds maxLineLength comes back quoted-printable, which soft-wraps at
+            // 76 and makes the body legal. This is not a workaround — it is the step we silently skipped
+            // by talking to SES directly instead of through MailKit's SmtpClient, which calls Prepare on
+            // every message it sends. Nothing else in this codebase ever called it.
+            //
+            // maxLineLength is 998, not the 78 default, deliberately: 998 re-encodes ONLY bodies that are
+            // already illegal on the wire. The default of 78 would re-encode essentially every message we
+            // send (almost all HTML exceeds 78/line) to fix the ~29% that are broken. The wrap width is
+            // unaffected by this choice — MimeKit's QP encoder hard-caps itself at 76 regardless.
+            //
+            // Must stay immediately before WriteToAsync: Prepare reads the content to decide, so any
+            // later change to the body would leave the decision stale. It is idempotent and safe to
+            // re-run. Attachments already carry base64 and are skipped. SES DKIM-signs after receipt, so
+            // there is no signing order to preserve here.
+            message.Prepare(EncodingConstraint.SevenBit, 998);
+
             using var memory = new MemoryStream();
             await message.WriteToAsync(memory, cancellationToken);
             memory.Position = 0;
