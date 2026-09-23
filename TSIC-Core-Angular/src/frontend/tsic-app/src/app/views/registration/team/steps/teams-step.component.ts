@@ -975,13 +975,8 @@ export class TeamTeamsStepComponent implements OnInit {
                 .pipe(takeUntilDestroyed(this.destroyRef))
                 .subscribe({
                     next: (resp) => {
-                        if (!resp.success) {
-                            // Bails without refetching, so this path must release the
-                            // flag itself; the success path below lets the reload do it.
-                            this.actionInProgress.set(false);
-                            this.toast.show(resp.message || 'Registration failed.', 'danger', 6000);
-                            return;
-                        }
+                        // A rejected registration never lands here: the API answers it with
+                        // HTTP 400, which HttpClient routes to `error:` below.
                         const msg = resp.isWaitlisted
                             ? `${team.clubTeamName} waitlisted for ${this.stripWaitlistPrefix(resp.waitlistAgegroupName)}`
                             : `${team.clubTeamName} registered for the event!`;
@@ -992,7 +987,9 @@ export class TeamTeamsStepComponent implements OnInit {
                             this.toast.show(msg, resp.isWaitlisted ? 'warning' : 'success', 3000));
                     },
                     error: () => {
-                        this.toast.show('Failed to register team.', 'danger', 4000);
+                        // The global interceptor has already toasted the server's reason for any
+                        // 4xx/5xx; a second generic toast here would only bury it. Reload so the
+                        // fly-in reflects whatever state the server actually landed on.
                         this.loadTeamsMetadata();
                     },
                 });

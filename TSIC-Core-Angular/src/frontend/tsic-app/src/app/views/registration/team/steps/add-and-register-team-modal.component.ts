@@ -9,6 +9,7 @@ import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.c
 import { isBareYearName } from '@shared/teams/team-name-hints';
 import { EventAgeGroupPickerComponent } from '@views/registration/team/components/event-age-group-picker.component';
 import { resolveRecommendedAgeGroupId } from '@views/registration/team/components/event-age-group.util';
+import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 
 /**
  * Combined add-team + event-registration modal — THE way a new team enters the
@@ -634,36 +635,31 @@ export class AddAndRegisterTeamModalComponent {
                         .pipe(takeUntilDestroyed(this.destroyRef))
                         .subscribe({
                             next: (regResp) => {
+                                // A rejected registration never lands here: the API answers it with
+                                // HTTP 400 (RegisterTeamResponse.success=false in the body), which
+                                // HttpClient routes to `error:` below.
                                 this.saving.set(false);
-                                if (!regResp.success) {
-                                    // Library entry was created but registration was rejected —
-                                    // keep the team in library, surface the error, let the rep
-                                    // close and pick again from the library flow.
-                                    this.errorMsg.set(
-                                        (regResp.message ?? 'Registration was not accepted.') +
-                                        ' Your team is saved in your library; you can register it from there.',
-                                    );
-                                    return;
-                                }
                                 const msg = regResp.isWaitlisted
                                     ? `${teamName} waitlisted for ${regResp.waitlistAgegroupName ?? ''}`
                                     : `${teamName} registered for the event!`;
                                 this.toast.show(msg, regResp.isWaitlisted ? 'warning' : 'success', 3000);
                                 this.saved.emit();
                             },
-                            error: () => {
+                            error: (err: unknown) => {
+                                // Library entry was created but registration was rejected (business
+                                // rule, fee gap, or a real fault). Keep the team in the library and
+                                // tell the rep WHY, in the server's own words, so they can act on it.
                                 this.saving.set(false);
                                 this.errorMsg.set(
-                                    'Your team is saved in your library, but the event registration failed. ' +
-                                    'Close this dialog and try registering it from the library.',
+                                    extractHttpErrorMessage(err, 'The event registration failed.') +
+                                    ' Your team is saved in your library; you can register it from there.',
                                 );
                             },
                         });
                 },
                 error: (err: unknown) => {
                     this.saving.set(false);
-                    const httpErr = err as { error?: { message?: string } };
-                    this.errorMsg.set(httpErr?.error?.message || 'Failed to create team.');
+                    this.errorMsg.set(extractHttpErrorMessage(err, 'Failed to create team.'));
                 },
             });
     }

@@ -18,6 +18,7 @@ using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Auth;
+using TSIC.API.Services.Fees;
 using TSIC.API.Services.Shared.UsLax;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Infrastructure.Data.Identity;
@@ -337,6 +338,23 @@ public class TeamRegistrationController : ControllerBase
                 return BadRequest(response);
             }
             return Ok(response);
+        }
+        catch (FeeNotConfiguredException ex)
+        {
+            // Director config gap, not a fault. The message carries raw ids for Seq; the rep gets plain words.
+            _logger.LogWarning(ex, "Register-team blocked: fee not configured for user {UserId}, regId {RegId}", userId, regId);
+            return BadRequest(new RegisterTeamResponse
+            {
+                TeamId = Guid.Empty,
+                Success = false,
+                Message = "Registration fees for this age group haven't been set up yet. Please contact the event organizer.",
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Business rule (e.g. one club rep per event). Same structured shape the UI already reads.
+            _logger.LogWarning(ex, "Register-team blocked by business rule for user {UserId}, regId {RegId}", userId, regId);
+            return BadRequest(new RegisterTeamResponse { TeamId = Guid.Empty, Success = false, Message = ex.Message });
         }
         catch (Exception ex)
         {

@@ -272,11 +272,8 @@ export class ClubLibraryComponent implements OnInit {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: (resp) => {
-                    if (!resp.success) {
-                        this.actionInProgress.set(false);
-                        this.registerError.set(resp.message || 'Registration was not accepted.');
-                        return;
-                    }
+                    // A rejected registration never lands here: the API answers it with
+                    // HTTP 400, which HttpClient routes to `error:` below.
                     this.registering.set(null);
                     const msg = resp.isWaitlisted
                         ? `${pick.team.clubTeamName} waitlisted for ${(resp.waitlistAgegroupName ?? '').replace(/^\s*WAITLIST\s*-\s*/i, '').trim() || 'the waitlist'}`
