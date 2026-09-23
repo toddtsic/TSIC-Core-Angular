@@ -172,7 +172,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -197,7 +199,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -222,7 +226,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -250,7 +256,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = $"{(j.JobName ?? string.Empty)}:{u.FirstName} {u.LastName}:{ag.AgegroupName}:{t.TeamName}",
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -327,7 +335,12 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate,
+                // Same population the pulse's MyClubRepTeamCount reports (every team tied to this
+                // registration), so the picker row and the landing card can never disagree.
+                TeamCount = _context.Teams.Count(t => t.ClubrepRegistrationid == r.RegistrationId)
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -354,7 +367,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = $"{(j.JobName ?? string.Empty)}:{ag.AgegroupName}:{t.TeamName}",
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -379,7 +394,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -404,7 +421,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -429,7 +448,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -455,7 +476,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().FirstOrDefaultAsync(cancellationToken);
     }
@@ -483,7 +506,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
@@ -519,7 +544,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 RegId = r.RegistrationId.ToString(),
                 DisplayText = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                JobPath = j.JobPath
+                JobPath = j.JobPath,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }

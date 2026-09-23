@@ -202,6 +202,51 @@ export class RegistrationPanelComponent {
 		&& !this.isClubRep()
 		&& !this.isRegisteredAdult());
 
+	// ── Club rep card — the rep's home on the landing page ───────────────────────
+	// One card, not four scattered rows: whose teams, how many, whether money is owed,
+	// and the four doors (Team Registration · Pay Balance Due · Edit My Rosters · Club
+	// Team Library). Shown to a rep SCOPED TO THIS JOB (the pulse overlay populates
+	// myClubRepTeamCount only then — 0 is a real answer: signed in, registered nothing).
+	// Hidden once the event concludes: the Wrap-Up card's single Pay Balance Due row
+	// (Manage, below) is the only post-event business, and it stays there.
+	protected readonly showRepCard = computed(() => {
+		const p = this.pulse();
+		if (!p || this.publicView() || !this.isClubRep() || this.concluded()) return false;
+		if (p.myClubRepTeamCount === null || p.myClubRepTeamCount === undefined) return false;
+		return this.allowedKeys().has('my-teams') || this.allowedKeys().has('register-team');
+	});
+	protected readonly repTeamCount = computed(() => this.pulse()?.myClubRepTeamCount ?? 0);
+	protected readonly repClubName = computed(() => (this.pulse()?.myClubRepClubName ?? '').trim());
+	// Event name minus the org prefix ("Lax For The Cure:Fall Showcase 2026" → "Fall Showcase 2026").
+	protected readonly repEventName = computed(() => {
+		const raw = this.jobService.currentJob()?.jobName ?? '';
+		const idx = raw.indexOf(':');
+		return idx > 0 ? raw.substring(idx + 1).trim() : raw;
+	});
+	// Money status WITHOUT an amount (the pulse aggregate can drift from what the payment
+	// page recomputes; the figure belongs on the destination). Phase-honest wording: in a
+	// deposit-phase event a paid deposit leaves owed = 0 while the balance is still to come,
+	// so this never says "paid in full" — "nothing due now" is true in every phase.
+	protected readonly repMoney = computed<{ tone: 'ok' | 'due' | 'auto'; label: string }>(() => {
+		const p = this.pulse();
+		if ((p?.myClubRepNonArbOwed ?? 0) > 0) return { tone: 'due', label: 'Balance due' };
+		if ((p?.myClubRepTotalOwed ?? 0) > 0) return { tone: 'auto', label: 'Auto-pay scheduled' };
+		return { tone: 'ok', label: 'Nothing due now' };
+	});
+	protected readonly repShowPay = computed(() => (this.pulse()?.myClubRepNonArbOwed ?? 0) > 0);
+	protected readonly repShowRosters = computed(() =>
+		this.tournament() && this.allowedKeys().has('my-teams') && this.repTeamCount() > 0);
+	protected readonly repShowInsurance = computed(() => {
+		const p = this.pulse();
+		return !!p && this.competitive() && this.allowedKeys().has('team-insurance')
+			&& p.offerTeamRegsaverInsurance && p.myClubRepHasTeamWithoutRegsaver === true
+			&& this.repTeamCount() > 0;
+	});
+	protected readonly repRegLink = computed(() => `${this.base()}/registration/team`);
+	protected readonly repLibraryLink = computed(() => `${this.base()}/club/library`);
+	protected readonly repRostersLink = computed(() => `${this.base()}/rosters/club`);
+	protected readonly repInsuranceLink = computed(() => `${this.base()}/ClubRepVIUpdate`);
+
 	// ── Manage section — the support-call-killing self-service hub ───────────────
 	// Order is deliberate: money owed first (most urgent), then the change/cancel
 	// fix, then My Registration, then the "forgot insurance" add-ons. Player and
@@ -247,8 +292,10 @@ export class RegistrationPanelComponent {
 
 		// ── Club rep (teams) — myClubRepTeamCount is only populated for a club rep
 		// scoped to this job, so > 0 encodes both role and has-teams. Suppressed in
-		// public-preview (it's the previewing admin's own overlay, not public data). ──
-		if (!this.publicView() && (p.myClubRepTeamCount ?? 0) > 0) {
+		// public-preview (it's the previewing admin's own overlay, not public data).
+		// While the rep CARD is up these rows live there instead; this branch is what
+		// survives on a concluded event (Wrap-Up = Pay Balance Due only). ──
+		if (!this.publicView() && !this.showRepCard() && (p.myClubRepTeamCount ?? 0) > 0) {
 			// "My Teams" now leads the Teams column (moved out of Manage, per Ann) —
 			// see showMyTeams() below.
 			// Tournament-only club-rep roster editor — the migrated legacy ClubTeamRosters
@@ -294,9 +341,12 @@ export class RegistrationPanelComponent {
 	// My Teams — the club rep's existing teams, LEADING the Teams column (moved here from
 	// Manage, per Ann). Club-rep role only: myClubRepTeamCount > 0 encodes role + has-teams;
 	// suppressed in public-preview (the previewing admin's own overlay, not public data).
+	// Superseded by the rep card while it shows (same door, named "Team Registration" there —
+	// one name for the wizard everywhere); this row is the concluded-phase fallback, which
+	// CTAS_BY_PHASE.concluded already excludes, so in practice it no longer renders.
 	protected readonly showMyTeams = computed(() => {
 		const p = this.pulse();
-		if (!p || this.publicView()) return false;
+		if (!p || this.publicView() || this.showRepCard()) return false;
 		return this.allowedKeys().has('my-teams') && (p.myClubRepTeamCount ?? 0) > 0;
 	});
 	protected readonly myTeamsLink = computed(() => `${this.base()}/registration/team`);
@@ -306,7 +356,7 @@ export class RegistrationPanelComponent {
 	// flag lingers in the pulse. Tournaments/clubs still show it, pulse-permitting.
 	protected readonly showRegisterTeam = computed(() => {
 		const p = this.pulse();
-		if (!p || this.registered() || this.league()) return false;
+		if (!p || this.registered() || this.league() || this.showRepCard()) return false;
 		return this.allowedKeys().has('register-team') && p.teamRegistrationOpen;
 	});
 	protected readonly teamRegLink = computed(() => `${this.base()}/registration/team`);
@@ -324,7 +374,7 @@ export class RegistrationPanelComponent {
 
 	/** The panel self-hides when no section has content. */
 	protected readonly hasContent = computed(() =>
-		this.selfRosterLinks().length > 0 || this.showManage() || this.showTeams());
+		this.showRepCard() || this.selfRosterLinks().length > 0 || this.showManage() || this.showTeams());
 
 	openSelfRosterUpdate(): void {
 		this.sruModal.open(this.jobPath());

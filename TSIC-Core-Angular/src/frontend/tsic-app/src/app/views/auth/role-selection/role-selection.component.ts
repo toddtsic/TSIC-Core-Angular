@@ -1,16 +1,61 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, computed, signal, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
+import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { MenuStateService } from '../../../layouts/services/menu-state.service';
+import { LastLocationService } from '@infrastructure/services/last-location.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
 import { SuggestedEventsModalComponent } from './suggested-events-modal.component';
 import { displayRoleName } from '@infrastructure/constants/roles.constants';
+import type { RegistrationDto, RegistrationRoleDto } from '@core/api';
+
+/** Two-bucket grouping. Named so ej2's alphabetical group order puts current first. */
+type RoleSection = 'Current & upcoming' | 'Past';
+
+/** One picker row: the API registration plus everything the two renderings need pre-derived. */
+export interface RoleRow extends RegistrationDto {
+  title: string;
+  /** The colon-mashed tail (player name, age group, team) — never the date/count, which follow. */
+  detail: string;
+  dateLabel: string;
+  teamLabel: string | null;
+  section: RoleSection;
+  isPast: boolean;
+  /** This row's job is the one whose page the user arrived from — flagged, never auto-opened. */
+  isHere: boolean;
+}
+
+interface RoleGroupView {
+  roleName: string;
+  isClubRep: boolean;
+  /** Every row, ordered: arrived-at first, then current/upcoming by start, then past by end desc. */
+  all: RoleRow[];
+  current: RoleRow[];
+  past: RoleRow[];
+}
+
+/** "Nov 14–15, 2026" / "Nov 14 – Dec 2, 2026" / "Nov 14, 2026" / "". */
+export function formatEventDates(start: string | null | undefined, end: string | null | undefined): string {
+  const s = start ? new Date(start) : null;
+  const e = end ? new Date(end) : null;
+  if (!s && !e) return '';
+  const mon = (d: Date) => d.toLocaleDateString('en-US', { month: 'short' });
+  const one = (d: Date) => `${mon(d)} ${d.getDate()}, ${d.getFullYear()}`;
+  if (!s || !e || s.toDateString() === e.toDateString()) return one((s ?? e)!);
+  if (s.getFullYear() === e.getFullYear()) {
+    return s.getMonth() === e.getMonth()
+      ? `${mon(s)} ${s.getDate()}–${e.getDate()}, ${s.getFullYear()}`
+      : `${mon(s)} ${s.getDate()} – ${mon(e)} ${e.getDate()}, ${s.getFullYear()}`;
+  }
+  return `${one(s)} – ${one(e)}`;
+}
+
 @Component({
   selector: 'app-role-selection',
   standalone: true,
-  imports: [DropDownListModule, SuggestedEventsModalComponent],
+  imports: [DropDownListModule, SuggestedEventsModalComponent, NgTemplateOutlet],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss'],
@@ -21,6 +66,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly menuState = inject(MenuStateService);
+  private readonly lastLocation = inject(LastLocationService);
 
   /** At or above this row count in ANY role group, the whole page renders as typeaheads. */
   private static readonly TYPEAHEAD_THRESHOLD = 7;
@@ -59,28 +105,80 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
       g.roleRegistrations.length >= RoleSelectionComponent.TYPEAHEAD_THRESHOLD)
   );
 
-  /**
-   * Split the colon-mashed displayText into a title + detail line for cards mode.
-   * Player rows look like "JobName:FirstName LastName:AgegroupName:TeamName"; admin
-   * rows are usually just "JobName". First segment becomes the title; the rest are
-   * joined as a muted detail line.
-   */
   /** Friendly group header for a role (e.g. ApiAuthorized → "3rd Party Access"). Display only. */
   roleLabel(roleName: string): string {
     return displayRoleName(roleName);
   }
 
-  parseRowParts(displayText: string): { title: string; detail: string } {
-    const parts = (displayText ?? '').split(':');
+  /**
+   * The jobPath whose page the user arrived from. Rows for that job are flagged "this event"
+   * and sorted first — pre-selected in the reader's eye, never opened for them: a Director
+   * who also holds a Club Rep row here must still choose.
+   *
+   * The route's own :jobPath is usually the house `tsic` (login redirects here without a
+   * job), so the real answer is the last CONFIRMED job the browser was on — the same memory
+   * the anonymous landing uses to send people back to their event.
+   */
+  private readonly arrivedJobPath = computed(() => {
+    const fromRoute = (this.route.snapshot.paramMap.get('jobPath')
+      ?? this.route.parent?.snapshot.paramMap.get('jobPath')
+      ?? '').toLowerCase();
+    if (fromRoute && fromRoute !== 'tsic') return fromRoute;
+    return (this.lastLocation.getLastJobPath() ?? '').toLowerCase();
+  });
+
+  /**
+   * Split the colon-mashed displayText into title + detail. Player rows look like
+   * "JobName:FirstName LastName:AgegroupName:TeamName"; admin rows are just "JobName".
+   * Then date the row from the event window and, for a Club Rep, count its teams.
+   */
+  private toRow(reg: RegistrationDto, isClubRep: boolean, today: Date): RoleRow {
+    const parts = (reg.displayText ?? '').split(':');
     const title = parts[0]?.trim() ?? '';
     const detail = parts.slice(1).map(p => p.trim()).filter(Boolean).join(' • ');
-    return { title, detail };
+    const endRaw = reg.eventEndDate ?? reg.eventStartDate;
+    const end = endRaw ? new Date(endRaw) : null;
+    if (end) end.setHours(23, 59, 59, 999);
+    const isPast = !!end && end < today;
+    const n = reg.teamCount;
+    return {
+      ...reg,
+      title,
+      detail,
+      dateLabel: formatEventDates(reg.eventStartDate, reg.eventEndDate),
+      teamLabel: isClubRep && n !== null && n !== undefined
+        ? (n === 0 ? 'no teams yet' : `${n} ${n === 1 ? 'team' : 'teams'}`)
+        : null,
+      section: isPast ? 'Past' : 'Current & upcoming',
+      isPast,
+      isHere: !!reg.jobPath && reg.jobPath.toLowerCase() === this.arrivedJobPath(),
+    };
   }
+
+  /** The API groups, re-shaped for both renderings. */
+  readonly groups = computed<RoleGroupView[]>(() => {
+    const today = new Date();
+    const time = (v: string | null | undefined) => (v ? new Date(v).getTime() : 0);
+    return this.registrations().map((g: RegistrationRoleDto) => {
+      const isClubRep = g.roleName === 'Club Rep';
+      const rows = g.roleRegistrations.map(r => this.toRow(r, isClubRep, today));
+      const current = rows.filter(r => !r.isPast).sort((a, b) =>
+        Number(b.isHere) - Number(a.isHere)
+        || time(a.eventStartDate) - time(b.eventStartDate)
+        || a.title.localeCompare(b.title));
+      const past = rows.filter(r => r.isPast).sort((a, b) =>
+        Number(b.isHere) - Number(a.isHere)
+        || time(b.eventEndDate ?? b.eventStartDate) - time(a.eventEndDate ?? a.eventStartDate)
+        || a.title.localeCompare(b.title));
+      return { roleName: g.roleName, isClubRep, all: [...current, ...past], current, past };
+    });
+  });
 
   /** Local UI signal for selection in progress */
   readonly selectingRole = signal(false);
 
-  public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
+  /** groupBy renders "Current & upcoming" above "Past" (ej2 orders groups alphabetically — named for it). */
+  public fields: FieldSettingsModel = { text: 'displayText', value: 'regId', groupBy: 'section' };
 
   /** Optional returnUrl from query params — honored after role selection (e.g. store flow) */
   private _returnUrl: string | null = null;
@@ -144,7 +242,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     const ddls = this.dropdowns?.toArray() ?? [];
     if (ddls.length === 0) return;
 
-    const directorIndex = this.registrations().findIndex(g => g.roleName === 'Director');
+    const directorIndex = this.groups().findIndex(g => g.roleName === 'Director');
     const index = directorIndex >= 0 && directorIndex < ddls.length ? directorIndex : ddls.length - 1;
     const target = ddls[index];
 
@@ -161,10 +259,10 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     }, 0);
   }
 
-  public onFiltering(e: FilteringEventArgs, roleGroup: any): void {
+  public onFiltering(e: FilteringEventArgs, group: RoleGroupView): void {
     const text = (e.text ?? '').trim();
     const query = text ? new Query().where('displayText', 'contains', text, true) : new Query();
-    e.updateData(roleGroup.roleRegistrations, query);
+    e.updateData(group.all as unknown as { [key: string]: object }[], query);
   }
 
   public onDropdownChange(e: ChangeEventArgs): void {
@@ -181,7 +279,12 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     this.suggestedEventsModalOpen.set(false);
   }
 
-  selectRole(registration: any): void {
+  /**
+   * @param destination 'home' lands on the job page (or the returnUrl); 'library' is the
+   *   Club Rep row's second door — same registration selected, then straight to the
+   *   Club Team Library for that event. A returnUrl still wins: it was asked for first.
+   */
+  selectRole(registration: { regId: string }, destination: 'home' | 'library' = 'home'): void {
     // Guard with selectingRole directly — not isLoading() — to prevent re-entry
     // when Syncfusion fires spurious change events during dropdown re-enable
     if (this.selectingRole()) {
@@ -201,7 +304,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
           this.router.navigateByUrl(this._returnUrl);
         } else if (user?.jobPath) {
           const routePath = user.jobPath.startsWith('/') ? user.jobPath : '/' + user.jobPath;
-          this.router.navigateByUrl(routePath);
+          this.router.navigateByUrl(destination === 'library' ? `${routePath}/club/library` : routePath);
         } else {
           // No jobPath in token (shouldn't happen) — re-enable UI as fallback
           this.selectingRole.set(false);

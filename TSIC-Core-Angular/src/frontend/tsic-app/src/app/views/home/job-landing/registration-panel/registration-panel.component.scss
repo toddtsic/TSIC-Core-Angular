@@ -57,6 +57,98 @@
 	color: var(--brand-text-muted);
 }
 
+// ── Club rep card ───────────────────────────────────────────
+// Full-width band above the sections grid: the rep's own club + event, one status
+// line, and the doors as the same .rp__link rows the columns use (teal accent —
+// the Teams color — so it reads as the team surface it is).
+.rp__rep {
+	--rp-accent: #0c7d72;
+	margin-bottom: var(--space-5);
+	padding: var(--space-4) var(--space-5);
+	border: 1px solid color-mix(in srgb, var(--rp-accent) 30%, var(--brand-border));
+	border-radius: var(--radius-lg);
+	background: color-mix(in srgb, var(--rp-accent) 6%, var(--brand-surface, var(--neutral-0)));
+	box-shadow: inset 4px 0 0 0 var(--rp-accent);
+
+	&--empty {
+		border-color: color-mix(in srgb, var(--bs-warning) 45%, var(--brand-border));
+		background: color-mix(in srgb, var(--bs-warning) 8%, var(--brand-surface, var(--neutral-0)));
+		box-shadow: inset 4px 0 0 0 var(--bs-warning);
+	}
+}
+
+.rp__rep-head {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-3);
+	margin-bottom: var(--space-3);
+}
+
+.rp__rep-icon {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--rp-accent) 14%, transparent);
+	color: var(--rp-accent);
+	font-size: 1.1rem;
+}
+
+.rp__rep-headtext { min-width: 0; }
+
+.rp__rep-title {
+	margin: 0;
+	font-size: var(--font-size-base);
+	font-weight: var(--font-weight-bold);
+	color: var(--brand-text);
+	line-height: 1.25;
+}
+
+.rp__rep-at {
+	font-weight: var(--font-weight-normal);
+	color: var(--brand-text-muted);
+}
+
+.rp__rep-status {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	margin: var(--space-1) 0 0;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text-muted);
+}
+
+.rp__rep-sep { opacity: 0.6; }
+
+.rp__rep-fact {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+
+	strong { color: var(--brand-text); font-weight: var(--font-weight-bold); }
+	&--ok .bi { color: var(--bs-success); }
+	&--warn { color: var(--brand-text); font-weight: var(--font-weight-semibold); .bi { color: var(--bs-warning); } }
+	&--due { color: var(--brand-text); font-weight: var(--font-weight-semibold); .bi { color: var(--bs-warning); } }
+	&--auto .bi { color: var(--bs-info); }
+}
+
+.rp__rep-links {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: var(--space-2);
+}
+
+// (The wizard door's teal fill is declared below, after the rp-fill mixin it uses.)
+
+@media (max-width: 575.98px) {
+	.rp__rep { padding: var(--space-3) var(--space-4); }
+	.rp__rep-links { grid-template-columns: 1fr; }
+}
+
 // ── Sections ────────────────────────────────────────────────
 .rp__sections {
 	display: grid;
@@ -150,6 +242,14 @@ $rp-mint-icon: #16a34a;
 .rp__section--teams .rp__link--public-rosters {
 	@include rp-fill($rp-mint-grad, $rp-mint-border,
 		$hover-border: $rp-mint-hover-border, $text: $rp-mint-text, $icon: $rp-mint-icon, $brightness: 1.08);
+}
+
+// Rep card's wizard door — the same bold teal fill Register Team / My Teams carried, so a
+// returning rep finds the one standout they already know.
+.rp__rep .rp__link--rep-primary {
+	@include rp-fill($rp-teal-grad, $rp-teal-border,
+		$hover-border: $rp-teal-hover-border, $brightness: 1.14, $glow: $rp-teal-glow);
+	.rp__link-text small { color: rgba(255, 255, 255, 0.82); }
 }
 
 .rp__links {

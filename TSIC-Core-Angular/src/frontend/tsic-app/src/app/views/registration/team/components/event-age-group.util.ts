@@ -9,8 +9,12 @@ import type { AgeGroupDto } from '@core/api';
 export interface AgeGroupSlot {
     ageGroupId: string;
     ageGroupName: string;
-    /** Deposit + balance — only surfaced by the fee-bearing (pill) variant. */
+    /** Deposit + balance — the whole fee. */
     fee: number;
+    /** RAW slices + the phase a NEW registration lands in, for "Deposit $X now · $Y total". */
+    deposit: number;
+    balanceDue: number;
+    fullPaymentRequired: boolean;
     spotsLeft: number;
     isFull: boolean;
     isAlmostFull: boolean;
@@ -124,10 +128,34 @@ export function buildAgeGroupSlots(
             ageGroupId: ag.ageGroupId,
             ageGroupName: ag.ageGroupName,
             fee: (ag.deposit || 0) + (ag.balanceDue || 0),
+            deposit: ag.deposit || 0,
+            balanceDue: ag.balanceDue || 0,
+            fullPaymentRequired: !!ag.fullPaymentRequired,
             spotsLeft,
             isFull: spotsLeft === 0,
             isAlmostFull: spotsLeft > 0 && spotsLeft <= 2,
             isRecommended: ag.ageGroupId === recommendedId,
         };
     });
+}
+
+/**
+ * What registering into this slot costs, phrased for the phase a NEW registration lands in.
+ * Deposit phase (a deposit slice exists and the balance is not yet required): the deposit is
+ * what's charged now, the rest follows when the director opens the final balance. Otherwise
+ * the whole fee is due on registration. A full slot waitlists and owes nothing until placed.
+ */
+export type SlotPricing =
+    | { kind: 'waitlist' }
+    | { kind: 'free' }
+    | { kind: 'deposit'; now: number; total: number }
+    | { kind: 'full'; total: number };
+
+export function describeSlotPricing(slot: Pick<AgeGroupSlot, 'isFull' | 'fee' | 'deposit' | 'balanceDue' | 'fullPaymentRequired'>): SlotPricing {
+    if (slot.isFull) return { kind: 'waitlist' };
+    if (slot.fee <= 0) return { kind: 'free' };
+    const depositPhase = !slot.fullPaymentRequired && slot.deposit > 0 && slot.balanceDue > 0;
+    return depositPhase
+        ? { kind: 'deposit', now: slot.deposit, total: slot.fee }
+        : { kind: 'full', total: slot.fee };
 }

@@ -210,6 +210,12 @@ public record JobPulseDto
 
     public bool? MyClubRepHasTeamWithoutRegsaver { get; init; }
 
+    /// <summary>
+    /// The rep's club name AS REGISTERED IN THIS EVENT (Registrations.ClubName — the in-event
+    /// name, never the library's). Lets the landing card say whose teams these are.
+    /// </summary>
+    public string? MyClubRepClubName { get; init; }
+
     // Display name of the regId owner (Player / ClubRep / Staff / etc). Used for header initials.
     public string? MyFirstName { get; init; }
     public string? MyLastName { get; init; }
@@ -267,6 +273,8 @@ public record JobPulseUserContext
     /// <summary>Owed across the rep's NON-ARB teams only — see JobPulseDto.MyClubRepNonArbOwed.</summary>
     public decimal? ClubRepNonArbOwed { get; init; }
     public bool? ClubRepHasTeamWithoutRegsaver { get; init; }
+    /// <summary>In-event club name off the rep's Registrations row — see JobPulseDto.MyClubRepClubName.</summary>
+    public string? ClubRepClubName { get; init; }
 
     // Display name of the regId owner
     public string? FirstName { get; init; }

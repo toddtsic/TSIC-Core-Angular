@@ -69,6 +69,7 @@ export interface RegisterTeamPick {
               [ageGroups]="ageGroups()"
               [gradYear]="team().clubTeamGradYear"
               [disabled]="busy() || lopRequired()"
+              [showSelectedFee]="true"
               [selected]="selectedAgeGroupId()"
               (selectedChange)="selectedAgeGroupId.set($event)" />
           </div>

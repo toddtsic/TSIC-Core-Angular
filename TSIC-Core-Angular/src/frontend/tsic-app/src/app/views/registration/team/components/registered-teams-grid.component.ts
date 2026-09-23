@@ -6,6 +6,15 @@ import { GridHeaderInfoPopover } from '@shared-ui/grid/grid-header-info-popover'
 import type { RegisteredTeamDto } from '@core/api';
 import { formatLop } from '@shared/teams/lop-choices';
 
+/** One registered team's fee position, phrased for the teams step's Fee Status column. */
+export type TeamFeeStatus =
+    | { kind: 'waitlist' }
+    | { kind: 'scheduled'; owed: number; nextChargeDate: string | null }
+    | { kind: 'depositDue'; owed: number; later: number }
+    | { kind: 'depositPaid'; later: number }
+    | { kind: 'balanceDue'; owed: number; depositPaid: boolean }
+    | { kind: 'paid' };
+
 /**
  * Registered-TEAMS summary grid. Club rep surfaces only: the teams step (interactive, with
  * delete), the payment step (read-only), and the director's club-rep accounting view.
@@ -94,18 +103,45 @@ import { formatLop } from '@shared/teams/lop-choices';
               </span>
             </ng-template>
           </e-column>
-          <!-- "Deposit Amount" (AR-095 item 2) reads as a price rather than a statement line.
-               Wraps to two lines under textWrapSettings 'Header'; longest word fits 85px.
-               showStructure is set true by the teams step alone, so no other host sees it. -->
-          <e-column field="deposit" headerText="Deposit Amount" width="85" textAlign="Right" format="C2"
-                    [visible]="showStructure()"></e-column>
-          <!-- "Balance Due Amount" (AR-095 item 3). Widened 100 -> 115 so it wraps to two lines
-               ("Balance Due / Amount") rather than three — the header row sizes to its tallest
-               cell, so a 3-line header would deepen the whole grid. Teams step only, as above.
-               NOTE: additionalDue below still ships the header "Balance Due" (net of paid,
-               payment step). The two never render together. -->
-          <e-column field="balanceDue" headerText="Balance Due Amount" width="115" textAlign="Right" format="C2"
-                    [visible]="showStructure()"></e-column>
+          <!-- Fee STATUS — teams step only (showStructure). Replaces the Deposit Amount /
+               Balance Due Amount / Total Fee trio (AR-095 items 2-3, CTL ruling 4, 09-22): a
+               price list read as a bill. Every amount still appears on its row, keyed to
+               NOW / LATER / PAID by the row's own phase (fullPaymentRequired) — see rowStatus().
+               Amounts are the fee itself; processing is added on the payment step. -->
+          <e-column field="feeStatus" headerText="Fee Status" width="200" [allowSorting]="false"
+                    [visible]="showStructure()"
+                    [customAttributes]="{ class: 'fee-status-cell' }">
+            <ng-template #template let-data>
+              @let s = rowStatus(data);
+              <span [class]="'fee-status fee-status--' + s.kind">
+                @switch (s.kind) {
+                  @case ('waitlist') {
+                    <span class="fee-status-main"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Waitlisted</span>
+                    <span class="fee-status-detail">no fee until placed</span>
+                  }
+                  @case ('scheduled') {
+                    <span class="fee-status-main"><i class="bi bi-calendar-event" aria-hidden="true"></i>Auto-pay · {{ s.owed | currency }}</span>
+                    <span class="fee-status-detail">{{ s.nextChargeDate ? 'next charge ' + (s.nextChargeDate | date:'mediumDate') : 'drafts on schedule' }}</span>
+                  }
+                  @case ('depositDue') {
+                    <span class="fee-status-main"><i class="bi bi-cash-stack" aria-hidden="true"></i>Deposit {{ s.owed | currency }} due now</span>
+                    <span class="fee-status-detail">{{ s.later | currency }} later</span>
+                  }
+                  @case ('depositPaid') {
+                    <span class="fee-status-main"><i class="bi bi-check-circle-fill" aria-hidden="true"></i>Deposit paid</span>
+                    <span class="fee-status-detail">{{ s.later | currency }} when the final balance opens</span>
+                  }
+                  @case ('balanceDue') {
+                    <span class="fee-status-main"><i class="bi bi-cash-stack" aria-hidden="true"></i>{{ s.owed | currency }} {{ s.depositPaid ? 'balance' : '' }} due now</span>
+                    @if (s.depositPaid) { <span class="fee-status-detail">deposit paid</span> }
+                  }
+                  @case ('paid') {
+                    <span class="fee-status-main"><i class="bi bi-check-circle-fill" aria-hidden="true"></i>Paid in full</span>
+                  }
+                }
+              </span>
+            </ng-template>
+          </e-column>
           <e-column field="depositDue" headerText="Deposit Due" width="75" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
           <e-column field="additionalDue" headerText="Balance Due" width="75" textAlign="Right" format="C2"
@@ -194,6 +230,17 @@ import { formatLop } from '@shared/teams/lop-choices';
               <e-column field="feeTotal" type="Sum" format="C2">
                 <ng-template #footerTemplate let-data>
                   <div class="aggregate-value">{{ sumFee() | currency }}</div>
+                </ng-template>
+              </e-column>
+              <!-- Fee-status totals: Paid · Due now · Due later (· Auto-pay), one line. -->
+              <e-column field="feeStatus" type="Custom">
+                <ng-template #footerTemplate>
+                  <div class="fee-status-totals">
+                    <span><span class="fst-key">Paid</span>{{ sumPaid() | currency }}</span>
+                    <span [class.fst-due]="sumDueNow() > 0"><span class="fst-key">Due now</span>{{ sumDueNow() | currency }}</span>
+                    @if (sumDueLater() > 0) { <span><span class="fst-key">Later</span>{{ sumDueLater() | currency }}</span> }
+                    @if (sumAutoPay() > 0) { <span><span class="fst-key">Auto-pay</span>{{ sumAutoPay() | currency }}</span> }
+                  </div>
                 </ng-template>
               </e-column>
               <e-column field="deposit" type="Sum" format="C2">
@@ -321,6 +368,65 @@ import { formatLop } from '@shared/teams/lop-choices';
         line-height: 1.2;
       }
 
+      /* Fee-status cell: two short lines (main + detail), so the cell must wrap too. */
+      :host ::ng-deep .e-grid td.fee-status-cell {
+        white-space: normal;
+        line-height: 1.25;
+      }
+
+      .fee-status {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      .fee-status-main {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        font-variant-numeric: tabular-nums;
+
+        .bi { font-size: 0.9em; }
+      }
+
+      .fee-status-detail {
+        font-size: var(--font-size-2xs);
+        color: var(--brand-text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Tone comes from the icon, the words carry the meaning — never color alone. */
+      .fee-status--paid .fee-status-main .bi,
+      .fee-status--depositPaid .fee-status-main .bi { color: var(--bs-success); }
+      .fee-status--depositDue .fee-status-main,
+      .fee-status--balanceDue .fee-status-main { color: var(--bs-danger); }
+      .fee-status--scheduled .fee-status-main .bi { color: var(--bs-info); }
+      .fee-status--waitlist .fee-status-main { color: var(--bs-warning-text-emphasis); }
+
+      .fee-status-totals {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1) var(--space-3);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        line-height: 1.3;
+
+        .fst-key {
+          margin-right: var(--space-1);
+          font-weight: var(--font-weight-normal);
+          color: var(--brand-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          font-size: var(--font-size-2xs);
+        }
+        .fst-due { color: var(--bs-danger); }
+      }
+      :host ::ng-deep .e-grid td.e-summarycell:has(.fee-status-totals) { white-space: normal; }
+
       .btn-inline-remove {
         display: inline-flex;
         align-items: center;
@@ -369,7 +475,7 @@ export class RegisteredTeamsGridComponent {
     readonly teams = input.required<RegisteredTeamDto[]>();
 
     // Column visibility flags
-    readonly showStructure = input(false); // immutable fee structure (Deposit + Balance Due) — Teams step
+    readonly showStructure = input(false); // per-row Fee Status (phase-keyed amounts) — Teams step only
     readonly showDeposit = input(false);   // net-of-paid deposit (DepositDue) — Payment step
     readonly showBalance = input(false);   // net-of-paid balance (AdditionalDue) — Payment step
     readonly showOwed = input(false);
@@ -467,6 +573,45 @@ export class RegisteredTeamsGridComponent {
      * [attr.title], so the compact digit never costs the reader the original value.
      */
     readonly formatLop = formatLop;
+
+    // ── Fee status (teams step) ───────────────────────────────────────────
+    // One row, one sentence, keyed to the row's OWN phase. Reads the same fields the
+    // legacy columns showed — nothing is re-derived from the ledger:
+    //   owedTotal   = what is billable NOW for this row (deposit slice in deposit phase,
+    //                 the whole fee once final balance opens), net of payments.
+    //   balanceDue  = the STRUCTURAL balance slice — not yet billed in deposit phase, so it
+    //                 is the "later" figure and nothing else. Never summed with owed.
+    //   tenderPaid  = money in.
+    // A deposit-phase row is one whose fee HAS a deposit slice and whose balance is not yet
+    // required; a deposit-less fee is a single payment and shows as due/paid outright.
+    rowStatus(t: RegisteredTeamDto): TeamFeeStatus {
+        if (t.isWaitlisted) return { kind: 'waitlist' };
+        const owed = t.owedTotal ?? 0;
+        const paid = t.tenderPaid ?? 0;
+        if (t.paymentScheduled && owed > 0) return { kind: 'scheduled', owed, nextChargeDate: t.nextChargeDate ?? null };
+        const depositPhase = !t.fullPaymentRequired && (t.deposit ?? 0) > 0 && (t.balanceDue ?? 0) > 0;
+        if (depositPhase) {
+            return owed > 0
+                ? { kind: 'depositDue', owed, later: t.balanceDue }
+                : { kind: 'depositPaid', later: t.balanceDue };
+        }
+        if (owed > 0) return { kind: 'balanceDue', owed, depositPaid: paid > 0 };
+        return { kind: 'paid' };
+    }
+    private isDepositPhaseRow(t: RegisteredTeamDto): boolean {
+        return !t.isWaitlisted && !t.fullPaymentRequired && (t.deposit ?? 0) > 0 && (t.balanceDue ?? 0) > 0;
+    }
+    /** Owed by hand, now — scheduled (auto-pay) rows are listed separately, not here. */
+    readonly sumDueNow = computed(() => this.teams()
+        .filter(t => !t.isWaitlisted && !(t.paymentScheduled && (t.owedTotal ?? 0) > 0))
+        .reduce((s, t) => s + Math.max(0, t.owedTotal ?? 0), 0));
+    readonly sumAutoPay = computed(() => this.teams()
+        .filter(t => !t.isWaitlisted && t.paymentScheduled && (t.owedTotal ?? 0) > 0)
+        .reduce((s, t) => s + (t.owedTotal ?? 0), 0));
+    /** The balance slices still to be billed on deposit-phase rows. */
+    readonly sumDueLater = computed(() => this.teams()
+        .filter(t => this.isDepositPhaseRow(t))
+        .reduce((s, t) => s + (t.balanceDue ?? 0), 0));
 
     // Aggregates
     readonly sumFee = computed(() => this.teams().reduce((s, t) => s + t.deposit + t.balanceDue, 0));

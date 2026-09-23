@@ -600,6 +600,7 @@ interface LibraryGroup {
                 [ageGroups]="ageGroups()"
                 [gradYear]="team.clubTeamGradYear"
                 [disabled]="actionInProgress() || lopRequired() || editingExisting()"
+                [showSelectedFee]="!editingExisting()"
                 [selected]="selectedAgeGroupId()"
                 (selectedChange)="selectedAgeGroupId.set($event)" />
             </div>

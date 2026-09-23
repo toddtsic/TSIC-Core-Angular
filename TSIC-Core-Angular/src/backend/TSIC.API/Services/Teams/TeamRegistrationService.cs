@@ -590,6 +590,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 // exactly this reason; see ResolvedFee.FullPrice for the canonical warning.
                 Deposit = resolved?.Deposit ?? 0m,
                 BalanceDue = resolved?.BalanceDue ?? 0m,
+                FullPaymentRequired = ResolvedFee.ResolveFullPaymentPhase(resolved),
                 RegisteredCount = registrationCounts.GetValueOrDefault(ag.AgegroupId, 0)
             });
         }

@@ -8,6 +8,94 @@
 				</div>
 			</header>
 
+			<!-- Club rep card — whose teams, how many, money status, and the four doors.
+			     Replaces the scattered My Teams / Pay Balance / Edit My Rosters rows for a
+			     rep scoped to this job. -->
+			@if (showRepCard()) {
+				<section class="rp__rep" [class.rp__rep--empty]="repTeamCount() === 0" aria-label="Your club at this event">
+					<div class="rp__rep-head">
+						<span class="rp__rep-icon" aria-hidden="true"><i class="bi bi-people-fill"></i></span>
+						<div class="rp__rep-headtext">
+							<h4 class="rp__rep-title">
+								@if (repClubName()) { {{ repClubName() }} <span class="rp__rep-at">at the</span> }
+								{{ repEventName() }}
+							</h4>
+							<p class="rp__rep-status">
+								@if (repTeamCount() === 0) {
+									<span class="rp__rep-fact rp__rep-fact--warn">
+										<i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>No teams registered yet
+									</span>
+								} @else {
+									<span class="rp__rep-fact rp__rep-fact--ok">
+										<i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+										<strong>{{ repTeamCount() }}</strong>&nbsp;{{ repTeamCount() === 1 ? 'team' : 'teams' }} registered
+									</span>
+									<span class="rp__rep-sep" aria-hidden="true">·</span>
+									<span class="rp__rep-fact"
+										[class.rp__rep-fact--ok]="repMoney().tone === 'ok'"
+										[class.rp__rep-fact--due]="repMoney().tone === 'due'"
+										[class.rp__rep-fact--auto]="repMoney().tone === 'auto'">
+										@switch (repMoney().tone) {
+											@case ('ok') { <i class="bi bi-check-circle-fill" aria-hidden="true"></i> }
+											@case ('due') { <i class="bi bi-cash-stack" aria-hidden="true"></i> }
+											@case ('auto') { <i class="bi bi-calendar-event" aria-hidden="true"></i> }
+										}{{ repMoney().label }}
+									</span>
+								}
+							</p>
+						</div>
+					</div>
+					<div class="rp__rep-links">
+						<a class="rp__link rp__link--rep-primary" [routerLink]="repRegLink()" [queryParams]="{ step: 'teams' }">
+							<i class="bi bi-trophy-fill rp__link-icon" aria-hidden="true"></i>
+							<span class="rp__link-text">
+								<strong>{{ repTeamCount() === 0 ? 'Register Teams' : 'Team Registration' }}</strong>
+								<small>{{ repTeamCount() === 0 ? 'Pick from your library or add a team' : 'Register more, rename, review fees' }}</small>
+							</span>
+							<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+						</a>
+						@if (repShowPay()) {
+							<a class="rp__link rp__link--alert" [routerLink]="repRegLink()" [queryParams]="{ step: 'payment' }">
+								<i class="bi bi-cash-stack rp__link-icon" aria-hidden="true"></i>
+								<span class="rp__link-text">
+									<strong>Pay Balance Due</strong>
+									<small>Amount on the payment step</small>
+								</span>
+								<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+							</a>
+						}
+						@if (repShowRosters()) {
+							<a class="rp__link" [routerLink]="repRostersLink()">
+								<i class="bi bi-card-list rp__link-icon" aria-hidden="true"></i>
+								<span class="rp__link-text">
+									<strong>Edit My Rosters</strong>
+									<small>Uniform #s, move or remove players</small>
+								</span>
+								<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+							</a>
+						}
+						<a class="rp__link" [routerLink]="repLibraryLink()">
+							<i class="bi bi-collection rp__link-icon" aria-hidden="true"></i>
+							<span class="rp__link-text">
+								<strong>Club Team Library</strong>
+								<small>Every team, every event it has played</small>
+							</span>
+							<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+						</a>
+						@if (repShowInsurance()) {
+							<a class="rp__link" [routerLink]="repInsuranceLink()">
+								<i class="bi bi-shield-check rp__link-icon" aria-hidden="true"></i>
+								<span class="rp__link-text">
+									<strong>Add Team RegSaver</strong>
+									<small>Forgot it at checkout?</small>
+								</span>
+								<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+							</a>
+						}
+					</div>
+				</section>
+			}
+
 			<div class="rp__sections">
 
 				<!-- Self-Rostering — one link per open self-registration role -->
@@ -75,7 +163,7 @@
 							@if (showMyTeams()) {
 								<a class="rp__link rp__link--my-teams" [routerLink]="myTeamsLink()" [queryParams]="{ step: 'teams' }">
 									<i class="bi bi-people rp__link-icon" aria-hidden="true"></i>
-									<span class="rp__link-label">My Teams</span>
+									<span class="rp__link-label">Team Registration</span>
 									<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
 								</a>
 							}

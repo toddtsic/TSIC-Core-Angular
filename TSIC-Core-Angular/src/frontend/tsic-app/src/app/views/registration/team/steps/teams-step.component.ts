@@ -137,13 +137,14 @@ type PendingRename =
                  accounting grid the totals genuinely ARE the statement. -->
             <p class="pricing-notice">
               <i class="bi bi-info-circle" aria-hidden="true"></i>
-              <span>These are your registered teams' fees &mdash; what it costs to register them,
-                <strong>not what you owe now</strong>. For that,
+              <span>Each team's fee status is keyed to <strong>now</strong>, <strong>later</strong> or
+                <strong>paid</strong>. Amounts are the fee itself &mdash; any processing fee is added when you
                 <strong>Continue to Payment</strong> below.</span>
             </p>
             <app-registered-teams-grid
               [teams]="enteredTeams()"
               [showStructure]="true"
+              [showTotalFee]="false"
               [showDeposit]="false"
               [showBalance]="false"
               [showOwed]="false"

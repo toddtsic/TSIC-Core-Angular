@@ -46,22 +46,34 @@
               </button>
             </p>
             }
-            @for (roleGroup of registrations(); track roleGroup.roleName; let i = $index) {
+            @for (group of groups(); track group.roleName; let i = $index) {
             <div class="role-section">
               @if (useTypeaheadMode()) {
-              <label class="role-label" [attr.id]="'rs-label-' + i">{{ roleLabel(roleGroup.roleName) }}</label>
-              <ejs-dropdownlist [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
+              <label class="role-label" [attr.id]="'rs-label-' + i">{{ roleLabel(group.roleName) }}</label>
+              <ejs-dropdownlist [dataSource]="group.all" [fields]="fields"
                 [placeholder]="'Select a registration...'" [allowFiltering]="true"
                 [filterBarPlaceholder]="'Type to search...'" [enabled]="!isLoading()" [popupHeight]="'400px'"
                 [popupWidth]="'100%'" [isDeviceFullScreen]="false"
-                [htmlAttributes]="{ 'aria-label': 'Select ' + roleLabel(roleGroup.roleName) + ' registration', 'aria-describedby': 'rs-help-' + i }"
-                (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
+                [htmlAttributes]="{ 'aria-label': 'Select ' + roleLabel(group.roleName) + ' registration', 'aria-describedby': 'rs-help-' + i }"
+                (filtering)="onFiltering($event, group)" (change)="onDropdownChange($event)">
                 <ng-template #itemTemplate let-data>
-                  <div class="dropdown-item-custom">
+                  <div class="dropdown-item-custom" [class.is-past]="data.isPast">
                     @if (data.jobLogo) {
                     <img class="job-logo" [src]="data.jobLogo" [alt]="data.displayText" />
                     }
-                    <span class="item-text">{{ data.displayText }}</span>
+                    <span class="item-body">
+                      <span class="item-text">
+                        {{ data.displayText }}
+                        @if (data.isHere) { <span class="here-chip">this event</span> }
+                      </span>
+                      @if (data.dateLabel || data.teamLabel) {
+                      <span class="item-sub">
+                        @if (data.dateLabel) { {{ data.dateLabel }} }
+                        @if (data.dateLabel && data.teamLabel) { &middot; }
+                        @if (data.teamLabel) { {{ data.teamLabel }} }
+                      </span>
+                      }
+                    </span>
                   </div>
                 </ng-template>
               </ejs-dropdownlist>
@@ -69,31 +81,66 @@
                 navigate, Enter selects.</span>
               } @else {
               <section class="role-ledger" [attr.aria-labelledby]="'rs-label-' + i">
-                <h3 class="role-ledger-header" [attr.id]="'rs-label-' + i">{{ roleLabel(roleGroup.roleName) }}</h3>
+                <h3 class="role-ledger-header" [attr.id]="'rs-label-' + i">{{ roleLabel(group.roleName) }}</h3>
                 <ul class="role-ledger-list">
-                  @for (reg of roleGroup.roleRegistrations; track reg.regId) {
-                  <li>
-                  <button type="button" class="role-card-row" [disabled]="isLoading()" (click)="selectRole(reg)">
-                    @if (reg.jobLogo) {
-                    <img class="role-card-logo" [src]="reg.jobLogo" alt="" aria-hidden="true" />
-                    } @else {
-                    <span class="role-card-logo-placeholder" aria-hidden="true"></span>
-                    }
-                    <span class="role-card-body">
-                      <span class="role-card-title">{{ parseRowParts(reg.displayText).title }}</span>
-                      @if (parseRowParts(reg.displayText).detail) {
-                      <span class="role-card-detail">{{ parseRowParts(reg.displayText).detail }}</span>
-                      }
-                    </span>
-                    <i class="bi bi-chevron-right role-card-arrow" aria-hidden="true"></i>
-                  </button>
+                  @for (reg of group.current; track reg.regId) {
+                  <li class="role-card-li" [class.is-here]="reg.isHere">
+                    <ng-container *ngTemplateOutlet="roleRow; context: { $implicit: reg, group: group }" />
                   </li>
+                  }
+                  @if (group.past.length > 0) {
+                  <li class="role-ledger-sub" [class.role-ledger-sub--first]="group.current.length === 0">
+                    <i class="bi bi-clock-history" aria-hidden="true"></i>Past events
+                  </li>
+                  @for (reg of group.past; track reg.regId) {
+                  <li class="role-card-li is-past" [class.is-here]="reg.isHere">
+                    <ng-container *ngTemplateOutlet="roleRow; context: { $implicit: reg, group: group }" />
+                  </li>
+                  }
                   }
                 </ul>
               </section>
               }
             </div>
             }
+
+            <!-- One row, both buckets. A Club Rep row carries a second door — the Club Team
+                 Library for that event — as a SIBLING button (a button inside a button is
+                 invalid HTML), so the li is the flex row and the main button fills it. -->
+            <ng-template #roleRow let-reg let-group="group">
+              <button type="button" class="role-card-row" [disabled]="isLoading()" (click)="selectRole(reg)">
+                @if (reg.jobLogo) {
+                <img class="role-card-logo" [src]="reg.jobLogo" alt="" aria-hidden="true" />
+                } @else {
+                <span class="role-card-logo-placeholder" aria-hidden="true"></span>
+                }
+                <span class="role-card-body">
+                  <span class="role-card-title">
+                    {{ reg.title }}
+                    @if (reg.isHere) { <span class="here-chip">this event</span> }
+                  </span>
+                  @if (reg.detail) {
+                  <span class="role-card-detail">{{ reg.detail }}</span>
+                  }
+                  @if (reg.dateLabel || reg.teamLabel) {
+                  <span class="role-card-meta">
+                    @if (reg.dateLabel) { <span><i class="bi bi-calendar3" aria-hidden="true"></i>{{ reg.dateLabel }}</span> }
+                    @if (reg.teamLabel) { <span [class.role-card-meta--warn]="reg.teamCount === 0"><i class="bi bi-people" aria-hidden="true"></i>{{ reg.teamLabel }}</span> }
+                  </span>
+                  }
+                </span>
+                <i class="bi bi-chevron-right role-card-arrow" aria-hidden="true"></i>
+              </button>
+              @if (group.isClubRep) {
+              <button type="button" class="role-card-aux" [disabled]="isLoading()"
+                [attr.aria-label]="'Open the Club Team Library for ' + reg.title"
+                title="Club Team Library"
+                (click)="selectRole(reg, 'library')">
+                <i class="bi bi-collection" aria-hidden="true"></i>
+                <span>Library</span>
+              </button>
+              }
+            </ng-template>
             @if (hasSuggestableRegistration()) {
             <div class="tsic-callout tsic-callout--info tsic-callout--block role-pivot-footnote" role="note">
               <i class="bi bi-info-circle" aria-hidden="true"></i>

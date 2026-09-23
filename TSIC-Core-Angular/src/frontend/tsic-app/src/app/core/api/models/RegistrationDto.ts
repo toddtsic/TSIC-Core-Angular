@@ -7,5 +7,8 @@ export type RegistrationDto = {
     displayText: string;
     jobLogo: string;
     jobPath?: string | null;
+    eventStartDate?: string | null;
+    eventEndDate?: string | null;
+    teamCount?: number | null;
 };
 

@@ -329,6 +329,7 @@ public class JobsController : ControllerBase
                         MyClubRepTotalOwed = ctx.ClubRepTotalOwed,
                         MyClubRepNonArbOwed = ctx.ClubRepNonArbOwed,
                         MyClubRepHasTeamWithoutRegsaver = ctx.ClubRepHasTeamWithoutRegsaver,
+                        MyClubRepClubName = ctx.ClubRepClubName,
                         MyFirstName = ctx.FirstName ?? pulse.MyFirstName,
                         MyLastName = ctx.LastName ?? pulse.MyLastName
                     };

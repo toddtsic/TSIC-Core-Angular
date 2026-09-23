@@ -9,5 +9,6 @@ export type AgeGroupDto = {
     registeredCount: number;
     deposit: number;
     balanceDue: number;
+    fullPaymentRequired: boolean;
 };
 

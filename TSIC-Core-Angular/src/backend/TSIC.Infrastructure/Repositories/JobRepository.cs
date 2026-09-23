@@ -1254,9 +1254,18 @@ public class JobRepository : IJobRepository
                 .Select(t => new { t.OwedTotal, t.ViPolicyId, t.AdnSubscriptionId })
                 .ToListAsync(cancellationToken);
 
+            // In-event club name lives on the rep's Registrations row (the library's name is a
+            // different thing — see the club-name theory: identity by ClubId, in-event name here).
+            var clubName = await _context.Registrations
+                .AsNoTracking()
+                .Where(r => r.RegistrationId == regId)
+                .Select(r => r.ClubName)
+                .FirstOrDefaultAsync(cancellationToken);
+
             return new Contracts.Dtos.JobPulseUserContext
             {
                 ClubRepTeamCount = teams.Count,
+                ClubRepClubName = clubName,
                 ClubRepTotalOwed = teams.Sum(t => t.OwedTotal ?? 0m),
                 // Only the non-ARB teams' balances are payable by hand; an ARB team's
                 // OwedTotal stays positive while its subscription drips. Gating the

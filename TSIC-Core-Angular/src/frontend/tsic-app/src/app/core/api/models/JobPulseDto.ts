@@ -51,6 +51,7 @@ export type JobPulseDto = {
     myClubRepTotalOwed?: number | null;
     myClubRepNonArbOwed?: number | null;
     myClubRepHasTeamWithoutRegsaver?: boolean | null;
+    myClubRepClubName?: string | null;
     myFirstName?: string | null;
     myLastName?: string | null;
     myHasDashboardWidgets?: boolean | null;

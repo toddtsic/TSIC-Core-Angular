@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import type { AgeGroupDto } from '@core/api';
-import { buildAgeGroupSlots } from './event-age-group.util';
+import { buildAgeGroupSlots, describeSlotPricing, type SlotPricing } from './event-age-group.util';
 
 /**
  * Event age-group picker for team registration — the grad-year-aware grid of
@@ -41,9 +41,17 @@ import { buildAgeGroupSlots } from './event-age-group.util';
               @if (slot.isRecommended) { <i class="bi bi-star-fill age-pill-star"></i> }
               @if (selected() === slot.ageGroupId) { <i class="bi bi-check-circle-fill age-pill-check"></i> }
             </span>
-            <span class="age-pill-fee">
-              @if (slot.isFull) { Free }
-              @else { {{ slot.fee | currency }} }
+            <!-- Phase-honest price: in a deposit-phase event the pick costs the DEPOSIT now
+                 and the balance later; elsewhere the whole fee. A full slot waitlists and
+                 owes nothing until placed (the old "Free" label read as a discount). -->
+            @let pr = pricing(slot);
+            <span class="age-pill-fee" [class.age-pill-fee--muted]="pr.kind === 'waitlist' || pr.kind === 'free'">
+              @switch (pr.kind) {
+                @case ('waitlist') { No fee until placed }
+                @case ('free') { No fee }
+                @case ('deposit') { Deposit {{ pr.now | currency }} <small>· {{ pr.total | currency }} total</small> }
+                @case ('full') { {{ pr.total | currency }} }
+              }
             </span>
             <span class="age-pill-spots"
                   [class.text-warning]="slot.isAlmostFull && !slot.isFull"
@@ -74,6 +82,18 @@ import { buildAgeGroupSlots } from './event-age-group.util';
           </button>
         }
       </div>
+      <!-- The register sheet's price line for the SELECTED pick (opt-in). Same phase logic
+           as the pill variant, one line under the chips: "Deposit $500 now · $2,000 total". -->
+      @if (showSelectedFee() && selectedPricing(); as pr) {
+        <p class="eagp-fee-line" [class.eagp-fee-line--muted]="pr.kind === 'waitlist' || pr.kind === 'free'">
+          @switch (pr.kind) {
+            @case ('waitlist') { <i class="bi bi-hourglass-split" aria-hidden="true"></i>Waitlisted &mdash; no fee until placed }
+            @case ('free') { <i class="bi bi-check-circle" aria-hidden="true"></i>No fee }
+            @case ('deposit') { <i class="bi bi-cash-stack" aria-hidden="true"></i><strong>Deposit {{ pr.now | currency }} now</strong> &middot; {{ pr.total | currency }} total }
+            @case ('full') { <i class="bi bi-cash-stack" aria-hidden="true"></i><strong>{{ pr.total | currency }}</strong> due on registration }
+          }
+        </p>
+      }
     }
   `,
     styles: [`
@@ -157,6 +177,25 @@ import { buildAgeGroupSlots } from './event-age-group.util';
         font-size: var(--font-size-xs);
         font-weight: var(--font-weight-semibold);
         color: var(--bs-success);
+        text-align: center;
+        line-height: 1.2;
+
+        small { display: block; font-size: 10px; font-weight: var(--font-weight-normal); color: var(--brand-text-muted); }
+        &--muted { color: var(--brand-text-muted); font-weight: var(--font-weight-medium); }
+      }
+
+      /* Chip variant's selected-pick price line */
+      .eagp-fee-line {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        margin: var(--space-2) 0 0;
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+
+        strong { color: var(--brand-text); font-weight: var(--font-weight-semibold); }
+        .bi { color: var(--bs-primary); }
+        &--muted .bi { color: var(--brand-text-muted); }
       }
 
       .age-pill-spots {
@@ -265,4 +304,13 @@ export class EventAgeGroupPickerComponent {
     readonly variant = input<'pill' | 'chip'>('chip');
 
     readonly slots = computed(() => buildAgeGroupSlots(this.ageGroups(), this.gradYear()));
+
+    /** Chip variant: render the selected pick's price line under the chips. */
+    readonly showSelectedFee = input(false);
+
+    readonly pricing = describeSlotPricing;
+    readonly selectedPricing = computed<SlotPricing | null>(() => {
+        const slot = this.slots().find(s => s.ageGroupId === this.selected());
+        return slot ? describeSlotPricing(slot) : null;
+    });
 }

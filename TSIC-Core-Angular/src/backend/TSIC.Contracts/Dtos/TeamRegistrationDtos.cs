@@ -351,6 +351,13 @@ public sealed record AgeGroupDto
     public required decimal Deposit { get; init; }
     /// <summary>RAW balance slice (NULL → 0). See <see cref="Deposit"/>.</summary>
     public required decimal BalanceDue { get; init; }
+    /// <summary>
+    /// The payment phase a NEW registration into this age group lands in, resolved the same
+    /// cascade the fee itself came from (agegroup → league → job). False = deposit phase, where
+    /// the register sheet prices the pick as "Deposit $X now · $Y total"; true = the whole fee
+    /// is due on registration. Pre-existing rows carry their own RegisteredTeamDto.FullPaymentRequired.
+    /// </summary>
+    public required bool FullPaymentRequired { get; init; }
 }
 
 public sealed record RegisterTeamRequest
