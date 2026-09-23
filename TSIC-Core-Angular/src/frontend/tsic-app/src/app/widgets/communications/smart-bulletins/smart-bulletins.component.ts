@@ -136,8 +136,12 @@ export class SmartBulletinsComponent {
 				// row, so the mount gate must too or the panel can mount with nothing in it.
 				(allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0 && !p.myHasLiveArbSubscription) ||
 				(allowed.has('player-insurance') && p.offerPlayerRegsaverInsurance && p.myHasPurchasedPlayerRegsaver !== true))) ||
-			(!pub && (p.myClubRepTeamCount ?? 0) > 0 && (
-				allowed.has('my-teams') ||
+			// A club rep with ZERO teams still gets the panel: the rep card there is the door to
+			// registering the first one ("Register Teams"). myClubRepTeamCount is null for every
+			// non-club-rep session, so null - not 0 - is the "not a rep here" signal. Mirrors
+			// registration-panel showRepCard.
+			(!pub && p.myClubRepTeamCount !== null && p.myClubRepTeamCount !== undefined && (
+				allowed.has('my-teams') || allowed.has('register-team') ||
 				// Non-ARB owed, matching the panel's row: an ARB team's OwedTotal stays
 				// positive while it auto-drafts, so the full sum would mount a stale row.
 				(p.myClubRepNonArbOwed ?? 0) > 0 ||

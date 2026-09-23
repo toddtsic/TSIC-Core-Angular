@@ -265,6 +265,23 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     e.updateData(group.all as unknown as { [key: string]: object }[], query);
   }
 
+  /**
+   * The Club Rep item's second door in typeahead mode. An ej2 list item selects on click, so
+   * the Library button must (1) keep the input focused on mousedown - a blur closes the popup
+   * before click fires - and (2) stop the click reaching the list, or ej2 selects the row and
+   * navigates to the job home instead.
+   */
+  holdDropdown(e: Event): void {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  openLibraryFromItem(e: Event, row: RoleRow): void {
+    e.preventDefault();
+    e.stopPropagation();
+    this.selectRole(row, 'library');
+  }
+
   public onDropdownChange(e: ChangeEventArgs): void {
     if (e.itemData) {
       this.selectRole(e.itemData as any);

@@ -331,6 +331,40 @@
   }
 
   &.is-past .item-text { color: var(--brand-text-muted); }
+
+  // Club Rep rows only: the second door (Club Team Library) as a sibling of the item body.
+  // Mirrors .role-card-aux in card mode; sits inside an ej2 list item, so it stops its own
+  // mousedown/click from reaching the list (see holdDropdown / openLibraryFromItem).
+  .item-library {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--bs-border-radius-pill, 999px);
+    background: var(--bs-body-bg);
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-2xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+
+    .bi { font-size: var(--font-size-sm); }
+
+    &:hover {
+      background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
+      border-color: var(--bs-primary);
+      color: var(--bs-primary);
+    }
+    &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+    @media (prefers-reduced-motion: reduce) { transition: none; }
+  }
 }
 
 // ─── Empty state — no registrations on this account ───
