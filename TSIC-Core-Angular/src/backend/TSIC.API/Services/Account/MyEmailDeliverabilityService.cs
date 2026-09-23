@@ -70,6 +70,7 @@ public sealed class MyEmailDeliverabilityService : IMyEmailDeliverabilityService
             {
                 Email = target,
                 SuppressionStatus = "Unknown",
+                DomainStatus = "Unknown",
                 SendAccepted = false,
                 Side = "Inconclusive",
                 Conclusion = "No result returned."

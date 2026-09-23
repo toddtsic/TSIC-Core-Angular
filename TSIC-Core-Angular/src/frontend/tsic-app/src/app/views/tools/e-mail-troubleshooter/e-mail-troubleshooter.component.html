@@ -148,6 +148,7 @@
 								@switch (row.side) {
 									@case ('Recipient') { <span class="badge bg-success">Recipient side</span> }
 									@case ('Sending') { <span class="badge bg-warning text-dark">Our side</span> }
+									@case ('Address') { <span class="badge bg-danger">Bad address</span> }
 									@default { <span class="badge bg-secondary">Inconclusive</span> }
 								}
 							</div>
@@ -162,16 +163,26 @@
 									}
 								</li>
 								<li>
+									<span class="finding-key">Recipient domain:</span>
+									@switch (row.domainStatus) {
+										@case ('NoMailExchanger') { <span class="text-danger">Accepts no mail - nothing published in DNS</span> }
+										@case ('Accepts') { <span class="text-success">Publishes a mail server</span> }
+										@default { <span class="text-muted">Could not check</span> }
+									}
+								</li>
+								<li>
 									<span class="finding-key">Test send:</span>
 									@if (row.sendAccepted) {
-										<span class="text-success">Accepted &amp; dispatched by our email service</span>
+										<span class="text-success">Accepted for delivery (acceptance is not proof of delivery)</span>
+									} @else if (row.side === 'Address') {
+										<span class="text-muted">Not attempted - there is no mail server to send to</span>
 									} @else {
 										<span class="text-danger">Not sent{{ row.error ? ' (' + row.error + ')' : '' }}</span>
 									}
 								</li>
 							</ul>
 
-							<div class="conclusion" [class.concl-recipient]="row.side === 'Recipient'" [class.concl-sending]="row.side === 'Sending'">
+							<div class="conclusion" [class.concl-recipient]="row.side === 'Recipient'" [class.concl-sending]="row.side === 'Sending'" [class.concl-address]="row.side === 'Address'">
 								<div class="concl-label">Conclusion</div>
 								<p class="concl-text">{{ row.conclusion }}</p>
 							</div>

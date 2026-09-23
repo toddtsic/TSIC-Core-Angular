@@ -92,11 +92,28 @@
 							@if (testResultFor(row.email); as res) {
 								@switch (res.side) {
 									@case ('Recipient') {
-										<p class="row-note note-ok">✓ Amazon AWS Email Services accepted and sent this test successfully.</p>
+										<p class="row-note note-ok">
+											✓ Our email service accepted this test. If it does not arrive within a few
+											minutes, check your junk or spam folder.
+										</p>
+									}
+									@case ('Address') {
+										<p class="row-note note-danger">
+											This address cannot receive email at all — the part after the
+											&#64; is not a real mail domain. Check it for a typo (for example
+											<strong>a.com</strong> typed instead of <strong>aol.com</strong>) and correct
+											it in your profile.
+										</p>
 									}
 									@case ('Inconclusive') {
 										<p class="row-note note-danger">
 											The test could not be sent. Please contact
+											<strong>support&#64;teamsportsinfo.com</strong>.
+										</p>
+									}
+									@default {
+										<p class="row-note note-danger">
+											The test finished without a clear result. Please contact
 											<strong>support&#64;teamsportsinfo.com</strong>.
 										</p>
 									}

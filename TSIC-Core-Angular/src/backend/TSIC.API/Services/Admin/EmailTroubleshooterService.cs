@@ -11,6 +11,12 @@ namespace TSIC.API.Services.Admin;
 /// the forced test send reuses <see cref="IEmailService"/> (sendInDevelopment: true) so the
 /// existing branding, gating, and v1 transport are preserved. Addresses are processed one at a
 /// time so every result is attributable to a single recipient.
+///
+/// Investigate runs three checks in a deliberate order - suppression, then recipient DNS, then the
+/// test send - because each can settle the question without the next. The DNS step exists because
+/// SES accepting a message proves only that it queued the API call; it reports the real outcome
+/// hours later as a bounce. Reading that acceptance as "the sending side is healthy" is what made
+/// this tool tell a director to check the spam folder of a domain that does not exist.
 /// </summary>
 public sealed class EmailTroubleshooterService : IEmailTroubleshooterService
 {
@@ -18,17 +24,27 @@ public sealed class EmailTroubleshooterService : IEmailTroubleshooterService
     private const string SuppressionStatusYes = "Suppressed";
     private const string SuppressionStatusUnknown = "Unknown";
 
+    // Which side of the exchange the evidence points at. "Address" is the one no amount of
+    // contacting anybody will fix: the domain does not accept mail, so there is no recipient.
+    private const string SideSending = "Sending";
+    private const string SideAddress = "Address";
+    private const string SideRecipient = "Recipient";
+    private const string SideInconclusive = "Inconclusive";
+
     private readonly IAmazonSimpleEmailServiceV2 _sesV2;
     private readonly IEmailService _email;
+    private readonly IRecipientDomainService _domains;
     private readonly ILogger<EmailTroubleshooterService> _logger;
 
     public EmailTroubleshooterService(
         IAmazonSimpleEmailServiceV2 sesV2,
         IEmailService email,
+        IRecipientDomainService domains,
         ILogger<EmailTroubleshooterService> logger)
     {
         _sesV2 = sesV2;
         _email = email;
+        _domains = domains;
         _logger = logger;
     }
 
@@ -92,14 +108,39 @@ public sealed class EmailTroubleshooterService : IEmailTroubleshooterService
                     Email = email,
                     SuppressionStatus = status,
                     SuppressionReason = reason,
+                    DomainStatus = RecipientDomainStatus.Unknown.ToString(),
                     SendAccepted = false,
-                    Side = "Sending",
+                    Side = SideSending,
                     Conclusion =
                         $"This is on the SENDING side and is fixable here. Our email service (Amazon SES) is " +
                         $"withholding delivery because this address is on our suppression list" +
                         (string.IsNullOrWhiteSpace(reason) ? "" : $" (reason: {reason})") +
                         ", from a previous bounce or complaint. Remove it from the suppression list (Suppression " +
                         "List tab) - and resolve the original cause - before mail will reach this recipient."
+                });
+                continue;
+            }
+
+            // DNS is checked BEFORE the test send, not after. SES queues a message for a domain that
+            // does not exist just as readily as for one that does, then retries for 14 hours and
+            // bounces — so sending first would manufacture the very noise this tool exists to explain.
+            var domain = await _domains.CheckAsync(email, cancellationToken);
+            if (domain == RecipientDomainStatus.NoMailExchanger)
+            {
+                results.Add(new EmailInvestigateResultDto
+                {
+                    Email = email,
+                    SuppressionStatus = status,
+                    SuppressionReason = reason,
+                    DomainStatus = domain.ToString(),
+                    SendAccepted = false,
+                    Side = SideAddress,
+                    Conclusion =
+                        "The ADDRESS is wrong - this is not a spam-filter problem, and there is nobody to " +
+                        "contact. The domain after the '@' publishes no mail server and accepts no mail, so " +
+                        "nothing sent to it can ever arrive. This is almost always a typo (\"a.com\" typed " +
+                        "for \"aol.com\"). Correct the address on the registration. Until it is corrected, " +
+                        "every send to it retries for 14 hours and then bounces."
                 });
                 continue;
             }
@@ -121,18 +162,22 @@ public sealed class EmailTroubleshooterService : IEmailTroubleshooterService
             string conclusion;
             if (sendAccepted)
             {
-                side = "Recipient";
+                side = SideRecipient;
                 conclusion =
-                    "The message left TEAMSPORTSINFO.COM successfully. Our email service (Amazon SES) confirmed " +
-                    "this address is NOT blocked on our side and accepted the message for delivery. There is " +
-                    "nothing wrong on the sending side. If the message was not received, it is being filtered or " +
-                    "held on the RECIPIENT's end - almost always a junk/spam folder, or a mail-gateway/security " +
-                    "filter that quarantined it silently. The recipient (or their email/IT provider) should check " +
-                    "spam and quarantine, and allowlist support@teamsportsinfo.com.";
+                    "Our email service (Amazon SES) accepted this message and this address is NOT blocked " +
+                    "on our side" +
+                    (domain == RecipientDomainStatus.Accepts
+                        ? ", and the recipient's domain does publish a working mail server. "
+                        : ". We could not reach DNS to confirm the recipient's domain, so that part is unverified. ") +
+                    "Be aware that acceptance is not proof of delivery - SES reports the real outcome hours " +
+                    "later, as a bounce. If the message never arrived and no bounce came back, it is being " +
+                    "filtered or held on the RECIPIENT's end - usually a junk/spam folder, or a mail-gateway " +
+                    "filter that quarantined it silently. The recipient (or their email/IT provider) should " +
+                    "check spam and quarantine, and allowlist support@teamsportsinfo.com.";
             }
             else
             {
-                side = "Inconclusive";
+                side = SideInconclusive;
                 conclusion =
                     "The test message could NOT be sent from our system (the email service returned a failure). " +
                     "This points to the SENDING side - check the email service configuration and the AWS " +
@@ -144,6 +189,7 @@ public sealed class EmailTroubleshooterService : IEmailTroubleshooterService
                 Email = email,
                 SuppressionStatus = status,
                 SuppressionReason = reason,
+                DomainStatus = domain.ToString(),
                 SendAccepted = sendAccepted,
                 Side = side,
                 Conclusion = conclusion,

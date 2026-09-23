@@ -188,6 +188,7 @@ export class EmailDeliverabilityComponent implements OnInit {
 					[email]: {
 						email,
 						suppressionStatus: 'Unknown',
+						domainStatus: 'Unknown',
 						sendAccepted: false,
 						side: 'Inconclusive',
 						conclusion: ''

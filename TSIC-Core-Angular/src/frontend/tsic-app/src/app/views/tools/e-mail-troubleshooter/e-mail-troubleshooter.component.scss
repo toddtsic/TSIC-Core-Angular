@@ -173,6 +173,11 @@
 		border-left-color: var(--bs-warning);
 		background: rgba(var(--bs-warning-rgb), 0.08);
 	}
+
+	&.concl-address {
+		border-left-color: var(--bs-danger);
+		background: rgba(var(--bs-danger-rgb), 0.08);
+	}
 }
 
 .concl-label {

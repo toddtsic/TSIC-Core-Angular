@@ -6,6 +6,7 @@ export type EmailInvestigateResultDto = {
     email: string;
     suppressionStatus: string;
     suppressionReason?: string | null;
+    domainStatus: string;
     sendAccepted: boolean;
     side: string;
     conclusion: string;

@@ -32,16 +32,24 @@ public record SuppressionRemoveResultDto
 }
 
 /// <summary>
-/// Result of investigating a single address: suppression status + forced test send +
-/// a plain-English conclusion naming the responsible side.
+/// Result of investigating a single address: suppression status + recipient-domain DNS check +
+/// forced test send + a plain-English conclusion naming the responsible side.
 /// SuppressionStatus: "NotSuppressed" | "Suppressed" | "Unknown".
-/// Side: "Sending" | "Recipient" | "Inconclusive".
+/// DomainStatus: "Accepts" | "NoMailExchanger" | "Unknown".
+/// Side: "Sending" | "Address" | "Recipient" | "Inconclusive".
 /// </summary>
 public record EmailInvestigateResultDto
 {
     public required string Email { get; init; }
     public required string SuppressionStatus { get; init; }
     public string? SuppressionReason { get; init; }
+
+    /// <summary>
+    /// Whether the recipient DOMAIN can receive mail at all, per DNS. "NoMailExchanger" is the case
+    /// SES cannot report at send time and that no syntax check can catch - a typo like "a.com".
+    /// </summary>
+    public required string DomainStatus { get; init; }
+
     public required bool SendAccepted { get; init; }
     public required string Side { get; init; }
     public required string Conclusion { get; init; }

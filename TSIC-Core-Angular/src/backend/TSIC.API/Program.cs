@@ -483,6 +483,25 @@ builder.Services.AddSingleton<Amazon.SimpleEmailV2.IAmazonSimpleEmailServiceV2>(
     return new Amazon.SimpleEmailV2.AmazonSimpleEmailServiceV2Client();
 });
 builder.Services.AddSingleton<IEmailService, EmailService>();
+// DNS resolver for the troubleshooter: diagnostic only, never in the send path. Singleton because
+// LookupClient is designed to be reused - one per call defeats its cache and its socket pooling.
+builder.Services.AddSingleton<DnsClient.ILookupClient>(_ => new DnsClient.LookupClient(
+    // Google Public DNS explicitly, NOT the machine's configured resolvers. This box has seven
+    // across five NICs, two of them Comcast addresses that are unreachable from here and cost
+    // 12 SECONDS each to time out - a five-address Investigate took a full minute before this was
+    // pinned. Measured: 8.8.8.8 answers an NXDOMAIN in 260ms, 75.75.75.75 in 12,004ms.
+    new DnsClient.LookupClientOptions(
+        System.Net.IPAddress.Parse("8.8.8.8"),
+        System.Net.IPAddress.Parse("8.8.4.4"))
+    {
+        // NXDOMAIN is an ANSWER here, not a failure worth asking the next server about. Left at
+        // the default, DnsClient treats "no such domain" as a reason to walk the server list -
+        // so the non-existent domains this check exists to CATCH were the only ones it got wrong.
+        ContinueOnDnsError = false,
+        Timeout = TimeSpan.FromSeconds(2),
+        Retries = 1
+    }));
+builder.Services.AddScoped<IRecipientDomainService, RecipientDomainService>();
 builder.Services.AddScoped<IEmailTroubleshooterService, EmailTroubleshooterService>();
 // Player-facing companion: check/unsuppress only the caller's own family emails (reuses the troubleshooter's SES ops).
 builder.Services.AddScoped<IMyEmailDeliverabilityService, MyEmailDeliverabilityService>();
