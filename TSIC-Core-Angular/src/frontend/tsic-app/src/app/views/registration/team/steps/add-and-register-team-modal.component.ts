@@ -4,21 +4,28 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
-import type { AgeGroupDto } from '@core/api';
+import type { AgeGroupDto, ClubTeamDto } from '@core/api';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
+import { isBareYearName } from '@shared/teams/team-name-hints';
 import { EventAgeGroupPickerComponent } from '@views/registration/team/components/event-age-group-picker.component';
 import { resolveRecommendedAgeGroupId } from '@views/registration/team/components/event-age-group.util';
 
 /**
- * Combined add-team + event-registration modal — used for the empty-empty
- * teams-step path (rep has zero library teams). Captures team identity
- * (name / grad year / LOP) and event slot (age group) in one form, then
- * chains createClubTeam → registerTeamForEvent. Library entry is created
- * as a side effect; the rep experiences a single "register my team" act.
+ * Combined add-team + event-registration modal — THE way a new team enters the
+ * wizard while registration is open. Captures team identity (name / grad year /
+ * LOP) and event slot (age group) in one form, then chains createClubTeam →
+ * registerTeamForEvent. The library entry is a side effect; the rep experiences
+ * a single "register my team" act.
  *
- * For subsequent registrations (library already populated), the existing
- * flyin → age-group-picker flow is the right tool. This modal is purpose-
- * built for the first-team moment.
+ * It used to serve only the first-ever team (empty library); every later add
+ * went through the plain "Add to Library" form, whose save left the team in the
+ * library UNREGISTERED with a toast that said "added". Reps closed the drawer
+ * believing the team was in the event. Now every add opens this modal, and the
+ * library-only path survives as an explicitly labelled secondary (ruling: Todd,
+ * 2026-09-22) rather than the default outcome of the primary button.
+ *
+ * Registering a team that already exists in the library is NOT this modal's
+ * job — the flyin's Register button on the row is.
  */
 @Component({
     selector: 'app-add-and-register-team-modal',
@@ -31,7 +38,7 @@ import { resolveRecommendedAgeGroupId } from '@views/registration/team/component
         <!-- Hero -->
         <div class="register-hero">
           <div class="register-hero-eyebrow">
-            <span><i class="bi bi-trophy-fill me-1"></i>Register Your First Team</span>
+            <span><i class="bi bi-trophy-fill me-1"></i>{{ firstTeam() ? 'Register Your First Team' : 'Add & Register a Team' }}</span>
           </div>
           <h5 class="register-hero-title">
             for <span class="register-event-name">{{ eventName() }}</span>
@@ -62,7 +69,7 @@ import { resolveRecommendedAgeGroupId } from '@views/registration/team/component
                    [value]="teamName()" (input)="teamName.set($any($event.target).value)"
                    placeholder="e.g. 2028 Blue"
                    [class.is-required]="!teamName().trim()"
-                   [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub())" />
+                   [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub() || nameIsDuplicate())" />
             <div class="wizard-tip">
               Instead of <span class="text-danger fw-semibold">{{ clubName() }} 2028 Blue</span>,
               enter <span class="text-success fw-semibold">2028 Blue</span> &mdash; schedules already display your club name.
@@ -76,6 +83,22 @@ import { resolveRecommendedAgeGroupId } from '@views/registration/team/component
             @if (!submitted() && nameContainsClub()) {
               <div class="field-error" style="color: var(--bs-warning)">
                 <i class="bi bi-exclamation-triangle me-1"></i>Contains your club name &mdash; please remove it.
+              </div>
+            }
+            @if (nameIsDuplicate()) {
+              <div class="field-error">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                <strong>{{ teamName().trim() }}</strong> is already in your library &mdash; register it from the library list instead.
+              </div>
+            }
+            <!-- Soft nudge, never a block: a bare year is legal, but two squads in one
+                 grad year become indistinguishable and the rep's own grid reads
+                 Team 2028 | Grad 2028. -->
+            @if (nameIsBareYear() && !nameIsDuplicate()) {
+              <div class="name-nudge">
+                <i class="bi bi-lightbulb" aria-hidden="true"></i>
+                <span>Just a year? Add a word so you can tell your teams apart later &mdash;
+                  <strong>{{ teamName().trim() }} Blue</strong>, <strong>{{ teamName().trim() }} Elite</strong>. Optional.</span>
               </div>
             }
           </div>
@@ -191,14 +214,28 @@ import { resolveRecommendedAgeGroupId } from '@views/registration/team/component
           </div>
         </div>
 
-        <!-- Footer -->
+        <!-- Footer — one primary outcome (registered) and one explicitly labelled
+             secondary (library only). The secondary names its consequence on the
+             button itself, because "Add to Library" alone is what reps read as
+             "done" before. -->
         <div class="register-footer">
-          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closed.emit()">Cancel</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="saving()" (click)="closed.emit()">Cancel</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary library-only-cta"
+                  (click)="saveLibraryOnly()"
+                  [disabled]="saving() || !stage4Ready()"
+                  [attr.title]="stage4Ready() ? null : disabledReason()">
+            @if (savingLibraryOnly()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>Saving...
+            } @else {
+              <span class="library-only-label">Save to library only</span>
+              <span class="library-only-sub">NOT registered for {{ eventName() }}</span>
+            }
+          </button>
           <button type="button" class="btn btn-success fw-semibold register-cta"
                   (click)="save()"
                   [disabled]="saving() || !canSubmit()"
                   [attr.title]="canSubmit() ? null : disabledReason()">
-            @if (saving()) {
+            @if (saving() && !savingLibraryOnly()) {
               <span class="spinner-border spinner-border-sm me-2"></span>Registering...
             } @else {
               <i class="bi bi-trophy-fill me-2"></i>
@@ -360,10 +397,31 @@ import { resolveRecommendedAgeGroupId } from '@views/registration/team/component
         strong { color: var(--brand-text); }
       }
 
+      /* ── Bare-year nudge ───────────────────────────────────────────────
+         Advisory, so it takes the muted tip tone, not .field-error's danger. The
+         bulb + primary tint says "suggestion"; it must never read as a validation
+         failure or the rep will assume the button is locked. */
+      .name-nudge {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin-top: var(--space-1);
+        padding: var(--space-1) var(--space-2);
+        border-left: 3px solid color-mix(in srgb, var(--bs-primary) 45%, transparent);
+        background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-normal);
+        color: var(--brand-text);
+
+        i { color: var(--bs-primary); flex-shrink: 0; margin-top: 1px; }
+        strong { font-weight: var(--font-weight-semibold); }
+      }
+
       /* ── Footer ────────────────────────────────────────────────────── */
       .register-footer {
         display: flex;
         justify-content: flex-end;
+        align-items: stretch;
         gap: var(--space-2);
         padding: var(--space-2) var(--space-3);
         border-top: 1px solid var(--border-color);
@@ -373,6 +431,40 @@ import { resolveRecommendedAgeGroupId } from '@views/registration/team/component
         padding: var(--space-2) var(--space-4);
         font-size: var(--font-size-base);
       }
+
+      /* Two-line secondary: the verb on top, the consequence underneath in
+         warning tone. Pushed left of the primary so the eye reads the pair as
+         "quiet option / real action", and never mistakes it for Cancel. */
+      .library-only-cta {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+        margin-left: auto;
+        line-height: 1.2;
+        text-align: center;
+      }
+
+      .library-only-label {
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .library-only-sub {
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--bs-warning-text-emphasis);
+      }
+
+      .library-only-cta:disabled .library-only-sub { opacity: 0.7; }
+
+      @media (max-width: 480px) {
+        .register-footer { flex-wrap: wrap; }
+        .library-only-cta { margin-left: 0; flex: 1 1 100%; order: 3; }
+        .register-cta { flex: 1 1 auto; }
+      }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -380,8 +472,18 @@ export class AddAndRegisterTeamModalComponent {
     readonly clubName = input('');
     readonly eventName = input('');
     readonly ageGroups = input<AgeGroupDto[]>([]);
+    /** Empty library → "Register Your First Team" hero; otherwise "Add & Register a Team". */
+    readonly firstTeam = input(false);
+    /** Existing library teams — blocks a duplicate name (case-insensitive). The server
+     *  refuses the same collision; catching it here keeps the rep in the form. */
+    readonly existingTeams = input<readonly ClubTeamDto[]>([]);
 
+    /** Team created AND registered for this event. */
     readonly saved = output<void>();
+    /** Team created in the library only — the secondary path. Carries the new row so the
+     *  parent can track it as "not yet registered" until the rep either registers it or
+     *  knowingly leaves it. */
+    readonly savedLibraryOnly = output<ClubTeamDto>();
     readonly closed = output<void>();
 
     private readonly teamReg = inject(TeamRegistrationService);
@@ -403,6 +505,8 @@ export class AddAndRegisterTeamModalComponent {
     readonly selectedAgeGroup = signal('');
     readonly submitted = signal(false);
     readonly saving = signal(false);
+    /** Which button is in flight — both share `saving` so neither can double-submit. */
+    readonly savingLibraryOnly = signal(false);
     readonly errorMsg = signal<string | null>(null);
 
     /** True when the team name contains the club name (case-insensitive). */
@@ -412,9 +516,19 @@ export class AddAndRegisterTeamModalComponent {
         return club.length > 0 && name.length > 0 && name.includes(club);
     });
 
-    /** Step 1 (Name) complete: team name present and not echoing the club name. */
+    /** True when the name matches a library team (case-insensitive). Same rule as team-form-modal. */
+    readonly nameIsDuplicate = computed(() => {
+        const name = this.teamName().trim().toLowerCase();
+        if (!name) return false;
+        return this.existingTeams().some(t => (t.clubTeamName ?? '').trim().toLowerCase() === name);
+    });
+
+    /** Advisory only — see team-name-hints. Does not feed step1Done. */
+    readonly nameIsBareYear = computed(() => isBareYearName(this.teamName()));
+
+    /** Step 1 (Name) complete: team name present, not echoing the club name, not a duplicate. */
     readonly step1Done = computed(() =>
-        this.teamName().trim().length > 0 && !this.nameContainsClub(),
+        this.teamName().trim().length > 0 && !this.nameContainsClub() && !this.nameIsDuplicate(),
     );
 
     /** Step 2 (Details) complete: grad year + LOP both picked. */
@@ -437,6 +551,7 @@ export class AddAndRegisterTeamModalComponent {
     readonly disabledReason = computed(() => {
         if (!this.teamName().trim()) return 'Enter a team name';
         if (this.nameContainsClub())  return 'Remove the club name from the team name';
+        if (this.nameIsDuplicate())   return 'That name is already in your library';
         if (!this.gradYear())         return 'Pick a grad year';
         if (!this.levelOfPlay())      return 'Pick a level of play';
         if (!this.selectedAgeGroup()) return 'Pick an age group';
@@ -448,11 +563,50 @@ export class AddAndRegisterTeamModalComponent {
         resolveRecommendedAgeGroupId(this.ageGroups(), this.gradYear()) !== '',
     );
 
+    /**
+     * The secondary path: library row only, no event registration. The toast is
+     * warning-toned and names the event it did NOT register for — this is the exact
+     * moment the old flow lost reps, so the message must not be the cheerful
+     * "added" it used to be.
+     */
+    saveLibraryOnly(): void {
+        this.submitted.set(true);
+        this.errorMsg.set(null);
+        if (!this.stage4Ready() || this.saving()) return;
+
+        this.saving.set(true);
+        this.savingLibraryOnly.set(true);
+
+        const teamName = this.teamName().trim();
+        this.teamReg.createClubTeam({
+            clubTeamName: teamName,
+            clubTeamGradYear: this.gradYear(),
+            levelOfPlay: this.levelOfPlay().trim() || undefined,
+        })
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: (newTeam) => {
+                    this.saving.set(false);
+                    this.savingLibraryOnly.set(false);
+                    this.toast.show(
+                        `${teamName} saved to your library — NOT registered for ${this.eventName()}.`,
+                        'warning', 5000);
+                    this.savedLibraryOnly.emit(newTeam);
+                },
+                error: (err: unknown) => {
+                    this.saving.set(false);
+                    this.savingLibraryOnly.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.errorMsg.set(httpErr?.error?.message || 'Failed to create team.');
+                },
+            });
+    }
+
     save(): void {
         this.submitted.set(true);
         this.errorMsg.set(null);
 
-        if (!this.teamName().trim() || !this.gradYear() || !this.levelOfPlay() || this.nameContainsClub()) return;
+        if (!this.stage4Ready() || this.saving()) return;
         if (!this.selectedAgeGroup()) return;
 
         this.saving.set(true);

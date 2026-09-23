@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnChanges, OnDestroy, SimpleChanges, computed, input, output, signal, viewChild } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnChanges, OnDestroy, SimpleChanges, computed, input, output, signal, viewChild } from '@angular/core';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { formatLop, normalizeLop } from '@shared/teams/lop-choices';
@@ -120,7 +120,7 @@ interface LibraryGroup {
           </button>
           @if (showHowTo()) {
             <ul class="lib-howto-list">
-              <li>Team not in your library? <strong>Add Library Team</strong>, then <strong>Register</strong> it.</li>
+              <li>Team not in your library? <strong>Add a New Team</strong> &mdash; it's saved to your library and registered here in one step.</li>
               <li>Name wrong or changed? Open <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row → <strong>Rename team</strong>. Don't add a second entry.</li>
               <li>Just this event's name? Rename it from the <strong>Registered Teams</strong> list instead — your library keeps its own name.</li>
               <li>No longer used? Open <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row → <strong>Archive</strong>.</li>
@@ -258,14 +258,17 @@ interface LibraryGroup {
             </button>
           </div>
         } @else {
-          <!-- State C — populated active library. Add Library Team moved to a
-               top action row now that the single "Active Library" card was split
-               into one collapsible section card per group. -->
+          <!-- State C — populated active library. Add moved to a top action row
+               now that the single "Active Library" card was split into one
+               collapsible section card per group. While registration is open the
+               parent answers with the combined add-and-register modal, so the
+               label promises a team, not a library row; closed, it's an honest
+               library add. -->
           <div class="lib-body-actions">
             <button type="button" class="btn-add-team"
                     [disabled]="actionInProgress()"
                     (click)="addNew.emit()">
-              <i class="bi bi-plus-circle me-1"></i>Add Library Team
+              <i class="bi bi-plus-circle me-1"></i>{{ canRegister() ? 'Add a New Team' : 'Add Library Team' }}
             </button>
           </div>
 
@@ -301,7 +304,11 @@ interface LibraryGroup {
                 <ul class="lib-list">
                   @for (team of group.teams; track team.clubTeamId; let idx = $index) {
                     @let registered = registeredInfo(team.clubTeamId);
-                    <li class="lib-item" [class.is-expanded]="expandedTeamId() === team.clubTeamId">
+                    @let pending = isPending(team.clubTeamId);
+                    <li class="lib-item"
+                        [class.is-expanded]="expandedTeamId() === team.clubTeamId"
+                        [class.is-pending]="pending"
+                        [attr.data-club-team-id]="team.clubTeamId">
                       <div class="lib-item-main">
                         @if (group.key === 'registered') {
                           <span class="lib-item-seq" aria-hidden="true">{{ idx + 1 }}</span>
@@ -312,6 +319,14 @@ interface LibraryGroup {
                         </div>
 
                         <div class="lib-item-trailing">
+                          <!-- Saved to the library this session and still not in the event.
+                               The row says so in words, next to the button that fixes it. -->
+                          @if (pending && !registered) {
+                            <span class="lib-pending-pill">
+                              <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                              Not registered yet
+                            </span>
+                          }
                           @if (registered) {
                             <span class="lib-identity">
                               @if (registered.ageGroupName) {
@@ -615,15 +630,46 @@ interface LibraryGroup {
            Cancel is the escape while it's up, and the footer returns the
            moment the sheet closes. -->
       @if (!expandedTeam()) {
-        <div class="panel-footer">
-          <div class="footer-buttons">
-            <button type="button"
-                    class="btn-flyin-done"
-                    [class.btn-flyin-done-warning]="showNoneRegisteredWarning()"
-                    (click)="onClose()">
-              {{ doneLabel() }}
-            </button>
-          </div>
+        <div class="panel-footer" [class.panel-footer--interstitial]="confirmingClose()">
+          @if (confirmingClose()) {
+            <!-- The Done interstitial. Fires ONLY when a team was saved to the library
+                 this session and is still not registered here — the exact state in
+                 which reps used to walk away believing they were done. Inline in the
+                 footer, not a browser prompt and not a toast: the list stays visible,
+                 and the rep must pick one of two named outcomes. -->
+            <div class="close-interstitial" role="alertdialog" aria-labelledby="close-interstitial-title" aria-describedby="close-interstitial-names">
+              <div class="close-interstitial-head">
+                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                <span id="close-interstitial-title">
+                  {{ pendingTeams().length === 1 ? '1 team is' : pendingTeams().length + ' teams are' }}
+                  in your library but <strong>not registered for this event</strong>
+                </span>
+              </div>
+              <ul class="close-interstitial-names" id="close-interstitial-names">
+                @for (t of pendingTeams(); track t.clubTeamId) {
+                  <li>{{ t.clubTeamName }}<span class="close-interstitial-grad">Grad {{ t.clubTeamGradYear || '—' }}</span></li>
+                }
+              </ul>
+              <div class="close-interstitial-actions">
+                <button type="button" class="btn-interstitial-leave" (click)="leavePendingAndClose()">
+                  Leave {{ pendingTeams().length === 1 ? 'it' : 'them' }} in the library
+                </button>
+                <button type="button" class="btn-interstitial-register" (click)="registerPendingNow()">
+                  <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+                  Register {{ pendingTeams().length === 1 ? 'it' : 'them' }} now
+                </button>
+              </div>
+            </div>
+          } @else {
+            <div class="footer-buttons">
+              <button type="button"
+                      class="btn-flyin-done"
+                      [class.btn-flyin-done-warning]="showNoneRegisteredWarning()"
+                      (click)="onClose()">
+                {{ doneLabel() }}
+              </button>
+            </div>
+          }
         </div>
       }
     </aside>
@@ -1006,6 +1052,129 @@ interface LibraryGroup {
 
           &:hover { background: rgba(var(--bs-body-color-rgb), 0.05); filter: none; }
         }
+      }
+
+      /* ── Done interstitial ─────────────────────────────────────────
+         Replaces the Done button in the footer band (it does not stack on top of
+         it) so there is exactly one thing to act on. Warning tone throughout: the
+         rail, the head icon, the pill on the rows above — one signal, three places. */
+      .panel-footer--interstitial {
+        border-top-color: color-mix(in srgb, var(--bs-warning) 55%, var(--bs-border-color));
+        background: color-mix(in srgb, var(--bs-warning) 7%, var(--bs-body-bg));
+        box-shadow: inset 3px 0 0 0 var(--bs-warning);
+      }
+
+      .close-interstitial {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: 0 var(--space-1);
+      }
+
+      .close-interstitial-head {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-normal);
+        color: var(--brand-text);
+
+        > i { flex-shrink: 0; color: var(--bs-warning); margin-top: 2px; }
+        strong { color: var(--bs-warning-text-emphasis); }
+      }
+
+      .close-interstitial-names {
+        list-style: none;
+        margin: 0;
+        padding: 0 0 0 calc(var(--space-2) + 1em);
+        max-height: 5.5rem;
+        overflow-y: auto;
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+
+        li { display: flex; align-items: baseline; gap: var(--space-2); }
+      }
+
+      .close-interstitial-grad {
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .close-interstitial-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+      }
+
+      /* Same pair as the register sheet: outlined leave / solid register. Token-
+         driven, not Bootstrap .btn-* (precompiled, ignores --bs-primary). */
+      .btn-interstitial-leave {
+        padding: 5px var(--space-3);
+        border: 1px solid var(--bs-border-color);
+        background: transparent;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+
+        &:hover {
+          color: var(--brand-text);
+          border-color: var(--brand-text-muted);
+          background: color-mix(in srgb, var(--brand-text-muted) 8%, transparent);
+        }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+      }
+
+      .btn-interstitial-register {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: 6px var(--space-4);
+        border: none;
+        border-radius: var(--radius-sm);
+        background: var(--bs-primary);
+        color: var(--neutral-0);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        box-shadow: var(--shadow-sm);
+        transition: filter 0.12s ease;
+
+        &:hover { filter: brightness(0.94); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+      }
+
+      /* ── Pending rows ──────────────────────────────────────────────
+         A team saved to the library this session and not yet in the event.
+         Warning rail + tint on the row, and a worded pill beside its Register
+         button. Cleared the moment it registers (the parent prunes the set). */
+      .lib-item.is-pending > .lib-item-main {
+        background: color-mix(in srgb, var(--bs-warning) 9%, transparent);
+        box-shadow: inset 3px 0 0 0 var(--bs-warning);
+      }
+
+      .lib-pending-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-full);
+        background: rgba(var(--bs-warning-rgb), 0.15);
+        border: 1px solid rgba(var(--bs-warning-rgb), 0.4);
+        color: var(--bs-warning-text-emphasis);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        white-space: nowrap;
+
+        > i { font-size: 0.9em; }
       }
 
       /* ── Top action row ────────────────────────────────────────────
@@ -2081,28 +2250,59 @@ interface LibraryGroup {
         .reg-strip-head { transition: none; }
         .lib-icon-btn, .btn-register-cell, .btn-add-team, .btn-flyin-done,
         .lib-group-header, .lib-group-card, .lib-howto-toggle,
-        .lib-item-main, .btn-register-cancel, .btn-register-submit { transition: none; }
+        .lib-item-main, .btn-register-cancel, .btn-register-submit,
+        .btn-interstitial-leave, .btn-interstitial-register { transition: none; }
         .btn-register-cell:hover:not(:disabled) { transform: none; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestroy {
+export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, OnChanges, OnDestroy {
     private readonly flyinRoot = viewChild.required<ElementRef<HTMLElement>>('flyinRoot');
     // Not .required — the first ngOnChanges fires before the view exists.
     private readonly panelBody = viewChild<ElementRef<HTMLElement>>('panelBody');
+
+    /** Row to bring into view once the list has re-rendered with it (see ngAfterViewChecked). */
+    private scrollToTeamId: number | null = null;
 
     /**
      * The panel persists in the DOM while closed (it only translates off-screen),
      * so the body keeps its scroll position across open/close. Each open should
      * start at the top — that's where Add Library Team and the Registered group
-     * live — not wherever the rep last scrolled to.
+     * live — not wherever the rep last scrolled to. Opening also resets the Done
+     * interstitial, which must never be inherited from a previous close attempt.
+     *
+     * A newly library-only-saved team is scrolled to instead: it lands
+     * alphabetically somewhere in a list that may be 26 rows long, and the whole
+     * point of marking it is that the rep SEES it. The group it landed in is
+     * un-collapsed for the same reason ('unavailable' starts folded).
      */
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['isOpen'] && this.isOpen()) {
+            this.confirmingClose.set(false);
             const body = this.panelBody()?.nativeElement;
             if (body) body.scrollTop = 0;
         }
+        if (changes['pendingLibraryOnly']) {
+            const prev = (changes['pendingLibraryOnly'].previousValue as ReadonlySet<number> | undefined) ?? new Set<number>();
+            const added = [...this.pendingLibraryOnly()].filter(id => !prev.has(id));
+            if (added.length) {
+                this.scrollToTeamId = added[added.length - 1];
+                const next = new Set(this.collapsedGroups());
+                next.delete('unregistered');
+                next.delete('unavailable');
+                this.collapsedGroups.set(next);
+            }
+        }
+    }
+
+    ngAfterViewChecked(): void {
+        const id = this.scrollToTeamId;
+        if (id === null) return;
+        const row = this.panelBody()?.nativeElement.querySelector<HTMLElement>(`[data-club-team-id="${id}"]`);
+        if (!row) return; // not rendered yet — the parent's reload hasn't landed; try next pass
+        this.scrollToTeamId = null;
+        row.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
 
     /**
@@ -2156,8 +2356,17 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
     readonly showDevIds = environment.envName === 'development';
     /** Map of clubTeamId → registration info. Drives the Registered badge content. */
     readonly enteredTeams = input<ReadonlyMap<number, RegisteredInfo>>(new Map());
+    /**
+     * Library teams saved WITHOUT registering during this wizard session and still
+     * not in the event. The parent owns and prunes the set (a registration drops the
+     * id out). Drives the row pill, the row tint, and the Done interstitial.
+     */
+    readonly pendingLibraryOnly = input<ReadonlySet<number>>(new Set());
 
     readonly closed = output<void>();
+    /** The rep chose "leave it in the library" on the interstitial: the parent stops
+     *  tracking those ids so the panel does not ask again this session. */
+    readonly leavePending = output<void>();
     readonly register = output<RegisterRequest>();
     /** Remove a team's registration from THIS event (not a library delete). Emits the
      *  clubTeamId; the parent resolves the RegisteredTeamDto and runs its existing
@@ -2548,11 +2757,65 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         return this.enteredTeams().get(clubTeamId);
     }
 
+    isPending(clubTeamId: number): boolean {
+        return this.pendingLibraryOnly().has(clubTeamId);
+    }
+
     /** LOP display — the shared rule, so this surface can never drift from the grid's. */
     readonly formatLop = formatLop;
 
+    // ── Done interstitial ────────────────────────────────────────────────
+    // The one state where the drawer refuses to close on the first ask: a team was
+    // saved to the library this session and is still not registered here. Every
+    // exit (Done, the X, the backdrop, Escape) routes through onClose, so none of
+    // them can slip past it.
+
+    /** True while the footer shows the interstitial instead of Done. */
+    readonly confirmingClose = signal(false);
+
+    /** Pending ids resolved to rows, alphabetical, active library only. */
+    readonly pendingTeams = computed<ClubTeamDto[]>(() => {
+        const pending = this.pendingLibraryOnly();
+        if (pending.size === 0) return [];
+        const entered = this.enteredTeams();
+        return this.activeTeams().filter(t => pending.has(t.clubTeamId) && !entered.has(t.clubTeamId));
+    });
+
     onClose(): void {
+        if (this.pendingTeams().length > 0) {
+            if (!this.confirmingClose()) {
+                this.closeMenu();
+                this.confirmingClose.set(true);
+                return;
+            }
+            // A second X / backdrop click with the warning already on screen is the
+            // rep dismissing it — the same choice as "leave it", so it clears the same way.
+            this.leavePendingAndClose();
+            return;
+        }
         this.closed.emit();
+    }
+
+    /** "Leave it in the library": close, and tell the parent to stop tracking these ids. */
+    leavePendingAndClose(): void {
+        this.confirmingClose.set(false);
+        this.leavePending.emit();
+        this.closed.emit();
+    }
+
+    /**
+     * "Register it now": back to the panel. One pending team opens its register sheet
+     * directly; several just return the rep to the list, where each row carries its
+     * own pill and Register button.
+     */
+    registerPendingNow(): void {
+        this.confirmingClose.set(false);
+        const pending = this.pendingTeams();
+        if (pending.length === 1) {
+            this.toggleRegister(pending[0]);
+        } else if (pending.length > 1) {
+            this.scrollToTeamId = pending[0].clubTeamId;
+        }
     }
 
     @HostListener('document:keydown.escape')
@@ -2563,6 +2826,12 @@ export class LibraryFlyinComponent implements AfterViewInit, OnChanges, OnDestro
         }
         if (this.expandedTeamId() !== null) {
             this.cancelRegister();
+            return;
+        }
+        // Escape on the interstitial backs out to the panel, it does not answer the
+        // question — a rep hammering Escape must not lose the warning by accident.
+        if (this.confirmingClose()) {
+            this.confirmingClose.set(false);
             return;
         }
         if (this.isOpen()) this.onClose();

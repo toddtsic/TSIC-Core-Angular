@@ -13,6 +13,7 @@ import { LibraryFlyinComponent, type RegisterRequest, type RegisteredInfo } from
 import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
+import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear } from '../components/event-age-group.util';
 
 /**
  * Which side of the two-name model the rep opened the dialog from. The dialog shows both names
@@ -159,6 +160,29 @@ type PendingRename =
               [gridHeight]="'auto'"
               (removeTeam)="onRemoveTeam($event)"
               (renameTeam)="onRenameTeam($event)" />
+
+            <!-- Library teams this event has an age group for, not registered here.
+                 Data-driven (not the session's pending set), so it survives a reload
+                 and catches teams added in an earlier session or another event. The
+                 rep who deliberately left a team out can dismiss it for this session. -->
+            @if (unregisteredEligible().length > 0 && canRegisterTeam() && !unregisteredStripDismissed()) {
+              <div class="unregistered-strip tsic-callout tsic-callout--warning tsic-callout--block" role="status">
+                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                <span class="unregistered-strip-text">
+                  <strong>{{ unregisteredEligible().length }} library
+                    {{ unregisteredEligible().length === 1 ? 'team' : 'teams' }}</strong>
+                  {{ unregisteredEligible().length === 1 ? "isn't" : "aren't" }} registered for the {{ eventName() }}:
+                  <span class="unregistered-strip-names">{{ unregisteredEligibleNames() }}</span>
+                </span>
+                <button type="button" class="unregistered-strip-cta" (click)="openLibraryFlyin()">
+                  <i class="bi bi-trophy-fill" aria-hidden="true"></i>Register
+                </button>
+                <button type="button" class="unregistered-strip-dismiss"
+                        aria-label="Dismiss for this session"
+                        title="Dismiss for this session"
+                        (click)="unregisteredStripDismissed.set(true)">&times;</button>
+              </div>
+            }
           </div>
 
           <div class="step-card-footer">
@@ -197,10 +221,12 @@ type PendingRename =
         [ageGroups]="ageGroups()"
         [enteredTeams]="enteredTeamsMap()"
         [droppedTeams]="droppedTeams()"
+        [pendingLibraryOnly]="pendingLibraryOnly()"
         (closed)="closeLibraryFlyin()"
+        (leavePending)="clearPendingLibraryOnly()"
         (register)="onFlyinRegister($event)"
         (unregister)="onFlyinUnregister($event)"
-        (addNew)="showAddModal.set(true)"
+        (addNew)="onAddNew()"
         (rename)="onRenameClubTeam($event)"
         (edit)="openEditModal($event)"
         (archive)="askArchiveTeam($event)"
@@ -222,7 +248,10 @@ type PendingRename =
         [clubName]="clubName()"
         [eventName]="eventName()"
         [ageGroups]="ageGroups()"
+        [firstTeam]="allLibraryTeams().length === 0"
+        [existingTeams]="allLibraryTeams()"
         (saved)="onAddAndRegisterSaved()"
+        (savedLibraryOnly)="onSavedLibraryOnly($event)"
         (closed)="showAddAndRegisterModal.set(false)" />
     }
 
@@ -330,6 +359,72 @@ type PendingRename =
           flex-shrink: 0;
           color: var(--bs-primary);
         }
+      }
+
+      /* ── Unregistered-library strip ──────────────────────────────────
+         Sits under the grid, above the decision fork. AM-064 callout grammar
+         (visible by design), warning variant, with its own inline actions. */
+      .unregistered-strip {
+        align-items: center;
+        gap: var(--space-3);
+        margin-top: var(--space-3);
+        font-weight: var(--font-weight-medium);
+      }
+
+      .unregistered-strip-text {
+        flex: 1;
+        min-width: 0;
+        line-height: var(--line-height-normal);
+      }
+
+      .unregistered-strip-names {
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .unregistered-strip-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        flex-shrink: 0;
+        padding: 4px var(--space-3);
+        border: none;
+        border-radius: var(--radius-sm);
+        background: var(--bs-primary);
+        color: var(--neutral-0);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        box-shadow: var(--shadow-sm);
+        transition: filter 0.12s ease;
+
+        &:hover { filter: brightness(0.94); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+      }
+
+      .unregistered-strip-dismiss {
+        flex-shrink: 0;
+        padding: 0 var(--space-1);
+        border: none;
+        background: transparent;
+        color: var(--bs-warning-text-emphasis);
+        font-size: var(--font-size-xl);
+        line-height: 1;
+        opacity: 0.6;
+        cursor: pointer;
+        transition: opacity 0.12s ease;
+
+        &:hover { opacity: 1; }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
+      }
+
+      @media (max-width: 575.98px) {
+        .unregistered-strip { flex-wrap: wrap; }
+        .unregistered-strip-text { flex-basis: calc(100% - 2.5rem); }
+        .unregistered-strip-cta { margin-left: auto; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .unregistered-strip-cta, .unregistered-strip-dismiss { transition: none !important; }
       }
 
       /* Footer = decision fork rendered as a segmented control. Two halves
@@ -711,9 +806,19 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly clubName = signal('your club');
     readonly ageGroups = signal<AgeGroupDto[]>([]);
     readonly actionInProgress = signal(false);
+    /** Plain library add — only while registration is closed (nothing to register into). */
     readonly showAddModal = signal(false);
-    /** Combined add+register modal — only used for the empty-empty first-team flow. */
+    /** Combined add+register modal — every add while registration is open, first team or not. */
     readonly showAddAndRegisterModal = signal(false);
+    /**
+     * clubTeamIds saved to the library WITHOUT registering during this wizard session.
+     * Pruned by `pendingLibraryOnly` as each one registers; cleared when the rep tells
+     * the flyin's interstitial to leave them. Session-only on purpose — the strip under
+     * the grid carries the durable, data-driven version of the same fact.
+     */
+    private readonly _pendingLibraryOnly = signal<ReadonlySet<number>>(new Set());
+    /** Rep dismissed the unregistered-library strip for this session. */
+    readonly unregisteredStripDismissed = signal(false);
     /** When set, the library edit modal is open for this (unscheduled) team. */
     readonly editingTeam = signal<ClubTeamDto | null>(null);
     /** When set, the shared name dialog is open — carrying which side it was opened from. */
@@ -774,6 +879,35 @@ export class TeamTeamsStepComponent implements OnInit {
 
     readonly anyPaid = computed(() => this._registeredTeams().some(t => t.paidTotal > 0));
     readonly anyOwed = computed(() => this._registeredTeams().some(t => t.owedTotal > 0));
+
+    /** Session set minus anything that has since registered (or left the library). */
+    readonly pendingLibraryOnly = computed<ReadonlySet<number>>(() => {
+        const raw = this._pendingLibraryOnly();
+        if (raw.size === 0) return raw;
+        const entered = this.enteredTeamsMap();
+        const inLibrary = new Set(this._clubTeams().map(t => t.clubTeamId));
+        return new Set([...raw].filter(id => inLibrary.has(id) && !entered.has(id)));
+    });
+
+    /**
+     * Active library teams with no registration here that this event has an age group
+     * for — the same eligibility rule the flyin uses to build "Available for This Event",
+     * so the strip's count always matches that group's count.
+     */
+    readonly unregisteredEligible = computed<ClubTeamDto[]>(() => {
+        const entered = this.enteredTeamsMap();
+        const oldest = resolveOldestOfferedGradYear(this.ageGroups());
+        return this._clubTeams()
+            .filter(t => !t.bArchived && !entered.has(t.clubTeamId) && isTeamOfferedAtEvent(oldest, t.clubTeamGradYear))
+            .sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName));
+    });
+
+    /** Up to three names, then "+N more" — the strip is one line, not a list. */
+    readonly unregisteredEligibleNames = computed(() => {
+        const names = this.unregisteredEligible().map(t => t.clubTeamName);
+        if (names.length <= 3) return names.join(', ');
+        return `${names.slice(0, 3).join(', ')} +${names.length - 3} more`;
+    });
 
     ngOnInit(): void {
         this.loadTeamsMetadata(true);
@@ -873,6 +1007,16 @@ export class TeamTeamsStepComponent implements OnInit {
         }
     }
 
+    /**
+     * Flyin "Add" → the combined modal whenever there is an event to register into.
+     * The plain library form only when registration is closed, where "added to
+     * library" is the complete truth and there is no second step to miss.
+     */
+    onAddNew(): void {
+        if (this.canRegisterTeam()) this.showAddAndRegisterModal.set(true);
+        else this.showAddModal.set(true);
+    }
+
     onTeamAdded(): void {
         this.showAddModal.set(false);
         this.loadTeamsMetadata();
@@ -882,6 +1026,22 @@ export class TeamTeamsStepComponent implements OnInit {
     onAddAndRegisterSaved(): void {
         this.showAddAndRegisterModal.set(false);
         this.loadTeamsMetadata();
+    }
+
+    /**
+     * The modal's secondary path. The team is in the library and NOT in the event;
+     * track it so the flyin marks the row and holds the door on Done. The modal has
+     * already toasted (warning-toned, naming the event it did not register for).
+     */
+    onSavedLibraryOnly(team: ClubTeamDto): void {
+        this.showAddAndRegisterModal.set(false);
+        this._pendingLibraryOnly.set(new Set([...this._pendingLibraryOnly(), team.clubTeamId]));
+        this.loadTeamsMetadata();
+    }
+
+    /** Interstitial "leave it": the rep has been told and chose; stop asking this session. */
+    clearPendingLibraryOnly(): void {
+        this._pendingLibraryOnly.set(new Set());
     }
 
     /** Open the shared modal in edit mode for a library team (no event history only). */

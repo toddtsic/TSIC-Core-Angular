@@ -6,11 +6,19 @@ import { TeamRegistrationService } from '@views/registration/team/services/team-
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubTeamDto } from '@core/api';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
+import { isBareYearName } from '@shared/teams/team-name-hints';
 
 /**
- * Modal for adding a new ClubTeam to the club library, or editing an existing one
- * (when `editingTeam` is supplied). Edit mode is only ever opened for teams whose
- * `bHasBeenScheduled` is false — the library UI enforces that upstream.
+ * Modal for editing an existing library team (when `editingTeam` is supplied), or
+ * adding one to the library WITHOUT registering it. Edit mode is only ever opened
+ * for teams whose `bHasBeenScheduled` is false — the library UI enforces that
+ * upstream.
+ *
+ * Add mode is now the exception, not the rule: while registration is open the
+ * wizard sends every add through add-and-register-team-modal, because a plain
+ * library add left reps believing the team was in the event. This form's add mode
+ * remains for the case where there is nothing to register INTO — registration
+ * closed for this event — so "added to library" is the whole truth.
  */
 @Component({
     selector: 'app-team-form-modal',
@@ -79,6 +87,14 @@ import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.c
               <div class="field-error">
                 <i class="bi bi-exclamation-triangle me-1"></i>
                 <strong>{{ teamName().trim() }}</strong> is already in your library — pick a different name.
+              </div>
+            }
+            <!-- Soft nudge, never a block — same copy as add-and-register-team-modal. -->
+            @if (nameIsBareYear() && !nameIsDuplicate()) {
+              <div class="name-nudge">
+                <i class="bi bi-lightbulb" aria-hidden="true"></i>
+                <span>Just a year? Add a word so you can tell your teams apart later &mdash;
+                  <strong>{{ teamName().trim() }} Blue</strong>, <strong>{{ teamName().trim() }} Elite</strong>. Optional.</span>
               </div>
             }
           </div>
@@ -220,6 +236,23 @@ import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.c
       /* LOP pills render via <app-level-of-play-picker [fill]="true" labels="full">,
          which owns its own styles. */
 
+      /* Bare-year nudge — advisory tone (kept in sync with add-and-register-team-modal). */
+      .name-nudge {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin-top: var(--space-1);
+        padding: var(--space-1) var(--space-2);
+        border-left: 3px solid color-mix(in srgb, var(--bs-primary) 45%, transparent);
+        background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-normal);
+        color: var(--brand-text);
+
+        i { color: var(--bs-primary); flex-shrink: 0; margin-top: 1px; }
+        strong { font-weight: var(--font-weight-semibold); }
+      }
+
       /* ── Footer ── */
       .form-footer {
         display: flex;
@@ -283,6 +316,9 @@ export class TeamFormModalComponent implements OnInit {
             (t.clubTeamName ?? '').trim().toLowerCase() === name,
         );
     });
+
+    /** Advisory only — see team-name-hints. Does not feed step1Done. */
+    readonly nameIsBareYear = computed(() => isBareYearName(this.teamName()));
 
     /** Step 1 (Name) complete: team name present, not echoing the club name,
      *  and not duplicating an existing library team. */
