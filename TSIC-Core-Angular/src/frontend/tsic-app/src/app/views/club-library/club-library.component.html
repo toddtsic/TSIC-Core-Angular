@@ -1,0 +1,354 @@
+<!-- ── Page header ─────────────────────────────────────────────────────── -->
+<div class="page-header">
+  <div class="page-header__id">
+    <h2 class="page-title">
+      Club Team Library
+      @if (clubName()) { <span class="title-club-badge">{{ clubName() }}</span> }
+    </h2>
+    <p class="page-lede">
+      Every team your club has entered, once. Register any of them for the
+      <strong>{{ eventName() }}</strong> from its row &mdash; and see where else it has played.
+    </p>
+  </div>
+  <div class="page-header__actions">
+    <button type="button" class="btn-page-secondary" (click)="goToRegistration('teams')">
+      <i class="bi bi-pencil-square" aria-hidden="true"></i>Team Registration
+    </button>
+    <button type="button" class="btn-page-primary" [disabled]="actionInProgress()" (click)="showAddModal.set(true)">
+      <i class="bi bi-plus-circle" aria-hidden="true"></i>Add to Library
+    </button>
+  </div>
+</div>
+
+@if (error()) {
+  <div class="alert alert-danger d-flex align-items-center" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error() }}
+  </div>
+}
+
+@if (loading()) {
+  <div class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-body-secondary">Loading your library...</p>
+  </div>
+}
+
+@if (!loading() && !error()) {
+  <div class="library-content">
+
+    <!-- ── Status strip: one sentence about THIS event ─────────────────── -->
+    @if (rows().length > 0) {
+      <div class="event-strip" [class.event-strip--warn]="registeredCount() === 0 && canRegister()">
+        @if (registeredCount() > 0) {
+          <i class="bi bi-check-circle-fill event-strip-icon" aria-hidden="true"></i>
+          <span><strong>{{ registeredCount() }}</strong> of {{ rows().length }} registered for the {{ eventName() }}</span>
+        } @else if (canRegister()) {
+          <i class="bi bi-exclamation-triangle-fill event-strip-icon" aria-hidden="true"></i>
+          <span><strong>None</strong> of your {{ rows().length }} teams are registered for the {{ eventName() }} yet</span>
+        } @else {
+          <i class="bi bi-lock-fill event-strip-icon" aria-hidden="true"></i>
+          <span>Registration for the {{ eventName() }} is closed</span>
+        }
+        @if (availableCount() > 0 && canRegister()) {
+          <span class="event-strip-sep" aria-hidden="true">·</span>
+          <span>{{ availableCount() }} {{ availableCount() === 1 ? 'team fits' : 'teams fit' }} an age group here and {{ availableCount() === 1 ? "isn't" : "aren't" }} registered</span>
+        }
+        @if (registeredCount() > 0) {
+          <button type="button" class="event-strip-link" (click)="goToRegistration('payment')">Payment &rarr;</button>
+        }
+      </div>
+    }
+
+    <!-- ── Empty library ──────────────────────────────────────────────── -->
+    @if (rows().length === 0 && archivedRows().length === 0) {
+      <div class="lib-empty">
+        <i class="bi bi-collection lib-empty-icon" aria-hidden="true"></i>
+        <strong>Your library is empty</strong>
+        <span>Add each team once. It's then ready to register for the {{ eventName() }} and every future event.</span>
+        <button type="button" class="btn-page-primary" (click)="showAddModal.set(true)">
+          <i class="bi bi-plus-circle" aria-hidden="true"></i>Add your first team
+        </button>
+      </div>
+    }
+
+    <!-- ── The table ──────────────────────────────────────────────────── -->
+    @if (rows().length > 0) {
+      <div class="lib-table" role="table" aria-label="Club team library">
+        <div class="lib-head" role="row">
+          <span role="columnheader" class="col-team">Team</span>
+          <span role="columnheader" class="col-status">{{ eventName() }}</span>
+          <span role="columnheader" class="col-history">Other events</span>
+          <span role="columnheader" class="col-menu"><span class="visually-hidden">Actions</span></span>
+        </div>
+
+        @for (row of rows(); track row.team.clubTeamId) {
+          <div class="lib-row" role="row"
+               [class.is-registered]="row.status === 'registered' || row.status === 'waitlisted'"
+               [class.is-dropped]="row.status === 'dropped'"
+               [class.is-outside]="row.status === 'outside'">
+
+            <!-- Team identity -->
+            <div class="col-team" role="cell">
+              <span class="team-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+              <span class="team-meta">
+                <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
+                @if (row.team.clubTeamLevelOfPlay) {
+                  <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) }}</span>
+                }
+              </span>
+            </div>
+
+            <!-- This event: a status, never a guess -->
+            <div class="col-status" role="cell">
+              @switch (row.status) {
+                @case ('registered') {
+                  <span class="status-pill status-pill--registered">
+                    <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Registered
+                  </span>
+                  <span class="status-detail">
+                    AG <strong>{{ row.registered!.ageGroupDisplayName }}</strong>
+                    @if (row.registered!.levelOfPlay) { · LOP <strong>{{ formatLop(row.registered!.levelOfPlay) }}</strong> }
+                    @if (eventAlias(row, row.registered!.teamName); as alias) {
+                      <span class="status-alt" [attr.title]="'Registered here as ' + alias">as {{ alias }}</span>
+                    }
+                  </span>
+                }
+                @case ('waitlisted') {
+                  <span class="status-pill status-pill--waitlisted">
+                    <i class="bi bi-hourglass-split" aria-hidden="true"></i>Waitlisted
+                  </span>
+                  <span class="status-detail">for AG <strong>{{ row.registered!.ageGroupDisplayName }}</strong> · placed when a spot opens</span>
+                }
+                @case ('dropped') {
+                  <span class="status-pill status-pill--dropped">
+                    <i class="bi bi-x-circle" aria-hidden="true"></i>Dropped
+                  </span>
+                  <span class="status-detail">moved out by the event director</span>
+                }
+                @case ('available') {
+                  <button type="button" class="btn-register-cell" [disabled]="actionInProgress()" (click)="openRegister(row)">
+                    <i class="bi bi-trophy-fill" aria-hidden="true"></i>Register
+                  </button>
+                  <span class="status-detail">not registered · fits an age group here</span>
+                }
+                @case ('outside') {
+                  <button type="button" class="btn-register-cell btn-register-cell--quiet" [disabled]="actionInProgress()" (click)="openRegister(row)">
+                    <i class="bi bi-trophy" aria-hidden="true"></i>Register
+                  </button>
+                  <span class="status-detail">outside this event's age groups</span>
+                }
+                @case ('closed') {
+                  <span class="status-pill status-pill--closed">
+                    <i class="bi bi-lock-fill" aria-hidden="true"></i>Closed
+                  </span>
+                  <span class="status-detail">not registered · registration is closed</span>
+                }
+              }
+            </div>
+
+            <!-- History: events only (ruling: Todd, 09-23) -->
+            <div class="col-history" role="cell">
+              @if (row.history.length === 0) {
+                <span class="history-none">First event</span>
+              } @else {
+                @let expanded = expandedHistory().has(row.team.clubTeamId);
+                @let shown = expanded ? row.history : row.history.slice(0, historyPreviewCount);
+                <ul class="history-list">
+                  @for (h of shown; track h.jobId) {
+                    <li class="history-chip"
+                        [class.history-chip--dropped]="h.isDropped"
+                        [class.history-chip--wl]="h.isWaitlisted && !h.isDropped">
+                      <span class="history-event">{{ eventLabel(h) }}</span>
+                      @if (eventAlias(row, h.eventTeamName); as alias) {
+                        <span class="history-as" [attr.title]="'Registered there as ' + alias">as {{ alias }}</span>
+                      }
+                      @if (h.isDropped) { <span class="history-tag">dropped</span> }
+                      @else if (h.isWaitlisted) { <span class="history-tag">waitlist</span> }
+                    </li>
+                  }
+                </ul>
+                @if (row.history.length > historyPreviewCount) {
+                  <button type="button" class="history-more" (click)="toggleHistory(row.team.clubTeamId)">
+                    {{ expanded ? 'Show fewer' : '+' + (row.history.length - historyPreviewCount) + ' more' }}
+                  </button>
+                }
+              }
+            </div>
+
+            <!-- Kebab — on EVERY row, registered included -->
+            <div class="col-menu" role="cell">
+              <div class="lib-menu-anchor">
+                <button type="button" class="lib-kebab"
+                        [class.is-open]="openMenuTeamId() === row.team.clubTeamId"
+                        [disabled]="actionInProgress()"
+                        aria-label="Manage team" aria-haspopup="menu"
+                        [attr.aria-expanded]="openMenuTeamId() === row.team.clubTeamId"
+                        (click)="toggleMenu($event, row.team.clubTeamId)">
+                  <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                </button>
+                @if (openMenuTeamId() === row.team.clubTeamId) {
+                  @let registerLock = registerLockReason(row);
+                  @let unregisterLock = unregisterLockReason(row);
+                  @let editLock = editLockReason(row);
+                  @let archiveLock = archiveLockReason(row);
+                  @let deleteLock = deleteLockReason(row);
+                  <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
+                    <div class="lib-menu-section">{{ eventName() }}</div>
+                    <button type="button" class="lib-menu-item" role="menuitem" [disabled]="!!registerLock" (click)="openRegister(row)">
+                      <i class="bi bi-trophy-fill lib-menu-icon" aria-hidden="true"></i>
+                      <span class="lib-menu-label">Register for this event</span>
+                      @if (registerLock) { <span class="lib-menu-reason">{{ registerLock }}</span> }
+                    </button>
+                    <button type="button" class="lib-menu-item" role="menuitem" [disabled]="!!unregisterLock" (click)="askUnregister(row)">
+                      <i class="bi bi-box-arrow-right lib-menu-icon" aria-hidden="true"></i>
+                      <span class="lib-menu-label">Remove from this event</span>
+                      @if (unregisterLock) { <span class="lib-menu-reason">{{ unregisterLock }}</span> }
+                    </button>
+
+                    <div class="lib-menu-section">Club Team Library</div>
+                    <button type="button" class="lib-menu-item" role="menuitem" (click)="openRename(row)">
+                      <i class="bi bi-input-cursor-text lib-menu-icon" aria-hidden="true"></i>
+                      <span class="lib-menu-label">Rename team</span>
+                    </button>
+                    <button type="button" class="lib-menu-item" role="menuitem" [disabled]="!!editLock" (click)="openEdit(row)">
+                      <i class="bi bi-pencil lib-menu-icon" aria-hidden="true"></i>
+                      <span class="lib-menu-label">Edit details</span>
+                      @if (editLock) { <span class="lib-menu-reason">{{ editLock }}</span> }
+                    </button>
+                    <button type="button" class="lib-menu-item" role="menuitem" [disabled]="!!archiveLock" (click)="askArchive(row)">
+                      <i class="bi bi-box-arrow-in-down lib-menu-icon" aria-hidden="true"></i>
+                      <span class="lib-menu-label">Archive team</span>
+                      @if (archiveLock) { <span class="lib-menu-reason">{{ archiveLock }}</span> }
+                    </button>
+                    <button type="button" class="lib-menu-item lib-menu-item-danger" role="menuitem" [disabled]="!!deleteLock" (click)="askDelete(row)">
+                      <i class="bi bi-trash lib-menu-icon" aria-hidden="true"></i>
+                      <span class="lib-menu-label">Delete team</span>
+                      @if (deleteLock) { <span class="lib-menu-reason">{{ deleteLock }}</span> }
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ── Archived ───────────────────────────────────────────────────── -->
+    @if (archivedRows().length > 0) {
+      <section class="archived-card">
+        <button type="button" class="archived-head" [attr.aria-expanded]="showArchived()" (click)="showArchived.set(!showArchived())">
+          <i class="bi archived-chevron" [class.bi-chevron-down]="showArchived()" [class.bi-chevron-right]="!showArchived()" aria-hidden="true"></i>
+          <i class="bi bi-archive-fill" aria-hidden="true"></i>
+          <span class="archived-title">Archived</span>
+          <span class="archived-count">{{ archivedRows().length }}</span>
+          <span class="archived-hint">hidden from registration · names stay reserved</span>
+        </button>
+        @if (showArchived()) {
+          <ul class="archived-list">
+            @for (row of archivedRows(); track row.team.clubTeamId) {
+              <li class="archived-item">
+                <span class="team-name">{{ row.team.clubTeamName }}</span>
+                <span class="team-meta"><span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span></span>
+                @if (row.history.length > 0) {
+                  <span class="archived-history">{{ row.history.length }} {{ row.history.length === 1 ? 'event' : 'events' }}</span>
+                }
+                <button type="button" class="lib-icon-btn" title="Restore to active library" aria-label="Restore to active library"
+                        [disabled]="actionInProgress()" (click)="askRestore(row)">
+                  <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    }
+  </div>
+}
+
+<!-- ═══ Dialogs ═══ -->
+@if (registering(); as team) {
+  <app-register-team-dialog
+    [team]="team"
+    [eventName]="eventName()"
+    [ageGroups]="ageGroups()"
+    [busy]="actionInProgress()"
+    [errorMessage]="registerError()"
+    (confirmed)="confirmRegister($event)"
+    (cancelled)="registering.set(null)" />
+}
+
+@if (showAddModal()) {
+  <app-team-form-modal
+    [clubName]="clubName()"
+    [eventName]="eventName()"
+    [existingTeams]="rows().map(r => r.team).concat(archivedRows().map(r => r.team))"
+    (saved)="onTeamAdded()"
+    (closed)="showAddModal.set(false)" />
+}
+
+@if (editingTeam(); as editing) {
+  <app-team-form-modal
+    [clubName]="clubName()"
+    [editingTeam]="editing"
+    [existingTeams]="rows().map(r => r.team).concat(archivedRows().map(r => r.team))"
+    (saved)="onTeamEdited()"
+    (closed)="editingTeam.set(null)" />
+}
+
+@if (pendingRename(); as renaming) {
+  <team-rename-confirm
+    [editable]="true"
+    audience="rep"
+    [origin]="renaming.origin"
+    [eventLabel]="eventName()"
+    [currentName]="renameEventName(renaming)"
+    [newName]="renameSeed(renaming)"
+    [libraryName]="renameLibraryName(renaming)"
+    [registeredHere]="renameRegisteredHere(renaming)"
+    [canRenameInEvent]="canEdit()"
+    [errorMessage]="renameError()"
+    [busy]="actionInProgress()"
+    (confirmed)="confirmRename($event)"
+    (cancelled)="closeRename()" />
+}
+
+@if (pendingUnregister(); as team) {
+  <confirm-dialog
+    title="Remove from this event"
+    [message]="'Remove <strong>' + team.teamName + '</strong> from the ' + eventName() + '? It stays in your library.'"
+    confirmLabel="Remove"
+    confirmVariant="danger"
+    (confirmed)="confirmUnregister()"
+    (cancelled)="pendingUnregister.set(null)" />
+}
+
+@if (pendingDelete(); as team) {
+  <confirm-dialog
+    title="Delete Team"
+    [message]="'Permanently delete <strong>' + team.clubTeamName + '</strong> from your library? This cannot be undone.'"
+    confirmLabel="Delete"
+    confirmVariant="danger"
+    (confirmed)="confirmDelete()"
+    (cancelled)="pendingDelete.set(null)" />
+}
+
+@if (pendingArchive(); as team) {
+  <confirm-dialog
+    title="Archive Team"
+    [message]="'Archive <strong>' + team.clubTeamName + '</strong>? It leaves your active library but keeps its event history. Restore it any time from the Archived section.'"
+    confirmLabel="Archive"
+    confirmVariant="primary"
+    (confirmed)="confirmArchive()"
+    (cancelled)="pendingArchive.set(null)" />
+}
+
+@if (pendingRestore(); as team) {
+  <confirm-dialog
+    title="Restore Team"
+    [message]="'Restore <strong>' + team.clubTeamName + '</strong> to your active library?'"
+    confirmLabel="Restore"
+    confirmVariant="primary"
+    (confirmed)="confirmRestore()"
+    (cancelled)="pendingRestore.set(null)" />
+}

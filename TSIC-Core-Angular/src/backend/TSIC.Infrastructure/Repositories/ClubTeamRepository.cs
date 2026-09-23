@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -132,6 +133,34 @@ public class ClubTeamRepository : IClubTeamRepository
             .ToListAsync(cancellationToken);
 
         return referenced.ToHashSet();
+    }
+
+    public async Task<List<ClubTeamEventHistoryDto>> GetEventHistoryForClubTeamIdsAsync(
+        IEnumerable<int> clubTeamIds,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = clubTeamIds.ToList();
+        if (idList.Count == 0) return new List<ClubTeamEventHistoryDto>();
+
+        // Agegroup is a required navigation on Teams, so the join is inner — a copy with no
+        // age group would be corrupt, not history. "DROPPED" mirrors TeamRepository's drop test.
+        return await (
+            from t in _context.Teams.AsNoTracking()
+            where t.ClubTeamId != null && idList.Contains(t.ClubTeamId.Value)
+            orderby t.Job.EventStartDate descending, t.Createdate descending
+            select new ClubTeamEventHistoryDto
+            {
+                ClubTeamId = t.ClubTeamId!.Value,
+                JobId = t.JobId,
+                JobPath = t.Job.JobPath,
+                JobName = t.Job.JobName ?? t.Job.JobPath,
+                EventTeamName = t.TeamName ?? string.Empty,
+                AgeGroupName = t.Agegroup.AgegroupName ?? string.Empty,
+                IsDropped = t.Agegroup.AgegroupName != null && t.Agegroup.AgegroupName.Contains("DROPPED"),
+                EventStartDate = t.Job.EventStartDate,
+                RegisteredOn = t.Createdate,
+            }
+        ).ToListAsync(cancellationToken);
     }
 
     public async Task<bool> HasAnyTeamRegistrationsAsync(

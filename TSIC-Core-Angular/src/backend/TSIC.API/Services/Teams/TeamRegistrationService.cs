@@ -1067,6 +1067,21 @@ public class TeamRegistrationService : ITeamRegistrationService
     /// for a registration with no library-linked team, the registering user's own clubs. A Director or
     /// Superuser may rename club_name for the event, so it is never matched against all clubs.
     /// </summary>
+    public async Task<List<ClubTeamEventHistoryDto>> GetClubTeamHistoryAsync(Guid regId, string userId)
+    {
+        // Same access check + club resolution as GetTeamsMetadataAsync, so the history can only
+        // ever describe the library the rep is already being shown.
+        _ = await _registrations.GetRegistrationBasicInfoAsync(regId, userId)
+            ?? throw new InvalidOperationException("Registration not found or access denied");
+
+        var effectiveClubId = await ResolveEffectiveClubIdAsync(regId);
+        if (effectiveClubId <= 0) return new List<ClubTeamEventHistoryDto>();
+
+        // Archived rows included: an archived team's history is the reason its name stays reserved.
+        var clubTeams = await _clubTeams.GetByClubIdAsync(effectiveClubId);
+        return await _clubTeams.GetEventHistoryForClubTeamIdsAsync(clubTeams.Select(ct => ct.ClubTeamId));
+    }
+
     private async Task<int> ResolveEffectiveClubIdAsync(Guid regId)
     {
         var resolution = await _clubReps.ResolveClubForClubRepRegistrationAsync(regId);

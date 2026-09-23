@@ -13,6 +13,7 @@ import {
     AuthTokenResponse,
     ClubRepClubDto,
     ClubTeamDto,
+    ClubTeamEventHistoryDto,
     CheckExistingRegistrationsResponse,
     UpdateClubTeamRequest,
     RenameClubTeamRequest,
@@ -131,6 +132,14 @@ export class TeamRegistrationService {
      *
      * @param teamId - The Teams.TeamId to delete (Guid string)
      */
+    /**
+     * Every event each library team (active + archived) has been registered in, all jobs.
+     * Read-only; the standalone Club Team Library page pairs it with getTeamsMetadata().
+     */
+    getClubTeamHistory(): Observable<ClubTeamEventHistoryDto[]> {
+        return this.http.get<ClubTeamEventHistoryDto[]>(`${this.apiUrl}/club-team-history`);
+    }
+
     unregisterTeamFromEvent(teamId: string): Observable<void> {
         return this.http.delete<void>(`${this.apiUrl}/unregister-team/${teamId}`);
     }

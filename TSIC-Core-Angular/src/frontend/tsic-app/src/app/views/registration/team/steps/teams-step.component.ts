@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
@@ -223,6 +224,7 @@ type PendingRename =
         [droppedTeams]="droppedTeams()"
         [pendingLibraryOnly]="pendingLibraryOnly()"
         (closed)="closeLibraryFlyin()"
+        (manageLibrary)="goToLibraryPage()"
         (leavePending)="clearPendingLibraryOnly()"
         (register)="onFlyinRegister($event)"
         (unregister)="onFlyinUnregister($event)"
@@ -771,6 +773,7 @@ export class TeamTeamsStepComponent implements OnInit {
     private readonly toast = inject(ToastService);
     private readonly jobService = inject(JobService);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly router = inject(Router);
 
     /** Clean event name with the org-prefix and colon stripped — same split as
         team.component.ts page hero, so child components see only the headline
@@ -924,6 +927,14 @@ export class TeamTeamsStepComponent implements OnInit {
     /** Library fly-in open/close. */
     openLibraryFlyin(): void { this.showLibraryFlyin.set(true); }
     closeLibraryFlyin(): void { this.showLibraryFlyin.set(false); }
+
+    /** Fly-in header → the standalone Club Team Library page (same job, same session). */
+    goToLibraryPage(): void {
+        const jobPath = this.state.jobPath();
+        if (!jobPath) return;
+        this.showLibraryFlyin.set(false);
+        this.router.navigateByUrl(`/${jobPath}/club/library`);
+    }
 
     /** Flyin emits {team, ageGroupId, levelOfPlay} from its inline-expand picker. */
     onFlyinRegister(req: RegisterRequest): void {

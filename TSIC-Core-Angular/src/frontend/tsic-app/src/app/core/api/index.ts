@@ -211,6 +211,7 @@ export type { ClubRosterPlayerDto } from './models/ClubRosterPlayerDto';
 export type { ClubRosterTeamDto } from './models/ClubRosterTeamDto';
 export type { ClubSearchResult } from './models/ClubSearchResult';
 export type { ClubTeamDto } from './models/ClubTeamDto';
+export type { ClubTeamEventHistoryDto } from './models/ClubTeamEventHistoryDto';
 export type { ClubTeamSummaryDto } from './models/ClubTeamSummaryDto';
 export type { CommonDivisionDto } from './models/CommonDivisionDto';
 export type { CommonDivisionMutationResult } from './models/CommonDivisionMutationResult';

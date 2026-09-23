@@ -154,6 +154,9 @@ export class ClientHeaderBarComponent {
             // Team Registration is the ClubRep's workspace — always linked; the wizard
             // itself gates add/edit/delete on clubRepAllow* caps.
             items.push({ icon: 'bi-pencil-square', label: 'Team Registration', route: 'registration/team?step=teams' });
+            // The rep's club home: library housekeeping + per-event status + history. Unconditional —
+            // a rep with zero library teams needs this door most (it is where Add to Library lives).
+            items.push({ icon: 'bi-collection', label: 'Club Team Library', route: 'club/library' });
             // Non-ARB owed only — an ARB team auto-drafts and keeps a positive OwedTotal,
             // so the full sum would float a permanent `primary` nudge for a rep who owes
             // nothing by hand. See JobPulseDto.MyClubRepNonArbOwed.

@@ -142,6 +142,30 @@ public sealed record ClubTeamDto
     public required bool BArchived { get; init; }
 }
 
+/// <summary>
+/// One event a library team has been registered in — a Teams row keyed back to its ClubTeamId.
+/// Feeds the club rep's standalone Club Team Library page, where a team's row lists the events
+/// it has played in and the name it carried there (a this-event rename leaves the library name
+/// alone, so the two can differ). Events only — no standings (ruling: Todd, 2026-09-23: the
+/// library is where you register for the NEXT event; no games have been played there yet).
+/// </summary>
+public sealed record ClubTeamEventHistoryDto
+{
+    public required int ClubTeamId { get; init; }
+    public required Guid JobId { get; init; }
+    public required string JobPath { get; init; }
+    public required string JobName { get; init; }
+    /// The name on this event's copy (Teams.TeamName) — shown when it differs from the library name.
+    public required string EventTeamName { get; init; }
+    public required string AgeGroupName { get; init; }
+    public bool IsWaitlisted => AgegroupConstants.IsWaitlist(AgeGroupName);
+    public string AgeGroupDisplayName => AgegroupConstants.StripWaitlistPrefix(AgeGroupName);
+    /// True when a director moved this copy into a "DROPPED" age group — the row is history, not a live entry.
+    public required bool IsDropped { get; init; }
+    public DateTime? EventStartDate { get; init; }
+    public required DateTime RegisteredOn { get; init; }
+}
+
 public sealed record CreateClubTeamRequest
 {
     public required string ClubTeamName { get; init; }

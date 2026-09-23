@@ -698,6 +698,16 @@ export const routes: Routes = [
 				loadComponent: () => import('./views/rosters/my-roster/my-roster.component').then(m => m.MyRosterComponent),
 				title: 'Team Roster'
 			},
+			{
+				// Club Rep — the standalone Club Team Library: housekeeping, this-event status, history.
+				// Reps only: the metadata endpoint it reads 403s every other role. Directors get their
+				// read-only library view elsewhere.
+				path: 'club/library',
+				canActivate: [authGuard],
+				data: { roles: [Roles.ClubRep] },
+				loadComponent: () => import('./views/club-library/club-library.component').then(m => m.ClubLibraryComponent),
+				title: 'Club Team Library'
+			},
 			// Post-registration account actions — surfaced from the user-dropdown.
 			{
 				path: 'account/club-rep',

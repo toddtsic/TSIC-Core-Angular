@@ -95,6 +95,11 @@ interface LibraryGroup {
             }
           </h3>
           <div class="header-actions">
+            <!-- The drawer is a picker inside a registration; the full library — history,
+                 kebab on registered rows, add-without-registering — is its own page. -->
+            <button type="button" class="btn-manage-library" (click)="manageLibrary.emit()">
+              Manage full library <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </button>
             <button type="button" class="btn-close" aria-label="Close library" (click)="onClose()">&times;</button>
           </div>
         </div>
@@ -778,6 +783,24 @@ interface LibraryGroup {
           align-items: center;
           gap: var(--space-2);
           flex-shrink: 0;
+        }
+
+        .btn-manage-library {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-1);
+          padding: var(--space-1) var(--space-2);
+          border: none;
+          background: transparent;
+          color: var(--bs-primary);
+          font-size: var(--font-size-sm);
+          font-weight: var(--font-weight-semibold);
+          white-space: nowrap;
+          cursor: pointer;
+          border-radius: var(--radius-sm);
+
+          &:hover { text-decoration: underline; }
+          &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
         }
 
         .btn-close {
@@ -2364,6 +2387,8 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
     readonly pendingLibraryOnly = input<ReadonlySet<number>>(new Set());
 
     readonly closed = output<void>();
+    /** Header link to the standalone Club Team Library page; the parent owns the navigation. */
+    readonly manageLibrary = output<void>();
     /** The rep chose "leave it in the library" on the interstitial: the parent stops
      *  tracking those ids so the panel does not ask again this session. */
     readonly leavePending = output<void>();

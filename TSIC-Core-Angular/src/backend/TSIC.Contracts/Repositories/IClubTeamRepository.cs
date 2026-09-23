@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -79,6 +80,16 @@ public interface IClubTeamRepository
     /// fact the delete guard enforces, so the client never offers a delete the server will refuse.
     /// </summary>
     Task<HashSet<int>> GetClubTeamIdsWithEventRegistrationsAsync(
+        IEnumerable<int> clubTeamIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every event registration (Teams row, any job) for the supplied ClubTeamIds, as history rows
+    /// joined to the job's identity and the age group the copy sits in. Newest event first. One
+    /// batched query over Teams → Jobs → Agegroups; returns a DTO because the shape spans three
+    /// entities and is read-only display.
+    /// </summary>
+    Task<List<ClubTeamEventHistoryDto>> GetEventHistoryForClubTeamIdsAsync(
         IEnumerable<int> clubTeamIds,
         CancellationToken cancellationToken = default);
 

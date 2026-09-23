@@ -154,6 +154,16 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
           @if (errorMsg()) {
             <div class="alert alert-danger rounded-0 border-0 py-2 px-3 mb-0 small">{{ errorMsg() }}</div>
           }
+
+          <!-- Add mode on the standalone library page: say what this save is and is not.
+               The wizard's plain-add path lost reps on exactly this point. -->
+          @if (!isEdit() && eventName()) {
+            <div class="library-aside">
+              <i class="bi bi-collection" aria-hidden="true"></i>
+              <span>Saved to your library for future events &mdash; <strong>not registered for {{ eventName() }}</strong>.
+                Register it from its row afterwards.</span>
+            </div>
+          }
         </div>
 
         <!-- Footer -->
@@ -253,6 +263,24 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
         strong { font-weight: var(--font-weight-semibold); }
       }
 
+      .library-aside {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin-top: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        background: var(--bs-warning-bg-subtle);
+        border: 1px solid var(--bs-warning);
+        border-left-width: 4px;
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-normal);
+        color: var(--bs-warning-text-emphasis);
+
+        i { flex-shrink: 0; margin-top: 1px; font-size: var(--font-size-base); }
+        strong { font-weight: var(--font-weight-bold); }
+      }
+
       /* ── Footer ── */
       .form-footer {
         display: flex;
@@ -266,6 +294,10 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
 })
 export class TeamFormModalComponent implements OnInit {
     readonly clubName = input('');
+    /** Add mode only: when set, the form states that this save does NOT register the team
+     *  for the named event. The wizard leaves it empty (it only uses add mode while
+     *  registration is closed); the standalone library page always sets it. */
+    readonly eventName = input('');
     /** When supplied, the modal is in edit mode and updates this team instead of creating. */
     // TODO: Skipped for migration because:
     //  Your application code writes to the input. This prevents migration.

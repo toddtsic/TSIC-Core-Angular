@@ -271,6 +271,44 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// Event history for every team in the rep's club library (all jobs). Read-only; the
+    /// standalone Club Team Library page pairs it with <c>metadata</c> for this-event status.
+    /// Context derived from regId token claim.
+    /// </summary>
+    [HttpGet("club-team-history")]
+    [ProducesResponseType(typeof(List<ClubTeamEventHistoryDto>), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> GetClubTeamHistory()
+    {
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
+
+        var regIdClaim = User.FindFirst("regId")?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
+        try
+        {
+            return Ok(await _teamRegistrationService.GetClubTeamHistoryAsync(regId, userId));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to get club team history for user {UserId}, regId {RegId}", userId, regId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting club team history for user {UserId}, regId {RegId}", userId, regId);
+            return StatusCode(500, new { Message = "An error occurred while retrieving team history" });
+        }
+    }
+
+    /// <summary>
     /// Register a ClubTeam for the current event.
     /// Context derived from regId token claim.
     /// </summary>

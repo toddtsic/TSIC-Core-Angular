@@ -29,6 +29,13 @@ public interface ITeamRegistrationService
     Task<TeamsMetadataResponse> GetTeamsMetadataAsync(Guid regId, string userId, bool bPayBalanceDue = false);
 
     /// <summary>
+    /// Every event each of the rep's library teams (active and archived) has been registered in,
+    /// across all jobs. Club resolved from the registration the same way the metadata read does.
+    /// Read-only; feeds the standalone Club Team Library page.
+    /// </summary>
+    Task<List<ClubTeamEventHistoryDto>> GetClubTeamHistoryAsync(Guid regId, string userId);
+
+    /// <summary>
     /// Register a team for the current event.
     /// Either selects an existing ClubTeam (by ClubTeamId) or creates a new one (from TeamName + GradYear + LevelOfPlay).
     /// Creates a Teams record linked to the ClubTeam via ClubTeamId.
