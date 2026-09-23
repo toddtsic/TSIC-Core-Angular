@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.get_login_creds"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.teamsportsinfo.tsicteams",
+      "sha256_cert_fingerprints": [
+        "79:4B:61:2D:25:5C:F6:B3:68:67:BA:9C:7C:8C:8A:9D:57:93:5B:F9:35:8E:74:43:6A:B5:B9:20:98:8B:09:53"
+      ]
+    }
+  }
+]
