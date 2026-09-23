@@ -2617,7 +2617,7 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
     /** Details = grad year + level of play (and the name, pre-registration). Those carry the squad's
      *  identity, so they stay locked once the team has played. Name alone goes through Rename. */
     editLockReason(team: ClubTeamDto): string | null {
-        if (!this.canEdit()) return 'Editing is off for this event';
+        if (!this.canEdit()) return 'Editing closed by the director';
         if (team.bHasBeenScheduled) return 'Has event history';
         return null;
     }

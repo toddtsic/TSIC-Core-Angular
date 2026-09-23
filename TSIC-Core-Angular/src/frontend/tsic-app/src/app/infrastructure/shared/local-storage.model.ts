@@ -85,4 +85,5 @@ export type PanelWidthKey =
     | 'helpPanelWidth'
     | 'libraryPanelWidth'
     | 'scoreEntryPanelWidth'
-    | 'teamResultsPanelWidth';
+    | 'teamResultsPanelWidth'
+    | 'directorClubLibraryPanelWidth';

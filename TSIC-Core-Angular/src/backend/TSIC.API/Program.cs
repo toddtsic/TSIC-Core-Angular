@@ -299,6 +299,7 @@ builder.Services.AddScoped<IPoolAssignmentService, PoolAssignmentService>();
 builder.Services.AddScoped<IRegistrationSearchService, RegistrationSearchService>();
 builder.Services.AddScoped<IClubRepLocalRenameService, ClubRepLocalRenameService>();
 builder.Services.AddScoped<ITeamSearchService, TeamSearchService>();
+builder.Services.AddScoped<IClubRepDirectoryService, ClubRepDirectoryService>();
 // Scheduling
 builder.Services.AddScoped<ISchedulingContextResolver, SchedulingContextResolver>();
 builder.Services.AddScoped<IFieldManagementService, FieldManagementService>();

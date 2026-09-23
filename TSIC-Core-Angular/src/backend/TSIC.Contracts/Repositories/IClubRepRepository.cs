@@ -79,6 +79,15 @@ public interface IClubRepRepository
     void Remove(ClubReps clubRep);
 
     /// <summary>
+    /// Batch form of <see cref="ResolveClubForClubRepRegistrationAsync"/> for a director list: one
+    /// ClubId per registration (0 = unresolved). Same two rungs - dominant club of the library-linked
+    /// teams, else the user's ClubReps row whose club name matches the registration - set-wise.
+    /// </summary>
+    Task<Dictionary<Guid, int>> ResolveClubsForClubRepRegistrationsAsync(
+        IEnumerable<Guid> clubRepRegistrationIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Persist all changes to the database.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

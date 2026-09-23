@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, HostListener, signal, computed, inject, DestroyRef, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA, viewChild, viewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { GridRowNumbersDirective } from '@shared-ui/directives/grid-row-numbers.directive';
 import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
@@ -57,6 +58,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	private readonly searchService = inject(TeamSearchService);
 	private readonly toast = inject(ToastService);
 	private readonly localStorage = inject(LocalStorageService);
+	private readonly route = inject(ActivatedRoute);
 
 	readonly grid = viewChild.required<GridComponent>('grid');
 	readonly ladtTreeRef = viewChild<LadtTreeFilterComponent>('ladtTreeRef');
@@ -300,6 +302,11 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		this.loadFilterOptions();
 		this.loadLadtTree();
 		this.loadCadtTree();
+		// Deep link from the Club Reps library view (?teamId=): open that team's detail panel
+		// straight away. The default search still runs underneath; keepPanelOpen on that
+		// initial search means it won't close this panel when results land.
+		const teamId = this.route.snapshot.queryParamMap.get('teamId');
+		if (teamId) this.openDetail(teamId);
 	}
 
 	ngOnDestroy(): void {

@@ -4,6 +4,7 @@
 /* eslint-disable */
 export type ClubTeamEventHistoryDto = {
     clubTeamId: number;
+    teamId: string;
     jobId: string;
     jobPath: string;
     jobName: string;

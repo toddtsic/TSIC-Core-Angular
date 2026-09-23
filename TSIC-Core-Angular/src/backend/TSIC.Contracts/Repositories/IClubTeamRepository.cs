@@ -102,6 +102,22 @@ public interface IClubTeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Library rows for several clubs at once (director Club Reps page). Same identity dedupe as
+    /// <see cref="GetByClubIdAsync"/>; archived rows INCLUDED (Active=false) so the caller can show them.
+    /// </summary>
+    Task<List<ClubTeams>> GetByClubIdsAsync(
+        IEnumerable<int> clubIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Which of the given library rows have a copy in THIS job (any status - live, waitlisted or dropped).
+    /// </summary>
+    Task<HashSet<int>> GetClubTeamIdsInJobAsync(
+        Guid jobId,
+        IEnumerable<int> clubTeamIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Persist all changes to the database.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

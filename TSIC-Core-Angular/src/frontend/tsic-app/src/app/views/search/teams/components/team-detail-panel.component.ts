@@ -8,7 +8,8 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
-import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
+import { LOP_CHOICES, normalizeLop, formatLop } from '@shared/teams/lop-choices';
+import type { ClubTeamEventHistoryDto } from '@core/api';
 import { environment } from '@environments/environment';
 
 type TabType = 'info' | 'accounting';
@@ -54,6 +55,15 @@ export class TeamDetailPanelComponent {
 	/** Club-linked = descends from a club-team library row. A rename here is THIS EVENT ONLY (the
 	 *  library and other events keep their name) — for every role. */
 	readonly isClubLinked = computed(() => this.detail()?.clubTeamId != null);
+
+	/** Library-row LOP shown as its pill label (same helper the rep's library page uses). */
+	readonly lopLabel = formatLop;
+
+	/** Event label for an other-events chip: org prefix stripped, same as the rep's library page. */
+	eventLabel(h: ClubTeamEventHistoryDto): string {
+		const idx = h.jobName.indexOf(':');
+		return idx > 0 ? h.jobName.substring(idx + 1).trim() : h.jobName;
+	}
 
 	/** Fixed 1–5 Level-of-Play choices (shared). The edit form's LOP select binds to this,
 	 *  not the former per-job jsonOptions `List_Lops`. The stored value is normalized for

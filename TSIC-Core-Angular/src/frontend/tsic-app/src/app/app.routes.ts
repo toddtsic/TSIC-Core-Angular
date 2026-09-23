@@ -228,6 +228,13 @@ export const routes: Routes = [
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'search-teams' },
 						loadComponent: () => import('./views/search/teams/search-teams.component').then(m => m.TeamSearchComponent)
+					},
+					// Club reps by registration (zero-team reps included) + read-only library view.
+					{
+						path: 'club-reps',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						loadComponent: () => import('./views/search/club-reps/director-club-reps.component').then(m => m.DirectorClubRepsComponent)
 					}
 				]
 			},

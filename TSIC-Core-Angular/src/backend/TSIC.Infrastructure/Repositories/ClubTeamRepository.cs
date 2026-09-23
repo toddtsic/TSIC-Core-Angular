@@ -32,6 +32,39 @@ public class ClubTeamRepository : IClubTeamRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<ClubTeams>> GetByClubIdsAsync(
+        IEnumerable<int> clubIds,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = clubIds.Distinct().ToList();
+        if (idList.Count == 0) return new List<ClubTeams>();
+
+        return await _context.ClubTeams
+            .Where(ct => idList.Contains(ct.ClubId))
+            .AsNoTracking()
+            .GroupBy(ct => new { ct.ClubId, ct.ClubTeamName, ct.ClubTeamGradYear })
+            .Select(g => g.OrderByDescending(ct => ct.ClubTeamLevelOfPlay).First())
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<HashSet<int>> GetClubTeamIdsInJobAsync(
+        Guid jobId,
+        IEnumerable<int> clubTeamIds,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = clubTeamIds.ToList();
+        if (idList.Count == 0) return new HashSet<int>();
+
+        var present = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.ClubTeamId != null && idList.Contains(t.ClubTeamId.Value))
+            .Select(t => t.ClubTeamId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return present.ToHashSet();
+    }
+
     public async Task<ClubTeams?> GetByIdAsync(
         int clubTeamId,
         CancellationToken cancellationToken = default)
@@ -151,6 +184,7 @@ public class ClubTeamRepository : IClubTeamRepository
             select new ClubTeamEventHistoryDto
             {
                 ClubTeamId = t.ClubTeamId!.Value,
+                TeamId = t.TeamId,
                 JobId = t.JobId,
                 JobPath = t.Job.JobPath,
                 JobName = t.Job.JobName ?? t.Job.JobPath,

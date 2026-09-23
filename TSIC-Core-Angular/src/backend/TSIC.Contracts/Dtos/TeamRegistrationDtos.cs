@@ -152,6 +152,8 @@ public sealed record ClubTeamDto
 public sealed record ClubTeamEventHistoryDto
 {
     public required int ClubTeamId { get; init; }
+    /// The event copy itself (Leagues.teams) - a director deep-links to it from the library view.
+    public required Guid TeamId { get; init; }
     public required Guid JobId { get; init; }
     public required string JobPath { get; init; }
     public required string JobName { get; init; }

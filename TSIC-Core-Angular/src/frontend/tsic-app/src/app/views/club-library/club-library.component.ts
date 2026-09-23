@@ -226,7 +226,7 @@ export class ClubLibraryComponent implements OnInit {
 
     // ── Lock reasons — mirror the fly-in so the two surfaces never disagree ──
     editLockReason(row: LibraryRow): string | null {
-        if (!this.canEdit()) return 'Editing is off for this event';
+        if (!this.canEdit()) return 'Editing closed by the director';
         if (row.team.bHasBeenScheduled) return 'Has event history';
         return null;
     }
@@ -246,7 +246,7 @@ export class ClubLibraryComponent implements OnInit {
     }
     unregisterLockReason(row: LibraryRow): string | null {
         if (!row.registered) return 'Not registered here';
-        if (!this.canRemove()) return 'Removal is off for this event';
+        if (!this.canRemove()) return 'Removal closed by the director';
         if (row.registered.paidTotal > 0) return 'Payment received — contact the event';
         return null;
     }

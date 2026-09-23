@@ -1,0 +1,290 @@
+<div class="reps-page">
+    <div class="page-header">
+        <h2 class="page-title">
+            <i class="bi bi-people page-title-icon"></i>
+            Club Reps
+        </h2>
+        <p class="page-subtitle">
+            Every club rep who has signed in to
+            @if (jobName()) { <strong>{{ jobName() }}</strong> } @else { this event }
+            — including reps who registered no teams yet. Open a rep's
+            <strong>Library</strong> to see which of their club's teams are registered here, which
+            aren't, and where else those teams have played.
+        </p>
+    </div>
+
+    @if (errorMessage()) {
+        <section class="result-panel result-panel--danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Could not complete</h4>
+                <p class="result-panel__desc">{{ errorMessage() }}</p>
+            </div>
+        </section>
+    }
+
+    @if (isLoading()) {
+        <div class="text-center py-4">
+            <span class="spinner-border spinner-border-sm text-primary me-2"></span>
+            <span class="text-muted">Loading...</span>
+        </div>
+    } @else if (!rows().length && !errorMessage()) {
+        <section class="result-panel result-panel--empty">
+            <i class="bi bi-info-circle result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">No club reps yet</h4>
+                <p class="result-panel__desc">
+                    No club rep has signed in to this event. Reps appear here the moment they pick
+                    this event at sign-in, before they register a team.
+                </p>
+            </div>
+        </section>
+    } @else if (rows().length) {
+        @let t = totals();
+        <!-- Summary strip: the four numbers a director acts on. Each is also a filter. -->
+        <div class="summary-strip" role="group" aria-label="Filter club reps">
+            <button type="button" class="stat" [class.active]="filter() === 'all'" (click)="setFilter('all')">
+                <span class="stat-value">{{ t.reps }}</span>
+                <span class="stat-label">club reps</span>
+                <span class="stat-sub">{{ t.active }} active · {{ t.waitlisted }} waitlisted teams</span>
+            </button>
+            <button type="button" class="stat" [class.active]="filter() === 'zero'" [class.stat--warn]="t.zero > 0" (click)="setFilter('zero')">
+                <span class="stat-value">{{ t.zero }}</span>
+                <span class="stat-label">no teams yet</span>
+                <span class="stat-sub">signed in, nothing registered</span>
+            </button>
+            <button type="button" class="stat" [class.active]="filter() === 'unregistered'" [class.stat--info]="t.eligible > 0" (click)="setFilter('unregistered')">
+                <span class="stat-value">{{ t.eligible }}</span>
+                <span class="stat-label">library teams not registered</span>
+                <span class="stat-sub">that fit an age group here · {{ t.unregistered }} in all</span>
+            </button>
+            <button type="button" class="stat" [class.active]="filter() === 'owing'" [class.stat--danger]="t.owed > 0" (click)="setFilter('owing')">
+                <span class="stat-value">{{ t.owed | currency:'USD':'symbol':'1.0-0' }}</span>
+                <span class="stat-label">owed</span>
+                <span class="stat-sub">{{ t.owingReps }} {{ t.owingReps === 1 ? 'rep owes' : 'reps owe' }} a balance</span>
+            </button>
+        </div>
+
+        @if (filter() !== 'all') {
+            <p class="filter-note">
+                Showing <strong>{{ filteredRows().length }}</strong> of {{ rows().length }} reps.
+                <button type="button" class="link-btn" (click)="setFilter('all')">Show all</button>
+            </p>
+        }
+
+        <ejs-grid width="100%" #grid
+            [dataSource]="filteredRows()"
+            cssClass="tsic-grid-tight"
+            [allowExcelExport]="true"
+            [allowSorting]="true"
+            [allowTextWrap]="true"
+            [toolbar]="toolbar"
+            (toolbarClick)="onToolbarClick($event)">
+            <e-columns>
+                <e-column field="registrationId" headerText="Id" [isPrimaryKey]="true" [visible]="false"></e-column>
+                <e-column headerText="" width="96" textAlign="Center" [allowSorting]="false">
+                    <ng-template #template let-data>
+                        <button type="button" class="btn-lib" (click)="openLibrary(data)"
+                                title="Open {{ data.clubName }}'s Club Team Library (read-only)">
+                            <i class="bi bi-collection" aria-hidden="true"></i>Library
+                        </button>
+                    </ng-template>
+                </e-column>
+                <e-column field="clubName" headerText="Club" width="200" clipMode="EllipsisWithTooltip"></e-column>
+                <e-column field="repName" headerText="Rep" width="150" clipMode="EllipsisWithTooltip"></e-column>
+                <e-column field="activeTeamCount" headerText="Active" width="88" textAlign="Right" format="N0"></e-column>
+                <e-column field="waitlistedTeamCount" headerText="Waitlisted" width="100" textAlign="Right" format="N0"></e-column>
+                <e-column field="droppedTeamCount" headerText="Dropped" width="94" textAlign="Right" format="N0"></e-column>
+                <e-column field="owedTotal" headerText="Owed" width="100" textAlign="Right" format="C0">
+                    <ng-template #template let-data>
+                        <span [class.owed-cell]="data.owedTotal > 0">{{ data.owedTotal | currency:'USD':'symbol':'1.0-0' }}</span>
+                    </ng-template>
+                </e-column>
+                <e-column field="libraryTeamCount" headerText="Library" width="90" textAlign="Right" format="N0"></e-column>
+                <e-column field="libraryEligibleUnregisteredCount" headerText="Not Registered" width="130" textAlign="Right">
+                    <ng-template #template let-data>
+                        @if (data.libraryUnregisteredCount === 0) {
+                            <span class="muted-cell">—</span>
+                        } @else {
+                            <span class="unreg-cell" [class.unreg-cell--eligible]="data.libraryEligibleUnregisteredCount > 0"
+                                  title="{{ data.libraryEligibleUnregisteredCount }} fit an age group at this event; {{ data.libraryUnregisteredCount }} not registered in all">
+                                {{ data.libraryEligibleUnregisteredCount }}<span class="unreg-of">/{{ data.libraryUnregisteredCount }}</span>
+                            </span>
+                        }
+                    </ng-template>
+                </e-column>
+                <e-column field="email" headerText="Email" width="220" clipMode="EllipsisWithTooltip"></e-column>
+                <e-column field="cellphone" headerText="Cell" width="120"></e-column>
+                <e-column field="registeredOn" headerText="Signed In" width="115" type="date" format="yyyy-MM-dd"></e-column>
+            </e-columns>
+        </ejs-grid>
+    }
+</div>
+
+<!-- ═══════ Library panel (read-only) ═══════ -->
+@if (isPanelOpen()) {
+  <div class="detail-backdrop" (click)="closePanel()"></div>
+}
+<div class="detail-panel" [class.open]="isPanelOpen()" appResizablePanel storageKey="directorClubLibraryPanelWidth" panelSide="right" [defaultWidthPct]="0.6" [maxWidth]="1300">
+  @if (panelRep(); as rep) {
+    <div class="panel-header">
+      <div class="header-top-row">
+        <div class="header-content">
+          <h3 class="panel-title">{{ rep.clubName }}</h3>
+          <div class="header-meta">
+            <span class="header-tag">
+              <span class="header-tag-label">Club Team Library</span>
+              <span class="header-tag-value">read-only · the club's list of teams across all events</span>
+            </span>
+            <span class="header-tag">
+              <span class="header-tag-label">Club Rep</span>
+              <span class="header-tag-value"><span class="rep-name">{{ rep.repName }}</span>@if (rep.email) { · <a [href]="'mailto:' + rep.email" class="rep-email">{{ rep.email }}</a>}</span>
+            </span>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="btn-close" (click)="closePanel()" aria-label="Close">&times;</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-body">
+      @if (panelLoading()) {
+        <div class="text-center py-4">
+          <span class="spinner-border spinner-border-sm text-primary me-2"></span>
+          <span class="text-muted">Loading library...</span>
+        </div>
+      } @else if (panelError()) {
+        <section class="result-panel result-panel--danger" role="alert">
+          <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+          <div class="result-panel__body">
+            <h4 class="result-panel__title">Could not load</h4>
+            <p class="result-panel__desc">{{ panelError() }}</p>
+          </div>
+        </section>
+      } @else if (library(); as lib) {
+        @let c = libraryCounts();
+        @if (lib.clubId === 0) {
+          <section class="result-panel result-panel--empty">
+            <i class="bi bi-question-circle result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+              <h4 class="result-panel__title">No club on file</h4>
+              <p class="result-panel__desc">
+                This rep's registration isn't linked to a club yet. That happens when a rep signs
+                in but never creates a club or a library team. Nothing to show until they do.
+              </p>
+            </div>
+          </section>
+        } @else if (lib.teams.length === 0) {
+          <section class="result-panel result-panel--empty">
+            <i class="bi bi-collection result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+              <h4 class="result-panel__title">Empty library</h4>
+              <p class="result-panel__desc">{{ lib.clubName }} has no teams in its Club Team Library yet.</p>
+            </div>
+          </section>
+        } @else {
+          <div class="lib-counts">
+            <span class="lib-count"><strong>{{ c.total }}</strong> library {{ c.total === 1 ? 'team' : 'teams' }}</span>
+            <span class="lib-count lib-count--ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i>{{ c.registered }} registered here</span>
+            @if (c.waitlisted) { <span class="lib-count lib-count--wl"><i class="bi bi-hourglass-split" aria-hidden="true"></i>{{ c.waitlisted }} waitlisted</span> }
+            @if (c.available) { <span class="lib-count lib-count--info"><i class="bi bi-trophy" aria-hidden="true"></i>{{ c.available }} not registered, {{ c.available === 1 ? 'fits' : 'fit' }} an age group</span> }
+            @if (c.outside) { <span class="lib-count"><i class="bi bi-dash-circle" aria-hidden="true"></i>{{ c.outside }} outside this event's age groups</span> }
+            @if (c.dropped) { <span class="lib-count lib-count--dropped"><i class="bi bi-x-circle" aria-hidden="true"></i>{{ c.dropped }} dropped</span> }
+            @if (c.archived) { <span class="lib-count"><i class="bi bi-archive" aria-hidden="true"></i>{{ c.archived }} archived</span> }
+          </div>
+          @if (lib.oldestOfferedGradYear) {
+            <p class="lib-rule">Oldest age group offered here: <strong>{{ lib.oldestOfferedGradYear }}</strong>. A team may play up, so any team with a grad year of {{ lib.oldestOfferedGradYear }} or later fits an age group.</p>
+          }
+
+          <div class="lib-table" role="table" aria-label="Club Team Library">
+            <div class="lib-head" role="row">
+              <span role="columnheader">Team</span>
+              <span role="columnheader">This event</span>
+              <span role="columnheader">Other events</span>
+            </div>
+            @for (team of lib.teams; track team.clubTeamId) {
+              <div class="lib-row" role="row" [class.lib-row--archived]="team.archived">
+                <div class="col-team" role="cell">
+                  <span class="team-name">{{ team.clubTeamName }}</span>
+                  <span class="team-meta">
+                    <span class="meta-pair"><span class="meta-key">Grad</span>{{ team.clubTeamGradYear || '—' }}</span>
+                    @if (team.clubTeamLevelOfPlay) {
+                      <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(team.clubTeamLevelOfPlay) }}</span>
+                    }
+                    @if (team.archived) { <span class="meta-pair"><span class="status-pill status-pill--closed">Archived</span></span> }
+                  </span>
+                </div>
+
+                <div class="col-status" role="cell">
+                  @switch (team.eventStatus) {
+                    @case ('registered') {
+                      <span class="status-pill status-pill--registered"><i class="bi bi-check-circle-fill" aria-hidden="true"></i>Registered</span>
+                      <span class="status-detail">
+                        AG <strong>{{ team.eventAgeGroupName }}</strong>
+                        @if (eventAlias(team, team.eventTeamName); as alias) { <span class="status-alt" [attr.title]="'Registered here as ' + alias">as {{ alias }}</span> }
+                      </span>
+                      @if (team.eventTeamId) {
+                        <a class="open-team" [routerLink]="['../teams']" [queryParams]="{ teamId: team.eventTeamId }" title="Open this team in Search Teams">
+                          <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Open in Search Teams
+                        </a>
+                      }
+                    }
+                    @case ('waitlisted') {
+                      <span class="status-pill status-pill--waitlisted"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Waitlisted</span>
+                      <span class="status-detail">for AG <strong>{{ team.eventAgeGroupName }}</strong></span>
+                      @if (team.eventTeamId) {
+                        <a class="open-team" [routerLink]="['../teams']" [queryParams]="{ teamId: team.eventTeamId }" title="Open this team in Search Teams">
+                          <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Open in Search Teams
+                        </a>
+                      }
+                    }
+                    @case ('dropped') {
+                      <span class="status-pill status-pill--dropped"><i class="bi bi-x-circle" aria-hidden="true"></i>Dropped</span>
+                      <span class="status-detail">removed from this event</span>
+                    }
+                    @case ('available') {
+                      <span class="status-pill status-pill--available"><i class="bi bi-trophy" aria-hidden="true"></i>Not registered</span>
+                      <span class="status-detail">fits an age group here</span>
+                    }
+                    @case ('outside') {
+                      <span class="status-pill status-pill--closed"><i class="bi bi-dash-circle" aria-hidden="true"></i>Not registered</span>
+                      <span class="status-detail">outside this event's age groups</span>
+                    }
+                    @case ('archived') {
+                      <span class="status-detail">archived by the club</span>
+                    }
+                  }
+                </div>
+
+                <div class="col-history" role="cell">
+                  @if (team.otherEvents.length === 0) {
+                    <span class="history-none">No other events</span>
+                  } @else {
+                    @let expanded = expandedHistory().has(team.clubTeamId);
+                    @let shown = expanded ? team.otherEvents : team.otherEvents.slice(0, historyPreviewCount);
+                    <ul class="history-list">
+                      @for (h of shown; track h.teamId) {
+                        <li class="history-chip" [class.history-chip--dropped]="h.isDropped" [class.history-chip--wl]="h.isWaitlisted && !h.isDropped">
+                          <span class="history-event">{{ eventLabel(h) }}</span>
+                          @if (eventAlias(team, h.eventTeamName); as alias) { <span class="history-as" [attr.title]="'Registered there as ' + alias">as {{ alias }}</span> }
+                          @if (h.isDropped) { <span class="history-tag">dropped</span> }
+                          @else if (h.isWaitlisted) { <span class="history-tag">waitlist</span> }
+                        </li>
+                      }
+                    </ul>
+                    @if (team.otherEvents.length > historyPreviewCount) {
+                      <button type="button" class="history-more" (click)="toggleHistory(team.clubTeamId)">
+                        {{ expanded ? 'Show fewer' : '+' + (team.otherEvents.length - historyPreviewCount) + ' more' }}
+                      </button>
+                    }
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+    </div>
+  }
+</div>

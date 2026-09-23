@@ -65,9 +65,10 @@ export type TeamFeeStatus =
                 <span class="fw-semibold">{{ data.teamName }}</span>
                 @if (showRename()) {
                   <button type="button" class="btn-inline-rename"
-                          [disabled]="actionInProgress()"
+                          [disabled]="actionInProgress() || !!renameLockReason()"
+                          [attr.aria-disabled]="!!renameLockReason()"
                           (click)="renameTeam.emit(data)"
-                          title="Rename {{ data.teamName }} for this event">
+                          [title]="renameLockReason() ?? 'Rename ' + data.teamName + ' for this event'">
                     <i class="bi bi-pencil"></i>
                   </button>
                 }
@@ -504,8 +505,11 @@ export class RegisteredTeamsGridComponent {
     // button. Null (search ledgers, teams step) keeps the static field-bound render unchanged.
     readonly paymentMethod = input<'CC' | 'Echeck' | 'Check' | null>(null);
     readonly showRemove = input(false);
-    // Rep's this-event rename pencil (teams step only) — driven by the director's Allow Edit toggle.
+    // Rep's this-event rename pencil (teams step only). Shown whenever the step shows it; when the
+    // director's Allow Edit is off the pencil stays VISIBLE but disabled, carrying the reason as
+    // its tooltip — a hidden control reads as "there is no such feature", a locked one as "closed".
     readonly showRename = input(false);
+    readonly renameLockReason = input<string | null>(null);
     readonly actionInProgress = input(false);
     readonly frozenTeamCol = input(false);
     readonly teamColWidth = input(160);

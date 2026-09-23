@@ -52,6 +52,35 @@
           <span class="header-tag-value">{{ team.divName }}</span>
         </span>
         }
+        <!-- CTL Phase 4: the library identity behind this event's registration, and the other
+             events that same library team has entered. Read-only — the library is the club's. -->
+        @if (isClubLinked()) {
+        <span class="header-tag">
+          <span class="header-tag-label">Library</span>
+          <span class="header-tag-value">
+            <span class="lib-name">{{ team.clubTeamName || team.teamName }}</span>
+            @if (team.clubTeamGradYear) { · Grad {{ team.clubTeamGradYear }} }
+            @if (team.clubTeamLevelOfPlay) { · {{ lopLabel(team.clubTeamLevelOfPlay) }} }
+          </span>
+        </span>
+        <span class="header-tag header-tag--events">
+          <span class="header-tag-label">Other events</span>
+          @if (!team.clubTeamOtherEvents?.length) {
+            <span class="header-tag-value other-events-none">none — first event for this team</span>
+          } @else {
+            <ul class="other-events">
+              @for (h of team.clubTeamOtherEvents; track h.teamId) {
+                <li class="other-event" [class.other-event--dropped]="h.isDropped" [class.other-event--wl]="h.isWaitlisted && !h.isDropped"
+                    [attr.title]="h.jobName + ' · ' + h.ageGroupName + (h.eventTeamName && h.eventTeamName !== team.clubTeamName ? ' · as ' + h.eventTeamName : '')">
+                  <span class="other-event-name">{{ eventLabel(h) }}</span>
+                  @if (h.isDropped) { <span class="other-event-tag">dropped</span> }
+                  @else if (h.isWaitlisted) { <span class="other-event-tag">waitlist</span> }
+                </li>
+              }
+            </ul>
+          }
+        </span>
+        }
         <!-- HIDDEN 2026-08-18 (Todd): "Rename to New Team" — the "different team" door that mints a
              NEW Club Team Library entry and relinks this event's registration — reads as a confusing
              third option now that renaming has an explicit two-place model (this event / Club Team

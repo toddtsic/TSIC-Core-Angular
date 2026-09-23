@@ -116,6 +116,71 @@ public class ClubRepRepository : IClubRepRepository
         };
     }
 
+    public async Task<Dictionary<Guid, int>> ResolveClubsForClubRepRegistrationsAsync(
+        IEnumerable<Guid> clubRepRegistrationIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = clubRepRegistrationIds.Distinct().ToList();
+        var result = new Dictionary<Guid, int>();
+        if (ids.Count == 0) return result;
+
+        // Rung 1 - by id: the club each registration's library-linked teams belong to (dominant club
+        // wins on a tie-free count; ties break on the lower ClubId, as the single-form does).
+        var linked = await (
+            from t in _context.Teams
+            where t.ClubrepRegistrationid != null && ids.Contains(t.ClubrepRegistrationid.Value) && t.ClubTeamId != null
+            join cte in _context.ClubTeams on t.ClubTeamId equals cte.ClubTeamId
+            select new { RegId = t.ClubrepRegistrationid!.Value, cte.ClubId, cte.ClubTeamId })
+            .AsNoTracking()
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        foreach (var g in linked.GroupBy(x => x.RegId))
+        {
+            var byClub = g.GroupBy(x => x.ClubId).OrderByDescending(c => c.Count()).ThenBy(c => c.Key).First();
+            result[g.Key] = byClub.Key;
+        }
+
+        // Rung 2 - no library-linked team yet: the registering user's own clubs, matched by the
+        // registration's club name; a user with exactly one club resolves to it regardless.
+        var pending = ids.Where(id => !result.ContainsKey(id)).ToList();
+        if (pending.Count == 0) return result;
+
+        var regs = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => pending.Contains(r.RegistrationId))
+            .Select(r => new { r.RegistrationId, r.UserId, r.ClubName })
+            .ToListAsync(cancellationToken);
+
+        var userIds = regs.Select(r => r.UserId).Where(u => u != null).Distinct().ToList();
+        var clubsByUser = (await _context.ClubReps
+            .AsNoTracking()
+            .Where(cr => userIds.Contains(cr.ClubRepUserId))
+            .Select(cr => new { cr.ClubRepUserId, cr.ClubId, ClubName = cr.Club!.ClubName })
+            .ToListAsync(cancellationToken))
+            .GroupBy(x => x.ClubRepUserId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var reg in regs)
+        {
+            if (reg.UserId == null || !clubsByUser.TryGetValue(reg.UserId, out var myClubs))
+            {
+                result[reg.RegistrationId] = 0;
+                continue;
+            }
+            var regClubName = reg.ClubName?.Trim();
+            var named = myClubs
+                .Where(c => string.Equals(c.ClubName?.Trim(), regClubName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            result[reg.RegistrationId] = named.Count == 1 ? named[0].ClubId
+                : named.Count > 1 ? await MostUsedClubForUserAsync(reg.UserId, named.Select(c => c.ClubId).ToList(), cancellationToken)
+                : myClubs.Count == 1 ? myClubs[0].ClubId
+                : 0;
+        }
+
+        return result;
+    }
+
     /// <summary>
     /// The user reps more than one club with the registration's name (e.g. two libraries both named
     /// "True Lacrosse"): pick the candidate whose library teams the user has registered most across all

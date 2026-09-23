@@ -5,6 +5,7 @@ using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.Stp;
+using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Contracts.Dtos.ThirdPartyAccess;
 using TSIC.Contracts.Dtos.Usage;
 using TSIC.Contracts.Dtos.UsLax;
@@ -162,6 +163,13 @@ public interface IRegistrationRepository
     /// club rep screen. Ordered the way the legacy grid was: biggest travelling clubs first.
     /// </summary>
     Task<List<StpClubRepDto>> GetStpClubRepsForJobAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every active club-rep REGISTRATION on one job for the director's Club Reps page - zero-team reps
+    /// included - with team counts and the team-level owed sum. Library counts and ClubId come back
+    /// zeroed; the service fills them from the club the registration resolves to.
+    /// </summary>
+    Task<List<DirectorClubRepDto>> GetDirectorClubRepsForJobAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// The active Scorer registration this user holds for ONE job, or null. Unlike the

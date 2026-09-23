@@ -72,6 +72,18 @@
           <span class="field-label">Allow Add</span>
         </label>
       </div>
+      <!-- What each switch actually gates (matches JobRegistrationCapabilities on the server). Renaming
+           a team for THIS event is not gated here — it is always open to the rep. -->
+      <ul class="perm-help">
+        <li><strong>Allow Edit</strong> — the rep can change a registered team's age group and level of play
+          for this event, and edit a library team's details (grad year, level of play) until it has played.
+          Off: the rep sees "Editing closed by the director".</li>
+        <li><strong>Allow Delete</strong> — the rep can unregister an unpaid team from this event. A team with a
+          payment on it is never removable by the rep, on or off.</li>
+        <li><strong>Allow Add</strong> — the rep can register teams here (from their library or new). Off: the
+          library still works, but "Register" is closed. Registering also needs Allow Team Registration above
+          and a club-rep fee row.</li>
+      </ul>
     </div>
 
     <div class="form-section">

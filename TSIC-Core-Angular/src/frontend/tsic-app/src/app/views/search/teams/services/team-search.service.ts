@@ -27,7 +27,9 @@ import type {
 	DropTeamResultDto,
 	ResendInvoicesRequest,
 	ResendInvoicesResponse,
-	SubscriptionDetailDto
+	SubscriptionDetailDto,
+	DirectorClubRepDto,
+	DirectorClubLibraryDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -159,6 +161,18 @@ export class TeamSearchService {
 
 	getClubRepAccounting(clubRepRegId: string): Observable<ClubRepAccountingDto> {
 		return this.http.get<ClubRepAccountingDto>(`${this.apiUrl}/club-rep/${clubRepRegId}/accounting`);
+	}
+
+	// ── Director club-rep directory (CTL Phase 4, read-only) ──
+
+	/** Every club rep registered on this job, zero-team reps included, with library counts. */
+	getClubReps(): Observable<DirectorClubRepDto[]> {
+		return this.http.get<DirectorClubRepDto[]>(`${this.apiUrl}/club-reps`);
+	}
+
+	/** One club's Club Team Library with this event's status per team. Read-only by ruling. */
+	getClubRepLibrary(clubRepRegId: string): Observable<DirectorClubLibraryDto> {
+		return this.http.get<DirectorClubLibraryDto>(`${this.apiUrl}/club-rep/${clubRepRegId}/library`);
 	}
 
 	// ── Drop Team (reuses LADT endpoint) ──

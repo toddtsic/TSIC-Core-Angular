@@ -77,6 +77,10 @@ public record TeamSearchDetailDto
     // Club-level summary (for scope selector: all club teams)
     public required List<ClubTeamSummaryDto> ClubTeamSummaries { get; init; }
 
+    /// <summary>The linked library row's copies in OTHER events, newest first (empty for an orphan team).
+    /// Read-only context for the director: "this team has played 3 of our events under this name".</summary>
+    public List<ClubTeamEventHistoryDto> ClubTeamOtherEvents { get; init; } = [];
+
     /// <summary>
     /// True when the team has an active ARB subscription with a charge still scheduled
     /// in the future. Mirrors TeamSearchResultDto.PaymentScheduled.

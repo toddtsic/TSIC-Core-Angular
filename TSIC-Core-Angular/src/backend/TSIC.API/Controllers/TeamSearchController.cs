@@ -19,13 +19,16 @@ public class TeamSearchController : ControllerBase
 {
     private readonly ITeamSearchService _teamSearchService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IClubRepDirectoryService _clubRepDirectory;
 
     public TeamSearchController(
         ITeamSearchService teamSearchService,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IClubRepDirectoryService clubRepDirectory)
     {
         _teamSearchService = teamSearchService;
         _jobLookupService = jobLookupService;
+        _clubRepDirectory = clubRepDirectory;
     }
 
     private async Task<(Guid? jobId, string? userId, ActionResult? error)> ResolveContext()
@@ -140,6 +143,32 @@ public class TeamSearchController : ControllerBase
             return BadRequest(new { message = "Registration context required" });
 
         var result = await _teamSearchService.GetClubRepAccountingAsync(clubRepRegId, jobId.Value, ct);
+        if (result == null)
+            return NotFound();
+
+        return Ok(result);
+    }
+
+    // ── Club Reps (director read-only view of reps + their libraries, CTL Phase 4) ──
+
+    [HttpGet("club-reps")]
+    public async Task<ActionResult<List<DirectorClubRepDto>>> GetClubReps(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        return Ok(await _clubRepDirectory.GetClubRepsAsync(jobId.Value, ct));
+    }
+
+    [HttpGet("club-rep/{clubRepRegId:guid}/library")]
+    public async Task<ActionResult<DirectorClubLibraryDto>> GetClubRepLibrary(Guid clubRepRegId, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var result = await _clubRepDirectory.GetClubLibraryAsync(clubRepRegId, jobId.Value, ct);
         if (result == null)
             return NotFound();
 

@@ -129,6 +129,7 @@ CREATE TABLE #AdminManifest (
 );
 INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Registrations', N'people', N'search/registrations', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Teams', N'shield', N'search/teams', 2, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Club Reps', N'people', N'search/club-reps', 3, 1, 1, 1, NULL, N'NEW');
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Settings', N'briefcase', N'configure/job', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Discount Codes', N'tags', N'configure/discount-codes', 2, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Age Ranges', N'sliders', N'configure/age-ranges', 3, 1, 1, 1, N'{"requiresFlags":["teamEligibilityByAge"]}', NULL);

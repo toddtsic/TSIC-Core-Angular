@@ -15,6 +15,18 @@ import type { UpdateJobConfigTeamsRequest } from '@core/api';
   imports: [CommonModule, FormsModule, RichTextEditorAllModule, TsicRteDirective, RegistrationReadinessComponent, ConfirmDialogComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './teams-tab.component.html',
+  styles: [`
+    /* What the three Club Rep Permissions switches gate — plain words under the row. */
+    .perm-help {
+      margin: var(--space-3) 0 0;
+      padding-left: var(--space-5);
+      font-size: var(--font-size-xs);
+      line-height: var(--line-height-normal);
+      color: var(--brand-text-muted);
+    }
+    .perm-help li + li { margin-top: var(--space-1); }
+    .perm-help strong { color: var(--brand-text); }
+  `],
 })
 export class TeamsTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);

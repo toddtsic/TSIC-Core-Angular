@@ -9,6 +9,7 @@ using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.Stp;
+using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Contracts.Dtos.ThirdPartyAccess;
 using TSIC.Contracts.Dtos.Usage;
 using TSIC.Contracts.Dtos.UsLax;
@@ -597,6 +598,56 @@ public partial class RegistrationRepository : IRegistrationRepository
         .AsNoTracking()
         .ToListAsync(cancellationToken);
     }
+    public async Task<List<DirectorClubRepDto>> GetDirectorClubRepsForJobAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // Same shape as GetStpClubRepsForJobAsync (registration-driven so zero-team reps are rows),
+        // plus the team-level owed sum. OwedTotal is summed from Teams, never read from the
+        // registration rollup - accounting is team-level. Library columns are filled by the service.
+        return await (
+            from r in _context.Registrations
+            where
+                r.JobId == jobId
+                && r.BActive == true
+                && r.RoleId == RoleConstants.ClubRep
+            select new DirectorClubRepDto
+            {
+                RegistrationId = r.RegistrationId,
+                ClubId = 0,
+                ClubName = r.ClubName ?? string.Empty,
+                RepName = r.User != null
+                    ? ((r.User.FirstName ?? string.Empty) + " " + (r.User.LastName ?? string.Empty)).Trim()
+                    : string.Empty,
+                Username = r.User != null ? r.User.UserName ?? string.Empty : string.Empty,
+                Email = r.User != null ? r.User.Email ?? string.Empty : string.Empty,
+                Cellphone = r.User != null ? r.User.Cellphone ?? string.Empty : string.Empty,
+                RegisteredOn = r.RegistrationTs,
+                ActiveTeamCount = _context.Teams.Count(t =>
+                    t.ClubrepRegistrationid == r.RegistrationId
+                    && t.Active == true
+                    && !t.Agegroup.AgegroupName!.Contains(AgegroupConstants.WaitlistPrefix)
+                    && !t.Agegroup.AgegroupName.Contains(AgegroupConstants.DroppedTeams)),
+                WaitlistedTeamCount = _context.Teams.Count(t =>
+                    t.ClubrepRegistrationid == r.RegistrationId
+                    && t.Agegroup.AgegroupName!.Contains(AgegroupConstants.WaitlistPrefix)),
+                DroppedTeamCount = _context.Teams.Count(t =>
+                    t.ClubrepRegistrationid == r.RegistrationId
+                    && t.Agegroup.AgegroupName!.Contains(AgegroupConstants.DroppedTeams)),
+                OwedTotal = _context.Teams
+                    .Where(t => t.ClubrepRegistrationid == r.RegistrationId && t.JobId == jobId)
+                    .Sum(t => (decimal?)t.OwedTotal) ?? 0m,
+                LibraryTeamCount = 0,
+                LibraryUnregisteredCount = 0,
+                LibraryEligibleUnregisteredCount = 0,
+            }
+        )
+        .OrderBy(x => x.ClubName)
+        .ThenBy(x => x.RepName)
+        .AsNoTracking()
+        .ToListAsync(cancellationToken);
+    }
+
 
     // ── "3rd Party Data Access" console (SU + SuperDirector vendor-login management) ──
 
