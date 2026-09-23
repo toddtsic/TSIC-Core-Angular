@@ -14,6 +14,7 @@ using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Auth;
+using TSIC.API.Services.Fees;
 using TSIC.API.Services.Shared.UsLax;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Infrastructure.Data.Identity;
@@ -32,6 +33,7 @@ public class PlayerRegistrationController : ControllerBase
     private readonly IJobRegistrationCapabilities _capabilities;
     private readonly IJobRepository _jobRepo;
     private readonly TSIC.API.Services.Invites.IInviteTokenService _inviteTokens;
+    private readonly ILogger<PlayerRegistrationController> _logger;
 
     public PlayerRegistrationController(
         IJobLookupService jobLookupService,
@@ -41,7 +43,8 @@ public class PlayerRegistrationController : ControllerBase
         UserManager<ApplicationUser> userManager,
         IJobRegistrationCapabilities capabilities,
         IJobRepository jobRepo,
-        TSIC.API.Services.Invites.IInviteTokenService inviteTokens)
+        TSIC.API.Services.Invites.IInviteTokenService inviteTokens,
+        ILogger<PlayerRegistrationController> logger)
     {
         _jobLookupService = jobLookupService;
         _registrationService = registrationService;
@@ -51,6 +54,7 @@ public class PlayerRegistrationController : ControllerBase
         _capabilities = capabilities;
         _jobRepo = jobRepo;
         _inviteTokens = inviteTokens;
+        _logger = logger;
     }
 
     /// <summary>
@@ -154,9 +158,25 @@ public class PlayerRegistrationController : ControllerBase
         if (!caps.CanRegisterPlayer)
             return BadRequest(new { message = "This event is not accepting player registrations at this time." });
 
-        // Delegate heavy lifting to service
-        var response = await _registrationService.PreSubmitAsync(jobId.Value, familyUserId, request, familyUserId);
-        return Ok(response);
+        // Delegate heavy lifting to service. Business rules surface as InvalidOperationException
+        // and must reach the family as a 400 with the rule's words, never a bare 500 (which the
+        // UI renders as a generic "Something went wrong").
+        try
+        {
+            var response = await _registrationService.PreSubmitAsync(jobId.Value, familyUserId, request, familyUserId);
+            return Ok(response);
+        }
+        catch (FeeNotConfiguredException ex)
+        {
+            // Director config gap. The message carries raw ids for Seq; the family gets plain words.
+            _logger.LogWarning(ex, "Player preSubmit blocked: fee not configured for job {JobId}, family {FamilyUserId}", jobId, familyUserId);
+            return BadRequest(new { message = "Registration fees for this age group haven't been set up yet. Please contact the event organizer." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Player preSubmit blocked by business rule for job {JobId}, family {FamilyUserId}", jobId, familyUserId);
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>
