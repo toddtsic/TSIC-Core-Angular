@@ -349,8 +349,7 @@ public sealed class ViewScheduleService : IViewScheduleService
                 }
 
                 // Determine round type from T1Type or T2Type
-                var roundType = g.T1Type ?? g.T2Type ?? "F";
-                if (roundType == "T") roundType = "F"; // fallback
+                var roundType = NormalizeRoundType(g);
 
                 // Legacy Pgid algorithm: find parent game in next round
                 int? parentGid = null;
@@ -359,12 +358,23 @@ public sealed class ViewScheduleService : IViewScheduleService
                     var t1Rank = g.T1No ?? 0;
                     var nextRnd = (byte)(g.Rnd.Value + 1);
 
+                    // A game never feeds a game of its OWN round: the ladder Z→Y→X→Q→S→F is
+                    // strictly increasing, so a candidate parent must sit later in it. Rnd+1 on
+                    // its own is not enough — a division that runs two independent one-game
+                    // brackets (a 1v2 final AND a 3v4 final, told apart only by seed rank) gives
+                    // both F games T1No=1/T2No=2 on consecutive Rnds, and the bare number match
+                    // chains them into a fake two-round tree whose missing sibling the renderer
+                    // then fills with a blank card. Over the whole DB this rejects 5 links, all
+                    // of them impossible (3 F→F here, plus a stray F→S and F→Q in dead jobs);
+                    // it rejects none of the 1,812 real S→F / Q→S / X→Q / Y→X / Z→Y links.
+                    //
                     // FirstOrDefault (over a deterministic order), NOT SingleOrDefault: a data
                     // anomaly with two candidate parents (e.g. bronze sharing Rnd with the final
                     // and a null seed no. coalescing to 0) must not throw and 500 the whole tab.
                     parentGid = gameList
                         .Where(p => p.DivId == g.DivId
                                     && p.Rnd == nextRnd
+                                    && GetRoundOrder(NormalizeRoundType(p)) > GetRoundOrder(roundType)
                                     && ((p.T1No ?? 0) == t1Rank || (p.T2No ?? 0) == t1Rank))
                         .OrderBy(p => p.Gid)
                         .Select(p => (int?)p.Gid)
@@ -941,6 +951,16 @@ public sealed class ViewScheduleService : IViewScheduleService
         "C" => "Consolation",
         _ => type ?? "Playoff"
     };
+
+    /// <summary>
+    /// The ladder round a placed row draws as. T1Type/T2Type are equal on a well-formed row;
+    /// a missing or round-robin type on the bracket feed is bad data, drawn as a final.
+    /// </summary>
+    private static string NormalizeRoundType(Domain.Entities.Schedule g)
+    {
+        var type = g.T1Type ?? g.T2Type ?? "F";
+        return type == "T" ? "F" : type;
+    }
 
     private static int GetRoundOrder(string roundType) => roundType switch
     {

@@ -111,6 +111,22 @@ public sealed class ScheduleQaService : IScheduleQaService
                 Detail = detail
             };
 
+            // Director seed intent per placed game, read from Leagues.BracketSeeds (the seed
+            // source of truth) via the same projection the resolver uses, so QA and resolution
+            // cannot disagree on what a seeded slot is. Hoisted above the checks below because
+            // seed intent is what tells two legitimately distinct games on one bracket line
+            // apart from one game placed twice.
+            var seedSlots = await _brackets.GetSeedSlotsByGidsAsync(
+                placed.Select(p => p.Gid).ToList(), ct);
+            var seededSlots = seedSlots.Select(s => (s.Gid, (int)s.TargetSlot)).ToHashSet();
+            var seedSigByGid = seedSlots
+                .GroupBy(s => s.Gid)
+                .ToDictionary(
+                    grp => grp.Key,
+                    grp => string.Join("|", grp
+                        .OrderBy(s => s.TargetSlot)
+                        .Select(s => $"{s.TargetSlot}:{s.SeedDivId}#{s.SeedRank}")));
+
             // (1) Orphan placed games — no template slot / duplicate placements.
             foreach (var p in placed)
             {
@@ -120,10 +136,23 @@ public sealed class ScheduleQaService : IScheduleQaService
                         $"Placed {p.RoundType} game (slot label {p.MinLabel}) matches no {inst.StrategyCode} template slot."));
                 }
             }
+            // Sharing a bracket line is not by itself a defect. A director who runs a 1v2 final
+            // AND a 3v4 final in one division has two independent one-game brackets, and both
+            // are F(1v2) — the slot numbers are the ladder position, so they cannot differ.
+            // What separates them is their seed intent. The defect this check exists for is a
+            // bracket placed twice, and those rows carry no seeds at all (verified against the
+            // two known duplicates on the dev copy of prod). So: flag the line only when the
+            // games on it are NOT told apart by distinct, fully-populated seed sets.
             foreach (var dup in placedByKey.Where(kv => kv.Value.Count > 1))
             {
+                var sigs = dup.Value
+                    .Select(p => seedSigByGid.GetValueOrDefault(p.Gid, ""))
+                    .ToList();
+                if (sigs.All(s => s.Length > 0) && sigs.Distinct().Count() == sigs.Count) continue;
+
                 findings.Add(Finding("error", "OrphanGame", dup.Value[0].Gid,
-                    $"{dup.Value.Count} placed {dup.Key.RoundType} games share slot label {dup.Key.MinLabel} (should be one)."));
+                    $"{dup.Value.Count} placed {dup.Key.RoundType} games share slot label {dup.Key.MinLabel} " +
+                    $"and carry no distinct seeds to tell them apart — one bracket looks placed twice."));
             }
 
             // (2) Completeness — every non-optional template game must be placed.
@@ -137,12 +166,8 @@ public sealed class ScheduleQaService : IScheduleQaService
                 }
             }
 
-            // (3) Seed coverage — every leaf slot must carry director seed intent. Read from
-            //     Leagues.BracketSeeds (the seed source of truth), same projection the resolver
-            //     uses, so QA and resolution cannot disagree on what a seeded slot is.
-            var seedSlots = await _brackets.GetSeedSlotsByGidsAsync(
-                placed.Select(p => p.Gid).ToList(), ct);
-            var seededSlots = seedSlots.Select(s => (s.Gid, (int)s.TargetSlot)).ToHashSet();
+            // (3) Seed coverage — every leaf slot must carry director seed intent (seedSlots
+            //     is read above, where the duplicate check also needs it).
             foreach (var p in placed)
             {
                 if (!templateByKey.TryGetValue((p.RoundType, p.MinLabel), out var tg)) continue;
