@@ -5,12 +5,8 @@
 export type ClubLibraryDoorDto = {
     regId: string;
     jobPath: string;
-    jobName: string;
     jobLogo: string;
     clubName?: string | null;
-    eventStartDate?: string | null;
-    eventEndDate?: string | null;
-    isCurrent: boolean;
-    teamCount?: number;
+    libraryTeamCount: number;
 };
 

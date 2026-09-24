@@ -74,12 +74,50 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   readonly isLoading = computed(() => this.authService.registrationsLoading() || this.selectingRole());
   readonly errorMessage = computed(() => this.authService.registrationsError() ?? this.authService.selectError());
   readonly username = computed(() => this.authService.currentUser()?.username ?? '');
-  readonly noRegistrationsAvailable = computed(() =>
-    !this.isLoading()
-    && !this.errorMessage()
-    && !this.authService.registrationsLoading()
-    && this.registrations().length === 0
+  /**
+   * The standalone Club Team Library door, and the switch that turns this page into the club
+   * rep's fork. Non-null ONLY when the account holds a Clubs.ClubReps row — the one sure test
+   * that a login is a club rep (ruling: Todd 2026-09-23, "if you can't be sure then you cannot
+   * have ctl library button"). Present even when the picker is empty because every event has
+   * expired: the library is the club's list, not an event's.
+   */
+  readonly clubLibraryDoor = signal<ClubLibraryDoorDto | null>(null);
+  /** The door request has answered (with a door or without). Nothing below the hero renders before it. */
+  readonly doorResolved = signal(false);
+  readonly ready = computed(() => this.doorResolved() && !this.authService.registrationsLoading());
+
+  /**
+   * CLUB REP ONLY: which of the three things the rep came to do. Only 'registrations' continues to
+   * the picker; 'library' is an action (openClubLibrary), 'new' reveals an inline panel. Every
+   * other login has no fork — the picker is the page.
+   */
+  readonly intent = signal<'registrations' | 'new' | null>(null);
+  readonly showPicker = computed(() =>
+    !this.authService.registrationsError()
+    && (!this.clubLibraryDoor() || this.intent() === 'registrations')
   );
+
+  chooseIntent(which: 'registrations' | 'new'): void {
+    this.intent.set(this.intent() === which ? null : which);
+  }
+
+  private readonly registrationCount = computed(() =>
+    this.registrations().reduce((n, g) => n + g.roleRegistrations.length, 0)
+  );
+
+  libraryCountLabel(n: number): string {
+    return n === 0 ? 'no teams in your list yet' : `${n} ${n === 1 ? 'team' : 'teams'} in your list`;
+  }
+
+  readonly registrationCountLabel = computed(() => {
+    const n = this.registrationCount();
+    return n === 0 ? 'No current registrations' : `${n} current ${n === 1 ? 'event' : 'events'}`;
+  });
+
+  readonly newEventLabel = computed(() => {
+    const n = this.suggestedEvents().length;
+    return n === 0 ? "Start from the event's website" : `${n} suggested ${n === 1 ? 'event' : 'events'}`;
+  });
   /**
    * True iff the account holds at least one registration in a class that the
    * "suggested events" pivot serves — Family (Player) or ClubRep. Backend
@@ -158,13 +196,6 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     });
   });
 
-  /**
-   * The standalone Club Team Library door. Present whenever the account has EVER been a club
-   * rep — including when the picker above is empty because every event has expired. The
-   * library is the club's list, not an event's; the rep must always be able to reach it.
-   */
-  readonly clubLibraryDoor = signal<ClubLibraryDoorDto | null>(null);
-
   openClubLibrary(): void {
     if (this.selectingRole()) return;
     this.selectingRole.set(true);
@@ -211,8 +242,8 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     this.authService.loadSuggestedEvents();
     // Independent of the role list on purpose: the door must render even when that list is empty.
     this.authService.getClubLibraryDoor().subscribe({
-      next: door => this.clubLibraryDoor.set(door),
-      error: () => this.clubLibraryDoor.set(null),
+      next: door => { this.clubLibraryDoor.set(door); this.doorResolved.set(true); },
+      error: () => { this.clubLibraryDoor.set(null); this.doorResolved.set(true); },
     });
   }
 
@@ -278,23 +309,6 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     e.updateData(group.all as unknown as { [key: string]: object }[], query);
   }
 
-  /**
-   * The Club Rep item's second door in typeahead mode. An ej2 list item selects on click, so
-   * the Library button must (1) keep the input focused on mousedown - a blur closes the popup
-   * before click fires - and (2) stop the click reaching the list, or ej2 selects the row and
-   * navigates to the job home instead.
-   */
-  holdDropdown(e: Event): void {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  openLibraryFromItem(e: Event, row: RoleRow): void {
-    e.preventDefault();
-    e.stopPropagation();
-    this.selectRole(row, 'library');
-  }
-
   public onDropdownChange(e: ChangeEventArgs): void {
     if (e.itemData) {
       this.selectRole(e.itemData as any);
@@ -309,12 +323,8 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     this.suggestedEventsModalOpen.set(false);
   }
 
-  /**
-   * @param destination 'home' lands on the job page (or the returnUrl); 'library' is the
-   *   Club Rep row's second door — same registration selected, then straight to the
-   *   Club Team Library for that event. A returnUrl still wins: it was asked for first.
-   */
-  selectRole(registration: { regId: string }, destination: 'home' | 'library' = 'home'): void {
+  /** Lands on the job page, or the returnUrl if one was asked for first. */
+  selectRole(registration: { regId: string }): void {
     // Guard with selectingRole directly — not isLoading() — to prevent re-entry
     // when Syncfusion fires spurious change events during dropdown re-enable
     if (this.selectingRole()) {
@@ -334,7 +344,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
           this.router.navigateByUrl(this._returnUrl);
         } else if (user?.jobPath) {
           const routePath = user.jobPath.startsWith('/') ? user.jobPath : '/' + user.jobPath;
-          this.router.navigateByUrl(destination === 'library' ? `${routePath}/club/library` : routePath);
+          this.router.navigateByUrl(routePath);
         } else {
           // No jobPath in token (shouldn't happen) — re-enable UI as fallback
           this.selectingRole.set(false);

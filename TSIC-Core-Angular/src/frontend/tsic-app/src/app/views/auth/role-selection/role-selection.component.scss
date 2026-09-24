@@ -135,66 +135,94 @@
   }
 }
 
-// Standalone Club Team Library door — above the role groups, present even with no roles.
-.library-door {
+// ─── CLUB REP ONLY: the fork. Three intents, one sentence each, before any event is named. ───
+.intent-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.intent-card {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  width: 100%;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid color-mix(in srgb, var(--bs-primary) 30%, transparent);
-  border-left: 3px solid var(--bs-primary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid transparent;
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--bs-primary) 6%, var(--surface-elevated-bg));
+  background: var(--surface-elevated-bg);
   box-shadow: var(--shadow-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--bs-primary);
+    background: color-mix(in srgb, var(--bs-primary) 5%, var(--surface-elevated-bg));
+    transform: translateY(-1px);
+  }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  // The intent that is open below (aria-expanded) stays marked so the panel reads as its child.
+  &.is-open {
+    border-color: color-mix(in srgb, var(--bs-primary) 30%, transparent);
+    border-left-color: var(--bs-primary);
+    background: color-mix(in srgb, var(--bs-primary) 6%, var(--surface-elevated-bg));
+  }
+
+  @media (prefers-reduced-motion: reduce) { transition: none; &:hover:not(:disabled) { transform: none; } }
 }
 
-.library-door-icon {
+.intent-icon {
   font-size: var(--font-size-xl);
   color: var(--bs-primary);
   flex-shrink: 0;
 }
 
-.library-door-body { flex: 1; min-width: 0; }
+.intent-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
-.library-door-title {
-  margin: 0;
+.intent-title {
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-bold);
   color: var(--brand-text);
 }
 
-.library-door-sub {
-  margin: 2px 0 0;
+.intent-sub {
   font-size: var(--font-size-xs);
   color: var(--brand-text-muted);
   strong { color: var(--brand-text); }
 }
 
-.library-door-btn {
+.intent-arrow {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--bs-primary);
-  border-radius: var(--radius-full);
-  background: var(--bs-primary);
-  color: var(--neutral-0);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  transition: background 150ms ease, transform 150ms ease;
-
-  &:hover:not(:disabled) { transform: translateY(-1px); }
-  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-  @media (prefers-reduced-motion: reduce) { transition: none; &:hover:not(:disabled) { transform: none; } }
+  color: var(--brand-text-muted);
+  .intent-card:hover:not(:disabled) & { color: var(--bs-primary); }
 }
 
-@media (max-width: 575.98px) {
-  .library-door { flex-wrap: wrap; }
-  .library-door-btn { width: 100%; justify-content: center; }
+// What an open intent reveals: the picker, or the new-event instructions. Indented under the
+// card rail so it reads as the answer to the card above it.
+.intent-panel {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid color-mix(in srgb, var(--bs-primary) 30%, transparent);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  background: color-mix(in srgb, var(--bs-primary) 3%, transparent);
+}
+
+.intent-panel-text {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--brand-text-muted);
+  strong { color: var(--brand-text); }
 }
 
 .here-chip {
@@ -224,39 +252,6 @@
   > span { display: inline-flex; align-items: center; gap: var(--space-1); }
   .bi { font-size: 0.9em; opacity: 0.8; }
   &--warn { color: var(--bs-warning-text-emphasis); font-weight: var(--font-weight-semibold); }
-}
-
-// Club Rep's second door: the library for that event. Quiet until hovered.
-.role-card-aux {
-  flex: 0 0 auto;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-width: 64px;
-  padding: var(--space-2);
-  border: 0;
-  border-left: 1px solid var(--border-color);
-  background: transparent;
-  color: var(--brand-text-muted);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
-
-  .bi { font-size: var(--font-size-base); }
-
-  &:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
-    color: var(--bs-primary);
-  }
-  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); position: relative; z-index: 1; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  @media (prefers-reduced-motion: reduce) { transition: none; }
 }
 
 .role-card-row {
@@ -374,39 +369,6 @@
     white-space: normal;
   }
 
-  // Club Rep rows only: the second door (Club Team Library) as a sibling of the item body.
-  // Mirrors .role-card-aux in card mode; sits inside an ej2 list item, so it stops its own
-  // mousedown/click from reaching the list (see holdDropdown / openLibraryFromItem).
-  .item-library {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    margin-left: var(--space-2);
-    padding: var(--space-1) var(--space-2);
-    border: 1px solid var(--border-color);
-    border-radius: var(--bs-border-radius-pill, 999px);
-    background: var(--bs-body-bg);
-    color: var(--brand-text-muted);
-    font-size: var(--font-size-2xs);
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    line-height: 1;
-    cursor: pointer;
-    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
-
-    .bi { font-size: var(--font-size-sm); }
-
-    &:hover {
-      background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
-      border-color: var(--bs-primary);
-      color: var(--bs-primary);
-    }
-    &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-
-    @media (prefers-reduced-motion: reduce) { transition: none; }
-  }
 }
 
 // ─── Empty state — no registrations on this account ───
