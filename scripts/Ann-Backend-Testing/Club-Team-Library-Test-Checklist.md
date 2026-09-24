@@ -37,9 +37,17 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 
 ### Reaching the library fly-in
 
-- **Tournament job site, landing page rep card**: **Team Registration** (reads **Register Teams** for a rep with no teams yet) opens the Teams step; **Register Another Team** there opens the fly-in.
-- **Tournament job site, header user menu**: **Team Registration**, then the same button.
-- **From the library page**: the **Team Registration** link at the top of the page.
+**Starting from the job home page** (not signed in, or not yet a club rep in this event):
+
+- **Register Team** in the Registration Links panel. It shows only while team registration is open. Sign in or create an account, name the club, and the wizard opens on the Teams step.
+- On the Teams step, **Register Your First Team for this Event** opens the fly-in. When the library is empty, the fly-in's add form is titled **Register Your First Team**.
+
+**Signed in as the event's club rep:**
+
+- Landing page rep card: **Team Registration** (reads **Register Teams** when the rep has no teams yet) opens the Teams step.
+- Header user menu: **Team Registration** opens the Teams step.
+- Library page: the **Team Registration** link at the top of the page.
+- On the Teams step, three things open the fly-in: **Register Another Team** in the footer, **Register** on the yellow strip of unregistered library teams, and **Register Your First Team for this Event** when nothing is registered yet.
 
 ## The club rep's screens
 
