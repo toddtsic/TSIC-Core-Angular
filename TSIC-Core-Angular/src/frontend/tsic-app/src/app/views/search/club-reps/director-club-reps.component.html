@@ -199,9 +199,9 @@
 
           <div class="lib-table" role="table" aria-label="Club Team Library">
             <div class="lib-head" role="row">
-              <span role="columnheader">Team</span>
+              <span role="columnheader">Library team</span>
               <span role="columnheader">This event</span>
-              <span role="columnheader">Other events</span>
+              <span role="columnheader">Played at</span>
             </div>
             @for (team of lib.teams; track team.clubTeamId) {
               <div class="lib-row" role="row" [class.lib-row--archived]="team.archived">
@@ -259,7 +259,7 @@
 
                 <div class="col-history" role="cell">
                   @if (team.otherEvents.length === 0) {
-                    <span class="history-none">No other events</span>
+                    <span class="history-none">First event</span>
                   } @else {
                     @let expanded = expandedHistory().has(team.clubTeamId);
                     @let shown = expanded ? team.otherEvents : team.otherEvents.slice(0, historyPreviewCount);

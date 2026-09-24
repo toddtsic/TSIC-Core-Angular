@@ -161,10 +161,37 @@ export class DirectorClubRepsComponent {
 
     formatLop = formatLop;
 
-    /** Event label for a history chip: org prefix stripped, same as the rep's library page. */
+    /**
+     * Short event names two different jobs share across this club's history ("Summer 2027" at
+     * LFTC and at Lax By The Sea). Those chips get the organizer back; same rule as the rep's page.
+     */
+    private readonly ambiguousEventTails = computed<ReadonlySet<string>>(() => {
+        const jobsByTail = new Map<string, Set<string>>();
+        for (const team of this.library()?.teams ?? []) {
+            for (const h of team.otherEvents) {
+                const tail = this.eventTail(h.jobName).toLowerCase();
+                const jobs = jobsByTail.get(tail) ?? new Set<string>();
+                jobs.add(h.jobId);
+                jobsByTail.set(tail, jobs);
+            }
+        }
+        const out = new Set<string>();
+        for (const [tail, jobs] of jobsByTail) if (jobs.size > 1) out.add(tail);
+        return out;
+    });
+
+    /** "Summer 2027", or "LFTC Summer 2027" when another organizer ran a "Summer 2027" too. */
     eventLabel(h: ClubTeamEventHistoryDto): string {
+        const tail = this.eventTail(h.jobName);
+        if (!this.ambiguousEventTails().has(tail.toLowerCase())) return tail;
         const idx = h.jobName.indexOf(':');
-        return idx > 0 ? h.jobName.substring(idx + 1).trim() : h.jobName;
+        const org = idx > 0 ? h.jobName.substring(0, idx).trim() : '';
+        return org ? `${org} ${tail}` : tail;
+    }
+
+    private eventTail(jobName: string): string {
+        const idx = jobName.indexOf(':');
+        return idx > 0 ? jobName.substring(idx + 1).trim() : jobName;
     }
 
     /**
