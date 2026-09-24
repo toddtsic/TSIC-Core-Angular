@@ -25,7 +25,7 @@ A club rep has one **Club Team Library** per club: the club's list of teams, eac
 
 The Club Team Library appears in two places. Same library, same teams, same rules; the difference is where the rep is standing. Both are inside an event. There is no library outside an event: the rep reaches it by opening one of their event registrations.
 
-**The library page** is the Club Team Library page: its own page inside the event, not part of the registration wizard. The rep goes there to maintain the list: add, rename, edit, archive, restore, delete, and to see every team's status for this event and its other events. Registering from it is possible, but it is the list's home first.
+**The library page** is the Club Team Library page: its own page inside the event, not part of the registration wizard. It is the list's home: add, rename, edit, archive, restore, delete, and see every event each team has been registered for. Nothing on it registers a team. That happens in Team Registration.
 
 **The library fly-in** is the same library inside Team Registration, on the Teams step. The rep is mid-registration; the fly-in shows the library grouped by what fits this event, so the rep picks a team and registers it without leaving the wizard. Maintenance is there too (kebab on each row), but registering is what it is for.
 
@@ -45,7 +45,6 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 
 - Landing page rep card: **Team Registration** (reads **Register Teams** when the rep has no teams yet) opens the Teams step.
 - Header user menu: **Team Registration** opens the Teams step.
-- Library page: the **Team Registration** link at the top of the page.
 - On the Teams step, three things open the fly-in: **Register Another Team** in the footer, **Register** on the yellow strip of unregistered library teams, and **Register Your First Team for this Event** when nothing is registered yet.
 
 ## Correct behaviour, not bugs
@@ -92,15 +91,13 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 
 ### D. Club Team Library page (`primeaulacrosse`)
 
-- [ ] D1. The page says whose list it is and that it belongs to the club, not to any event. The columns read **Library team**, **This event** with the event name beside it, and **Played at**. The yellow strip appears only when unregistered library teams fit an age group here, and it counts the same rows that show a Register button.
-- [ ] D2. Each registered team shows Registered with the right age group. A waitlisted team shows Waitlisted. A dropped team shows Dropped. A team the event has no age group for reads **No age group here** and has no Register button on its row.
-- [ ] D3. Played at: a team that played earlier events shows a chip per event; a new team shows **First event**. More than three fold behind **+N more**. When two organizers ran events with the same short name, the chips show the organizer in front.
-- [ ] D4. Every row's kebab shows two sections, This event and Library. Locked items show reasons. On a **No age group here** row, **Register for this event** is still offered from the kebab.
-- [ ] D5. On Zz Test Beta: **Register for this event** › pick an age group › register. The row turns Registered. The Teams step now lists it.
-- [ ] D6. On Zz Test Beta (registered, unpaid): **Remove from this event** › confirm. The row returns to **Not registered** with a Register button, and the team stays in the library.
-- [ ] D7. **Add to Library** adds `Zz Test Delta` without registering it. It appears with a Register button.
-- [ ] D8. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.
-- [ ] D9. Press F5. You stay logged in and on the page.
+- [ ] D1. The page says it is the club's list of teams and that you are not registering here. The columns read **Library team** and **Registered for**. There is no Register button, no Team Registration button and no strip anywhere on the page.
+- [ ] D2. Registered for: one chip per event the team has been registered for. This event's chip comes first, highlighted with a pin. A waitlisted or dropped registration carries a **waitlist** or **dropped** tag on its chip. A team never registered anywhere reads **Not registered yet**. More than three fold behind **+N more**. When two organizers ran events with the same short name, the chips show the organizer in front.
+- [ ] D3. Every row's kebab offers Rename team, Edit details, Archive team and Delete team, and nothing about this event. Locked items show reasons. A team registered here locks Archive with **Registered for the** event name.
+- [ ] D4. On Zz Test Beta: **Rename team** › new name › save. The row shows the new name. Rename it back.
+- [ ] D5. **Add to Library** adds `Zz Test Delta` without registering it. It appears reading **Not registered yet**.
+- [ ] D6. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.
+- [ ] D7. Press F5. You stay logged in and on the page.
 
 ### E. Refusals (`MGoins`, lftc-summer-2027)
 
@@ -131,10 +128,10 @@ The director sees every club rep who signed in to the event, including reps who 
 
 - [ ] G1. `/lftc-fallshowcase-2026/search/club-reps` loads. Until the nav script is re-run there is no menu entry; type the URL. The row count equals the Club Rep registrations on Search › Registrations filtered to the Club Rep role.
 - [ ] G2. A rep with zero teams is present as a row with 0 Active.
-- [ ] G3. `primeaulacrosse`'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. The `fits` number matches the count on their library page's yellow strip. That column reads `fits / all`: `2/3` means 3 library teams are not registered here and 2 of them fit an age group at this event.
+- [ ] G3. `primeaulacrosse`'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. That column reads `fits / all`: `2/3` means 3 library teams are not registered here and 2 of them fit an age group at this event.
 - [ ] G4. Click **no teams yet**: only zero-team reps remain. Click **owed**: only reps with an amount owed remain. **Show all** clears it.
 - [ ] G5. Excel export downloads a file with the same rows as the grid.
-- [ ] G6. **Library** on `primeaulacrosse`'s row opens the panel. The table shows every team on their library page with the same This event status and the same Played at chips.
+- [ ] G6. **Library** on `primeaulacrosse`'s row opens the panel. The table shows every team on their library page. Its This event column matches the highlighted chip on the rep's page, and its Played at chips match the rest.
 - [ ] G7. The counts line at the top of the panel matches the table beneath it.
 - [ ] G8. **Open in Search Teams** on a registered row lands on Search › Teams with that team's detail panel already open.
 - [ ] G9. There is no button anywhere in the panel that renames, edits, archives or deletes a library team.
@@ -145,7 +142,7 @@ The director sees every club rep who signed in to the event, including reps who 
 - [ ] H1. Open a team that came from a library. The header shows a **Library** tag with library name, grad year and level of play.
 - [ ] H2. The **Other events** line lists the team's other events, or reads **none — first event for this team**.
 - [ ] H3. A team not linked to any library (an old manually entered team) shows neither line.
-- [ ] H4. Rename the team in the Details tab. As `primeaulacrosse`, the library page still shows the library name, and the This event column shows `as <new name>`.
+- [ ] H4. Rename the team in the Details tab. As `primeaulacrosse`, the library page still shows the library name, and this event's chip on it shows `as <new name>`.
 - [ ] H5. Rename it back.
 
 ### I. Configure › Job Settings › Teams › Club Rep Permissions
@@ -154,7 +151,7 @@ The director sees every club rep who signed in to the event, including reps who 
 - [ ] I2. Turn **Allow Edit** off, save. As `primeaulacrosse`: the Teams step pencil is visible but greyed, tooltip **Editing closed by the director**. Fly-in kebab › Edit details and library page kebab › Edit details are locked with the same words.
 - [ ] I3. With Allow Edit still off, library **Rename team** in the kebab still works. Expected: rename is not gated by Allow Edit.
 - [ ] I4. Turn **Allow Delete** off, save. As the rep: **Remove from this event** is locked with **Removal closed by the director**.
-- [ ] I5. Turn **Allow Add** off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page shows Closed on unregistered rows with **registration is closed**.
+- [ ] I5. Turn **Allow Add** off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page is unchanged: it never offered registration.
 - [ ] I6. Turn all three back on, save. Everything reopens.
 
 ### J. Director clean-up
