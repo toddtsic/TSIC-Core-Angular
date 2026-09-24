@@ -72,7 +72,7 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
                 <span>How Team Registration Works</span>
               </div>
               <h3 class="two-step-headline">
-                Two steps to get your teams into the <span class="event-name">{{ eventName() }}</span>
+                Two steps to get your teams into <span class="event-name">{{ eventName() }}</span>
               </h3>
 
               <div class="two-step-cards">
@@ -81,7 +81,7 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
                     <span class="step-mini-num">1</span>
                     <i class="bi bi-collection-fill" aria-hidden="true"></i>
                   </div>
-                  <strong>Build your Club Library</strong>
+                  <strong>Build your Club Team Library</strong>
                   <span>
                     Add each team to your library &mdash; anytime, one at a time.
                     Once it's in, it's there for <em>every</em> future TSIC event &mdash; no re-entry.
@@ -108,7 +108,7 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
               <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-library"
                       (click)="showAddAndRegisterModal.set(true)">
                 <i class="bi bi-trophy-fill me-2"></i>
-                Register Your First Team for this Event
+                Register Your First Team
                 <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
               </button>
             </div>
@@ -122,7 +122,7 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
               <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
                       (click)="openLibraryFlyin()">
                 <i class="bi bi-trophy-fill me-2"></i>
-                Register Your First Team for this Event
+                Register Your First Team
                 <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
               </button>
             </div>
