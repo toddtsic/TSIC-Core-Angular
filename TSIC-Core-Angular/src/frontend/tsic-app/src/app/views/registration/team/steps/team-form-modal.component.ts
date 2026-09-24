@@ -6,7 +6,8 @@ import { TeamRegistrationService } from '@views/registration/team/services/team-
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubTeamDto } from '@core/api';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
-import { isBareYearName } from '@shared/teams/team-name-hints';
+import { clubNameInTeamName, isBareYearName } from '@shared/teams/team-name-hints';
+import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedule-preview.component';
 
 /**
  * Modal for editing an existing library team (when `editingTeam` is supplied), or
@@ -23,7 +24,7 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
 @Component({
     selector: 'app-team-form-modal',
     standalone: true,
-    imports: [FormsModule, TsicDialogComponent, LevelOfPlayPickerComponent],
+    imports: [FormsModule, TsicDialogComponent, LevelOfPlayPickerComponent, TeamNameSchedulePreviewComponent],
     template: `
     <tsic-dialog [open]="true" size="sm" (requestClose)="dismiss()">
       <div class="modal-content form-modal">
@@ -97,20 +98,10 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
                    [class.is-required]="!teamName().trim()"
                    [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub() || nameIsDuplicate())"
                    [class.has-warning]="!submitted() && (nameContainsClub() || nameIsDuplicate())" />
-            <div class="wizard-tip">
-              Instead of entering <span class="text-danger fw-semibold">{{ clubName() }} 2028 Blue</span>,
-              enter <span class="text-success fw-semibold">2028 Blue</span> — <strong>schedules already display your club name</strong>.
-            </div>
+            <!-- The club-name hammer: the live schedule label, red when the club name is in it. -->
+            <team-name-schedule-preview [clubName]="clubName()" [teamName]="teamName()" />
             @if (submitted() && !teamName().trim()) {
               <div class="field-error">Required</div>
-            }
-            @if (submitted() && teamName().trim() && nameContainsClub()) {
-              <div class="field-error">Remove your club name from the team name.</div>
-            }
-            @if (!submitted() && nameContainsClub()) {
-              <div class="field-error" style="color: var(--bs-warning)">
-                <i class="bi bi-exclamation-triangle me-1"></i>Contains your club name — please remove it.
-              </div>
             }
             @if (nameIsDuplicate()) {
               <div class="field-error">
@@ -428,12 +419,8 @@ export class TeamFormModalComponent implements OnInit {
 
     readonly isEdit = computed(() => this.editingTeam != null);
 
-    /** True when the team name contains the club name (case-insensitive). */
-    readonly nameContainsClub = computed(() => {
-        const club = this.clubName().trim().toLowerCase();
-        const name = this.teamName().trim().toLowerCase();
-        return club.length > 0 && name.length > 0 && name.includes(club);
-    });
+    /** The whole club name is in the team name — blocks the save; the preview says why. */
+    readonly nameContainsClub = computed(() => clubNameInTeamName(this.clubName(), this.teamName()) === 'full');
 
     /** True when the team name matches an existing library team (case-insensitive),
      *  excluding the team being edited. */

@@ -13,3 +13,36 @@
 export function isBareYearName(name: string | null | undefined): boolean {
     return /^\s*20\d{2}\s*$/.test(name ?? '');
 }
+
+/**
+ * Words a club name shares with half the sport. A team name may carry these without it meaning
+ * the rep typed their club name in — "Elite" is a level, "North" is a side of town.
+ */
+const GENERIC_CLUB_WORDS = new Set([
+    'lacrosse', 'lax', 'club', 'team', 'teams', 'elite', 'select', 'premier', 'united', 'academy',
+    'athletic', 'athletics', 'sports', 'sport', 'boys', 'girls', 'youth', 'national', 'north',
+    'south', 'east', 'west', 'central', 'county', 'city', 'state', 'travel', 'program', 'the',
+]);
+
+/**
+ * Is the club name in the team name? Schedules print "{club}:{team}" (ScheduleRepository.
+ * ComposeTeamLabel), so a club name inside the team name reads Club:Club 2028 Blue.
+ *   'full'    — the whole club name is in there (the forms BLOCK on this)
+ *   'partial' — a distinctive word of the club name is in there, as a whole word (warn only)
+ *   null      — clean
+ */
+export function clubNameInTeamName(clubName: string | null | undefined, teamName: string | null | undefined): 'full' | 'partial' | null {
+    const club = (clubName ?? '').trim().toLowerCase();
+    const name = (teamName ?? '').trim().toLowerCase();
+    if (!club || !name) return null;
+    if (name.includes(club)) return 'full';
+    const nameWords = new Set(name.split(/[^a-z0-9]+/).filter(Boolean));
+    const distinctive = club.split(/[^a-z0-9]+/).filter(w => w.length >= 4 && !GENERIC_CLUB_WORDS.has(w));
+    return distinctive.some(w => nameWords.has(w)) ? 'partial' : null;
+}
+
+/** The schedule label exactly as ScheduleRepository.ComposeTeamLabel prints it. */
+export function scheduleTeamLabel(clubName: string | null | undefined, teamName: string): string {
+    const club = (clubName ?? '').trim();
+    return club ? `${club}:${teamName}` : teamName;
+}

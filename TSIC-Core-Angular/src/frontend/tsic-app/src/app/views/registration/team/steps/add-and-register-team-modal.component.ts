@@ -6,7 +6,8 @@ import { TeamRegistrationService } from '@views/registration/team/services/team-
 import { ToastService } from '@shared-ui/toast.service';
 import type { AgeGroupDto, ClubTeamDto } from '@core/api';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
-import { isBareYearName } from '@shared/teams/team-name-hints';
+import { clubNameInTeamName, isBareYearName } from '@shared/teams/team-name-hints';
+import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedule-preview.component';
 import { EventAgeGroupPickerComponent } from '@views/registration/team/components/event-age-group-picker.component';
 import { resolveRecommendedAgeGroupId } from '@views/registration/team/components/event-age-group.util';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
@@ -31,7 +32,7 @@ import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error
 @Component({
     selector: 'app-add-and-register-team-modal',
     standalone: true,
-    imports: [FormsModule, TsicDialogComponent, LevelOfPlayPickerComponent, EventAgeGroupPickerComponent],
+    imports: [FormsModule, TsicDialogComponent, LevelOfPlayPickerComponent, TeamNameSchedulePreviewComponent, EventAgeGroupPickerComponent],
     template: `
     <tsic-dialog [open]="true" size="md" (requestClose)="closed.emit()">
       <div class="modal-content register-modal">
@@ -71,20 +72,10 @@ import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error
                    placeholder="e.g. 2028 Blue"
                    [class.is-required]="!teamName().trim()"
                    [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub() || nameIsDuplicate())" />
-            <div class="wizard-tip">
-              Instead of <span class="text-danger fw-semibold">{{ clubName() }} 2028 Blue</span>,
-              enter <span class="text-success fw-semibold">2028 Blue</span> &mdash; <strong>schedules already display your club name</strong>.
-            </div>
+            <!-- The club-name hammer: the live schedule label, red when the club name is in it. -->
+            <team-name-schedule-preview [clubName]="clubName()" [teamName]="teamName()" />
             @if (submitted() && !teamName().trim()) {
               <div class="field-error">Required</div>
-            }
-            @if (submitted() && teamName().trim() && nameContainsClub()) {
-              <div class="field-error">Remove your club name from the team name.</div>
-            }
-            @if (!submitted() && nameContainsClub()) {
-              <div class="field-error" style="color: var(--bs-warning)">
-                <i class="bi bi-exclamation-triangle me-1"></i>Contains your club name &mdash; please remove it.
-              </div>
             }
             @if (nameIsDuplicate()) {
               <div class="field-error">
@@ -510,12 +501,8 @@ export class AddAndRegisterTeamModalComponent {
     readonly savingLibraryOnly = signal(false);
     readonly errorMsg = signal<string | null>(null);
 
-    /** True when the team name contains the club name (case-insensitive). */
-    readonly nameContainsClub = computed(() => {
-        const club = this.clubName().trim().toLowerCase();
-        const name = this.teamName().trim().toLowerCase();
-        return club.length > 0 && name.length > 0 && name.includes(club);
-    });
+    /** The whole club name is in the team name — blocks the save; the preview says why. */
+    readonly nameContainsClub = computed(() => clubNameInTeamName(this.clubName(), this.teamName()) === 'full');
 
     /** True when the name matches a library team (case-insensitive). Same rule as team-form-modal. */
     readonly nameIsDuplicate = computed(() => {
