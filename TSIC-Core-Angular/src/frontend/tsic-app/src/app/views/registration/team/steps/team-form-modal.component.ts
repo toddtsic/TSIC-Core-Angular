@@ -35,7 +35,7 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
         <div class="form-hero">
           <h5 class="form-hero-title mb-0">
             @if (isEdit()) {
-              <i class="bi bi-pencil-square me-1"></i>Edit Library Team
+              <i class="bi bi-pencil-square me-1"></i>Edit Library Team Details
             } @else {
               <i class="bi bi-plus-circle me-1"></i>Add Team to Library
             }
@@ -48,7 +48,20 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
         <!-- Form body -->
         <div class="form-body">
 
-          <!-- ── Step 1 — Name your team ─────────────────────────── -->
+          <!-- Edit mode: shout the distinction before anything else (Todd 2026-09-24). A library
+               edit never reaches an event; the event copy is changed in Team Registration. -->
+          @if (isEdit()) {
+            <div class="library-aside library-aside--lead" role="note">
+              <i class="bi bi-collection" aria-hidden="true"></i>
+              <span><strong>This changes your library only.</strong> Teams already registered for an event keep
+                the grad year and level of play they were registered with. To change a team for an event,
+                use Team Registration.</span>
+            </div>
+          }
+
+          <!-- ── Step 1 — Name your team (add mode only: Rename owns the name in edit mode,
+               with the dialog that knows about the event copy) ──────────────── -->
+          @if (!isEdit()) {
           <div class="step-section"
                role="group" aria-labelledby="tf-step-1-title"
                [class.is-active]="activeStep() === 1"
@@ -98,6 +111,7 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
               </div>
             }
           </div>
+          }
 
           <!-- ── Step 2 — Team details ───────────────────────────── -->
           <div class="step-section"
@@ -144,7 +158,7 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
                 [invalid]="submitted() && !levelOfPlay()"
                 [selected]="levelOfPlay()"
                 (selectedChange)="levelOfPlay.set($event)" />
-              <div class="wizard-tip">Overall team assessment — rep can adjust per tournament by editing the team.</div>
+              <div class="wizard-tip">Overall team assessment for your library. Each event registration keeps its own level of play, set when you register.</div>
               @if (submitted() && !levelOfPlay()) {
                 <div class="field-error">Required</div>
               }
@@ -279,6 +293,16 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
 
         i { flex-shrink: 0; margin-top: 1px; font-size: var(--font-size-base); }
         strong { font-weight: var(--font-weight-bold); }
+
+        // Edit mode's lead-in: first thing in the body, informational rather than a warning.
+        &--lead {
+          margin-top: 0;
+          margin-bottom: var(--space-3);
+          background: color-mix(in srgb, var(--bs-primary) 8%, var(--bs-body-bg));
+          border-color: var(--bs-primary);
+          color: var(--brand-text);
+          font-size: var(--font-size-sm);
+        }
       }
 
       /* ── Footer ── */
@@ -353,11 +377,14 @@ export class TeamFormModalComponent implements OnInit {
     readonly nameIsBareYear = computed(() => isBareYearName(this.teamName()));
 
     /** Step 1 (Name) complete: team name present, not echoing the club name,
-     *  and not duplicating an existing library team. */
+     *  and not duplicating an existing library team. Edit mode has no name step —
+     *  Rename owns the name, with its own dialog that knows about the event copy —
+     *  so the step is done by definition and never blocks a details save. */
     readonly step1Done = computed(() =>
-        this.teamName().trim().length > 0
-        && !this.nameContainsClub()
-        && !this.nameIsDuplicate(),
+        this.isEdit()
+        || (this.teamName().trim().length > 0
+            && !this.nameContainsClub()
+            && !this.nameIsDuplicate()),
     );
 
     /** Step 2 (Details) complete: grad year + LOP both picked. */
@@ -387,8 +414,10 @@ export class TeamFormModalComponent implements OnInit {
     save(): void {
         this.submitted.set(true);
         if (!this.teamName().trim() || !this.gradYear() || !this.levelOfPlay()) return;
-        if (this.nameContainsClub()) return;
-        if (this.nameIsDuplicate()) return;
+        // Name rules apply to a NEW name only. In edit mode the name is the row's own, unchanged
+        // (a legacy "{Club} 2028" name must not block a grad-year fix; Rename is where it gets fixed).
+        if (!this.isEdit() && this.nameContainsClub()) return;
+        if (!this.isEdit() && this.nameIsDuplicate()) return;
 
         this.saving.set(true);
         this.errorMsg.set(null);
@@ -404,7 +433,7 @@ export class TeamFormModalComponent implements OnInit {
                 .subscribe({
                     next: () => {
                         this.saving.set(false);
-                        this.toast.show('Library team updated.', 'success', 2000);
+                        this.toast.show('Library team updated. No event was changed.', 'success', 2500);
                         this.saved.emit();
                     },
                     error: (err: unknown) => {
