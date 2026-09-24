@@ -54,8 +54,8 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
             <div class="library-aside library-aside--lead" role="note">
               <i class="bi bi-collection" aria-hidden="true"></i>
               <span><strong>This changes your library only.</strong> Teams already registered for an event keep
-                the name, grad year and level of play they were registered with. To change a team for an event,
-                use Team Registration.</span>
+                the name, grad year and level of play they were registered with.
+                <strong>To change a team for an event, open your menu at the top right and choose Team Registration.</strong></span>
             </div>
           }
 
