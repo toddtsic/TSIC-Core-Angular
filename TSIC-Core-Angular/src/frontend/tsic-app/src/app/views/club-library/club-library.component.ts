@@ -205,7 +205,7 @@ export class ClubLibraryComponent implements OnInit {
     //    fly-in can never disagree. Here a registration is named as a fact ("Registered for the
     //    Fall Rodeo 2026"), never as "here".
     private lockContext(row: LibraryRow): ClubTeamLockContext {
-        return { registeredHere: !!row.registered, eventLabel: `the ${this.eventName()}` };
+        return { registeredHere: !!row.registered, eventLabel: this.eventName() };
     }
     editLockReason(row: LibraryRow): string | null { return clubTeamEditLockReason(row.team, this.lockContext(row)); }
     archiveLockReason(row: LibraryRow): string | null { return clubTeamArchiveLockReason(this.lockContext(row)); }

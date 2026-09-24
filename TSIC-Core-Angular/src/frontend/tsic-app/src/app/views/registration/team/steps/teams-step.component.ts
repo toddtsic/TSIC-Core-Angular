@@ -44,10 +44,12 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
     } @else {
 
       <!-- ── Registered teams for THIS event (single primary card) ── -->
-      <div class="step-card step-card-registered">
+      <!-- The green edge means teams are in; empty gets the plain card (Todd 2026-09-24). -->
+      <div class="step-card" [class.step-card-registered]="enteredTeams().length > 0">
         @if (enteredTeams().length === 0) {
-          <div class="section-header section-registered">
-            <i class="bi bi-check-circle-fill me-1"></i>
+          <!-- Nothing registered yet: neutral, no check. Green and a check mean done (Todd 2026-09-24). -->
+          <div class="section-header section-pending">
+            <i class="bi bi-clipboard me-1" aria-hidden="true"></i>
             Registered Teams
           </div>
         } @else {
@@ -97,7 +99,7 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
                   </div>
                   <strong>Register for this event</strong>
                   <span>
-                    Pick teams from your library to register to play in the
+                    Pick teams from your library to register to play in
                     <strong>{{ eventName() }}</strong>.
                   </span>
                 </div>
@@ -115,8 +117,8 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
               <i class="bi bi-clipboard-plus"></i>
               <strong>{{ allLibraryTeams().length }} library
                 {{ allLibraryTeams().length === 1 ? 'team' : 'teams' }}
-                ready &mdash; none registered for the {{ eventName() }} yet</strong>
-              <span>Pick from your library to register to play in the <strong>{{ eventName() }}</strong>.</span>
+                ready &mdash; none registered for {{ eventName() }} yet</strong>
+              <span>Pick from your library, or add a new team, to register to play in <strong>{{ eventName() }}</strong>.</span>
               <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
                       (click)="openLibraryFlyin()">
                 <i class="bi bi-trophy-fill me-2"></i>
@@ -174,7 +176,7 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
                 <span class="unregistered-strip-text">
                   <strong>{{ unregisteredEligible().length }} library
                     {{ unregisteredEligible().length === 1 ? 'team' : 'teams' }}</strong>
-                  {{ unregisteredEligible().length === 1 ? "isn't" : "aren't" }} registered for the {{ eventName() }}:
+                  {{ unregisteredEligible().length === 1 ? "isn't" : "aren't" }} registered for {{ eventName() }}:
                   <span class="unregistered-strip-names">{{ unregisteredEligibleNames() }}</span>
                 </span>
                 <button type="button" class="unregistered-strip-cta" (click)="openLibraryFlyin()">
@@ -543,6 +545,13 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
         color: var(--bs-success);
         background: rgba(var(--bs-success-rgb), 0.06);
         border-bottom: 1px solid rgba(var(--bs-success-rgb), 0.12);
+      }
+
+      /* Empty state: the section exists but nothing is done yet. */
+      .section-pending {
+        color: var(--brand-text-muted);
+        background: color-mix(in srgb, var(--bs-body-color) 3%, transparent);
+        border-bottom: 1px solid var(--bs-border-color);
       }
 
       /* .section-titlebar / .section-titlebar-* / .phase-badge live in
