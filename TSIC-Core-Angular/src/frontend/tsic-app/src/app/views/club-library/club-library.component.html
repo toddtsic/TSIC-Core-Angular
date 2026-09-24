@@ -5,40 +5,19 @@
       Club Team Library
       @if (clubName()) { <span class="title-club-badge">{{ clubName() }}</span> }
     </h2>
+    <!-- What this page IS (Todd 2026-09-24: "representing it for what it is"). By the time a rep can
+         reach it they have already registered from this list in the wizard, so no sell and no
+         warning: the whole list with its history, kept right between registrations. -->
+    <p class="page-lede">
+      <strong>{{ ledeOwner() }} teams, and every event each one has been registered for.</strong>
+      Keep the list right: fix a name or a grad year, archive a squad that has moved on, restore one,
+      add next season's team early. Team Registration picks from this list.
+    </p>
   </div>
   <div class="page-header__actions">
     <button type="button" class="btn-page-primary" [disabled]="actionInProgress()" (click)="showAddModal.set(true)">
       <i class="bi bi-plus-circle" aria-hidden="true"></i>Add to Library
     </button>
-  </div>
-</div>
-
-<!-- The purpose, screamed (Todd 2026-09-24: "hammer time, scream the purpose of this library up
-     top"). Library vs event is the cross that screws people up; a grey lede did not stop it.
-     Two panels, IS and IS NOT, at reading size. Nothing on this page registers a team. -->
-<div class="purpose-banner" role="note">
-  <div class="purpose-panel purpose-panel--is">
-    <i class="bi bi-collection-fill purpose-icon" aria-hidden="true"></i>
-    <div>
-      <div class="purpose-kicker">Enter your teams once</div>
-      <div class="purpose-text">
-        <strong>Never retype a team for a registration again.</strong> Every event you enter picks from
-        this list, with name, grad year and level of play already filled in. Keep {{ ledeOwner() }} teams
-        current here and registering is a few clicks.
-      </div>
-    </div>
-  </div>
-  <div class="purpose-panel purpose-panel--not">
-    <i class="bi bi-slash-circle-fill purpose-icon" aria-hidden="true"></i>
-    <div>
-      <div class="purpose-kicker">This page does not register teams</div>
-      <div class="purpose-text">
-        <strong>Team Registration offers you the teams in this library.</strong>
-        You are already registered{{ eventName() ? ' for ' + eventName() : '' }}. Return to it to update your
-        entered teams: open your menu at the top right and choose <strong>Team Registration</strong>.
-        Nothing on this page enters a team.
-      </div>
-    </div>
   </div>
 </div>
 

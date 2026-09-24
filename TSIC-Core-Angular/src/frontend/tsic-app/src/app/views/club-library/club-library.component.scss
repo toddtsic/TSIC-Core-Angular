@@ -47,58 +47,15 @@
     font-weight: var(--font-weight-bold);
 }
 
-// ── The purpose banner: IS / IS NOT, at reading size, impossible to skim past ────────────
-.purpose-banner {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-3);
-    max-width: 1080px;
-    margin: 0 auto var(--space-5);
-}
-
-.purpose-panel {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border: 1px solid var(--bs-border-color);
-    border-left-width: 4px;
-    border-radius: var(--radius-md);
+.page-lede {
+    margin: var(--space-1) 0 0;
     font-size: var(--font-size-sm);
     line-height: var(--line-height-normal);
-    color: var(--brand-text);
+    color: var(--brand-text-muted);
+    max-width: 64ch;
 
-    strong { font-weight: var(--font-weight-bold); }
-    em { font-style: normal; text-decoration: underline; text-underline-offset: 2px; }
-
-    &--is {
-        border-left-color: var(--bs-primary);
-        background: color-mix(in srgb, var(--bs-primary) 5%, var(--bs-body-bg));
-        .purpose-icon, .purpose-kicker { color: var(--bs-primary); }
-    }
-    &--not {
-        border-left-color: var(--bs-danger);
-        background: color-mix(in srgb, var(--bs-danger) 4%, var(--bs-body-bg));
-        .purpose-icon, .purpose-kicker { color: var(--bs-danger-text-emphasis); }
-    }
+    strong { color: var(--brand-text); font-weight: var(--font-weight-semibold); }
 }
-
-.purpose-icon {
-    flex-shrink: 0;
-    font-size: var(--font-size-lg);
-    line-height: 1;
-    margin-top: 2px;
-}
-
-.purpose-kicker {
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 0.7rem;
-    font-weight: var(--font-weight-bold);
-    margin-bottom: 2px;
-}
-
-.purpose-text { max-width: 52ch; }
 
 // Token-driven button — NOT Bootstrap .btn-* (precompiled, ignores --bs-primary).
 .btn-page-primary {
@@ -437,7 +394,6 @@
 @media (max-width: 767.98px) {
     .page-header { flex-direction: column; }
     .page-header__actions { width: 100%; }
-    .purpose-banner { grid-template-columns: 1fr; }
     .btn-page-primary { flex: 1; justify-content: center; }
 
     .lib-head { display: none; }
