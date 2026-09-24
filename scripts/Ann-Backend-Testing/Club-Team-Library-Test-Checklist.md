@@ -58,7 +58,7 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 - A team that has been scheduled at any event cannot have its grad year or level of play edited. Its name can still be renamed.
 - A registered team cannot be archived or deleted. A team with any event registration ever cannot be deleted, only archived.
 - A team with a payment on it cannot be removed from the event by the rep.
-- Typing a URL or opening a bookmark starts a fresh session and asks for login. E5 keeps the session.
+- Typing a URL or opening a bookmark starts a fresh session and asks for login. F5 keeps the session.
 
 ## Club rep tests
 
@@ -101,7 +101,7 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 - [ ] D6. On Zz Test Beta (registered, unpaid): **Remove from this event** › confirm. The row returns to Register and the team stays in the library.
 - [ ] D7. **Add to Library** adds `Zz Test Delta` without registering it. It appears with a Register button.
 - [ ] D8. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.
-- [ ] D9. Press E5. You stay logged in and on the page.
+- [ ] D9. Press F5. You stay logged in and on the page.
 
 ### E. Refusals (`MGoins`, lftc-summer-2027)
 
