@@ -31,7 +31,6 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 
 ### Reaching the library page
 
-- **Login / role select screen**: pick the event's Club Rep row. That opens the event's landing page; the library is one click further. The role list offers only available events (inside the director's user-expiry window); there is no past-events group.
 - **Tournament job site, landing page rep card**: the **Club Team Library** door.
 - **Tournament job site, header user menu**: **Club Team Library**, on every page.
 - **From the library fly-in**: the fly-in's header link **Manage full library →**.
