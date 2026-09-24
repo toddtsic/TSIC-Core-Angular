@@ -108,23 +108,27 @@
                  as a toast, because a disabled button says nothing on touch. -->
             <div class="col-actions" role="cell">
               @let editLock = editLockReason(row);
-              @let archiveLock = archiveLockReason(row);
-              @let deleteLock = deleteLockReason(row);
+              @let removal = removalFor(row);
               <button type="button" class="btn-action" [class.is-locked]="!!editLock"
                       [disabled]="actionInProgress()" [attr.title]="editLock" [attr.aria-disabled]="!!editLock"
                       (click)="editLock ? explainLock(editLock) : openEdit(row)">
                 <i class="bi bi-pencil" aria-hidden="true"></i>Edit
               </button>
-              <button type="button" class="btn-action" [class.is-locked]="!!archiveLock"
-                      [disabled]="actionInProgress()" [attr.title]="archiveLock" [attr.aria-disabled]="!!archiveLock"
-                      (click)="archiveLock ? explainLock(archiveLock) : askArchive(row)">
-                <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Archive
-              </button>
-              <button type="button" class="btn-action btn-action--danger" [class.is-locked]="!!deleteLock"
-                      [disabled]="actionInProgress()" [attr.title]="deleteLock" [attr.aria-disabled]="!!deleteLock"
-                      (click)="deleteLock ? explainLock(deleteLock) : askDelete(row)">
-                <i class="bi bi-trash" aria-hidden="true"></i>Delete
-              </button>
+              <!-- ONE way off the list per row: Delete while nothing references the team, Archive
+                   once anything does (Todd 2026-09-24). Never both. -->
+              @if (removal.kind === 'archive') {
+                <button type="button" class="btn-action" [class.is-locked]="!!removal.lockReason"
+                        [disabled]="actionInProgress()" [attr.title]="removal.lockReason" [attr.aria-disabled]="!!removal.lockReason"
+                        (click)="removal.lockReason ? explainLock(removal.lockReason) : askArchive(row)">
+                  <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Archive
+                </button>
+              } @else {
+                <button type="button" class="btn-action btn-action--danger" [class.is-locked]="!!removal.lockReason"
+                        [disabled]="actionInProgress()" [attr.title]="removal.lockReason" [attr.aria-disabled]="!!removal.lockReason"
+                        (click)="removal.lockReason ? explainLock(removal.lockReason) : askDelete(row)">
+                  <i class="bi bi-trash" aria-hidden="true"></i>Delete
+                </button>
+              }
             </div>
           </div>
         }

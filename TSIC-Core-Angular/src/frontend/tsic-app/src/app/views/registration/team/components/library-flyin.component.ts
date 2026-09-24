@@ -2,7 +2,7 @@ import { AfterViewChecked, AfterViewInit, ChangeDetectionStrategy, Component, El
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { formatLop, normalizeLop } from '@shared/teams/lop-choices';
-import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
+import { clubTeamEditLockReason, clubTeamRemoval, type ClubTeamLockContext, type ClubTeamRemoval } from '@shared/teams/club-team-locks';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
 import { EventAgeGroupPickerComponent } from './event-age-group-picker.component';
 import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear, resolveRecommendedAgeGroupId } from './event-age-group.util';
@@ -382,8 +382,7 @@ interface LibraryGroup {
                             </button>
                             @if (openMenuTeamId() === team.clubTeamId) {
                               @let editLock = editLockReason(team);
-                              @let archiveLock = archiveLockReason(!!registered);
-                              @let deleteLock = deleteLockReason(team, !!registered);
+                              @let removal = removalFor(team, !!registered);
                               <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
                                 <!-- One Edit for name, grad year and level of play, library only
                                      (Todd 2026-09-24). No separate Rename: the event copy is renamed
@@ -397,24 +396,30 @@ interface LibraryGroup {
                                     <span class="lib-menu-reason">{{ editLock }}</span>
                                   }
                                 </button>
-                                <button type="button" class="lib-menu-item" role="menuitem"
-                                        [disabled]="!!archiveLock"
-                                        (click)="handleMenuArchive(team, !!registered)">
-                                  <i class="bi bi-box-arrow-in-down lib-menu-icon" aria-hidden="true"></i>
-                                  <span class="lib-menu-label">Archive team</span>
-                                  @if (archiveLock) {
-                                    <span class="lib-menu-reason">{{ archiveLock }}</span>
-                                  }
-                                </button>
-                                <button type="button" class="lib-menu-item lib-menu-item-danger" role="menuitem"
-                                        [disabled]="!!deleteLock"
-                                        (click)="handleMenuDelete(team, !!registered)">
-                                  <i class="bi bi-trash lib-menu-icon" aria-hidden="true"></i>
-                                  <span class="lib-menu-label">Delete team</span>
-                                  @if (deleteLock) {
-                                    <span class="lib-menu-reason">{{ deleteLock }}</span>
-                                  }
-                                </button>
+                                <!-- ONE way off the list, parallel to the library page's Actions column
+                                     (Todd 2026-09-24): Delete while nothing references the team,
+                                     Archive once anything does. Never both. -->
+                                @if (removal.kind === 'archive') {
+                                  <button type="button" class="lib-menu-item" role="menuitem"
+                                          [disabled]="!!removal.lockReason"
+                                          (click)="handleMenuRemove(team, !!registered)">
+                                    <i class="bi bi-box-arrow-in-down lib-menu-icon" aria-hidden="true"></i>
+                                    <span class="lib-menu-label">Archive team</span>
+                                    @if (removal.lockReason) {
+                                      <span class="lib-menu-reason">{{ removal.lockReason }}</span>
+                                    }
+                                  </button>
+                                } @else {
+                                  <button type="button" class="lib-menu-item lib-menu-item-danger" role="menuitem"
+                                          [disabled]="!!removal.lockReason"
+                                          (click)="handleMenuRemove(team, !!registered)">
+                                    <i class="bi bi-trash lib-menu-icon" aria-hidden="true"></i>
+                                    <span class="lib-menu-label">Delete team</span>
+                                    @if (removal.lockReason) {
+                                      <span class="lib-menu-reason">{{ removal.lockReason }}</span>
+                                    }
+                                  </button>
+                                }
                               </div>
                             }
                           </div>
@@ -2595,22 +2600,20 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
         return { registeredHere: registered, eventLabel: 'this event' };
     }
     editLockReason(team: ClubTeamDto): string | null { return clubTeamEditLockReason(team, this.lockContext(false)); }
-    archiveLockReason(registered: boolean): string | null { return clubTeamArchiveLockReason(this.lockContext(registered)); }
-    deleteLockReason(team: ClubTeamDto, registered: boolean): string | null { return clubTeamDeleteLockReason(team, this.lockContext(registered)); }
+    removalFor(team: ClubTeamDto, registered: boolean): ClubTeamRemoval { return clubTeamRemoval(team, this.lockContext(registered)); }
 
     handleMenuEdit(team: ClubTeamDto): void {
         this.closeMenu();
         if (!this.editLockReason(team)) this.edit.emit(team);
     }
 
-    handleMenuArchive(team: ClubTeamDto, registered: boolean): void {
+    /** The row's one removal action: Archive or Delete by the shared rule, only when it is live. */
+    handleMenuRemove(team: ClubTeamDto, registered: boolean): void {
         this.closeMenu();
-        if (!this.archiveLockReason(registered)) this.archive.emit(team);
-    }
-
-    handleMenuDelete(team: ClubTeamDto, registered: boolean): void {
-        this.closeMenu();
-        if (!this.deleteLockReason(team, registered)) this.delete.emit(team);
+        const removal = this.removalFor(team, registered);
+        if (removal.lockReason) return;
+        if (removal.kind === 'archive') this.archive.emit(team);
+        else this.delete.emit(team);
     }
 
     @HostListener('document:click')

@@ -75,3 +75,31 @@ export function clubTeamDeleteLockReason(team: ClubTeamDto, ctx: ClubTeamLockCon
     if (ctx.registeredHere) return `Registered for ${ctx.eventLabel}`;
     return null;
 }
+
+/** The one way off the active list a row offers, and whether it is open right now. */
+export interface ClubTeamRemoval {
+    kind: 'archive' | 'delete';
+    /** Null when the action is live; otherwise the reason shown greyed under it. */
+    lockReason: string | null;
+}
+
+/**
+ * ONE removal action per row (Todd 2026-09-24: "a single col with archive if any team already
+ * exists with that clubTeamId, or delete if none"). Archive and Delete are never both valid —
+ * the fact that refuses Delete is the fact that makes Archive the right verb — so the row shows
+ * the one that applies instead of a greyed pair teaching a rule the rep cannot use.
+ *
+ *   never registered anywhere         → Delete, live
+ *   registered for some event, not this → Archive, live
+ *   registered for THIS event           → Archive, greyed "Registered for {event}" (constraint
+ *                                         kept by ruling, same day: the reason is the lesson)
+ *
+ * registeredHere counts as "registered somewhere" on its own, in case bHasEventRegistrations is
+ * stale — the same belt-and-braces read the delete rule makes.
+ */
+export function clubTeamRemoval(team: ClubTeamDto, ctx: ClubTeamLockContext): ClubTeamRemoval {
+    if (team.bHasEventRegistrations || ctx.registeredHere) {
+        return { kind: 'archive', lockReason: clubTeamArchiveLockReason(ctx) };
+    }
+    return { kind: 'delete', lockReason: clubTeamDeleteLockReason(team, ctx) };
+}

@@ -6,7 +6,7 @@ import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error
 import { ToastService } from '@shared-ui/toast.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { formatLop } from '@shared/teams/lop-choices';
-import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
+import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, clubTeamRemoval, type ClubTeamLockContext, type ClubTeamRemoval } from '@shared/teams/club-team-locks';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { TeamFormModalComponent } from '@views/registration/team/steps/team-form-modal.component';
 
@@ -206,6 +206,7 @@ export class ClubLibraryComponent implements OnInit {
     editLockReason(row: LibraryRow): string | null { return clubTeamEditLockReason(row.team, this.lockContext(row)); }
     archiveLockReason(row: LibraryRow): string | null { return clubTeamArchiveLockReason(this.lockContext(row)); }
     deleteLockReason(row: LibraryRow): string | null { return clubTeamDeleteLockReason(row.team, this.lockContext(row)); }
+    removalFor(row: LibraryRow): ClubTeamRemoval { return clubTeamRemoval(row.team, this.lockContext(row)); }
 
     // ── Edit (name, grad year, level of play — library only) / Add ─────
     // No Rename here (Todd 2026-09-24): the name is one of the details. The event copy is renamed
