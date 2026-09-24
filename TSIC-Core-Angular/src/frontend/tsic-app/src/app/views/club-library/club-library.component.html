@@ -5,18 +5,40 @@
       Club Team Library
       @if (clubName()) { <span class="title-club-badge">{{ clubName() }}</span> }
     </h2>
-    <!-- The one sentence that keeps library and event apart (Todd 2026-09-24: "you are
-         updating your list of team options available when you register, you are not
-         registering here"). Nothing on this page registers a team. -->
-    <p class="page-lede">
-      <strong>{{ ledeOwner() }}</strong> teams: the list you pick from when you register for an event.
-      Add, edit or archive them here. You are not registering here. That happens in Team Registration.
-    </p>
   </div>
   <div class="page-header__actions">
     <button type="button" class="btn-page-primary" [disabled]="actionInProgress()" (click)="showAddModal.set(true)">
       <i class="bi bi-plus-circle" aria-hidden="true"></i>Add to Library
     </button>
+  </div>
+</div>
+
+<!-- The purpose, screamed (Todd 2026-09-24: "hammer time, scream the purpose of this library up
+     top"). Library vs event is the cross that screws people up; a grey lede did not stop it.
+     Two panels, IS and IS NOT, at reading size. Nothing on this page registers a team. -->
+<div class="purpose-banner" role="note">
+  <div class="purpose-panel purpose-panel--is">
+    <i class="bi bi-collection-fill purpose-icon" aria-hidden="true"></i>
+    <div>
+      <div class="purpose-kicker">Enter your teams once</div>
+      <div class="purpose-text">
+        <strong>Never retype a team for a registration again.</strong> Every event you enter picks from
+        this list, with name, grad year and level of play already filled in. Keep {{ ledeOwner() }} teams
+        current here and registering is a few clicks.
+      </div>
+    </div>
+  </div>
+  <div class="purpose-panel purpose-panel--not">
+    <i class="bi bi-slash-circle-fill purpose-icon" aria-hidden="true"></i>
+    <div>
+      <div class="purpose-kicker">This page does not register teams</div>
+      <div class="purpose-text">
+        <strong>Team Registration offers you the teams in this library.</strong> When you register
+        {{ eventName() ? 'for ' + eventName() : 'for an event' }}, you pick from this list and assign
+        an age group. Nothing here registers a team. To register, open your menu at the top right and choose
+        <strong>Team Registration</strong>.
+      </div>
+    </div>
   </div>
 </div>
 
