@@ -91,15 +91,27 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   );
 
   /**
-   * Page-wide mode switch: if ANY role group is at/over the threshold, EVERY
-   * group renders as a typeahead; otherwise every group renders as cards.
-   * Never mix the two controls on one page — a dropdown beside a card list
-   * reads as two different UIs for the same task.
+   * Mode switch for every group EXCEPT Club Rep: if any of those groups is at/over the
+   * threshold, all of them render as typeaheads; otherwise all of them render as cards.
+   *
+   * Club Rep rows are ALWAYS cards, whatever their count (Todd 2026-09-24: "no longer loving
+   * the compact view, for club reps only"). A rep's rows carry dates and team counts that the
+   * one-line dropdown item squeezes; the card is the view that was designed for them. So a
+   * Director + Club Rep account can see a dropdown beside a card list. That is the ruling,
+   * and it retires the older "never mix the two controls on one page" rule. Club Rep counts
+   * are also left out of the threshold, so a rep's nine events never push a three-row
+   * Director group into a dropdown.
    */
   readonly useTypeaheadMode = computed(() =>
     this.registrations().some(g =>
-      g.roleRegistrations.length >= RoleSelectionComponent.TYPEAHEAD_THRESHOLD)
+      g.roleName !== 'Club Rep'
+      && g.roleRegistrations.length >= RoleSelectionComponent.TYPEAHEAD_THRESHOLD)
   );
+
+  /** Which control this group renders as. */
+  isTypeahead(group: RoleGroupView): boolean {
+    return !group.isClubRep && this.useTypeaheadMode();
+  }
 
   /** Friendly group header for a role (e.g. ApiAuthorized → "3rd Party Access"). Display only. */
   roleLabel(roleName: string): string {
@@ -225,7 +237,10 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     const ddls = this.dropdowns?.toArray() ?? [];
     if (ddls.length === 0) return;
 
-    const directorIndex = this.groups().findIndex(g => g.roleName === 'Director');
+    // Only typeahead groups own a dropdown, so index among THOSE (a Club Rep group renders
+    // cards and would otherwise shift every index after it).
+    const typeaheadGroups = this.groups().filter(g => this.isTypeahead(g));
+    const directorIndex = typeaheadGroups.findIndex(g => g.roleName === 'Director');
     const index = directorIndex >= 0 && directorIndex < ddls.length ? directorIndex : ddls.length - 1;
     const target = ddls[index];
 

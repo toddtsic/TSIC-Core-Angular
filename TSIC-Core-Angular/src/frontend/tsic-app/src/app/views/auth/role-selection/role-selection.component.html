@@ -48,7 +48,7 @@
             }
             @for (group of groups(); track group.roleName; let i = $index) {
             <div class="role-section">
-              @if (useTypeaheadMode()) {
+              @if (isTypeahead(group)) {
               <label class="role-label" [attr.id]="'rs-label-' + i">{{ roleLabel(group.roleName) }}</label>
               <ejs-dropdownlist [dataSource]="group.all" [fields]="fields"
                 [placeholder]="'Select a registration...'" [allowFiltering]="true"
