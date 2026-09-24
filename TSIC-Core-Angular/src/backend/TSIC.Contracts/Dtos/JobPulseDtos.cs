@@ -1,7 +1,7 @@
 namespace TSIC.Contracts.Dtos;
 
 /// <summary>
-/// Real-time availability snapshot for a job's public page.
+/// Real-time availability snapshot for a job·s public page.
 /// Drives the "Job Pulse" widget and the user-dropdown task list.
 /// Job-level flags are always populated. My* fields are populated only when
 /// the request is authenticated AND the JWT jobPath matches the URL jobPath.
@@ -25,7 +25,7 @@ public record JobPulseDto
     /// True when the player profile requires a USA Lacrosse membership number — i.e.
     /// PlayerProfileMetadataJson contains a REQUIRED field named sportAssnId (or uslax,
     /// or whose label mentions "lacrosse"). Mirrors the FormSchemaService USLax-field
-    /// detection rule, computed post-projection (the JSON can't be parsed in LINQ-to-SQL).
+    /// detection rule, computed post-projection (the JSON can·t be parsed in LINQ-to-SQL).
     /// Drives the proactive "USA Lacrosse Membership Required" smart bulletin that
     /// pre-empts the most common registration support calls. A pure profile fact — NOT
     /// gated on the registration door; the bulletin ANDs it with reg-open on the client.
@@ -33,7 +33,7 @@ public record JobPulseDto
     public required bool PlayerRegRequiresUsLax { get; init; }
 
     /// <summary>
-    /// Jobs.UslaxNumberValidThroughDate — the latest date through which a player's USA
+    /// Jobs.UslaxNumberValidThroughDate — the latest date through which a player·s USA
     /// Lacrosse membership must remain valid to pass validation. Null when the director
     /// set no explicit through-date. Display-only: the USA Lacrosse bulletin surfaces it
     /// ("must be valid through …") so families renew before they start registering.
@@ -45,7 +45,7 @@ public record JobPulseDto
 
     /// <summary>Coach/staff self-registration is released AND teams exist to request.
     /// Grounds the public "Register Coach/Staff" hero card. BRegistrationAllowStaff is
-    /// the director's release gate (opened after teams are in); teams-exist is the
+    /// the director·s release gate (opened after teams are in); teams-exist is the
     /// precondition so a coach has a real team to request.</summary>
     public required bool StaffRegistrationOpen { get; init; }
 
@@ -62,7 +62,7 @@ public record JobPulseDto
     public required bool AllowRosterViewPlayer { get; init; }
     public required bool AllowRosterViewAdult { get; init; }
     /// <summary>Inverse of bRestrictPublicRosters — drives the public "Rosters" card.
-    /// Distinct from AllowRosterView* (those gate a logged-in user's OWN roster).</summary>
+    /// Distinct from AllowRosterView* (those gate a logged-in user·s OWN roster).</summary>
     public required bool PublicRostersAvailable { get; init; }
     public required bool OfferPlayerRegsaverInsurance { get; init; }
     public required bool OfferTeamRegsaverInsurance { get; init; }
@@ -111,8 +111,8 @@ public record JobPulseDto
 
     /// <summary>
     /// Director-stated event start (Jobs.EventStartDate), or null. NOT an EventConcluded input
-    /// (start-passed ≠ over). Used as a VETO in derivePhase's residual tail: a start date in the
-    /// future blocks the participation signal from mislabeling a still-upcoming event 'concluded'
+    /// (start-passed ≠ over). Used as a VETO in derivePhase·s residual tail: a start date in the
+    /// future blocks the participation signal from mislabeling a still-upcoming event ·concluded'
     /// (the "took early signups then paused, no end date" case). Render-only otherwise.
     /// </summary>
     public DateTime? EventStartDate { get; init; }
@@ -141,17 +141,17 @@ public record JobPulseDto
     /// purchase shells). Resolves the ONE residual new-vs-concluded ambiguity: a job with no
     /// date signal at all (no EventEndDate, no published schedule, future ExpiryUsers) is
     /// fact-identical to a brand-new not-yet-open job EXCEPT that a finished event accumulated
-    /// real participants and a new one has none. DISPLAY-ONLY — consumed by derivePhase's
-    /// quiet tail (registration not open) to label such a job 'concluded' vs 'coming soon';
+    /// real participants and a new one has none. DISPLAY-ONLY — consumed by derivePhase·s
+    /// quiet tail (registration not open) to label such a job ·concluded' vs 'coming soon';
     /// NEVER a write gate (the authority stays permissive in the residual).
     /// </summary>
     public required bool HasNonAdminActivity { get; init; }
 
     /// <summary>
-    /// The event's calendar year (Jobs.Year), parsed to an int — null when Jobs.Year isn't a
+    /// The event·s calendar year (Jobs.Year), parsed to an int — null when Jobs.Year isn't a
     /// clean number ("isNumeric" guard). The most decisive residual signal in derivePhase: a
     /// prior year (&lt; now.year) means the event is over (overrides even a stale registration
-    /// toggle — "last year's job"); a future year vetoes the participation signal. Year
+    /// toggle — "last year·s job"); a future year vetoes the participation signal. Year
     /// granularity ⇒ DISPLAY-ONLY; writes stay on real dates (EventConcluded), never the year.
     /// </summary>
     public int? EventYear { get; init; }
@@ -199,7 +199,7 @@ public record JobPulseDto
     public decimal? MyClubRepTotalOwed { get; init; }
 
     /// <summary>
-    /// Sum of OwedTotal across ONLY the rep's teams that carry no ARB subscription —
+    /// Sum of OwedTotal across ONLY the rep·s teams that carry no ARB subscription —
     /// the money a human must actually go pay. A team on ARB keeps a positive OwedTotal
     /// by design while its subscription drips payments, so MyClubRepTotalOwed cannot gate
     /// the "Pay Balance Due" nudge without inviting a double payment. Gate on this instead:
@@ -209,7 +209,7 @@ public record JobPulseDto
     public decimal? MyClubRepNonArbOwed { get; init; }
 
     /// <summary>
-    /// The payment phase the rep's payable (non-ARB, non-waitlist) teams sit in, so the landing
+    /// The payment phase the rep·s payable (non-ARB, non-waitlist) teams sit in, so the landing
     /// card can say "deposit due" or "balance due" instead of a bare "Balance due". Values:
     /// "single" (the job has no deposit structure), "deposit", "balance", "mixed" (a cart that
     /// spans scopes in different phases). Null when the rep has no payable teams. Composed by
@@ -218,16 +218,22 @@ public record JobPulseDto
     public string? MyClubRepPhase { get; init; }
 
     /// <summary>
-    /// The balance slices still to be billed on the rep's deposit-phase teams - the Teams step
-    /// footer's "Later". Zero outside a deposit phase.
+    /// The balance slices still to be billed on the rep·s deposit-phase teams - the Teams step
+    /// footer·s "Later". Zero outside a deposit phase.
     /// </summary>
     public decimal? MyClubRepDueLater { get; init; }
+
+    /// <summary>
+    /// What the rep has paid on those same deposit-phase teams (Teams.PaidTotal, the authoritative
+    /// paid figure), so the card can read "$X deposit paid · $Y due later". Zero outside a deposit phase.
+    /// </summary>
+    public decimal? MyClubRepDepositPaid { get; init; }
 
     public bool? MyClubRepHasTeamWithoutRegsaver { get; init; }
 
     /// <summary>
-    /// The rep's club name AS REGISTERED IN THIS EVENT (Registrations.ClubName — the in-event
-    /// name, never the library's). Lets the landing card say whose teams these are.
+    /// The rep·s club name AS REGISTERED IN THIS EVENT (Registrations.ClubName — the in-event
+    /// name, never the library·s). Lets the landing card say whose teams these are.
     /// </summary>
     public string? MyClubRepClubName { get; init; }
 
@@ -285,12 +291,12 @@ public record JobPulseUserContext
     // ClubRep
     public int? ClubRepTeamCount { get; init; }
     public decimal? ClubRepTotalOwed { get; init; }
-    /// <summary>Owed across the rep's NON-ARB teams only — see JobPulseDto.MyClubRepNonArbOwed.</summary>
+    /// <summary>Owed across the rep·s NON-ARB teams only — see JobPulseDto.MyClubRepNonArbOwed.</summary>
     public decimal? ClubRepNonArbOwed { get; init; }
     /// <summary>One row per registered team, for the controller to resolve fees and compose the phase.</summary>
     public IReadOnlyList<JobPulseClubRepTeam>? ClubRepTeams { get; init; }
     public bool? ClubRepHasTeamWithoutRegsaver { get; init; }
-    /// <summary>In-event club name off the rep's Registrations row — see JobPulseDto.MyClubRepClubName.</summary>
+    /// <summary>In-event club name off the rep·s Registrations row — see JobPulseDto.MyClubRepClubName.</summary>
     public string? ClubRepClubName { get; init; }
 
     // Display name of the regId owner
@@ -298,11 +304,12 @@ public record JobPulseUserContext
     public string? LastName { get; init; }
 }
 
-/// <summary>A club rep's registered team as the pulse sees it: enough to resolve its fee scope and phase.</summary>
+/// <summary>A club rep·s registered team as the pulse sees it: enough to resolve its fee scope and phase.</summary>
 public record JobPulseClubRepTeam
 {
     public required Guid TeamId { get; init; }
     public required decimal OwedTotal { get; init; }
+    public required decimal PaidTotal { get; init; }
     /// <summary>Carries an ARB subscription id: its balance drips, a human does not pay it by hand.</summary>
     public required bool OnArb { get; init; }
     /// <summary>Sits in a WAITLIST agegroup: no fee until placed, so it never has a phase.</summary>

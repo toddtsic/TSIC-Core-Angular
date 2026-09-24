@@ -1251,7 +1251,7 @@ public class JobRepository : IJobRepository
             var teams = await _context.Teams
                 .AsNoTracking()
                 .Where(t => t.ClubrepRegistrationid == regId)
-                .Select(t => new { t.TeamId, t.OwedTotal, t.ViPolicyId, t.AdnSubscriptionId, AgegroupName = t.Agegroup.AgegroupName })
+                .Select(t => new { t.TeamId, t.OwedTotal, t.PaidTotal, t.ViPolicyId, t.AdnSubscriptionId, AgegroupName = t.Agegroup.AgegroupName })
                 .ToListAsync(cancellationToken);
 
             // In-event club name lives on the rep's Registrations row (the library's name is a
@@ -1280,6 +1280,7 @@ public class JobRepository : IJobRepository
                 {
                     TeamId = t.TeamId,
                     OwedTotal = t.OwedTotal ?? 0m,
+                    PaidTotal = t.PaidTotal ?? 0m,
                     OnArb = t.AdnSubscriptionId != null,
                     IsWaitlisted = AgegroupConstants.IsWaitlist(t.AgegroupName),
                 }).ToList(),

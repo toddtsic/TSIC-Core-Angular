@@ -18,7 +18,7 @@ public static class ClubRepMoneyPhase
     public const string Balance = "balance";
     public const string Mixed = "mixed";
 
-    public readonly record struct Verdict(string? Phase, decimal DueLater);
+    public readonly record struct Verdict(string? Phase, decimal DueLater, decimal DepositPaid);
 
     /// <param name="teams">The rep's registered teams as the pulse read them.</param>
     /// <param name="feesByTeamId">Resolved fee per team (team → agegroup → league cascade).</param>
@@ -27,11 +27,12 @@ public static class ClubRepMoneyPhase
         IReadOnlyDictionary<Guid, ResolvedFee> feesByTeamId)
     {
         var payable = teams.Where(t => !t.OnArb && !t.IsWaitlisted).ToList();
-        if (payable.Count == 0) return new Verdict(null, 0m);
+        if (payable.Count == 0) return new Verdict(null, 0m, 0m);
 
         var depositPhase = 0;
         var balancePhase = 0;
         var dueLater = 0m;
+        var depositPaid = 0m;
         foreach (var t in payable)
         {
             var fee = feesByTeamId.GetValueOrDefault(t.TeamId);
@@ -49,6 +50,7 @@ public static class ClubRepMoneyPhase
             {
                 depositPhase++;
                 dueLater += fee!.EffectiveBalanceDue;
+                depositPaid += t.PaidTotal;
             }
         }
 
@@ -59,6 +61,6 @@ public static class ClubRepMoneyPhase
             (0, > 0) => Balance,
             _ => Mixed,
         };
-        return new Verdict(phase, dueLater);
+        return new Verdict(phase, dueLater, depositPaid);
     }
 }

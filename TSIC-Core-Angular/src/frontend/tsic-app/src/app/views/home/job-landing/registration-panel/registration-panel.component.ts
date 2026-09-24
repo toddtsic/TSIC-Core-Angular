@@ -231,17 +231,9 @@ export class RegistrationPanelComponent {
 	// owed totals and per-scope phases the Teams step footer sums, so the two agree by construction.
 	protected readonly repDueNow = computed(() => this.pulse()?.myClubRepNonArbOwed ?? 0);
 	protected readonly repDueLater = computed(() => this.pulse()?.myClubRepDueLater ?? 0);
+	protected readonly repDepositPaid = computed(() => this.pulse()?.myClubRepDepositPaid ?? 0);
 	// "single" | "deposit" | "balance" | "mixed" | null (no payable teams).
 	protected readonly repPhase = computed(() => this.pulse()?.myClubRepPhase ?? null);
-	// The status-line chip. Null for a single-phase job: no phase to name.
-	protected readonly repPhaseLabel = computed(() => {
-		switch (this.repPhase()) {
-			case 'deposit': return 'Deposit phase';
-			case 'balance': return 'Balance phase';
-			case 'mixed': return 'Deposit & balance phases';
-			default: return null;
-		}
-	});
 	protected readonly repShowPay = computed(() => this.repDueNow() > 0);
 	// The phase word beside the amount on the door.
 	protected readonly repDueWord = computed(() => {
@@ -251,7 +243,8 @@ export class RegistrationPanelComponent {
 			default: return 'due now';
 		}
 	});
-	// Status-line money, only when the door is absent. 'later' = deposit paid, balance to come.
+	// Status-line money, only when the door is absent. 'later' = "$X deposit paid · $Y due later":
+	// the phase is said by the sentence, never by a chip (Todd 2026-09-23).
 	protected readonly repMoney = computed<{ tone: 'ok' | 'auto' | 'later'; label: string } | null>(() => {
 		const p = this.pulse();
 		if (this.repDueNow() > 0) return null;

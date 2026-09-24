@@ -29,23 +29,19 @@
 										<i class="bi bi-check-circle-fill" aria-hidden="true"></i>
 										<strong>{{ repTeamCount() }}</strong>&nbsp;{{ repTeamCount() === 1 ? 'team' : 'teams' }} registered
 									</span>
-									@if (repPhaseLabel(); as phase) {
-									<span class="rp__rep-sep" aria-hidden="true">·</span>
-									<span class="rp__rep-fact rp__rep-fact--phase">
-										<i class="bi bi-signpost-split" aria-hidden="true"></i>{{ phase }}
-									</span>
-									}
 									@if (repMoney(); as money) {
 									<span class="rp__rep-sep" aria-hidden="true">·</span>
 									<span class="rp__rep-fact"
 										[class.rp__rep-fact--ok]="money.tone === 'ok' || money.tone === 'later'"
 										[class.rp__rep-fact--auto]="money.tone === 'auto'">
 										@switch (money.tone) {
-											@case ('ok') { <i class="bi bi-check-circle-fill" aria-hidden="true"></i> }
-											@case ('later') { <i class="bi bi-check-circle-fill" aria-hidden="true"></i> }
-											@case ('auto') { <i class="bi bi-calendar-event" aria-hidden="true"></i> }
-										}{{ money.label }}
-										@if (money.tone === 'later') { <span class="rp__rep-later">&middot; {{ repDueLater() | currency }} later</span> }
+											@case ('ok') { <i class="bi bi-check-circle-fill" aria-hidden="true"></i>{{ money.label }} }
+											@case ('auto') { <i class="bi bi-calendar-event" aria-hidden="true"></i>{{ money.label }} }
+											@case ('later') {
+												<i class="bi bi-check-circle-fill" aria-hidden="true"></i>{{ repDepositPaid() | currency:'USD':'symbol':'1.0-2' }} deposit paid
+												<span class="rp__rep-later">&middot; {{ repDueLater() | currency:'USD':'symbol':'1.0-2' }} due later</span>
+											}
+										}
 									</span>
 									}
 								}
@@ -66,7 +62,7 @@
 								<i class="bi bi-cash-stack rp__link-icon" aria-hidden="true"></i>
 								<span class="rp__link-text">
 									<strong>Pay Balance Due</strong>
-									<small>{{ repDueNow() | currency }} {{ repDueWord() }}@if (repPhase() === 'deposit' && repDueLater() > 0) { &middot; {{ repDueLater() | currency }} later }@if (repPhase() === 'mixed') { &middot; deposits and balances }</small>
+									<small>{{ repDueNow() | currency:'USD':'symbol':'1.0-2' }} {{ repDueWord() }}@if (repPhase() === 'deposit' && repDueLater() > 0) { &middot; {{ repDueLater() | currency:'USD':'symbol':'1.0-2' }} due later }@if (repPhase() === 'mixed') { &middot; deposits and balances }</small>
 								</span>
 								<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
 							</a>

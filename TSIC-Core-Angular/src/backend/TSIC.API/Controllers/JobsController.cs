@@ -346,7 +346,7 @@ public class JobsController : ControllerBase
                             var fees = await _feeService.ResolveFeesByTeamIdsAsync(
                                 repJobId.Value, RoleConstants.ClubRep, ctx.ClubRepTeams.Select(t => t.TeamId).ToList(), ct);
                             var verdict = ClubRepMoneyPhase.Compose(ctx.ClubRepTeams, fees);
-                            pulse = pulse with { MyClubRepPhase = verdict.Phase, MyClubRepDueLater = verdict.DueLater };
+                            pulse = pulse with { MyClubRepPhase = verdict.Phase, MyClubRepDueLater = verdict.DueLater, MyClubRepDepositPaid = verdict.DepositPaid };
                         }
                     }
 
