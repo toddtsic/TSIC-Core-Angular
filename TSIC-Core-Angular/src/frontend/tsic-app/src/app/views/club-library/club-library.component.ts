@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router } from '@angular/router';
-import type { AgeGroupDto, ClubTeamDto, ClubTeamEventHistoryDto, RegisteredTeamDto, TeamsMetadataResponse } from '@core/api';
+import type { ClubTeamDto, ClubTeamEventHistoryDto, RegisteredTeamDto, TeamsMetadataResponse } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
@@ -11,21 +10,13 @@ import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared
 import { formatLop } from '@shared/teams/lop-choices';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { TeamFormModalComponent } from '@views/registration/team/steps/team-form-modal.component';
-import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear } from '@views/registration/team/components/event-age-group.util';
-import { RegisterTeamDialogComponent, type RegisterTeamPick } from './register-team-dialog.component';
 
-/** A library team's relationship to THIS event — the status column, never inferred by the template. */
-export type LibraryRowStatus = 'registered' | 'waitlisted' | 'dropped' | 'available' | 'outside' | 'closed';
-
-/** One row of the library table: the library entry plus everything the page knows about it here. */
+/** One row of the library table: the library entry plus what the page knows about it. */
 export interface LibraryRow {
     team: ClubTeamDto;
-    status: LibraryRowStatus;
-    /** This event's copy when registered or waitlisted here (the unregister / rename target). */
+    /** This event's copy when registered or waitlisted here — a LOCK input (archive/delete/rename), never a column. */
     registered: RegisteredTeamDto | null;
-    /** This event's copy when a director dropped it — history, not a live entry. */
-    dropped: RegisteredTeamDto | null;
-    /** Other events this team has been registered in, newest first. This event is excluded. */
+    /** Every event this team has been registered for, THIS event first, then newest first. */
     history: ClubTeamEventHistoryDto[];
 }
 
@@ -35,21 +26,23 @@ type PendingRename =
     | { origin: 'library'; team: ClubTeamDto };
 
 /**
- * Club Team Library — the club rep's standalone home for their library, independent of
- * registering for an event. The wizard's fly-in is a picker inside a registration; this
- * page is the library itself: every team, its status for THIS event, where else it has
- * played, and every housekeeping action on every row (the fly-in hides the kebab on
- * registered rows; here it never does).
+ * Club Team Library — the club's list of teams, and NOTHING about registering for the event
+ * the rep happens to be signed in to. Todd 2026-09-24: "you are updating your list of team
+ * options available when you register, you are not registering here". The wizard's fly-in is
+ * the registration surface; this page is the list's home: every team, every event it has been
+ * registered for (this one is just a highlighted chip), and every housekeeping action on every
+ * row (the fly-in hides the kebab on registered rows; here it never does).
  *
- * Job-scoped by ruling (Todd, 2026-09-22): auth is job-scoped, so status is for the event
- * the rep is signed in to, and history is cross-event. The data comes from the same two
- * reads the wizard uses (metadata) plus one history endpoint; every mutation goes through
- * the same service calls, so the two surfaces can never disagree about what a team is.
+ * Job-scoped by ruling (Todd, 2026-09-22): auth is job-scoped, so the page still knows this
+ * event — it uses that only to lock archive/delete on a team registered here and to offer the
+ * rename dialog its event-copy option. The data comes from the same metadata read the wizard
+ * uses plus one history endpoint; every mutation goes through the same service calls, so the
+ * two surfaces can never disagree about what a team is.
  */
 @Component({
     selector: 'app-club-library',
     standalone: true,
-    imports: [ConfirmDialogComponent, TeamRenameConfirmComponent, TeamFormModalComponent, RegisterTeamDialogComponent],
+    imports: [ConfirmDialogComponent, TeamRenameConfirmComponent, TeamFormModalComponent],
     templateUrl: './club-library.component.html',
     styleUrl: './club-library.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,7 +52,6 @@ export class ClubLibraryComponent implements OnInit {
     private readonly toast = inject(ToastService);
     private readonly jobService = inject(JobService);
     private readonly pulseService = inject(JobPulseService);
-    private readonly router = inject(Router);
     private readonly destroyRef = inject(DestroyRef);
 
     /** Same org-prefix strip as the wizard, so the page names the event the way the wizard does. */
@@ -77,15 +69,11 @@ export class ClubLibraryComponent implements OnInit {
         return club ? `${club}'s` : "Your club's";
     });
 
-    // Capability flags — the SAME three rules TeamWizardStateService derives, from the same pulse.
-    readonly canRegister = computed(() => {
-        const p = this.pulseService.pulse();
-        return !!p && p.teamRegistrationOpen && p.clubRepAllowAdd;
-    });
-    readonly canRemove = computed(() => {
-        const p = this.pulseService.pulse();
-        return !!p && p.teamRegistrationOpen && p.clubRepAllowDelete;
-    });
+    /**
+     * The director's Allow Edit for THIS event still gates Edit details here (doc tests I2/I3).
+     * Same rule TeamWizardStateService derives, from the same pulse. Flagged 2026-09-24 as the
+     * one place the event still reaches into the library; kept pending Todd's ruling.
+     */
     readonly canEdit = computed(() => {
         const p = this.pulseService.pulse();
         return !!p && p.teamRegistrationOpen && p.clubRepAllowEdit;
@@ -95,11 +83,9 @@ export class ClubLibraryComponent implements OnInit {
     readonly error = signal<string | null>(null);
     readonly actionInProgress = signal(false);
     readonly clubName = signal('');
-    readonly ageGroups = signal<AgeGroupDto[]>([]);
 
     private readonly _clubTeams = signal<ClubTeamDto[]>([]);
     private readonly _registered = signal<RegisteredTeamDto[]>([]);
-    private readonly _dropped = signal<RegisteredTeamDto[]>([]);
     private readonly _history = signal<ClubTeamEventHistoryDto[]>([]);
 
     private readonly registeredByClubTeam = computed(() => {
@@ -108,39 +94,27 @@ export class ClubLibraryComponent implements OnInit {
         return map;
     });
 
-    private readonly droppedByClubTeam = computed(() => {
-        const map = new Map<number, RegisteredTeamDto>();
-        for (const r of this._dropped()) if (r.clubTeamId != null) map.set(r.clubTeamId, r);
-        return map;
-    });
-
-    /** History grouped per team, THIS event removed (its row is the status column). */
+    /** History grouped per team, THIS event pinned first — it is a chip like any other, only highlighted. */
     private readonly historyByClubTeam = computed(() => {
         const here = this.jobPath().toLowerCase();
         const map = new Map<number, ClubTeamEventHistoryDto[]>();
         for (const h of this._history()) {
-            if (h.jobPath.toLowerCase() === here) continue;
             const list = map.get(h.clubTeamId) ?? [];
-            list.push(h);
+            if (h.jobPath.toLowerCase() === here) list.unshift(h); else list.push(h);
             map.set(h.clubTeamId, list);
         }
         return map;
     });
 
-    private readonly oldestOffered = computed(() => resolveOldestOfferedGradYear(this.ageGroups()));
-
     private buildRow(team: ClubTeamDto): LibraryRow {
-        const registered = this.registeredByClubTeam().get(team.clubTeamId) ?? null;
-        const dropped = this.droppedByClubTeam().get(team.clubTeamId) ?? null;
-        let status: LibraryRowStatus;
-        if (registered) status = registered.isWaitlisted ? 'waitlisted' : 'registered';
-        else if (dropped) status = 'dropped';
-        else if (!this.canRegister()) status = 'closed';
-        else status = isTeamOfferedAtEvent(this.oldestOffered(), team.clubTeamGradYear) ? 'available' : 'outside';
-        return { team, status, registered, dropped, history: this.historyByClubTeam().get(team.clubTeamId) ?? [] };
+        return {
+            team,
+            registered: this.registeredByClubTeam().get(team.clubTeamId) ?? null,
+            history: this.historyByClubTeam().get(team.clubTeamId) ?? [],
+        };
     }
 
-    /** Active library, alphabetical — the status column carries the grouping the fly-in does by section. */
+    /** Active library, alphabetical. */
     readonly rows = computed<LibraryRow[]>(() =>
         this._clubTeams()
             .filter(t => !t.bArchived)
@@ -154,8 +128,6 @@ export class ClubLibraryComponent implements OnInit {
             .sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName))
             .map(t => this.buildRow(t)),
     );
-
-    readonly availableCount = computed(() => this.rows().filter(r => r.status === 'available').length);
 
     /**
      * Short event names that two different jobs share ("Summer 2027" at LFTC and at Lax By The
@@ -183,13 +155,10 @@ export class ClubLibraryComponent implements OnInit {
     readonly expandedHistory = signal<ReadonlySet<number>>(new Set());
     readonly historyPreviewCount = 3;
 
-    readonly registering = signal<ClubTeamDto | null>(null);
-    readonly registerError = signal<string | null>(null);
     readonly pendingRename = signal<PendingRename | null>(null);
     readonly renameError = signal<string | null>(null);
     readonly editingTeam = signal<ClubTeamDto | null>(null);
     readonly showAddModal = signal(false);
-    readonly pendingUnregister = signal<RegisteredTeamDto | null>(null);
     readonly pendingDelete = signal<ClubTeamDto | null>(null);
     readonly pendingArchive = signal<ClubTeamDto | null>(null);
     readonly pendingRestore = signal<ClubTeamDto | null>(null);
@@ -198,13 +167,6 @@ export class ClubLibraryComponent implements OnInit {
 
     ngOnInit(): void {
         this.load(true);
-    }
-
-    // ── Navigation ─────────────────────────────────────────────────────
-    goToRegistration(step: 'teams' | 'payment' = 'teams'): void {
-        const jobPath = this.jobPath();
-        if (!jobPath) return;
-        this.router.navigateByUrl(`/${jobPath}/registration/team?step=${step}`);
     }
 
     // ── Kebab ──────────────────────────────────────────────────────────
@@ -226,7 +188,11 @@ export class ClubLibraryComponent implements OnInit {
         this.expandedHistory.set(next);
     }
 
-    /** Event label for a history chip — org prefix stripped, same as the page's own event name. */
+    /** The chip for the event the rep is signed in to — highlighted, never a column. */
+    isHere(h: ClubTeamEventHistoryDto): boolean {
+        return h.jobPath.toLowerCase() === this.jobPath().toLowerCase();
+    }
+
     /** "Summer 2027", or "LFTC Summer 2027" when another organizer ran a "Summer 2027" too. */
     eventLabel(h: ClubTeamEventHistoryDto): string {
         const tail = this.eventTail(h.jobName);
@@ -264,84 +230,14 @@ export class ClubLibraryComponent implements OnInit {
         if (row.team.bHasBeenScheduled) return 'Has event history';
         return null;
     }
+    // A registration is named as a fact ("Registered for the Fall Rodeo 2026"), never as "here".
     archiveLockReason(row: LibraryRow): string | null {
-        return row.registered ? 'Registered for this event' : null;
+        return row.registered ? `Registered for the ${this.eventName()}` : null;
     }
     deleteLockReason(row: LibraryRow): string | null {
         if (row.team.bHasEventRegistrations) return 'Use Archive — registered for an event';
-        if (row.registered) return 'Registered for this event';
+        if (row.registered) return `Registered for the ${this.eventName()}`;
         return null;
-    }
-    registerLockReason(row: LibraryRow): string | null {
-        if (row.registered) return 'Already registered';
-        if (row.dropped) return 'Dropped by the director';
-        if (!this.canRegister()) return 'Registration is closed';
-        return null;
-    }
-    unregisterLockReason(row: LibraryRow): string | null {
-        if (!row.registered) return 'Not registered here';
-        if (!this.canRemove()) return 'Removal closed by the director';
-        if (row.registered.paidTotal > 0) return 'Payment received — contact the event';
-        return null;
-    }
-
-    // ── Register ───────────────────────────────────────────────────────
-    openRegister(row: LibraryRow): void {
-        this.closeMenu();
-        if (this.registerLockReason(row)) return;
-        this.registerError.set(null);
-        this.registering.set(row.team);
-    }
-
-    confirmRegister(pick: RegisterTeamPick): void {
-        this.registerError.set(null);
-        this.actionInProgress.set(true);
-        this.teamReg.registerTeamForEvent({
-            clubTeamId: pick.team.clubTeamId,
-            ageGroupId: pick.ageGroupId,
-            teamName: pick.team.clubTeamName,
-            clubTeamGradYear: pick.team.clubTeamGradYear,
-            levelOfPlay: pick.levelOfPlay || pick.team.clubTeamLevelOfPlay || undefined,
-        })
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: (resp) => {
-                    // A rejected registration never lands here: the API answers it with
-                    // HTTP 400, which HttpClient routes to `error:` below.
-                    this.registering.set(null);
-                    const msg = resp.isWaitlisted
-                        ? `${pick.team.clubTeamName} waitlisted for ${(resp.waitlistAgegroupName ?? '').replace(/^\s*WAITLIST\s*-\s*/i, '').trim() || 'the waitlist'}`
-                        : `${pick.team.clubTeamName} registered for the ${this.eventName()}!`;
-                    this.load(false, () => this.toast.show(msg, resp.isWaitlisted ? 'warning' : 'success', 3000));
-                },
-                error: (err: unknown) => {
-                    this.actionInProgress.set(false);
-                    this.registerError.set(extractHttpErrorMessage(err, 'Failed to register team.'));
-                },
-            });
-    }
-
-    // ── Unregister (this event only) ───────────────────────────────────
-    askUnregister(row: LibraryRow): void {
-        this.closeMenu();
-        if (this.unregisterLockReason(row) || !row.registered) return;
-        this.pendingUnregister.set(row.registered);
-    }
-
-    confirmUnregister(): void {
-        const team = this.pendingUnregister();
-        if (!team) return;
-        this.pendingUnregister.set(null);
-        this.actionInProgress.set(true);
-        this.teamReg.unregisterTeamFromEvent(team.teamId)
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: () => this.load(false, () => this.toast.show(`${team.teamName} removed from the ${this.eventName()}.`, 'success', 3000)),
-                error: (err: unknown) => {
-                    this.actionInProgress.set(false);
-                    this.toast.show(extractHttpErrorMessage(err, 'Failed to remove team.'), 'danger', 5000);
-                },
-            });
     }
 
     // ── Rename (two-place dialog, same as the wizard) ──────────────────
@@ -486,7 +382,7 @@ export class ClubLibraryComponent implements OnInit {
     // ── Load ───────────────────────────────────────────────────────────
 
     /**
-     * Two sequential reads: metadata (library + this event), then history. Releases
+     * Two sequential reads: metadata (library + this event's registrations, for the locks), then history. Releases
      * actionInProgress only once BOTH have landed, for the same reason the wizard holds it
      * — a control re-enabled while the old rows are still on screen invites a double click.
      * `onLoaded` (a success toast) runs after the new state is rendered, never before.
@@ -502,8 +398,6 @@ export class ClubLibraryComponent implements OnInit {
                     this.clubName.set(meta.clubName || '');
                     this._clubTeams.set(meta.clubTeams || []);
                     this._registered.set(meta.registeredTeams || []);
-                    this._dropped.set(meta.droppedTeams || []);
-                    this.ageGroups.set(meta.ageGroups || []);
                     this.teamReg.getClubTeamHistory()
                         .pipe(takeUntilDestroyed(this.destroyRef))
                         .subscribe({
