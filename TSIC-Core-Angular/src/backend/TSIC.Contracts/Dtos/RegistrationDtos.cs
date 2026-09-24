@@ -25,17 +25,18 @@ namespace TSIC.Contracts.Dtos
     /// event's: a rep whose every event has expired still owns a list to maintain. Null when the
     /// account has never been a club rep.
     /// </summary>
+    /// <summary>
+    /// The role-select screen's Club Team Library door. Describes the LIBRARY (club, teams in the list),
+    /// never an event: the club rep is choosing "maintain my list", not an event. RegId/JobPath/JobLogo
+    /// are only what select-club-library mints the token against.
+    /// </summary>
     public record ClubLibraryDoorDto
     {
         public required string RegId { get; init; }
         public required string JobPath { get; init; }
-        public required string JobName { get; init; }
         public required string JobLogo { get; init; }
         public string? ClubName { get; init; }
-        public DateTime? EventStartDate { get; init; }
-        public DateTime? EventEndDate { get; init; }
-        /// <summary>True when this registration is also offered as a row on the picker (job not expired).</summary>
-        public required bool IsCurrent { get; init; }
-        public int TeamCount { get; init; }
+        /// <summary>Active Clubs.ClubTeams rows in the rep's library.</summary>
+        public required int LibraryTeamCount { get; init; }
     }
 }

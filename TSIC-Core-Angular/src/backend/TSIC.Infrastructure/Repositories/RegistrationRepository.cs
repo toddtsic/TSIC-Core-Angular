@@ -367,17 +367,24 @@ public partial class RegistrationRepository : IRegistrationRepository
             // The most recently LIVE registration: a job still inside its ExpiryUsers window beats
             // one that expired, and among expired jobs the latest to expire wins.
             orderby (now < j.ExpiryUsers) descending, j.ExpiryUsers descending, j.EventStartDate descending
+            // The club shown is the one the library page itself will resolve to: the membership whose
+            // club name matches the registration's (ClubRepRepository.ResolveClubForClubRepRegistrationAsync
+            // does the same match), else the rep's first club. 46 dev reps belong to more than one club.
             select new ClubLibraryDoorDto
             {
                 RegId = r.RegistrationId.ToString(),
                 JobPath = j.JobPath,
-                JobName = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                ClubName = _context.ClubReps.Where(cr => cr.ClubRepUserId == userId).Select(cr => cr.Club.ClubName).FirstOrDefault(),
-                EventStartDate = j.EventStartDate,
-                EventEndDate = j.EventEndDate,
-                IsCurrent = now < j.ExpiryUsers,
-                TeamCount = _context.Teams.Count(t => t.ClubrepRegistrationid == r.RegistrationId)
+                ClubName = _context.ClubReps
+                    .Where(cr => cr.ClubRepUserId == userId)
+                    .OrderBy(cr => cr.Club.ClubName == r.ClubName ? 0 : 1).ThenBy(cr => cr.Aid)
+                    .Select(cr => cr.Club.ClubName)
+                    .FirstOrDefault(),
+                LibraryTeamCount = _context.ClubTeams.Count(ct => ct.Active && ct.ClubId == _context.ClubReps
+                    .Where(cr => cr.ClubRepUserId == userId)
+                    .OrderBy(cr => cr.Club.ClubName == r.ClubName ? 0 : 1).ThenBy(cr => cr.Aid)
+                    .Select(cr => cr.ClubId)
+                    .FirstOrDefault())
             }
         ).AsNoTracking().FirstOrDefaultAsync(cancellationToken);
     }
