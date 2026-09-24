@@ -11,7 +11,7 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
 /**
  * Modal for editing an existing library team (when `editingTeam` is supplied), or
  * adding one to the library WITHOUT registering it. Edit mode is only ever opened
- * for teams whose `bHasBeenScheduled` is false — the library UI enforces that
+ * when shared/teams/club-team-locks.ts allows it — the library UI enforces that
  * upstream.
  *
  * Add mode is now the exception, not the rule: while registration is open the

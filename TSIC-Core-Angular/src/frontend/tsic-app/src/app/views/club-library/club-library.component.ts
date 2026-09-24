@@ -8,6 +8,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
 import { formatLop } from '@shared/teams/lop-choices';
+import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { TeamFormModalComponent } from '@views/registration/team/steps/team-form-modal.component';
 
@@ -224,21 +225,15 @@ export class ClubLibraryComponent implements OnInit {
         return alias;
     }
 
-    // ── Lock reasons — mirror the fly-in so the two surfaces never disagree ──
-    editLockReason(row: LibraryRow): string | null {
-        if (!this.canEdit()) return 'Editing closed by the director';
-        if (row.team.bHasBeenScheduled) return 'Has event history';
-        return null;
+    // ── Lock reasons — the shared rules (shared/teams/club-team-locks.ts), so this page and the
+    //    fly-in can never disagree. Here a registration is named as a fact ("Registered for the
+    //    Fall Rodeo 2026"), never as "here".
+    private lockContext(row: LibraryRow): ClubTeamLockContext {
+        return { registeredHere: !!row.registered, canEdit: this.canEdit(), eventLabel: `the ${this.eventName()}` };
     }
-    // A registration is named as a fact ("Registered for the Fall Rodeo 2026"), never as "here".
-    archiveLockReason(row: LibraryRow): string | null {
-        return row.registered ? `Registered for the ${this.eventName()}` : null;
-    }
-    deleteLockReason(row: LibraryRow): string | null {
-        if (row.team.bHasEventRegistrations) return 'Use Archive — registered for an event';
-        if (row.registered) return `Registered for the ${this.eventName()}`;
-        return null;
-    }
+    editLockReason(row: LibraryRow): string | null { return clubTeamEditLockReason(row.team, this.lockContext(row)); }
+    archiveLockReason(row: LibraryRow): string | null { return clubTeamArchiveLockReason(this.lockContext(row)); }
+    deleteLockReason(row: LibraryRow): string | null { return clubTeamDeleteLockReason(row.team, this.lockContext(row)); }
 
     // ── Rename (two-place dialog, same as the wizard) ──────────────────
     openRename(row: LibraryRow): void {

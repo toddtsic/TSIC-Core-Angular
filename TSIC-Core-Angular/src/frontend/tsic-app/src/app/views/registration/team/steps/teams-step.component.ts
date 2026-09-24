@@ -12,6 +12,7 @@ import { AddAndRegisterTeamModalComponent } from './add-and-register-team-modal.
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { LibraryFlyinComponent, type RegisterRequest, type RegisteredInfo } from '../components/library-flyin.component';
 import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
+import { clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear } from '../components/event-age-group.util';
@@ -1054,10 +1055,14 @@ export class TeamTeamsStepComponent implements OnInit {
         this._pendingLibraryOnly.set(new Set());
     }
 
-    /** Open the shared modal in edit mode for a library team (no event history only). */
+    /** Last-line guard behind the fly-in's edit emit: the SAME shared rule the fly-in's menu applied. */
     openEditModal(team: ClubTeamDto): void {
-        if (team.bHasBeenScheduled) return;
+        if (clubTeamEditLockReason(team, this.lockContext(team))) return;
         this.editingTeam.set(team);
+    }
+
+    private lockContext(team: ClubTeamDto): ClubTeamLockContext {
+        return { registeredHere: this.isEnteredTeam(team.clubTeamId), canEdit: this.canEditTeam(), eventLabel: 'this event' };
     }
 
     onTeamEdited(): void {
@@ -1161,9 +1166,9 @@ export class TeamTeamsStepComponent implements OnInit {
             });
     }
 
-    /** Mirrors the server's delete guard: any event reference, in any job, blocks it. */
+    /** Last-line guard behind the fly-in's delete emit: the SAME shared rule (any event reference blocks it). */
     askDeleteTeam(team: ClubTeamDto): void {
-        if (team.bHasEventRegistrations) return;
+        if (clubTeamDeleteLockReason(team, this.lockContext(team))) return;
         this.pendingDelete.set(team);
     }
 

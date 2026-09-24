@@ -2,6 +2,7 @@ import { AfterViewChecked, AfterViewInit, ChangeDetectionStrategy, Component, El
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { formatLop, normalizeLop } from '@shared/teams/lop-choices';
+import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, clubTeamRenameLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
 import { EventAgeGroupPickerComponent } from './event-age-group-picker.component';
 import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear, resolveRecommendedAgeGroupId } from './event-age-group.util';
@@ -2598,55 +2599,19 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
         this.cancelRegister();
     }
 
-    /** Returns the lock reason for Edit, or null if available. Library edit is pre-registration
-     *  housekeeping only (the ⋯ menu shows on unregistered teams); once a team has event history its
-     *  identity is fixed — a registered team is renamed for the event from Registered Teams. */
     /**
-     * Renaming a Club Team Library entry has NO lock at all — not event history, and NOT the
-     * director's Allow Edit toggle. The library is the rep's own cross-event list and renaming in it
-     * is their decision, independent of any one event (Todd's ruling, 2026-08-18); one director
-     * switching Allow Edit off must not lock a rep out of a list that isn't about that event.
-     * A typo they can never fix would otherwise follow them forever or push them into adding a
-     * duplicate entry — the fragmentation the library exists to prevent. The dialog's opt-in
-     * "use it for this event too" IS an event write, and that half still answers to the toggle.
+     * Lock reasons for the ⋯ menu.
+     * The rules and their reasons live in shared/teams/club-team-locks.ts — the SAME functions the
+     * library page's kebab calls, so the two menus can never disagree. Rulings are documented there.
+     * Inside the wizard the current event is "this event".
      */
-    renameLockReason(): string | null {
-        return null;
+    private lockContext(registered: boolean): ClubTeamLockContext {
+        return { registeredHere: registered, canEdit: this.canEdit(), eventLabel: 'this event' };
     }
-
-    /** Details = grad year + level of play (and the name, pre-registration). Those carry the squad's
-     *  identity, so they stay locked once the team has played. Name alone goes through Rename. */
-    editLockReason(team: ClubTeamDto): string | null {
-        if (!this.canEdit()) return 'Editing closed by the director';
-        if (team.bHasBeenScheduled) return 'Has event history';
-        return null;
-    }
-
-    /**
-     * Returns the lock reason for Archive, or null if available.
-     *
-     * Archive is a visibility flag: the team leaves the active list for the Archived section and
-     * Restore brings it back. Nothing is destroyed, so schedule history is NOT a gate here (it was,
-     * and it stranded every team that had registered for an event but never been put on a game).
-     */
-    archiveLockReason(registered: boolean): string | null {
-        if (registered) return 'Registered for this event';
-        return null;
-    }
-
-    /**
-     * Returns the lock reason for Delete, or null if available.
-     *
-     * Gated on bHasEventRegistrations — the SAME fact DeleteClubTeamAsync refuses on (any Teams row,
-     * any job). It was gated on bHasBeenScheduled, which is narrower: a team that registered for an
-     * event but never reached a game read as deletable here and was rejected by the server, with a
-     * message naming an event the rep could not see from this screen.
-     */
-    deleteLockReason(team: ClubTeamDto, registered: boolean): string | null {
-        if (team.bHasEventRegistrations) return 'Use Archive — registered for an event';
-        if (registered) return 'Registered for this event';
-        return null;
-    }
+    renameLockReason(): string | null { return clubTeamRenameLockReason(); }
+    editLockReason(team: ClubTeamDto): string | null { return clubTeamEditLockReason(team, this.lockContext(false)); }
+    archiveLockReason(registered: boolean): string | null { return clubTeamArchiveLockReason(this.lockContext(registered)); }
+    deleteLockReason(team: ClubTeamDto, registered: boolean): string | null { return clubTeamDeleteLockReason(team, this.lockContext(registered)); }
 
     handleMenuRename(team: ClubTeamDto): void {
         this.closeMenu();
