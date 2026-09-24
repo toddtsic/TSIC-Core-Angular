@@ -9,7 +9,7 @@ import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsM
 import { Query } from '@syncfusion/ej2-data';
 import { SuggestedEventsModalComponent } from './suggested-events-modal.component';
 import { displayRoleName } from '@infrastructure/constants/roles.constants';
-import type { RegistrationDto, RegistrationRoleDto, ClubLibraryDoorDto } from '@core/api';
+import type { RegistrationDto, RegistrationRoleDto } from '@core/api';
 
 /** One picker row: the API registration plus everything the two renderings need pre-derived.
  *  The API offers only AVAILABLE registrations (job inside its ExpiryUsers window), so there is
@@ -74,50 +74,12 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   readonly isLoading = computed(() => this.authService.registrationsLoading() || this.selectingRole());
   readonly errorMessage = computed(() => this.authService.registrationsError() ?? this.authService.selectError());
   readonly username = computed(() => this.authService.currentUser()?.username ?? '');
-  /**
-   * The standalone Club Team Library door, and the switch that turns this page into the club
-   * rep's fork. Non-null ONLY when the account holds a Clubs.ClubReps row — the one sure test
-   * that a login is a club rep (ruling: Todd 2026-09-23, "if you can't be sure then you cannot
-   * have ctl library button"). Present even when the picker is empty because every event has
-   * expired: the library is the club's list, not an event's.
-   */
-  readonly clubLibraryDoor = signal<ClubLibraryDoorDto | null>(null);
-  /** The door request has answered (with a door or without). Nothing below the hero renders before it. */
-  readonly doorResolved = signal(false);
-  readonly ready = computed(() => this.doorResolved() && !this.authService.registrationsLoading());
-
-  /**
-   * CLUB REP ONLY: which of the three things the rep came to do. Only 'registrations' continues to
-   * the picker; 'library' is an action (openClubLibrary), 'new' reveals an inline panel. Every
-   * other login has no fork — the picker is the page.
-   */
-  readonly intent = signal<'registrations' | 'new' | null>(null);
-  readonly showPicker = computed(() =>
-    !this.authService.registrationsError()
-    && (!this.clubLibraryDoor() || this.intent() === 'registrations')
+  readonly noRegistrationsAvailable = computed(() =>
+    !this.isLoading()
+    && !this.errorMessage()
+    && !this.authService.registrationsLoading()
+    && this.registrations().length === 0
   );
-
-  chooseIntent(which: 'registrations' | 'new'): void {
-    this.intent.set(this.intent() === which ? null : which);
-  }
-
-  private readonly registrationCount = computed(() =>
-    this.registrations().reduce((n, g) => n + g.roleRegistrations.length, 0)
-  );
-
-  libraryCountLabel(n: number): string {
-    return n === 0 ? 'no teams in your list yet' : `${n} ${n === 1 ? 'team' : 'teams'} in your list`;
-  }
-
-  readonly registrationCountLabel = computed(() => {
-    const n = this.registrationCount();
-    return n === 0 ? 'No current registrations' : `${n} current ${n === 1 ? 'event' : 'events'}`;
-  });
-
-  readonly newEventLabel = computed(() => {
-    const n = this.suggestedEvents().length;
-    return n === 0 ? "Start from the event's website" : `${n} suggested ${n === 1 ? 'event' : 'events'}`;
-  });
   /**
    * True iff the account holds at least one registration in a class that the
    * "suggested events" pivot serves — Family (Player) or ClubRep. Backend
@@ -196,24 +158,6 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     });
   });
 
-  openClubLibrary(): void {
-    if (this.selectingRole()) return;
-    this.selectingRole.set(true);
-    this.authService.selectClubLibrary().subscribe({
-      next: () => {
-        this.menuState.requestCloseAllMenus();
-        const user = this.authService.getCurrentUser();
-        if (user?.jobPath) {
-          const routePath = user.jobPath.startsWith('/') ? user.jobPath : '/' + user.jobPath;
-          this.router.navigateByUrl(`${routePath}/club/library`);
-        } else {
-          this.selectingRole.set(false);
-        }
-      },
-      error: () => this.selectingRole.set(false),
-    });
-  }
-
   /** Local UI signal for selection in progress */
   readonly selectingRole = signal(false);
 
@@ -240,11 +184,6 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     // Trigger fetch
     this.authService.loadAvailableRegistrations();
     this.authService.loadSuggestedEvents();
-    // Independent of the role list on purpose: the door must render even when that list is empty.
-    this.authService.getClubLibraryDoor().subscribe({
-      next: door => { this.clubLibraryDoor.set(door); this.doorResolved.set(true); },
-      error: () => { this.clubLibraryDoor.set(null); this.doorResolved.set(true); },
-    });
   }
 
   @ViewChildren(DropDownListComponent) readonly dropdowns!: QueryList<DropDownListComponent>;

@@ -8,13 +8,8 @@
 
             <div class="auth-hero">
               <img src="favicon.svg" alt="" aria-hidden="true" class="auth-hero-icon" />
-              @if (clubLibraryDoor()) {
-              <h2 id="select-role-title" class="auth-hero-title">What would you like to do?</h2>
-              <p class="auth-hero-subtitle">Choose one to continue.</p>
-              } @else {
               <h2 id="select-role-title" class="auth-hero-title">Open a Registration</h2>
               <p class="auth-hero-subtitle">Pick one of your existing registrations to continue.</p>
-              }
               @if (username()) {
               <span class="username-badge">
                 <i class="bi bi-person-fill"></i>
@@ -29,7 +24,7 @@
             </div>
             }
 
-            @if (!ready()) {
+            @if (isLoading() && !registrations().length) {
             <div class="text-center py-5">
               <output class="d-block" aria-live="polite">
                 <div class="spinner-border text-primary mb-3" aria-label="Loading registrations">
@@ -38,76 +33,10 @@
                 <p class="text-muted mb-0">Loading your registrations...</p>
               </output>
             </div>
-            } @else {
-
-            <!-- CLUB REP ONLY (the account holds a Clubs.ClubReps row): the fork. Three intents,
-                 one sentence each, asked BEFORE any event is named. Only the second one continues
-                 to the picker; the first is the standalone Club Team Library, the third has no
-                 destination inside this app. Every other login goes straight to the picker. -->
-            @if (clubLibraryDoor(); as door) {
-            <div class="intent-list" role="group" aria-label="What would you like to do">
-              <button type="button" class="intent-card" [disabled]="isLoading()" (click)="openClubLibrary()">
-                <i class="bi bi-collection intent-icon" aria-hidden="true"></i>
-                <span class="intent-body">
-                  <span class="intent-title">Maintain my Club Team Library</span>
-                  <span class="intent-sub">
-                    @if (door.clubName) { <strong>{{ door.clubName }}</strong> &middot; }
-                    {{ libraryCountLabel(door.libraryTeamCount) }}
-                  </span>
-                </span>
-                <i class="bi bi-arrow-right intent-arrow" aria-hidden="true"></i>
-              </button>
-
-              <button type="button" class="intent-card" [class.is-open]="intent() === 'registrations'"
-                [attr.aria-expanded]="intent() === 'registrations'" aria-controls="intent-registrations"
-                [disabled]="isLoading()" (click)="chooseIntent('registrations')">
-                <i class="bi bi-pencil-square intent-icon" aria-hidden="true"></i>
-                <span class="intent-body">
-                  <span class="intent-title">Update a current registration</span>
-                  <span class="intent-sub">{{ registrationCountLabel() }}</span>
-                </span>
-                <i class="bi intent-arrow" [class.bi-chevron-down]="intent() !== 'registrations'"
-                  [class.bi-chevron-up]="intent() === 'registrations'" aria-hidden="true"></i>
-              </button>
-
-              <button type="button" class="intent-card" [class.is-open]="intent() === 'new'"
-                [attr.aria-expanded]="intent() === 'new'" aria-controls="intent-new"
-                [disabled]="isLoading()" (click)="chooseIntent('new')">
-                <i class="bi bi-plus-circle intent-icon" aria-hidden="true"></i>
-                <span class="intent-body">
-                  <span class="intent-title">Register for a new event</span>
-                  <span class="intent-sub">{{ newEventLabel() }}</span>
-                </span>
-                <i class="bi intent-arrow" [class.bi-chevron-down]="intent() !== 'new'"
-                  [class.bi-chevron-up]="intent() === 'new'" aria-hidden="true"></i>
-              </button>
-            </div>
-
-            @if (intent() === 'new') {
-            <div id="intent-new" class="intent-panel" role="region" aria-label="Register for a new event">
-              @if (hasSuggestedEvents()) {
-              <p class="intent-panel-text">
-                Events you may be looking for, based on where you've registered before:
-              </p>
-              <button type="button" class="role-pivot-link" (click)="openSuggestedEventsModal()">
-                Show {{ suggestedEvents().length }}
-                {{ suggestedEvents().length === 1 ? 'suggested event' : 'suggested events' }}
-                <i class="bi bi-arrow-right" aria-hidden="true"></i>
-              </button>
-              }
-              <p class="intent-panel-text mb-0">
-                To register for any other event, click <strong>Logout</strong> below, then visit that event's
-                website and start a new registration there. The teams in your Club Team Library will be waiting
-                in the registration wizard.
-              </p>
-            </div>
-            }
             }
 
-            @if (showPicker()) {
-            <div id="intent-registrations" [class.intent-panel]="clubLibraryDoor()">
-            @if (registrations().length > 0) {
-            @if (!clubLibraryDoor() && hasSuggestableRegistration() && hasSuggestedEvents()) {
+            @if (registrations() && registrations().length > 0) {
+            @if (hasSuggestableRegistration() && hasSuggestedEvents()) {
             <p class="role-pivot">
               Looking to register for a new event?
               <button type="button" class="role-pivot-link" (click)="openSuggestedEventsModal()">
@@ -190,20 +119,21 @@
                 <i class="bi bi-chevron-right role-card-arrow" aria-hidden="true"></i>
               </button>
             </ng-template>
-            @if (!clubLibraryDoor() && hasSuggestableRegistration()) {
+            @if (hasSuggestableRegistration()) {
             <div class="tsic-callout tsic-callout--info tsic-callout--block role-pivot-footnote" role="note">
               <i class="bi bi-info-circle" aria-hidden="true"></i>
               <span>Don't see the event you're looking for? Events appear here only after you've
                 registered for them. To register for a new event, start from that event's website.</span>
             </div>
             }
-            } @else {
+            }
+
+            @if (noRegistrationsAvailable()) {
             <div class="empty-roles" role="status">
               <i class="bi bi-info-circle empty-roles-icon" aria-hidden="true"></i>
-              <h3 class="empty-roles-title">No current registrations on this account</h3>
+              <h3 class="empty-roles-title">No active registrations on this account</h3>
               <p class="empty-roles-message">
                 <span class="d-block">This account isn't currently registered for any event.</span>
-                @if (!clubLibraryDoor()) {
                 @if (hasSuggestedEvents()) {
                 <span class="d-block mt-2">
                   <button type="button" class="role-pivot-link" (click)="openSuggestedEventsModal()">
@@ -218,12 +148,8 @@
                   website and start a new registration there.
                 </span>
                 }
-                }
               </p>
             </div>
-            }
-            </div>
-            }
             }
           </div>
         </div>

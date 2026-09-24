@@ -49,7 +49,7 @@
 <p><strong>Integrated CTL</strong> is the library fly-in inside Team Registration, on the Teams step. The rep is mid-registration; the fly-in shows the same library grouped by what fits this event, so the rep picks a team and registers it without leaving the wizard. Maintenance is there too (kebab on each row), but registering is what it is for.</p>
 <h3>Reaching the Standalone CTL</h3>
 <ul>
-<li><strong>Login / role select screen, the first choice on the club rep's fork.</strong> A club rep's sign-in asks <em>What would you like to do?</em> and offers three choices: <strong>Maintain my Club Team Library</strong>, <strong>Update a current registration</strong>, <strong>Register for a new event</strong>. The first opens the library. This fork appears only for an account that belongs to a club (a club membership row on file), and it appears even when the account has no current registrations. Any other account never sees it: their sign-in is the role picker alone.</li>
+<li><strong>Login / role select screen.</strong> There is no library door here. A club rep picks an event row and reaches the library inside that event. The role list offers only available events (inside the director's user-expiry window); there is no past-events group.</li>
 <li><strong>Tournament job site, landing page rep card</strong>: the <strong>Club Team Library</strong> door.</li>
 <li><strong>Tournament job site, header user menu</strong>: <strong>Club Team Library</strong>, on every page.</li>
 <li><strong>From the Integrated CTL</strong>: the fly-in's header link <strong>Manage full library →</strong>.</li>
@@ -62,13 +62,7 @@
 </ul>
 <h2>The club rep's screens</h2>
 <h3>Screen 1 — Sign-in role picker</h3>
-<p>A club rep's sign-in opens on a fork, not on the role list. Three choices, one sentence each:</p>
-<ul>
-<li><strong>Maintain my Club Team Library</strong> shows the club name and how many teams are in the list, and opens the library page.</li>
-<li><strong>Update a current registration</strong> shows how many current events the account is registered for, and unfolds the role picker beneath it.</li>
-<li><strong>Register for a new event</strong> unfolds the suggested events (when there are any) and the instruction to start from the event's website.</li>
-</ul>
-<p>The role picker offers only available events (inside the director's user-expiry window); there is no past-events group. Each Club Rep row shows the event's dates and how many teams are registered there, and the event the rep came from is tagged <strong>this event</strong>. With a few registrations the picker is a list of cards; with many it is a search box. Clicking a row opens that event's landing page. An account that does not belong to a club never sees the fork: its sign-in is the role picker alone.</p>
+<p>Each Club Rep row shows the event's dates and how many teams the rep has registered there. The role list offers only available events (inside the director's user-expiry window); there is no past-events group. The event the rep came from is tagged <strong>this event</strong>. With a few registrations the picker is a list of cards; with many it is a search box. Clicking a row opens that event's landing page. There is no Library button on a row and no library door on this screen: the library is reached inside the event.</p>
 <h3>Screen 2 — Event landing page, rep card</h3>
 <p>The landing page shows a card for the rep: club name, number of registered teams, and a money line reading <strong>Nothing due now</strong>, <strong>Balance due</strong> or <strong>Auto-pay scheduled</strong>. It never says "paid in full". Doors: <strong>Team Registration</strong> (reads <strong>Register Teams</strong> when the rep has zero teams), <strong>Pay Balance Due</strong> (only when money is due), <strong>Edit My Rosters</strong>, <strong>Club Team Library</strong>, <strong>Add Team RegSaver</strong>. A rep with zero teams sees <strong>No teams registered yet</strong>. Some events have no registration panel on their landing page; there the rep uses the header user menu.</p>
 <h3>Screen 3 — Team Registration › Teams step</h3>
@@ -79,7 +73,7 @@
 <p>Opens from <strong>Register Another Team</strong> on the Teams step. A right-hand drawer with a pinned <strong>Registered</strong> strip at the top, then groups <strong>Available for This Event</strong> (library teams that fit an age group here), <strong>Outside Event Age Groups</strong>, <strong>Archived</strong> (collapsed) and <strong>Dropped</strong>. Each row has a kebab: <strong>Rename team</strong>, <strong>Edit details</strong>, <strong>Archive team</strong>, <strong>Delete team</strong>. Locked items show the reason on hover. The header link <strong>Manage full library →</strong> opens the Club Team Library page.</p>
 <p><strong>Add a New Team</strong> opens the <strong>Add &amp; Register a Team</strong> modal (titled <strong>Register Your First Team</strong> when the library is empty): name, grad year, level of play, then age group. The primary button is <strong>Register Team for this Event</strong>. A secondary link <strong>Save to library only — NOT registered for &lt;event&gt;</strong> saves without registering and shows a warning toast. A team saved that way is tinted in the drawer with a <strong>Not registered yet</strong> pill. Closing the drawer while one exists shows an interstitial: <strong>Register it now</strong> or <strong>Leave it</strong>. The modal refuses a duplicate name. It shows a soft nudge when the name is only a year, such as <code>2028</code>; the nudge never blocks.</p>
 <h3>Screen 5 — Club Team Library page</h3>
-<p>Reached from the header user menu <strong>Club Team Library</strong>, the rep card door, the sign-in fork's <strong>Maintain my Club Team Library</strong>, or the fly-in header link. One row per library team:</p>
+<p>Reached from the header user menu <strong>Club Team Library</strong>, the rep card door, or the fly-in header link. One row per library team:</p>
 <ul>
 <li><strong>Team</strong>: name, grad, LOP.</li>
 <li><strong>This event</strong>: Registered with age group / Waitlisted / Dropped / a Register button / Closed.</li>
@@ -102,12 +96,10 @@
 <h2>Club rep tests</h2>
 <h3>A. Sign-in role picker</h3>
 <ul>
-<li><input type="checkbox"> A1. Signing in as a club rep (<code>primeaulacrosse</code>) opens on <em>What would you like to do?</em> with three choices, and no role list yet.</li>
-<li><input type="checkbox"> A2. <strong>Maintain my Club Team Library</strong> names the club and counts the teams in the list, and opens the Club Team Library page.</li>
-<li><input type="checkbox"> A3. <strong>Update a current registration</strong> counts the current events and unfolds the role picker; clicking it again folds the picker away. Club Rep rows show event dates and a team count; the event you arrived from is tagged <strong>this event</strong>; there is no Past group and no Library button on any row.</li>
-<li><input type="checkbox"> A4. <strong>Register for a new event</strong> unfolds the suggested events (if any) and the start-from-the-event-website instruction.</li>
-<li><input type="checkbox"> A5. Signing in as a director or a player (an account that belongs to no club) shows the role picker alone: no fork, no library choice.</li>
-<li><input type="checkbox"> A6. On a club rep account with many registrations (search-box picker), the picker still works under the fork.</li>
+<li><input type="checkbox"> A1. Club Rep rows show event dates and a team count. There is no Past group, no Library button on any row, and no library door anywhere on the screen.</li>
+<li><input type="checkbox"> A2. The event you arrived from is tagged <strong>this event</strong>.</li>
+<li><input type="checkbox"> A3. Clicking a Club Rep row opens that event's landing page.</li>
+<li><input type="checkbox"> A4. On an account with many registrations (search-box picker), the same holds.</li>
 </ul>
 <h3>B. Event landing rep card (<code>primeaulacrosse</code>, lftc-fallshowcase-2026)</h3>
 <ul>

@@ -31,7 +31,7 @@ The Club Team Library exists in two forms. Same library, same teams, same rules;
 
 ### Reaching the Standalone CTL
 
-- **Login / role select screen, the first choice on the club rep's fork.** A club rep's sign-in asks *What would you like to do?* and offers three choices: **Maintain my Club Team Library**, **Update a current registration**, **Register for a new event**. The first opens the library. This fork appears only for an account that belongs to a club (a club membership row on file), and it appears even when the account has no current registrations. Any other account never sees it: their sign-in is the role picker alone.
+- **Login / role select screen.** There is no library door here. A club rep picks an event row and reaches the library inside that event. The role list offers only available events (inside the director's user-expiry window); there is no past-events group.
 - **Tournament job site, landing page rep card**: the **Club Team Library** door.
 - **Tournament job site, header user menu**: **Club Team Library**, on every page.
 - **From the Integrated CTL**: the fly-in's header link **Manage full library →**.
@@ -46,13 +46,7 @@ The Club Team Library exists in two forms. Same library, same teams, same rules;
 
 ### Screen 1 — Sign-in role picker
 
-A club rep's sign-in opens on a fork, not on the role list. Three choices, one sentence each:
-
-- **Maintain my Club Team Library** shows the club name and how many teams are in the list, and opens the library page.
-- **Update a current registration** shows how many current events the account is registered for, and unfolds the role picker beneath it.
-- **Register for a new event** unfolds the suggested events (when there are any) and the instruction to start from the event's website.
-
-The role picker offers only available events (inside the director's user-expiry window); there is no past-events group. Each Club Rep row shows the event's dates and how many teams are registered there, and the event the rep came from is tagged **this event**. With a few registrations the picker is a list of cards; with many it is a search box. Clicking a row opens that event's landing page. An account that does not belong to a club never sees the fork: its sign-in is the role picker alone.
+Each Club Rep row shows the event's dates and how many teams the rep has registered there. The role list offers only available events (inside the director's user-expiry window); there is no past-events group. The event the rep came from is tagged **this event**. With a few registrations the picker is a list of cards; with many it is a search box. Clicking a row opens that event's landing page. There is no Library button on a row and no library door on this screen: the library is reached inside the event.
 
 ### Screen 2 — Event landing page, rep card
 
@@ -74,7 +68,7 @@ Opens from **Register Another Team** on the Teams step. A right-hand drawer with
 
 ### Screen 5 — Club Team Library page
 
-Reached from the header user menu **Club Team Library**, the rep card door, the sign-in fork's **Maintain my Club Team Library**, or the fly-in header link. One row per library team:
+Reached from the header user menu **Club Team Library**, the rep card door, or the fly-in header link. One row per library team:
 
 - **Team**: name, grad, LOP.
 - **This event**: Registered with age group / Waitlisted / Dropped / a Register button / Closed.
@@ -100,12 +94,10 @@ History is events only. There are no win-loss records anywhere in the library. T
 
 ### A. Sign-in role picker
 
-- [ ] A1. Signing in as a club rep (`primeaulacrosse`) opens on *What would you like to do?* with three choices, and no role list yet.
-- [ ] A2. **Maintain my Club Team Library** names the club and counts the teams in the list, and opens the Club Team Library page.
-- [ ] A3. **Update a current registration** counts the current events and unfolds the role picker; clicking it again folds the picker away. Club Rep rows show event dates and a team count; the event you arrived from is tagged **this event**; there is no Past group and no Library button on any row.
-- [ ] A4. **Register for a new event** unfolds the suggested events (if any) and the start-from-the-event-website instruction.
-- [ ] A5. Signing in as a director or a player (an account that belongs to no club) shows the role picker alone: no fork, no library choice.
-- [ ] A6. On a club rep account with many registrations (search-box picker), the picker still works under the fork.
+- [ ] A1. Club Rep rows show event dates and a team count. There is no Past group, no Library button on any row, and no library door anywhere on the screen.
+- [ ] A2. The event you arrived from is tagged **this event**.
+- [ ] A3. Clicking a Club Rep row opens that event's landing page.
+- [ ] A4. On an account with many registrations (search-box picker), the same holds.
 
 ### B. Event landing rep card (`primeaulacrosse`, lftc-fallshowcase-2026)
 
