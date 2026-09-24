@@ -7,6 +7,7 @@ import { TeamSearchService } from '../teams/services/team-search.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { formatLop } from '@shared/teams/lop-choices';
+import { collapseHistoryPerEvent } from '@shared/teams/club-team-history';
 
 /** Quick filters over the rep list. Each answers one director question. */
 type RepFilter = 'all' | 'zero' | 'unregistered' | 'owing';
@@ -132,7 +133,8 @@ export class DirectorClubRepsComponent {
         this.panelLoading.set(true);
         this.searchService.getClubRepLibrary(rep.registrationId).subscribe({
             next: lib => {
-                this.library.set(lib);
+                // One chip per event, same collapse as the rep's library page.
+                this.library.set(lib ? { ...lib, teams: lib.teams.map(t => ({ ...t, otherEvents: collapseHistoryPerEvent(t.otherEvents) })) } : lib);
                 this.panelLoading.set(false);
             },
             error: err => {

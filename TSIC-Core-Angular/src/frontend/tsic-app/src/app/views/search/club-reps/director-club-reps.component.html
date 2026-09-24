@@ -264,7 +264,7 @@
                     @let expanded = expandedHistory().has(team.clubTeamId);
                     @let shown = expanded ? team.otherEvents : team.otherEvents.slice(0, historyPreviewCount);
                     <ul class="history-list">
-                      @for (h of shown; track h.teamId) {
+                      @for (h of shown; track h.jobId) {
                         <li class="history-chip" [class.history-chip--dropped]="h.isDropped" [class.history-chip--wl]="h.isWaitlisted && !h.isDropped">
                           <span class="history-event">{{ eventLabel(h) }}</span>
                           @if (eventAlias(team, h.eventTeamName); as alias) { <span class="history-as" [attr.title]="'Registered there as ' + alias">as {{ alias }}</span> }

@@ -7,6 +7,7 @@ import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error
 import { ToastService } from '@shared-ui/toast.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { formatLop } from '@shared/teams/lop-choices';
+import { collapseHistoryPerEvent } from '@shared/teams/club-team-history';
 import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, clubTeamRemoval, type ClubTeamLockContext, type ClubTeamRemoval } from '@shared/teams/club-team-locks';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { TeamFormModalComponent } from '@views/registration/team/steps/team-form-modal.component';
@@ -87,6 +88,8 @@ export class ClubLibraryComponent implements OnInit {
             if (h.jobPath.toLowerCase() === here) list.unshift(h); else list.push(h);
             map.set(h.clubTeamId, list);
         }
+        // One chip per event: a job with several Teams rows for this team keeps its best one.
+        for (const [id, list] of map) map.set(id, collapseHistoryPerEvent(list));
         return map;
     });
 
