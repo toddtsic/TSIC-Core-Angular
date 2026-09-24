@@ -72,12 +72,14 @@
           <span class="field-label">Allow Add</span>
         </label>
       </div>
-      <!-- What each switch actually gates (matches JobRegistrationCapabilities on the server). Renaming
-           a team for THIS event is not gated here — it is always open to the rep. -->
+      <!-- What each switch actually gates (matches JobRegistrationCapabilities on the server). These
+           switches govern the EVENT copy of a team — what appears in this job's schedule. The rep's
+           Club Team Library (their own list: names, grad years, levels of play) is never gated here
+           (Todd, 2026-09-24). Renaming a team for THIS event is not gated either. -->
       <ul class="perm-help">
         <li><strong>Allow Edit</strong> — the rep can change a registered team's age group and level of play
-          for this event, and edit a library team's details (grad year, level of play) until it has played.
-          Off: the rep sees "Editing closed by the director".</li>
+          for this event. Off: the rep sees "Editing closed by the director". The rep's Club Team Library
+          is theirs to edit either way; nothing there changes this event.</li>
         <li><strong>Allow Delete</strong> — the rep can unregister an unpaid team from this event. A team with a
           payment on it is never removable by the rep, on or off.</li>
         <li><strong>Allow Add</strong> — the rep can register teams here (from their library or new). Off: the

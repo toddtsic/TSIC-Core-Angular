@@ -14,12 +14,25 @@ import type { ClubTeamDto } from '@core/api';
  * these mirror it so a rep never clicks a door the server slams.
  */
 
+/**
+ * THE DISTINCTION (Todd 2026-09-24, "must be absolutely clear"):
+ *
+ *   The LIBRARY row — name, grad year, level of play on the club's list — is the rep's. No director
+ *   toggle reaches it and no event history freezes it. Every event registration took its own copy
+ *   at registration time, so a library edit rewrites nothing in any job's schedule, past or future.
+ *
+ *   The EVENT copy — the name, age group and level of play that appear in THIS job's schedule — is
+ *   the director's domain. That is what Allow Edit / Allow Add / Allow Delete govern, and those
+ *   rules live with the Teams step, not here.
+ *
+ * The old "one team through time" locks (edit frozen once scheduled) guarded an identity model the
+ * library no longer promises: "you want to rename it in your library, go ahead, have at it."
+ */
+
 /** What the rules need to know beyond the row itself. */
 export interface ClubTeamLockContext {
     /** The row has a live registration (registered or waitlisted) for the event the rep is signed in to. */
     registeredHere: boolean;
-    /** The director's Allow Edit for this event, AND team registration is open. */
-    canEdit: boolean;
     /**
      * How the reasons name the current event: "this event" inside the wizard, "the Fall Rodeo 2026"
      * on the library page, where "here" would be the very ambiguity that page exists to remove.
@@ -28,24 +41,20 @@ export interface ClubTeamLockContext {
 }
 
 /**
- * Renaming a library entry has NO lock at all — not event history, and NOT the director's Allow
- * Edit toggle. The library is the rep's own cross-event list and renaming in it is their decision,
- * independent of any one event (Todd's ruling, 2026-08-18); one director switching Allow Edit off
- * must not lock a rep out of a list that isn't about that event. The rename dialog's opt-in "use it
- * for this event too" IS an event write, and that half still answers to the toggle.
+ * Rename: never locked. Todd's ruling of 2026-08-18, restated 2026-09-24. The rename dialog's
+ * opt-in "use it for this event too" IS an event write, and that half answers to the director's
+ * toggle inside the dialog, not here.
  */
 export function clubTeamRenameLockReason(): string | null {
     return null;
 }
 
 /**
- * Details = grad year + level of play (and the name, pre-registration). Those carry the squad's
- * identity, so they stay locked once the team has played. Name alone goes through Rename.
- * Mirrors UpdateClubTeamAsync, which refuses a scheduled team.
+ * Edit details (grad year, level of play): never locked. Same ruling as rename, 2026-09-24.
+ * UpdateClubTeamAsync dropped its schedule refusal the same day. The function stays so every
+ * caller keeps asking one place; the `team` argument stays for the day a rule needs it.
  */
-export function clubTeamEditLockReason(team: ClubTeamDto, ctx: ClubTeamLockContext): string | null {
-    if (!ctx.canEdit) return 'Editing closed by the director';
-    if (team.bHasBeenScheduled) return 'Has event history';
+export function clubTeamEditLockReason(_team: ClubTeamDto, _ctx: ClubTeamLockContext): string | null {
     return null;
 }
 

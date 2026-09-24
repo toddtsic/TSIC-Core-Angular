@@ -53,7 +53,7 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 - An age group with no fee set up refuses with **Registration fees for this age group haven't been set up yet. Please contact the event organizer.**
 - A waitlisted team has no fee until it is placed.
 - A dropped team stays visible as Dropped. The rep cannot re-register it; the director handles it.
-- A team that has been scheduled at any event cannot have its grad year or level of play edited. Its name can still be renamed.
+- A library team's name, grad year and level of play can always be edited by the rep, played or not. Every event registration keeps its own copy, so a library edit changes nothing in any event's schedule. The director's Allow Edit governs the event copy only.
 - A registered team cannot be archived or deleted. A team with any event registration ever cannot be deleted, only archived.
 - A team with a payment on it cannot be removed from the event by the rep.
 - Typing a URL or opening a bookmark starts a fresh session and asks for login. F5 keeps the session.
@@ -148,8 +148,8 @@ The director sees every club rep who signed in to the event, including reps who 
 ### I. Configure › Job Settings › Teams › Club Rep Permissions
 
 - [ ] I1. The help list under the three checkboxes is present and reads correctly.
-- [ ] I2. Turn **Allow Edit** off, save. As `primeaulacrosse`: the Teams step pencil is visible but greyed, tooltip **Editing closed by the director**. Fly-in kebab › Edit details and the library page's Edit button are locked with the same words.
-- [ ] I3. With Allow Edit still off, library **Rename team** in the kebab still works. Expected: rename is not gated by Allow Edit.
+- [ ] I2. Turn **Allow Edit** off, save. As `primeaulacrosse`: the Teams step pencil is visible but greyed, tooltip **Editing closed by the director**. Fly-in kebab › Edit details and the library page's Edit button stay open: Allow Edit governs the event copy only, never the library.
+- [ ] I3. With Allow Edit still off, library **Rename** and **Edit** still work on the library page and in the fly-in kebab. Expected: the library is never gated by Allow Edit.
 - [ ] I4. Turn **Allow Delete** off, save. As the rep: **Remove from this event** is locked with **Removal closed by the director**.
 - [ ] I5. Turn **Allow Add** off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page is unchanged: it never offered registration.
 - [ ] I6. Turn all three back on, save. Everything reopens.

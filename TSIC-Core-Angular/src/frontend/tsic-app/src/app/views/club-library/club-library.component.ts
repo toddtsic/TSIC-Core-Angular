@@ -71,9 +71,9 @@ export class ClubLibraryComponent implements OnInit {
     });
 
     /**
-     * The director's Allow Edit for THIS event still gates Edit details here (doc tests I2/I3).
-     * Same rule TeamWizardStateService derives, from the same pulse. Flagged 2026-09-24 as the
-     * one place the event still reaches into the library; kept pending Todd's ruling.
+     * The director's Allow Edit for THIS event. It governs the EVENT copy only — here that is the
+     * rename dialog's "use it for this event too" half. It never gates a library edit (Todd,
+     * 2026-09-24: the library is the rep's list; the toggle is about this job's schedule).
      */
     readonly canEdit = computed(() => {
         const p = this.pulseService.pulse();
@@ -221,7 +221,7 @@ export class ClubLibraryComponent implements OnInit {
     //    fly-in can never disagree. Here a registration is named as a fact ("Registered for the
     //    Fall Rodeo 2026"), never as "here".
     private lockContext(row: LibraryRow): ClubTeamLockContext {
-        return { registeredHere: !!row.registered, canEdit: this.canEdit(), eventLabel: `the ${this.eventName()}` };
+        return { registeredHere: !!row.registered, eventLabel: `the ${this.eventName()}` };
     }
     editLockReason(row: LibraryRow): string | null { return clubTeamEditLockReason(row.team, this.lockContext(row)); }
     archiveLockReason(row: LibraryRow): string | null { return clubTeamArchiveLockReason(this.lockContext(row)); }

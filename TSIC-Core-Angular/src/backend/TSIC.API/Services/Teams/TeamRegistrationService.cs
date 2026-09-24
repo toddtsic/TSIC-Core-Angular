@@ -1203,11 +1203,10 @@ public class TeamRegistrationService : ITeamRegistrationService
         if (!myClubs.Any(c => c.ClubId == entity.ClubId))
             throw new UnauthorizedAccessException("You do not have access to this team.");
 
-        // Lock if ever scheduled.
-        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
-        if (scheduledIds.Contains(clubTeamId))
-            throw new InvalidOperationException("This team has appeared on a schedule and can no longer be edited.");
-
+        // No schedule lock (Todd 2026-09-24: "allow edit regardless"). Grad year and level of play
+        // live on the library row only — every event registration carries its own copy, taken at
+        // registration time — so editing here rewrites no event, past or future. The old lock
+        // guarded an identity-through-time model the library no longer promises.
         var name = request.ClubTeamName.Trim();
         var gradYear = request.ClubTeamGradYear.Trim();
         var lop = request.ClubTeamLevelOfPlay.Trim();
@@ -1247,9 +1246,9 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         _logger.LogInformation("Updated ClubTeam {ClubTeamId} for user {UserId}", clubTeamId, userId);
 
-        // BHasBeenScheduled is false by construction — the guard above rejects scheduled teams.
-        // Registrations are NOT implied by that: an unscheduled team can still be referenced by an
-        // event, so this one is looked up rather than assumed.
+        // Both flags are looked up, not assumed: a scheduled team is editable now, and an
+        // unscheduled one can still be referenced by an event.
+        var updatedScheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
         var updatedHasRegistrations = await _clubTeams.HasAnyTeamRegistrationsAsync(clubTeamId);
         return new ClubTeamDto
         {
@@ -1257,7 +1256,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubTeamName = entity.ClubTeamName,
             ClubTeamGradYear = entity.ClubTeamGradYear,
             ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
-            BHasBeenScheduled = false,
+            BHasBeenScheduled = updatedScheduledIds.Contains(clubTeamId),
             BHasEventRegistrations = updatedHasRegistrations,
             BArchived = !entity.Active,
         };

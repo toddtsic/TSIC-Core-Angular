@@ -2370,9 +2370,8 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
     /** Director's per-event delete permission, already folded with the registration-open
      *  door by the parent. Gates the Remove trash can on the Registered strip. */
     readonly canRemove = input(false);
-    /** Director's per-event "Allow Edit" toggle, already folded with the eventConcluded door
-     *  (false on a concluded event regardless of the toggle). Gates the "Edit team" menu item. */
-    readonly canEdit = input(false);
+    // No canEdit input: the director's Allow Edit governs the EVENT copy (Teams step pencil), never
+    // a library edit. See shared/teams/club-team-locks.ts.
     readonly actionInProgress = input(false);
     readonly ageGroups = input<readonly AgeGroupDto[]>([]);
     /** Dev-only diagnostics toggle — surfaces ClubTeamId in the register expand.
@@ -2606,7 +2605,7 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
      * Inside the wizard the current event is "this event".
      */
     private lockContext(registered: boolean): ClubTeamLockContext {
-        return { registeredHere: registered, canEdit: this.canEdit(), eventLabel: 'this event' };
+        return { registeredHere: registered, eventLabel: 'this event' };
     }
     renameLockReason(): string | null { return clubTeamRenameLockReason(); }
     editLockReason(team: ClubTeamDto): string | null { return clubTeamEditLockReason(team, this.lockContext(false)); }

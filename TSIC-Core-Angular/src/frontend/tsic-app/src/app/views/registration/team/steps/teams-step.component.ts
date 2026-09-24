@@ -219,7 +219,6 @@ type PendingRename =
         [clubTeams]="allLibraryTeams()"
         [clubName]="clubName()"
         [canRegister]="canRegisterTeam()"
-        [canEdit]="canEditTeam()"
         [canRemove]="canRemoveTeam()"
         [actionInProgress]="actionInProgress()"
         [ageGroups]="ageGroups()"
@@ -1062,7 +1061,7 @@ export class TeamTeamsStepComponent implements OnInit {
     }
 
     private lockContext(team: ClubTeamDto): ClubTeamLockContext {
-        return { registeredHere: this.isEnteredTeam(team.clubTeamId), canEdit: this.canEditTeam(), eventLabel: 'this event' };
+        return { registeredHere: this.isEnteredTeam(team.clubTeamId), eventLabel: 'this event' };
     }
 
     onTeamEdited(): void {
