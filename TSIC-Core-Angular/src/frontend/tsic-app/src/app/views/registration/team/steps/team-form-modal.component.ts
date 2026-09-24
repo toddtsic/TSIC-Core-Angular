@@ -333,16 +333,6 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
         strong { font-weight: var(--font-weight-semibold); }
       }
 
-      .team-nudge {
-        background: color-mix(in srgb, var(--bs-info) 10%, var(--bs-body-bg));
-        border-color: var(--bs-info);
-        color: var(--brand-text);
-      }
-      .team-nudge-actions {
-        display: flex; flex-wrap: wrap; gap: var(--space-2);
-        margin-top: var(--space-2);
-      }
-
       .library-aside {
         display: flex;
         align-items: flex-start;
@@ -369,6 +359,18 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
           color: var(--brand-text);
           font-size: var(--font-size-sm);
         }
+      }
+
+      // The different-team nudge: a signpost, not a warning. Declared AFTER the base aside so
+      // it wins the cascade at equal specificity.
+      .library-aside.team-nudge {
+        background: color-mix(in srgb, var(--bs-info) 10%, var(--bs-body-bg));
+        border-color: var(--bs-info);
+        color: var(--brand-text);
+      }
+      .team-nudge-actions {
+        display: flex; flex-wrap: wrap; gap: var(--space-2);
+        margin-top: var(--space-2);
       }
 
       /* ── Footer ── */
