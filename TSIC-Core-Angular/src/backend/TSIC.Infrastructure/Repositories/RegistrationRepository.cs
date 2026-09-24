@@ -355,10 +355,15 @@ public partial class RegistrationRepository : IRegistrationRepository
             from r in _context.Registrations
             join j in _context.Jobs on r.JobId equals j.JobId
             join jdo in _context.JobDisplayOptions on j.JobId equals jdo.JobId
+            // THE GATE IS CLUB MEMBERSHIP (Clubs.ClubReps), not the registration. 3,309 accounts hold
+            // a club-rep registration; only 723 belong to a club, and the library hangs off the club.
+            // Ruling (Todd 2026-09-23): if we cannot be SURE the login is a club rep, no door. The
+            // registration below is only the identity the token is minted against (every member has
+            // one), so no BActive or ExpiryUsers filter on it.
             where
                 r.UserId == userId
-                && r.BActive == true
                 && r.RoleId == RoleConstants.ClubRep
+                && _context.ClubReps.Any(cr => cr.ClubRepUserId == userId)
             // The most recently LIVE registration: a job still inside its ExpiryUsers window beats
             // one that expired, and among expired jobs the latest to expire wins.
             orderby (now < j.ExpiryUsers) descending, j.ExpiryUsers descending, j.EventStartDate descending
@@ -368,7 +373,7 @@ public partial class RegistrationRepository : IRegistrationRepository
                 JobPath = j.JobPath,
                 JobName = j.JobName ?? string.Empty,
                 JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                ClubName = r.ClubName,
+                ClubName = _context.ClubReps.Where(cr => cr.ClubRepUserId == userId).Select(cr => cr.Club.ClubName).FirstOrDefault(),
                 EventStartDate = j.EventStartDate,
                 EventEndDate = j.EventEndDate,
                 IsCurrent = now < j.ExpiryUsers,
