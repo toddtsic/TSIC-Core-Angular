@@ -100,49 +100,26 @@
     gap: var(--space-4);
 }
 
-// One sentence about this event, success-railed when something is registered, warning
-// when nothing is (the wizard's no-show trap, restated here).
+// The nudge: library teams that fit an age group at this event and aren't registered.
+// Warning-toned because it is the wizard's no-show trap restated; it is the only event
+// sentence on the page (counts and payment live on Team Registration).
 .event-strip {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
-    border: 1px solid color-mix(in srgb, var(--bs-success) 30%, var(--bs-border-color));
+    border: 1px solid color-mix(in srgb, var(--bs-warning) 45%, var(--bs-border-color));
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--bs-success) 6%, var(--surface-elevated-bg));
-    box-shadow: inset 3px 0 0 0 var(--bs-success);
+    background: color-mix(in srgb, var(--bs-warning) 9%, var(--surface-elevated-bg));
+    box-shadow: inset 3px 0 0 0 var(--bs-warning);
     font-size: var(--font-size-sm);
     color: var(--brand-text);
 
     strong { font-weight: var(--font-weight-bold); }
 }
 
-.event-strip-icon { color: var(--bs-success); flex-shrink: 0; }
-.event-strip-sep { color: var(--brand-text-muted); }
-
-.event-strip--warn {
-    border-color: color-mix(in srgb, var(--bs-warning) 45%, var(--bs-border-color));
-    background: color-mix(in srgb, var(--bs-warning) 9%, var(--surface-elevated-bg));
-    box-shadow: inset 3px 0 0 0 var(--bs-warning);
-
-    .event-strip-icon { color: var(--bs-warning); }
-}
-
-.event-strip-link {
-    margin-left: auto;
-    border: none;
-    background: transparent;
-    color: var(--bs-primary);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-    cursor: pointer;
-    padding: 2px var(--space-2);
-    border-radius: var(--radius-sm);
-
-    &:hover { text-decoration: underline; }
-    &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-}
+.event-strip-icon { color: var(--bs-warning); flex-shrink: 0; }
 
 // ── Empty library ───────────────────────────────────────────────────
 .lib-empty {
@@ -189,6 +166,13 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--brand-text-muted);
+}
+
+// "THIS EVENT · Fall Rodeo at Rider University 2026": the label is the header, the name is a caption.
+.col-head-sub {
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: var(--font-weight-normal);
 }
 
 .lib-row {
@@ -323,13 +307,13 @@
     }
     &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
     &:disabled { opacity: 0.4; cursor: default; }
+}
 
-    // Outside the event's age groups: still registerable (ruling), but demoted.
-    &--quiet {
-        background: transparent;
-        border-color: var(--bs-border-color);
-        color: var(--brand-text-muted);
-    }
+// "No age group here" — a fact, not a call to action (the kebab still offers Register).
+.status-none {
+    font-size: var(--font-size-xs);
+    font-style: italic;
+    color: var(--brand-text-muted);
 }
 
 // History column
@@ -620,10 +604,7 @@
     .lib-menu { min-width: 260px; }
     .archived-hint { display: none; }
 
-    // One fact per line on a narrow strip; the inline dot separator has no job here.
-    .event-strip { flex-direction: column; align-items: flex-start; gap: var(--space-1); }
-    .event-strip-sep { display: none; }
-    .event-strip-link { margin-left: 0; padding-left: 0; }
+    .event-strip { align-items: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {

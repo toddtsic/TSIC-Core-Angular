@@ -5,9 +5,10 @@
       Club Team Library
       @if (clubName()) { <span class="title-club-badge">{{ clubName() }}</span> }
     </h2>
+    <!-- Library vs event, said once: the list belongs to the club; the event is one column of it. -->
     <p class="page-lede">
-      Every team your club has entered, once. Register any of them for the
-      <strong>{{ eventName() }}</strong> from its row &mdash; and see where else it has played.
+      <strong>{{ ledeOwner() }}</strong> list of teams. It belongs to the club, not to any event.
+      Add, rename, edit or archive teams here.
     </p>
   </div>
   <div class="page-header__actions">
@@ -36,26 +37,15 @@
 @if (!loading() && !error()) {
   <div class="library-content">
 
-    <!-- ── Status strip: one sentence about THIS event ─────────────────── -->
-    @if (rows().length > 0) {
-      <div class="event-strip" [class.event-strip--warn]="registeredCount() === 0 && canRegister()">
-        @if (registeredCount() > 0) {
-          <i class="bi bi-check-circle-fill event-strip-icon" aria-hidden="true"></i>
-          <span><strong>{{ registeredCount() }}</strong> of {{ rows().length }} registered for the {{ eventName() }}</span>
-        } @else if (canRegister()) {
-          <i class="bi bi-exclamation-triangle-fill event-strip-icon" aria-hidden="true"></i>
-          <span><strong>None</strong> of your {{ rows().length }} teams are registered for the {{ eventName() }} yet</span>
-        } @else {
-          <i class="bi bi-lock-fill event-strip-icon" aria-hidden="true"></i>
-          <span>Registration for the {{ eventName() }} is closed</span>
-        }
-        @if (availableCount() > 0 && canRegister()) {
-          <span class="event-strip-sep" aria-hidden="true">·</span>
-          <span>{{ availableCount() }} {{ availableCount() === 1 ? 'team fits' : 'teams fit' }} an age group here and {{ availableCount() === 1 ? "isn't" : "aren't" }} registered</span>
-        }
-        @if (registeredCount() > 0) {
-          <button type="button" class="event-strip-link" (click)="goToRegistration('payment')">Payment &rarr;</button>
-        }
+    <!-- ── Nudge: the one thing this page can tell a rep about THIS event that the
+         Team Registration page can't (counts and payment live there). ────── -->
+    @if (availableCount() > 0 && canRegister()) {
+      <div class="event-strip" role="status">
+        <i class="bi bi-info-circle-fill event-strip-icon" aria-hidden="true"></i>
+        <span>
+          <strong>{{ availableCount() }}</strong> library {{ availableCount() === 1 ? 'team fits' : 'teams fit' }}
+          an age group at the {{ eventName() }} and {{ availableCount() === 1 ? "isn't" : "aren't" }} registered
+        </span>
       </div>
     }
 
@@ -75,9 +65,9 @@
     @if (rows().length > 0) {
       <div class="lib-table" role="table" aria-label="Club team library">
         <div class="lib-head" role="row">
-          <span role="columnheader" class="col-team">Team</span>
-          <span role="columnheader" class="col-status">{{ eventName() }}</span>
-          <span role="columnheader" class="col-history">Other events</span>
+          <span role="columnheader" class="col-team">Library team</span>
+          <span role="columnheader" class="col-status">This event <span class="col-head-sub">&middot; {{ eventName() }}</span></span>
+          <span role="columnheader" class="col-history">Played at</span>
           <span role="columnheader" class="col-menu"><span class="visually-hidden">Actions</span></span>
         </div>
 
@@ -129,19 +119,18 @@
                   <button type="button" class="btn-register-cell" [disabled]="actionInProgress()" (click)="openRegister(row)">
                     <i class="bi bi-trophy-fill" aria-hidden="true"></i>Register
                   </button>
-                  <span class="status-detail">not registered · fits an age group here</span>
+                  <span class="status-detail">Not registered</span>
                 }
                 @case ('outside') {
-                  <button type="button" class="btn-register-cell btn-register-cell--quiet" [disabled]="actionInProgress()" (click)="openRegister(row)">
-                    <i class="bi bi-trophy" aria-hidden="true"></i>Register
-                  </button>
-                  <span class="status-detail">outside this event's age groups</span>
+                  <!-- No Register button on the row: the event offers no age group for this team.
+                       The kebab's "Register for this event" still can (ruling: outside is registerable). -->
+                  <span class="status-none">No age group here</span>
                 }
                 @case ('closed') {
                   <span class="status-pill status-pill--closed">
                     <i class="bi bi-lock-fill" aria-hidden="true"></i>Closed
                   </span>
-                  <span class="status-detail">not registered · registration is closed</span>
+                  <span class="status-detail">Not registered · registration is closed</span>
                 }
               }
             </div>
@@ -193,7 +182,7 @@
                   @let archiveLock = archiveLockReason(row);
                   @let deleteLock = deleteLockReason(row);
                   <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
-                    <div class="lib-menu-section">{{ eventName() }}</div>
+                    <div class="lib-menu-section">This event &middot; {{ eventName() }}</div>
                     <button type="button" class="lib-menu-item" role="menuitem" [disabled]="!!registerLock" (click)="openRegister(row)">
                       <i class="bi bi-trophy-fill lib-menu-icon" aria-hidden="true"></i>
                       <span class="lib-menu-label">Register for this event</span>
@@ -205,7 +194,7 @@
                       @if (unregisterLock) { <span class="lib-menu-reason">{{ unregisterLock }}</span> }
                     </button>
 
-                    <div class="lib-menu-section">Club Team Library</div>
+                    <div class="lib-menu-section">Library</div>
                     <button type="button" class="lib-menu-item" role="menuitem" (click)="openRename(row)">
                       <i class="bi bi-input-cursor-text lib-menu-icon" aria-hidden="true"></i>
                       <span class="lib-menu-label">Rename team</span>

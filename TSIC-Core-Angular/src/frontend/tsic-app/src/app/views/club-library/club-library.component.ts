@@ -71,6 +71,12 @@ export class ClubLibraryComponent implements OnInit {
 
     readonly jobPath = computed(() => this.jobService.currentJob()?.jobPath ?? '');
 
+    /** "STEPS Elite NJ's" / "Your club's" — the lede's subject. */
+    readonly ledeOwner = computed(() => {
+        const club = this.clubName().trim();
+        return club ? `${club}'s` : "Your club's";
+    });
+
     // Capability flags — the SAME three rules TeamWizardStateService derives, from the same pulse.
     readonly canRegister = computed(() => {
         const p = this.pulseService.pulse();
@@ -149,8 +155,26 @@ export class ClubLibraryComponent implements OnInit {
             .map(t => this.buildRow(t)),
     );
 
-    readonly registeredCount = computed(() => this.rows().filter(r => r.status === 'registered' || r.status === 'waitlisted').length);
     readonly availableCount = computed(() => this.rows().filter(r => r.status === 'available').length);
+
+    /**
+     * Short event names that two different jobs share ("Summer 2027" at LFTC and at Lax By The
+     * Sea). A chip carrying only the tail would read as the same event; those get the organizer
+     * back. Computed over the whole library, not per row, so the same event reads the same way
+     * on every row.
+     */
+    private readonly ambiguousEventTails = computed<ReadonlySet<string>>(() => {
+        const jobsByTail = new Map<string, Set<string>>();
+        for (const h of this._history()) {
+            const tail = this.eventTail(h.jobName).toLowerCase();
+            const jobs = jobsByTail.get(tail) ?? new Set<string>();
+            jobs.add(h.jobId);
+            jobsByTail.set(tail, jobs);
+        }
+        const out = new Set<string>();
+        for (const [tail, jobs] of jobsByTail) if (jobs.size > 1) out.add(tail);
+        return out;
+    });
 
     // ── UI state ───────────────────────────────────────────────────────
     readonly showArchived = signal(true);
@@ -203,9 +227,19 @@ export class ClubLibraryComponent implements OnInit {
     }
 
     /** Event label for a history chip — org prefix stripped, same as the page's own event name. */
+    /** "Summer 2027", or "LFTC Summer 2027" when another organizer ran a "Summer 2027" too. */
     eventLabel(h: ClubTeamEventHistoryDto): string {
+        const tail = this.eventTail(h.jobName);
+        if (!this.ambiguousEventTails().has(tail.toLowerCase())) return tail;
         const idx = h.jobName.indexOf(':');
-        return idx > 0 ? h.jobName.substring(idx + 1).trim() : h.jobName;
+        const org = idx > 0 ? h.jobName.substring(0, idx).trim() : '';
+        return org ? `${org} ${tail}` : tail;
+    }
+
+    /** Same org-prefix strip as eventName(), for a stored job name. */
+    private eventTail(jobName: string): string {
+        const idx = jobName.indexOf(':');
+        return idx > 0 ? jobName.substring(idx + 1).trim() : jobName;
     }
 
     /**
