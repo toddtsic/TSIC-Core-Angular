@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { CurrencyPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -48,7 +49,7 @@ interface ManageItem {
 @Component({
 	selector: 'app-registration-panel',
 	standalone: true,
-	imports: [RouterLink],
+	imports: [RouterLink, CurrencyPipe],
 	templateUrl: './registration-panel.component.html',
 	styleUrl: './registration-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -223,17 +224,41 @@ export class RegistrationPanelComponent {
 		const idx = raw.indexOf(':');
 		return idx > 0 ? raw.substring(idx + 1).trim() : raw;
 	});
-	// Money status WITHOUT an amount (the pulse aggregate can drift from what the payment
-	// page recomputes; the figure belongs on the destination). Phase-honest wording: in a
-	// deposit-phase event a paid deposit leaves owed = 0 while the balance is still to come,
-	// so this never says "paid in full" — "nothing due now" is true in every phase.
-	protected readonly repMoney = computed<{ tone: 'ok' | 'due' | 'auto'; label: string }>(() => {
+	// Money on the card (Todd 2026-09-23: a bare "Balance due" is misunderstood). The amount due by
+	// hand rides the Pay Balance Due door with its phase word; the status line names the phase
+	// only in a multi-phase job, and carries money only when there is no door: auto-pay, a paid
+	// deposit with the balance still to come, or nothing at all. The figures are the same per-team
+	// owed totals and per-scope phases the Teams step footer sums, so the two agree by construction.
+	protected readonly repDueNow = computed(() => this.pulse()?.myClubRepNonArbOwed ?? 0);
+	protected readonly repDueLater = computed(() => this.pulse()?.myClubRepDueLater ?? 0);
+	// "single" | "deposit" | "balance" | "mixed" | null (no payable teams).
+	protected readonly repPhase = computed(() => this.pulse()?.myClubRepPhase ?? null);
+	// The status-line chip. Null for a single-phase job: no phase to name.
+	protected readonly repPhaseLabel = computed(() => {
+		switch (this.repPhase()) {
+			case 'deposit': return 'Deposit phase';
+			case 'balance': return 'Balance phase';
+			case 'mixed': return 'Deposit & balance phases';
+			default: return null;
+		}
+	});
+	protected readonly repShowPay = computed(() => this.repDueNow() > 0);
+	// The phase word beside the amount on the door.
+	protected readonly repDueWord = computed(() => {
+		switch (this.repPhase()) {
+			case 'deposit': return 'deposit due now';
+			case 'balance': return 'balance due now';
+			default: return 'due now';
+		}
+	});
+	// Status-line money, only when the door is absent. 'later' = deposit paid, balance to come.
+	protected readonly repMoney = computed<{ tone: 'ok' | 'auto' | 'later'; label: string } | null>(() => {
 		const p = this.pulse();
-		if ((p?.myClubRepNonArbOwed ?? 0) > 0) return { tone: 'due', label: 'Balance due' };
+		if (this.repDueNow() > 0) return null;
 		if ((p?.myClubRepTotalOwed ?? 0) > 0) return { tone: 'auto', label: 'Auto-pay scheduled' };
+		if (this.repPhase() === 'deposit' && this.repDueLater() > 0) return { tone: 'later', label: 'Deposit paid' };
 		return { tone: 'ok', label: 'Nothing due now' };
 	});
-	protected readonly repShowPay = computed(() => (this.pulse()?.myClubRepNonArbOwed ?? 0) > 0);
 	protected readonly repShowRosters = computed(() =>
 		this.tournament() && this.allowedKeys().has('my-teams') && this.repTeamCount() > 0);
 	protected readonly repShowInsurance = computed(() => {

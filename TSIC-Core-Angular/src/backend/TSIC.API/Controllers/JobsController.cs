@@ -334,6 +334,22 @@ public class JobsController : ControllerBase
                         MyLastName = ctx.LastName ?? pulse.MyLastName
                     };
 
+                    // Club rep money phase: resolve each registered team's fee scope (the same cascade
+                    // the Teams step uses) and compose deposit / balance / mixed / single, so the
+                    // landing card can name the phase and the "later" balance beside the amount due.
+                    if (string.Equals(role, RoleConstants.Names.ClubRepName, StringComparison.OrdinalIgnoreCase)
+                        && ctx.ClubRepTeams is { Count: > 0 })
+                    {
+                        var repJobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
+                        if (repJobId.HasValue)
+                        {
+                            var fees = await _feeService.ResolveFeesByTeamIdsAsync(
+                                repJobId.Value, RoleConstants.ClubRep, ctx.ClubRepTeams.Select(t => t.TeamId).ToList(), ct);
+                            var verdict = ClubRepMoneyPhase.Compose(ctx.ClubRepTeams, fees);
+                            pulse = pulse with { MyClubRepPhase = verdict.Phase, MyClubRepDueLater = verdict.DueLater };
+                        }
+                    }
+
                     // Does this admin's dashboard have anything in it? Gates both doors into
                     // /dashboard on the client. Restricted to the three roles that route
                     // guards on, so a family's pulse never pays for the two widget queries.

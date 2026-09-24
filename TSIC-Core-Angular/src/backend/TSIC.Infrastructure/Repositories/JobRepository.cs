@@ -1251,7 +1251,7 @@ public class JobRepository : IJobRepository
             var teams = await _context.Teams
                 .AsNoTracking()
                 .Where(t => t.ClubrepRegistrationid == regId)
-                .Select(t => new { t.OwedTotal, t.ViPolicyId, t.AdnSubscriptionId })
+                .Select(t => new { t.TeamId, t.OwedTotal, t.ViPolicyId, t.AdnSubscriptionId, AgegroupName = t.Agegroup.AgegroupName })
                 .ToListAsync(cancellationToken);
 
             // In-event club name lives on the rep's Registrations row (the library's name is a
@@ -1274,6 +1274,15 @@ public class JobRepository : IJobRepository
                     .Where(t => t.AdnSubscriptionId == null)
                     .Sum(t => t.OwedTotal ?? 0m),
                 ClubRepHasTeamWithoutRegsaver = teams.Any(t => t.ViPolicyId == null),
+                // The rows themselves, so the controller can resolve each team's fee scope and phase
+                // (ClubRepMoneyPhase) - the cascade lives in the fee repository, not here.
+                ClubRepTeams = teams.Select(t => new Contracts.Dtos.JobPulseClubRepTeam
+                {
+                    TeamId = t.TeamId,
+                    OwedTotal = t.OwedTotal ?? 0m,
+                    OnArb = t.AdnSubscriptionId != null,
+                    IsWaitlisted = AgegroupConstants.IsWaitlist(t.AgegroupName),
+                }).ToList(),
                 FirstName = nameInfo?.FirstName,
                 LastName = nameInfo?.LastName
             };

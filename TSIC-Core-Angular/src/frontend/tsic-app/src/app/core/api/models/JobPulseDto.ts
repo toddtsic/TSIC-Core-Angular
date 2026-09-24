@@ -50,6 +50,8 @@ export type JobPulseDto = {
     myClubRepTeamCount?: number | null;
     myClubRepTotalOwed?: number | null;
     myClubRepNonArbOwed?: number | null;
+    myClubRepPhase?: string | null;
+    myClubRepDueLater?: number | null;
     myClubRepHasTeamWithoutRegsaver?: boolean | null;
     myClubRepClubName?: string | null;
     myFirstName?: string | null;

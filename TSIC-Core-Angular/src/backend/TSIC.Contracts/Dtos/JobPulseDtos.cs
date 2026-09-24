@@ -208,6 +208,21 @@ public record JobPulseDto
     /// </summary>
     public decimal? MyClubRepNonArbOwed { get; init; }
 
+    /// <summary>
+    /// The payment phase the rep's payable (non-ARB, non-waitlist) teams sit in, so the landing
+    /// card can say "deposit due" or "balance due" instead of a bare "Balance due". Values:
+    /// "single" (the job has no deposit structure), "deposit", "balance", "mixed" (a cart that
+    /// spans scopes in different phases). Null when the rep has no payable teams. Composed by
+    /// <see cref="ClubRepMoneyPhase"/> from the same per-scope resolution the Teams step uses.
+    /// </summary>
+    public string? MyClubRepPhase { get; init; }
+
+    /// <summary>
+    /// The balance slices still to be billed on the rep's deposit-phase teams - the Teams step
+    /// footer's "Later". Zero outside a deposit phase.
+    /// </summary>
+    public decimal? MyClubRepDueLater { get; init; }
+
     public bool? MyClubRepHasTeamWithoutRegsaver { get; init; }
 
     /// <summary>
@@ -272,6 +287,8 @@ public record JobPulseUserContext
     public decimal? ClubRepTotalOwed { get; init; }
     /// <summary>Owed across the rep's NON-ARB teams only — see JobPulseDto.MyClubRepNonArbOwed.</summary>
     public decimal? ClubRepNonArbOwed { get; init; }
+    /// <summary>One row per registered team, for the controller to resolve fees and compose the phase.</summary>
+    public IReadOnlyList<JobPulseClubRepTeam>? ClubRepTeams { get; init; }
     public bool? ClubRepHasTeamWithoutRegsaver { get; init; }
     /// <summary>In-event club name off the rep's Registrations row — see JobPulseDto.MyClubRepClubName.</summary>
     public string? ClubRepClubName { get; init; }
@@ -279,4 +296,15 @@ public record JobPulseUserContext
     // Display name of the regId owner
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+}
+
+/// <summary>A club rep's registered team as the pulse sees it: enough to resolve its fee scope and phase.</summary>
+public record JobPulseClubRepTeam
+{
+    public required Guid TeamId { get; init; }
+    public required decimal OwedTotal { get; init; }
+    /// <summary>Carries an ARB subscription id: its balance drips, a human does not pay it by hand.</summary>
+    public required bool OnArb { get; init; }
+    /// <summary>Sits in a WAITLIST agegroup: no fee until placed, so it never has a phase.</summary>
+    public required bool IsWaitlisted { get; init; }
 }

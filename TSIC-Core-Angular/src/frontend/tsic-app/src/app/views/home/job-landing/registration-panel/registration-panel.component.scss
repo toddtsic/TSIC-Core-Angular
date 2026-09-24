@@ -119,6 +119,9 @@
 
 .rp__rep-sep { opacity: 0.6; }
 
+// "Deposit paid · $6,000 later": the balance still to come, quieter than the paid part.
+.rp__rep-later { color: var(--brand-text-muted); font-weight: var(--font-weight-normal); }
+
 .rp__rep-fact {
 	display: inline-flex;
 	align-items: center;
@@ -127,8 +130,9 @@
 	strong { color: var(--brand-text); font-weight: var(--font-weight-bold); }
 	&--ok .bi { color: var(--bs-success); }
 	&--warn { color: var(--brand-text); font-weight: var(--font-weight-semibold); .bi { color: var(--bs-warning); } }
-	&--due { color: var(--brand-text); font-weight: var(--font-weight-semibold); .bi { color: var(--bs-warning); } }
 	&--auto .bi { color: var(--bs-info); }
+	// Multi-phase job only: which phase the rep's payable teams sit in.
+	&--phase { color: var(--brand-text); font-weight: var(--font-weight-semibold); .bi { color: var(--bs-primary); } }
 }
 
 .rp__rep-links {
