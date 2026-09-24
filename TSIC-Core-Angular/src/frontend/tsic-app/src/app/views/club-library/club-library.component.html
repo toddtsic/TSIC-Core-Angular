@@ -54,7 +54,7 @@
         <div class="lib-head" role="row">
           <span role="columnheader" class="col-team">Library team</span>
           <span role="columnheader" class="col-history">Registered for</span>
-          <span role="columnheader" class="col-menu"><span class="visually-hidden">Actions</span></span>
+          <span role="columnheader" class="col-actions">Actions</span>
         </div>
 
         @for (row of rows(); track row.team.clubTeamId) {
@@ -103,44 +103,31 @@
               }
             </div>
 
-            <!-- Kebab — library housekeeping only, on EVERY row -->
-            <div class="col-menu" role="cell">
-              <div class="lib-menu-anchor">
-                <button type="button" class="lib-kebab"
-                        [class.is-open]="openMenuTeamId() === row.team.clubTeamId"
-                        [disabled]="actionInProgress()"
-                        aria-label="Manage team" aria-haspopup="menu"
-                        [attr.aria-expanded]="openMenuTeamId() === row.team.clubTeamId"
-                        (click)="toggleMenu($event, row.team.clubTeamId)">
-                  <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
-                </button>
-                @if (openMenuTeamId() === row.team.clubTeamId) {
-                  @let editLock = editLockReason(row);
-                  @let archiveLock = archiveLockReason(row);
-                  @let deleteLock = deleteLockReason(row);
-                  <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
-                    <button type="button" class="lib-menu-item" role="menuitem" (click)="openRename(row)">
-                      <i class="bi bi-input-cursor-text lib-menu-icon" aria-hidden="true"></i>
-                      <span class="lib-menu-label">Rename team</span>
-                    </button>
-                    <button type="button" class="lib-menu-item" role="menuitem" [disabled]="!!editLock" (click)="openEdit(row)">
-                      <i class="bi bi-pencil lib-menu-icon" aria-hidden="true"></i>
-                      <span class="lib-menu-label">Edit details</span>
-                      @if (editLock) { <span class="lib-menu-reason">{{ editLock }}</span> }
-                    </button>
-                    <button type="button" class="lib-menu-item" role="menuitem" [disabled]="!!archiveLock" (click)="askArchive(row)">
-                      <i class="bi bi-box-arrow-in-down lib-menu-icon" aria-hidden="true"></i>
-                      <span class="lib-menu-label">Archive team</span>
-                      @if (archiveLock) { <span class="lib-menu-reason">{{ archiveLock }}</span> }
-                    </button>
-                    <button type="button" class="lib-menu-item lib-menu-item-danger" role="menuitem" [disabled]="!!deleteLock" (click)="askDelete(row)">
-                      <i class="bi bi-trash lib-menu-icon" aria-hidden="true"></i>
-                      <span class="lib-menu-label">Delete team</span>
-                      @if (deleteLock) { <span class="lib-menu-reason">{{ deleteLock }}</span> }
-                    </button>
-                  </div>
-                }
-              </div>
+            <!-- Actions — library housekeeping only, on EVERY row, in the open (the page has the
+                 room a drawer lacks). A locked action stays clickable and answers with its reason
+                 as a toast, because a disabled button says nothing on touch. -->
+            <div class="col-actions" role="cell">
+              @let editLock = editLockReason(row);
+              @let archiveLock = archiveLockReason(row);
+              @let deleteLock = deleteLockReason(row);
+              <button type="button" class="btn-action" [disabled]="actionInProgress()" (click)="openRename(row)">
+                <i class="bi bi-input-cursor-text" aria-hidden="true"></i>Rename
+              </button>
+              <button type="button" class="btn-action" [class.is-locked]="!!editLock"
+                      [disabled]="actionInProgress()" [attr.title]="editLock" [attr.aria-disabled]="!!editLock"
+                      (click)="editLock ? explainLock(editLock) : openEdit(row)">
+                <i class="bi bi-pencil" aria-hidden="true"></i>Edit
+              </button>
+              <button type="button" class="btn-action" [class.is-locked]="!!archiveLock"
+                      [disabled]="actionInProgress()" [attr.title]="archiveLock" [attr.aria-disabled]="!!archiveLock"
+                      (click)="archiveLock ? explainLock(archiveLock) : askArchive(row)">
+                <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Archive
+              </button>
+              <button type="button" class="btn-action btn-action--danger" [class.is-locked]="!!deleteLock"
+                      [disabled]="actionInProgress()" [attr.title]="deleteLock" [attr.aria-disabled]="!!deleteLock"
+                      (click)="deleteLock ? explainLock(deleteLock) : askDelete(row)">
+                <i class="bi bi-trash" aria-hidden="true"></i>Delete
+              </button>
             </div>
           </div>
         }
@@ -166,9 +153,9 @@
                 @if (row.history.length > 0) {
                   <span class="archived-history">{{ row.history.length }} {{ row.history.length === 1 ? 'event' : 'events' }}</span>
                 }
-                <button type="button" class="lib-icon-btn" title="Restore to active library" aria-label="Restore to active library"
+                <button type="button" class="btn-action" title="Restore to active library"
                         [disabled]="actionInProgress()" (click)="askRestore(row)">
-                  <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                  <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restore
                 </button>
               </li>
             }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { ClubTeamDto, ClubTeamEventHistoryDto, RegisteredTeamDto, TeamsMetadataResponse } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
@@ -32,7 +32,7 @@ type PendingRename =
  * options available when you register, you are not registering here". The wizard's fly-in is
  * the registration surface; this page is the list's home: every team, every event it has been
  * registered for (this one is just a highlighted chip), and every housekeeping action on every
- * row (the fly-in hides the kebab on registered rows; here it never does).
+ * row, in an open Actions column (the fly-in hides its kebab on registered rows; here nothing hides).
  *
  * Job-scoped by ruling (Todd, 2026-09-22): auth is job-scoped, so the page still knows this
  * event — it uses that only to lock archive/delete on a team registered here and to offer the
@@ -151,7 +151,6 @@ export class ClubLibraryComponent implements OnInit {
 
     // ── UI state ───────────────────────────────────────────────────────
     readonly showArchived = signal(true);
-    readonly openMenuTeamId = signal<number | null>(null);
     /** Rows whose full history list is unfolded (default shows the first few chips). */
     readonly expandedHistory = signal<ReadonlySet<number>>(new Set());
     readonly historyPreviewCount = 3;
@@ -170,18 +169,11 @@ export class ClubLibraryComponent implements OnInit {
         this.load(true);
     }
 
-    // ── Kebab ──────────────────────────────────────────────────────────
-    toggleMenu(event: MouseEvent, teamId: number): void {
-        event.stopPropagation();
-        this.openMenuTeamId.set(this.openMenuTeamId() === teamId ? null : teamId);
+    // ── Actions ────────────────────────────────────────────────────────
+    /** A locked action, clicked: say why. The tooltip says the same, but touch has no tooltip. */
+    explainLock(reason: string): void {
+        this.toast.show(reason, 'warning', 3000);
     }
-    closeMenu(): void { this.openMenuTeamId.set(null); }
-
-    @HostListener('document:click')
-    onDocumentClick(): void { if (this.openMenuTeamId() !== null) this.closeMenu(); }
-
-    @HostListener('document:keydown.escape')
-    onEscape(): void { this.closeMenu(); }
 
     toggleHistory(teamId: number): void {
         const next = new Set(this.expandedHistory());
@@ -237,7 +229,6 @@ export class ClubLibraryComponent implements OnInit {
 
     // ── Rename (two-place dialog, same as the wizard) ──────────────────
     openRename(row: LibraryRow): void {
-        this.closeMenu();
         this.renameError.set(null);
         this.pendingRename.set({ origin: 'library', team: row.team });
     }
@@ -292,7 +283,6 @@ export class ClubLibraryComponent implements OnInit {
 
     // ── Edit details / Add ─────────────────────────────────────────────
     openEdit(row: LibraryRow): void {
-        this.closeMenu();
         if (this.editLockReason(row)) return;
         this.editingTeam.set(row.team);
     }
@@ -309,7 +299,6 @@ export class ClubLibraryComponent implements OnInit {
 
     // ── Archive / Restore / Delete ─────────────────────────────────────
     askArchive(row: LibraryRow): void {
-        this.closeMenu();
         if (this.archiveLockReason(row)) return;
         this.pendingArchive.set(row.team);
     }
@@ -331,7 +320,6 @@ export class ClubLibraryComponent implements OnInit {
     }
 
     askRestore(row: LibraryRow): void {
-        this.closeMenu();
         if (!row.team.bArchived) return;
         this.pendingRestore.set(row.team);
     }
@@ -353,7 +341,6 @@ export class ClubLibraryComponent implements OnInit {
     }
 
     askDelete(row: LibraryRow): void {
-        this.closeMenu();
         if (this.deleteLockReason(row)) return;
         this.pendingDelete.set(row.team);
     }

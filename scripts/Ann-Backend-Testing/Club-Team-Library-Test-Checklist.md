@@ -93,8 +93,8 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 
 - [ ] D1. The page says it is the club's list of teams and that you are not registering here. The columns read **Library team** and **Registered for**. There is no Register button, no Team Registration button and no strip anywhere on the page.
 - [ ] D2. Registered for: one chip per event the team has been registered for. This event's chip comes first, highlighted with a pin. A waitlisted or dropped registration carries a **waitlist** or **dropped** tag on its chip. A team never registered anywhere reads **Not registered yet**. More than three fold behind **+N more**. When two organizers ran events with the same short name, the chips show the organizer in front.
-- [ ] D3. Every row's kebab offers Rename team, Edit details, Archive team and Delete team, and nothing about this event. Locked items show reasons. A team registered here locks Archive with **Registered for the** event name.
-- [ ] D4. On Zz Test Beta: **Rename team** › new name › save. The row shows the new name. Rename it back.
+- [ ] D3. Every row has an Actions column with Rename, Edit, Archive and Delete, and nothing about this event. A locked action is greyed and struck through; hovering shows the reason and clicking it shows the reason as a toast. A team registered here locks Archive with **Registered for the** event name.
+- [ ] D4. On Zz Test Beta: **Rename** › new name › save. The row shows the new name. Rename it back.
 - [ ] D5. **Add to Library** adds `Zz Test Delta` without registering it. It appears reading **Not registered yet**.
 - [ ] D6. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.
 - [ ] D7. Press F5. You stay logged in and on the page.
@@ -148,7 +148,7 @@ The director sees every club rep who signed in to the event, including reps who 
 ### I. Configure › Job Settings › Teams › Club Rep Permissions
 
 - [ ] I1. The help list under the three checkboxes is present and reads correctly.
-- [ ] I2. Turn **Allow Edit** off, save. As `primeaulacrosse`: the Teams step pencil is visible but greyed, tooltip **Editing closed by the director**. Fly-in kebab › Edit details and library page kebab › Edit details are locked with the same words.
+- [ ] I2. Turn **Allow Edit** off, save. As `primeaulacrosse`: the Teams step pencil is visible but greyed, tooltip **Editing closed by the director**. Fly-in kebab › Edit details and the library page's Edit button are locked with the same words.
 - [ ] I3. With Allow Edit still off, library **Rename team** in the kebab still works. Expected: rename is not gated by Allow Edit.
 - [ ] I4. Turn **Allow Delete** off, save. As the rep: **Remove from this event** is locked with **Removal closed by the director**.
 - [ ] I5. Turn **Allow Add** off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page is unchanged: it never offered registration.
