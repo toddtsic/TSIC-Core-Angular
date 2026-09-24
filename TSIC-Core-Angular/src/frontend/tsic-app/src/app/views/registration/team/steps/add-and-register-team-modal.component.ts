@@ -200,7 +200,7 @@ import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error
           <div class="library-aside">
             <i class="bi bi-shield-check"></i>
             <span>
-              We'll save this team to your <strong>Club Library</strong> too &mdash;
+              We'll save this team to your <strong>Club Team Library</strong> too &mdash;
               register it again in any future TSIC event with one click.
             </span>
           </div>
