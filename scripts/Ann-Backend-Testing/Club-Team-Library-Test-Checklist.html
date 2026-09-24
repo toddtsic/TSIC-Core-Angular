@@ -66,29 +66,7 @@
 <li>Library page: the <strong>Team Registration</strong> link at the top of the page.</li>
 <li>On the Teams step, three things open the fly-in: <strong>Register Another Team</strong> in the footer, <strong>Register</strong> on the yellow strip of unregistered library teams, and <strong>Register Your First Team for this Event</strong> when nothing is registered yet.</li>
 </ul>
-<h2>The club rep's screens</h2>
-<h3>Screen 1 — Sign-in role picker</h3>
-<p>Each Club Rep row shows the event's dates and how many teams the rep has registered there. The role list offers only available events (inside the director's user-expiry window); there is no past-events group. The event the rep came from is tagged <strong>this event</strong>. With a few registrations the picker is a list of cards; with many it is a search box. Clicking a row opens that event's landing page. There is no Library button on a row; the library is reached inside the event.</p>
-<h3>Screen 2 — Event landing page, rep card</h3>
-<p>The landing page shows a card for the rep: club name, number of registered teams, and a money line reading <strong>Nothing due now</strong>, <strong>Balance due</strong> or <strong>Auto-pay scheduled</strong>. It never says "paid in full". Doors: <strong>Team Registration</strong> (reads <strong>Register Teams</strong> when the rep has zero teams), <strong>Pay Balance Due</strong> (only when money is due), <strong>Edit My Rosters</strong>, <strong>Club Team Library</strong>, <strong>Add Team RegSaver</strong>. A rep with zero teams sees <strong>No teams registered yet</strong>. Some events have no registration panel on their landing page; there the rep uses the header user menu.</p>
-<h3>Screen 3 — Team Registration › Teams step</h3>
-<p>The Registered Teams list for this event. Columns: team name with a pencil for this-event rename, age group, level of play, and <strong>Fee Status</strong>. Fee Status reads one of <code>Deposit $X due now</code>, <code>Deposit paid</code>, <code>$X balance due now</code>, <code>Paid in full</code>, <code>Auto-pay · $X</code>, or <code>No fee until placed</code> for a waitlisted team. The footer totals read <strong>Paid · Due now · Later</strong>, plus <strong>Auto-pay</strong> when one exists.</p>
-<p>Under the list, when library teams that fit this event are not registered, a yellow strip names them with a <strong>Register</strong> button. The × dismisses it for the session.</p>
-<p>The pencil is always shown. When the director has turned Allow Edit off it is greyed out with the tooltip <strong>Editing closed by the director</strong>.</p>
-<h3>Screen 4 — Library fly-in</h3>
-<p>Opens from <strong>Register Another Team</strong> on the Teams step. A right-hand drawer with a pinned <strong>Registered</strong> strip at the top, then groups <strong>Available for This Event</strong> (library teams that fit an age group here), <strong>Outside Event Age Groups</strong>, <strong>Archived</strong> (collapsed) and <strong>Dropped</strong>. Each row has a kebab: <strong>Rename team</strong>, <strong>Edit details</strong>, <strong>Archive team</strong>, <strong>Delete team</strong>. Locked items show the reason on hover. The header link <strong>Manage full library →</strong> opens the Club Team Library page.</p>
-<p><strong>Add a New Team</strong> opens the <strong>Add &amp; Register a Team</strong> modal (titled <strong>Register Your First Team</strong> when the library is empty): name, grad year, level of play, then age group. The primary button is <strong>Register Team for this Event</strong>. A secondary link <strong>Save to library only — NOT registered for &lt;event&gt;</strong> saves without registering and shows a warning toast. A team saved that way is tinted in the drawer with a <strong>Not registered yet</strong> pill. Closing the drawer while one exists shows an interstitial: <strong>Register it now</strong> or <strong>Leave it</strong>. The modal refuses a duplicate name. It shows a soft nudge when the name is only a year, such as <code>2028</code>; the nudge never blocks.</p>
-<h3>Screen 5 — Club Team Library page</h3>
-<p>Reached from the header user menu <strong>Club Team Library</strong>, the rep card door, or the fly-in header link. One row per library team:</p>
-<ul>
-<li><strong>Team</strong>: name, grad, LOP.</li>
-<li><strong>This event</strong>: Registered with age group / Waitlisted / Dropped / a Register button / Closed.</li>
-<li><strong>Other events</strong>: one chip per other event, marked <code>dropped</code> or <code>waitlist</code> where that applies. <strong>First event</strong> when there are none. More than three fold behind <strong>+N more</strong>.</li>
-<li>Kebab with two sections: <strong>This event</strong> (Register for this event / Remove from this event) and <strong>Club Team Library</strong> (Rename team / Edit details / Archive team / Delete team).</li>
-</ul>
-<p>Archived teams sit in a collapsed <strong>Archived</strong> section with a <strong>Restore</strong> button. <strong>Add to Library</strong> adds a team without registering it. A strip at the top counts teams not registered for this event.</p>
-<p>History is events only. There are no win-loss records anywhere in the library. That is by design.</p>
-<h3>Correct behaviour, not bugs</h3>
+<h2>Correct behaviour, not bugs</h2>
 <ul>
 <li><strong>One club rep per club per event.</strong> A second rep from the same club is refused with a yellow toast naming the rep who already registered. Never a red "Something went wrong".</li>
 <li>An age group with no fee set up refuses with <strong>Registration fees for this age group haven't been set up yet. Please contact the event organizer.</strong></li>
@@ -116,7 +94,7 @@
 </ul>
 <h3>C. Teams step (<code>primeaulacrosse</code>)</h3>
 <ul>
-<li><input type="checkbox"> C1. Fee Status shows one of the listed statuses on every row.</li>
+<li><input type="checkbox"> C1. Fee Status on every row reads one of <code>Deposit $X due now</code>, <code>Deposit paid</code>, <code>$X balance due now</code>, <code>Paid in full</code>, <code>Auto-pay · $X</code>, or <code>No fee until placed</code> (a waitlisted team).</li>
 <li><input type="checkbox"> C2. Footer reads Paid · Due now · Later, and the sums match the rows.</li>
 <li><input type="checkbox"> C3. If unregistered library teams fit this event, the yellow strip names them. <strong>Register</strong> opens the fly-in. The × dismisses it for the session and it returns after logout and login.</li>
 <li><input type="checkbox"> C4. The pencil opens the rename dialog. Rename a team for this event only. The library page still shows the old library name; the Teams step shows the new event name.</li>
@@ -161,29 +139,7 @@
 <h1>DIRECTOR</h1>
 <h2>What the director has</h2>
 <p>The director sees every club rep who signed in to the event, including reps who registered nothing, and can look inside any rep's library. The view is <strong>read-only</strong>. Directors never add, rename, archive or delete library teams. When a director renames a team in Search › Teams, that changes the event name only; the club's library name is untouched.</p>
-<h3>Screen 1 — Search › Club Reps</h3>
-<p>One row per Club Rep registration on the event. A rep with no teams is a row. Columns:</p>
-<ul>
-<li><strong>Library</strong> button, <strong>Club</strong>, <strong>Rep</strong>.</li>
-<li><strong>Active</strong>, <strong>Waitlisted</strong>, <strong>Dropped</strong>: this event's team counts.</li>
-<li><strong>Owed</strong>: this rep's balance on this event.</li>
-<li><strong>Library</strong>: how many active teams are in the club's library.</li>
-<li><strong>Not Registered</strong>: <code>fits / all</code>. <code>2/3</code> means 3 library teams are not registered here and 2 of them fit an age group at this event.</li>
-<li><strong>Email</strong>, <strong>Cell</strong>, <strong>Signed In</strong> (the date the rep registered as a club rep here).</li>
-</ul>
-<p>Four cards above the grid are filters: <strong>club reps</strong> (all), <strong>no teams yet</strong>, <strong>library teams not registered</strong> (that fit an age group), <strong>owed</strong>. Excel export is on the toolbar.</p>
-<p>The <strong>Library</strong> button opens a right-hand panel: club name, rep name and email, counts, the event's oldest age group offered, then a table <strong>Team | This event | Other events</strong>. Registered and Waitlisted rows carry <strong>Open in Search Teams</strong>, which lands on Search › Teams with that team's detail panel open. Nothing in the panel edits anything.</p>
-<p>Until the nav script is re-run there is no menu entry. The URL is <code>/&lt;jobPath&gt;/search/club-reps</code>, for example <code>/lftc-fallshowcase-2026/search/club-reps</code>.</p>
-<h3>Screen 2 — Search › Teams, detail panel header</h3>
-<p>For a team that came from a library the header shows a <strong>Library</strong> tag (library name · grad year · level of play) and an <strong>Other events</strong> line with one chip per other event, or <strong>none — first event for this team</strong>. A team not linked to any library shows neither.</p>
-<h3>Screen 3 — Configure › Job Settings › Teams › Club Rep Permissions</h3>
-<p>Under the Allow Edit / Allow Delete / Allow Add checkboxes is a list saying what each one gates:</p>
-<ul>
-<li><strong>Allow Edit</strong>: the rep can change a registered team's age group and level of play for this event, and edit a library team's details until it has played. This-event rename is <strong>not</strong> gated by it.</li>
-<li><strong>Allow Delete</strong>: the rep can unregister an unpaid team. A team with a payment is never removable by the rep.</li>
-<li><strong>Allow Add</strong>: the rep can register teams here. Registering also needs Allow Team Registration and a club-rep fee row.</li>
-</ul>
-<h3>Correct behaviour, not bugs</h3>
+<h2>Correct behaviour, not bugs</h2>
 <ul>
 <li>There is no edit control of any kind in the Club Reps library panel.</li>
 <li><strong>Rename to New Team</strong> is intentionally hidden on the team detail panel.</li>
@@ -192,9 +148,9 @@
 <h2>Director tests</h2>
 <h3>H. Search › Club Reps (lftc-fallshowcase-2026)</h3>
 <ul>
-<li><input type="checkbox"> H1. <code>/lftc-fallshowcase-2026/search/club-reps</code> loads. The row count equals the Club Rep registrations on Search › Registrations filtered to the Club Rep role.</li>
+<li><input type="checkbox"> H1. <code>/lftc-fallshowcase-2026/search/club-reps</code> loads. Until the nav script is re-run there is no menu entry; type the URL. The row count equals the Club Rep registrations on Search › Registrations filtered to the Club Rep role.</li>
 <li><input type="checkbox"> H2. A rep with zero teams is present as a row with 0 Active.</li>
-<li><input type="checkbox"> H3. <code>primeaulacrosse</code>'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. Not Registered <code>fits / all</code> matches their library page's strip.</li>
+<li><input type="checkbox"> H3. <code>primeaulacrosse</code>'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. Not Registered <code>fits / all</code> matches their library page's strip. That column reads <code>fits / all</code>: <code>2/3</code> means 3 library teams are not registered here and 2 of them fit an age group at this event.</li>
 <li><input type="checkbox"> H4. Click <strong>no teams yet</strong>: only zero-team reps remain. Click <strong>owed</strong>: only reps with an amount owed remain. <strong>Show all</strong> clears it.</li>
 <li><input type="checkbox"> H5. Excel export downloads a file with the same rows as the grid.</li>
 <li><input type="checkbox"> H6. <strong>Library</strong> on <code>primeaulacrosse</code>'s row opens the panel. The table shows every team on their library page with the same This event status and the same Other events chips.</li>
