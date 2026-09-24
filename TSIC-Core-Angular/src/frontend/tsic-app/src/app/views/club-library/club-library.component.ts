@@ -215,6 +215,13 @@ export class ClubLibraryComponent implements OnInit {
         this.editingTeam.set(row.team);
     }
 
+    /** For the edit modal's "add as a new team instead" follow-up: may the OLD row be archived? */
+    readonly editingArchiveLock = computed(() => {
+        const editing = this.editingTeam();
+        const row = editing ? this.rows().find(r => r.team.clubTeamId === editing.clubTeamId) : undefined;
+        return row ? this.archiveLockReason(row) : null;
+    });
+
     onTeamEdited(): void {
         this.editingTeam.set(null);
         this.load(false);

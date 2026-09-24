@@ -177,6 +177,7 @@
   <app-team-form-modal
     [clubName]="clubName()"
     [editingTeam]="editing"
+    [archiveLockReason]="editingArchiveLock()"
     [existingTeams]="rows().map(r => r.team).concat(archivedRows().map(r => r.team))"
     (saved)="onTeamEdited()"
     (closed)="editingTeam.set(null)" />

@@ -73,7 +73,7 @@ import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error
                    [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub() || nameIsDuplicate())" />
             <div class="wizard-tip">
               Instead of <span class="text-danger fw-semibold">{{ clubName() }} 2028 Blue</span>,
-              enter <span class="text-success fw-semibold">2028 Blue</span> &mdash; schedules already display your club name.
+              enter <span class="text-success fw-semibold">2028 Blue</span> &mdash; <strong>schedules already display your club name</strong>.
             </div>
             @if (submitted() && !teamName().trim()) {
               <div class="field-error">Required</div>

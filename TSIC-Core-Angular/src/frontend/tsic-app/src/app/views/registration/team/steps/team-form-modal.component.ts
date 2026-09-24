@@ -25,7 +25,7 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
     standalone: true,
     imports: [FormsModule, TsicDialogComponent, LevelOfPlayPickerComponent],
     template: `
-    <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
+    <tsic-dialog [open]="true" size="sm" (requestClose)="dismiss()">
       <div class="modal-content form-modal">
 
         <!-- Hero banner — matches register picker styling. Doubles as the
@@ -40,13 +40,31 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
               <i class="bi bi-plus-circle me-1"></i>Add Team to Library
             }
           </h5>
-          <button type="button" class="form-hero-close" (click)="closed.emit()" aria-label="Close">
+          <button type="button" class="form-hero-close" (click)="dismiss()" aria-label="Close">
             <i class="bi bi-x-lg"></i>
           </button>
         </div>
 
         <!-- Form body -->
         <div class="form-body">
+          @if (phase() === 'added') {
+            <!-- "Add as a new team instead" landed. The old row is still active; offer the archive
+                 that keeps its history where it belongs. Locked = registered for this event. -->
+            <div class="library-aside library-aside--lead" role="status">
+              <i class="bi bi-check-circle" aria-hidden="true"></i>
+              <span><strong>{{ addedName() }} is in your library.</strong>
+                @if (archiveLockReason(); as lock) {
+                  {{ editingTeam?.clubTeamName }} stays in your active library: {{ lock }}.
+                } @else {
+                  Archive <strong>{{ editingTeam?.clubTeamName }}</strong>? Its event history stays with it,
+                  it leaves the list you register from, and you can restore it any time.
+                }
+              </span>
+            </div>
+            @if (errorMsg()) {
+              <div class="alert alert-danger rounded-0 border-0 py-2 px-3 mb-0 small">{{ errorMsg() }}</div>
+            }
+          } @else {
 
           <!-- Edit mode: shout the distinction before anything else (Todd 2026-09-24). A library
                edit never reaches an event; the event copy is changed in Team Registration. -->
@@ -81,7 +99,7 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
                    [class.has-warning]="!submitted() && (nameContainsClub() || nameIsDuplicate())" />
             <div class="wizard-tip">
               Instead of entering <span class="text-danger fw-semibold">{{ clubName() }} 2028 Blue</span>,
-              enter <span class="text-success fw-semibold">2028 Blue</span> — schedules already display your club name.
+              enter <span class="text-success fw-semibold">2028 Blue</span> — <strong>schedules already display your club name</strong>.
             </div>
             @if (submitted() && !teamName().trim()) {
               <div class="field-error">Required</div>
@@ -175,10 +193,50 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
                 Register it from its row afterwards.</span>
             </div>
           }
+
+          <!-- The one-team-through-time nudge (Todd 2026-09-24). The gate is gone; this is a hint.
+               Fires only on a row with event history when the GRAD YEAR moved or the year in the
+               NAME moved — the two edits that almost always mean "a different squad", whose
+               history should not be inherited. A plain rebrand (Blue → Navy) never sees it.
+               Save stays live: a typo'd grad year on a team with history is a real fix. -->
+          @if (looksLikeDifferentTeam()) {
+            <div class="library-aside team-nudge" role="note">
+              <i class="bi bi-signpost-split" aria-hidden="true"></i>
+              <span>
+                <strong>Looks like a different team?</strong> {{ editingTeam?.clubTeamName }} has been registered
+                for events. If that squad has moved on, keep its history: add
+                <strong>{{ teamName().trim() }}</strong> as a new team and archive {{ editingTeam?.clubTeamName }}.
+                <span class="team-nudge-actions">
+                  <button type="button" class="btn btn-sm btn-primary fw-semibold"
+                          [disabled]="saving() || !canSubmit()" (click)="addInstead()">
+                    <i class="bi bi-plus-circle me-1"></i>Add {{ teamName().trim() }} as a new team
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="nudgeDismissed.set(true)">
+                    No, I'm fixing {{ editingTeam?.clubTeamName }}
+                  </button>
+                </span>
+              </span>
+            </div>
+          }
+          }
         </div>
 
         <!-- Footer -->
         <div class="form-footer">
+          @if (phase() === 'added') {
+            @if (archiveLockReason()) {
+              <button type="button" class="btn btn-sm btn-primary fw-semibold" (click)="keepBoth()">Done</button>
+            } @else {
+              <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="saving()" (click)="keepBoth()">Keep both</button>
+              <button type="button" class="btn btn-sm btn-primary fw-semibold" [disabled]="saving()" (click)="archiveOld()">
+                @if (saving()) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>Archiving...
+                } @else {
+                  <i class="bi bi-box-arrow-in-down me-1"></i>Archive {{ editingTeam?.clubTeamName }}
+                }
+              </button>
+            }
+          } @else {
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closed.emit()">Cancel</button>
           <button type="button" class="btn btn-sm btn-primary fw-semibold"
                   (click)="save()" [disabled]="saving() || !canSubmit()">
@@ -190,6 +248,7 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
               <i class="bi bi-plus-circle me-1"></i>Add to Library
             }
           </button>
+          }
         </div>
       </div>
     </tsic-dialog>
@@ -274,6 +333,16 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
         strong { font-weight: var(--font-weight-semibold); }
       }
 
+      .team-nudge {
+        background: color-mix(in srgb, var(--bs-info) 10%, var(--bs-body-bg));
+        border-color: var(--bs-info);
+        color: var(--brand-text);
+      }
+      .team-nudge-actions {
+        display: flex; flex-wrap: wrap; gap: var(--space-2);
+        margin-top: var(--space-2);
+      }
+
       .library-aside {
         display: flex;
         align-items: flex-start;
@@ -325,6 +394,12 @@ export class TeamFormModalComponent implements OnInit {
     @Input() editingTeam: ClubTeamDto | null = null;
     /** Existing library teams — used to block duplicate names (case-insensitive). */
     readonly existingTeams = input<readonly ClubTeamDto[]>([]);
+    /**
+     * Edit mode: why the team being edited cannot be archived right now (null = it can). The
+     * parent computes it from shared/teams/club-team-locks.ts; the modal only needs it for the
+     * "add as a new team instead" follow-up, which offers to archive the old row.
+     */
+    readonly archiveLockReason = input<string | null>(null);
 
     readonly saved = output<void>();
     readonly closed = output<void>();
@@ -396,6 +471,101 @@ export class TeamFormModalComponent implements OnInit {
     /** Save gate — every field must be valid; mirrors the submit-time check
      *  so the button can't be clicked into a silent rejection. */
     readonly canSubmit = computed(() => this.step1Done() && this.step2Done());
+
+    // ── "Looks like a different team?" ─────────────────────────────────
+    /** 'added' after "add as a new team instead" succeeded: the body becomes the archive offer. */
+    readonly phase = signal<'form' | 'added'>('form');
+    readonly addedName = signal('');
+    readonly nudgeDismissed = signal(false);
+
+    /**
+     * The two edits that almost always mean a different squad, on a row whose history would then
+     * be inherited: the grad year moved, or the four-digit year in the name moved. Either alone
+     * fires it (reps forget the grad year field). A name with no year, or a year appearing where
+     * there was none, is a rename, not a new team. Never in add mode, never without history.
+     */
+    readonly looksLikeDifferentTeam = computed(() => {
+        const t = this.editingTeam;
+        if (!t || !t.bHasEventRegistrations || this.nudgeDismissed() || this.phase() !== 'form') return false;
+        const gradMoved = !!t.clubTeamGradYear && !!this.gradYear() && t.clubTeamGradYear !== this.gradYear();
+        const was = TeamFormModalComponent.yearToken(t.clubTeamName);
+        const now = TeamFormModalComponent.yearToken(this.teamName());
+        const nameYearMoved = !!was && !!now && was !== now;
+        return gradMoved || nameYearMoved;
+    });
+
+    private static yearToken(name: string): string | null {
+        return /\b\d{4}\b/.exec(name)?.[0] ?? null;
+    }
+
+    /** Create the typed team as a NEW library row and leave the old one untouched, then offer to archive it. */
+    addInstead(): void {
+        const old = this.editingTeam;
+        if (!old) return;
+        this.submitted.set(true);
+        if (!this.canSubmit() || this.nameContainsClub()) return;
+        const name = this.teamName().trim();
+        if (name.toLowerCase() === old.clubTeamName.trim().toLowerCase()) {
+            this.errorMsg.set(`Give the new team its own name — ${old.clubTeamName} keeps this one.`);
+            return;
+        }
+        if (this.existingTeams().some(e => e.clubTeamName.trim().toLowerCase() === name.toLowerCase())) {
+            this.errorMsg.set(`${name} is already in your library.`);
+            return;
+        }
+        this.saving.set(true);
+        this.errorMsg.set(null);
+        this.teamReg.createClubTeam({
+            clubTeamName: name,
+            clubTeamGradYear: this.gradYear(),
+            levelOfPlay: this.levelOfPlay().trim() || undefined,
+        })
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.saving.set(false);
+                    this.addedName.set(name);
+                    this.phase.set('added');
+                },
+                error: (err: unknown) => {
+                    this.saving.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.errorMsg.set(httpErr?.error?.message || 'Failed to add the team.');
+                },
+            });
+    }
+
+    archiveOld(): void {
+        const old = this.editingTeam;
+        if (!old || this.archiveLockReason()) return;
+        this.saving.set(true);
+        this.errorMsg.set(null);
+        this.teamReg.archiveClubTeam(old.clubTeamId)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.saving.set(false);
+                    this.toast.show(`${this.addedName()} added. ${old.clubTeamName} archived with its history.`, 'success', 3500);
+                    this.saved.emit();
+                },
+                error: (err: unknown) => {
+                    this.saving.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.errorMsg.set(httpErr?.error?.message || 'Failed to archive the team.');
+                },
+            });
+    }
+
+    keepBoth(): void {
+        this.toast.show(`${this.addedName()} added to your library.`, 'success', 2500);
+        this.saved.emit();
+    }
+
+    /** X / backdrop: once a team has been added the list has changed, so the parent must reload. */
+    dismiss(): void {
+        if (this.phase() === 'added') this.saved.emit();
+        else this.closed.emit();
+    }
 
     ngOnInit(): void {
         if (this.editingTeam) {

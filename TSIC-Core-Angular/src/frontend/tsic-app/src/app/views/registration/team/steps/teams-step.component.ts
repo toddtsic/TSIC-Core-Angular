@@ -12,7 +12,7 @@ import { AddAndRegisterTeamModalComponent } from './add-and-register-team-modal.
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { LibraryFlyinComponent, type RegisterRequest, type RegisteredInfo } from '../components/library-flyin.component';
 import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
-import { clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
+import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear } from '../components/event-age-group.util';
@@ -263,6 +263,7 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
       <app-team-form-modal
         [clubName]="clubName()"
         [editingTeam]="editing"
+        [archiveLockReason]="archiveLockReasonFor(editing)"
         [existingTeams]="allLibraryTeams()"
         (saved)="onTeamEdited()"
         (closed)="editingTeam.set(null)" />
@@ -1060,6 +1061,8 @@ export class TeamTeamsStepComponent implements OnInit {
     private lockContext(team: ClubTeamDto): ClubTeamLockContext {
         return { registeredHere: this.isEnteredTeam(team.clubTeamId), eventLabel: 'this event' };
     }
+    /** For the edit modal's "add as a new team instead" follow-up: may the OLD row be archived? */
+    archiveLockReasonFor(team: ClubTeamDto): string | null { return clubTeamArchiveLockReason(this.lockContext(team)); }
 
     onTeamEdited(): void {
         this.editingTeam.set(null);
@@ -1177,9 +1180,9 @@ export class TeamTeamsStepComponent implements OnInit {
         this.pendingDelete.set(null);
     }
 
-    /** Archive is a visibility flag — only a live registration in THIS event blocks it. */
+    /** Archive is a visibility flag — the shared rule (registered for THIS event) is the only lock. */
     askArchiveTeam(team: ClubTeamDto): void {
-        if (this.isEnteredTeam(team.clubTeamId)) return;
+        if (clubTeamArchiveLockReason(this.lockContext(team))) return;
         this.pendingArchive.set(team);
     }
 
