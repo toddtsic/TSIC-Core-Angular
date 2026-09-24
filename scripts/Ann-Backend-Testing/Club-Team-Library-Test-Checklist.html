@@ -109,12 +109,12 @@
 </ul>
 <h3>D. Club Team Library page (<code>primeaulacrosse</code>)</h3>
 <ul>
-<li><input type="checkbox"> D1. The strip counts unregistered teams and names the same rows that show a Register button.</li>
-<li><input type="checkbox"> D2. Each registered team shows Registered with the right age group. A waitlisted team shows Waitlisted. A dropped team shows Dropped.</li>
-<li><input type="checkbox"> D3. Other events: a team that played earlier events shows a chip per event; a new team shows <strong>First event</strong>. More than three fold behind <strong>+N more</strong>.</li>
-<li><input type="checkbox"> D4. Every row's kebab shows two sections, This event and Club Team Library. Locked items show reasons.</li>
+<li><input type="checkbox"> D1. The page says whose list it is and that it belongs to the club, not to any event. The columns read <strong>Library team</strong>, <strong>This event</strong> with the event name beside it, and <strong>Played at</strong>. The yellow strip appears only when unregistered library teams fit an age group here, and it counts the same rows that show a Register button.</li>
+<li><input type="checkbox"> D2. Each registered team shows Registered with the right age group. A waitlisted team shows Waitlisted. A dropped team shows Dropped. A team the event has no age group for reads <strong>No age group here</strong> and has no Register button on its row.</li>
+<li><input type="checkbox"> D3. Played at: a team that played earlier events shows a chip per event; a new team shows <strong>First event</strong>. More than three fold behind <strong>+N more</strong>. When two organizers ran events with the same short name, the chips show the organizer in front.</li>
+<li><input type="checkbox"> D4. Every row's kebab shows two sections, This event and Library. Locked items show reasons. On a <strong>No age group here</strong> row, <strong>Register for this event</strong> is still offered from the kebab.</li>
 <li><input type="checkbox"> D5. On Zz Test Beta: <strong>Register for this event</strong> › pick an age group › register. The row turns Registered. The Teams step now lists it.</li>
-<li><input type="checkbox"> D6. On Zz Test Beta (registered, unpaid): <strong>Remove from this event</strong> › confirm. The row returns to Register and the team stays in the library.</li>
+<li><input type="checkbox"> D6. On Zz Test Beta (registered, unpaid): <strong>Remove from this event</strong> › confirm. The row returns to <strong>Not registered</strong> with a Register button, and the team stays in the library.</li>
 <li><input type="checkbox"> D7. <strong>Add to Library</strong> adds <code>Zz Test Delta</code> without registering it. It appears with a Register button.</li>
 <li><input type="checkbox"> D8. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.</li>
 <li><input type="checkbox"> D9. Press F5. You stay logged in and on the page.</li>
@@ -143,10 +143,10 @@
 <ul>
 <li><input type="checkbox"> G1. <code>/lftc-fallshowcase-2026/search/club-reps</code> loads. Until the nav script is re-run there is no menu entry; type the URL. The row count equals the Club Rep registrations on Search › Registrations filtered to the Club Rep role.</li>
 <li><input type="checkbox"> G2. A rep with zero teams is present as a row with 0 Active.</li>
-<li><input type="checkbox"> G3. <code>primeaulacrosse</code>'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. Not Registered <code>fits / all</code> matches their library page's strip. That column reads <code>fits / all</code>: <code>2/3</code> means 3 library teams are not registered here and 2 of them fit an age group at this event.</li>
+<li><input type="checkbox"> G3. <code>primeaulacrosse</code>'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. The <code>fits</code> number matches the count on their library page's yellow strip. That column reads <code>fits / all</code>: <code>2/3</code> means 3 library teams are not registered here and 2 of them fit an age group at this event.</li>
 <li><input type="checkbox"> G4. Click <strong>no teams yet</strong>: only zero-team reps remain. Click <strong>owed</strong>: only reps with an amount owed remain. <strong>Show all</strong> clears it.</li>
 <li><input type="checkbox"> G5. Excel export downloads a file with the same rows as the grid.</li>
-<li><input type="checkbox"> G6. <strong>Library</strong> on <code>primeaulacrosse</code>'s row opens the panel. The table shows every team on their library page with the same This event status and the same Other events chips.</li>
+<li><input type="checkbox"> G6. <strong>Library</strong> on <code>primeaulacrosse</code>'s row opens the panel. The table shows every team on their library page with the same This event status and the same Played at chips.</li>
 <li><input type="checkbox"> G7. The counts line at the top of the panel matches the table beneath it.</li>
 <li><input type="checkbox"> G8. <strong>Open in Search Teams</strong> on a registered row lands on Search › Teams with that team's detail panel already open.</li>
 <li><input type="checkbox"> G9. There is no button anywhere in the panel that renames, edits, archives or deletes a library team.</li>

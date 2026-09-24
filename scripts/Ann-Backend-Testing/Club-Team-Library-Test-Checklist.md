@@ -93,12 +93,12 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 
 ### D. Club Team Library page (`primeaulacrosse`)
 
-- [ ] D1. The strip counts unregistered teams and names the same rows that show a Register button.
-- [ ] D2. Each registered team shows Registered with the right age group. A waitlisted team shows Waitlisted. A dropped team shows Dropped.
-- [ ] D3. Other events: a team that played earlier events shows a chip per event; a new team shows **First event**. More than three fold behind **+N more**.
-- [ ] D4. Every row's kebab shows two sections, This event and Club Team Library. Locked items show reasons.
+- [ ] D1. The page says whose list it is and that it belongs to the club, not to any event. The columns read **Library team**, **This event** with the event name beside it, and **Played at**. The yellow strip appears only when unregistered library teams fit an age group here, and it counts the same rows that show a Register button.
+- [ ] D2. Each registered team shows Registered with the right age group. A waitlisted team shows Waitlisted. A dropped team shows Dropped. A team the event has no age group for reads **No age group here** and has no Register button on its row.
+- [ ] D3. Played at: a team that played earlier events shows a chip per event; a new team shows **First event**. More than three fold behind **+N more**. When two organizers ran events with the same short name, the chips show the organizer in front.
+- [ ] D4. Every row's kebab shows two sections, This event and Library. Locked items show reasons. On a **No age group here** row, **Register for this event** is still offered from the kebab.
 - [ ] D5. On Zz Test Beta: **Register for this event** › pick an age group › register. The row turns Registered. The Teams step now lists it.
-- [ ] D6. On Zz Test Beta (registered, unpaid): **Remove from this event** › confirm. The row returns to Register and the team stays in the library.
+- [ ] D6. On Zz Test Beta (registered, unpaid): **Remove from this event** › confirm. The row returns to **Not registered** with a Register button, and the team stays in the library.
 - [ ] D7. **Add to Library** adds `Zz Test Delta` without registering it. It appears with a Register button.
 - [ ] D8. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.
 - [ ] D9. Press F5. You stay logged in and on the page.
@@ -132,10 +132,10 @@ The director sees every club rep who signed in to the event, including reps who 
 
 - [ ] G1. `/lftc-fallshowcase-2026/search/club-reps` loads. Until the nav script is re-run there is no menu entry; type the URL. The row count equals the Club Rep registrations on Search › Registrations filtered to the Club Rep role.
 - [ ] G2. A rep with zero teams is present as a row with 0 Active.
-- [ ] G3. `primeaulacrosse`'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. Not Registered `fits / all` matches their library page's strip. That column reads `fits / all`: `2/3` means 3 library teams are not registered here and 2 of them fit an age group at this event.
+- [ ] G3. `primeaulacrosse`'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. The `fits` number matches the count on their library page's yellow strip. That column reads `fits / all`: `2/3` means 3 library teams are not registered here and 2 of them fit an age group at this event.
 - [ ] G4. Click **no teams yet**: only zero-team reps remain. Click **owed**: only reps with an amount owed remain. **Show all** clears it.
 - [ ] G5. Excel export downloads a file with the same rows as the grid.
-- [ ] G6. **Library** on `primeaulacrosse`'s row opens the panel. The table shows every team on their library page with the same This event status and the same Other events chips.
+- [ ] G6. **Library** on `primeaulacrosse`'s row opens the panel. The table shows every team on their library page with the same This event status and the same Played at chips.
 - [ ] G7. The counts line at the top of the panel matches the table beneath it.
 - [ ] G8. **Open in Search Teams** on a registered row lands on Search › Teams with that team's detail panel already open.
 - [ ] G9. There is no button anywhere in the panel that renames, edits, archives or deletes a library team.
