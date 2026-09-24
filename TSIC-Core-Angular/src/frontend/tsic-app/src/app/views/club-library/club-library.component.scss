@@ -316,38 +316,35 @@
     }
 }
 
-// ── Archived ────────────────────────────────────────────────────────
-.archived-card {
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--radius-lg);
-    background: color-mix(in srgb, var(--bs-body-color) 2%, var(--surface-elevated-bg));
-}
-
-.archived-head {
+// ── Archived: a divider row inside the table, then the same rows greyed ──────────
+.lib-divider {
     display: flex;
     align-items: center;
     gap: var(--space-2);
     width: 100%;
-    padding: var(--space-3) var(--space-4);
-    background: transparent;
+    padding: var(--space-2) var(--space-4);
     border: none;
+    border-top: 1px solid var(--bs-border-color);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: color-mix(in srgb, var(--bs-body-color) 3%, transparent);
     text-align: left;
     cursor: pointer;
     color: var(--brand-text-muted);
 
     &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+    &:last-child { border-bottom: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
 }
 
-.archived-chevron { font-size: 0.85em; }
+.lib-divider-chevron { font-size: 0.85em; }
 
-.archived-title {
-    font-size: var(--font-size-sm);
+.lib-divider-title {
+    font-size: var(--font-size-2xs);
     font-weight: var(--font-weight-semibold);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
 }
 
-.archived-count {
+.lib-divider-count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -359,35 +356,19 @@
     font-weight: var(--font-weight-bold);
 }
 
-.archived-hint {
+.lib-divider-hint {
     margin-left: auto;
     font-size: var(--font-size-2xs);
     font-style: italic;
 }
 
-.archived-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    border-top: 1px solid var(--bs-border-color);
-}
+// Greyed, not hidden: the chips still read, because that is what the row is for.
+.lib-row--archived {
+    background: color-mix(in srgb, var(--bs-body-color) 2%, transparent);
 
-.archived-item {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color) 6%, transparent);
-
-    &:last-child { border-bottom: none; }
-
-    .team-name { flex: 1; font-style: italic; font-weight: var(--font-weight-medium); color: var(--brand-text-muted); }
-}
-
-.archived-history {
-    font-size: var(--font-size-2xs);
-    color: var(--brand-text-muted);
-    white-space: nowrap;
+    .team-name { font-style: italic; font-weight: var(--font-weight-medium); color: var(--brand-text-muted); }
+    .col-history { opacity: 0.7; }
+    &:hover .col-history { opacity: 1; }
 }
 
 // ── Mobile ──────────────────────────────────────────────────────────
@@ -412,7 +393,7 @@
     .col-actions { grid-area: actions; justify-content: flex-start; }
     .btn-action { border-color: var(--bs-border-color); }
 
-    .archived-hint { display: none; }
+    .lib-divider-hint { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

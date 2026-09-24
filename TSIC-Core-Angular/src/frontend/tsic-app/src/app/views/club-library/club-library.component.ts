@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { ClubTeamDto, ClubTeamEventHistoryDto, RegisteredTeamDto, TeamsMetadataResponse } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
@@ -36,7 +37,7 @@ export interface LibraryRow {
 @Component({
     selector: 'app-club-library',
     standalone: true,
-    imports: [ConfirmDialogComponent, TeamFormModalComponent],
+    imports: [NgTemplateOutlet, ConfirmDialogComponent, TeamFormModalComponent],
     templateUrl: './club-library.component.html',
     styleUrl: './club-library.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

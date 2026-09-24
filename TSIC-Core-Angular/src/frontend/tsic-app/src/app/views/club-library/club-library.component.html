@@ -49,8 +49,55 @@
       </div>
     }
 
-    <!-- ── The table ──────────────────────────────────────────────────── -->
-    @if (rows().length > 0) {
+    <!-- The two identity cells, shared by active and archived rows so the page has one idiom:
+         a team and where it has played. -->
+    <ng-template #teamCells let-row>
+      <!-- Team identity -->
+      <div class="col-team" role="cell">
+        <span class="team-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+        <span class="team-meta">
+          <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
+          @if (row.team.clubTeamLevelOfPlay) {
+            <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) }}</span>
+          }
+        </span>
+      </div>
+
+      <!-- Registered for: every event, this one first and highlighted, no special column -->
+      <div class="col-history" role="cell">
+        @if (row.history.length === 0) {
+          <span class="history-none">Not registered yet</span>
+        } @else {
+          @let expanded = expandedHistory().has(row.team.clubTeamId);
+          @let shown = expanded ? row.history : row.history.slice(0, historyPreviewCount);
+          <ul class="history-list">
+            @for (h of shown; track h.jobId) {
+              <li class="history-chip"
+                  [class.history-chip--here]="isHere(h)"
+                  [class.history-chip--dropped]="h.isDropped"
+                  [class.history-chip--wl]="h.isWaitlisted && !h.isDropped"
+                  [attr.title]="isHere(h) ? 'This event' : null">
+                @if (isHere(h)) { <i class="bi bi-pin-angle-fill history-here-icon" aria-hidden="true"></i> }
+                <span class="history-event">{{ eventLabel(h) }}</span>
+                @if (eventAlias(row, h.eventTeamName); as alias) {
+                  <span class="history-as" [attr.title]="'Registered there as ' + alias">as {{ alias }}</span>
+                }
+                @if (h.isDropped) { <span class="history-tag">dropped</span> }
+                @else if (h.isWaitlisted) { <span class="history-tag">waitlist</span> }
+              </li>
+            }
+          </ul>
+          @if (row.history.length > historyPreviewCount) {
+            <button type="button" class="history-more" (click)="toggleHistory(row.team.clubTeamId)">
+              {{ expanded ? 'Show fewer' : '+' + (row.history.length - historyPreviewCount) + ' more' }}
+            </button>
+          }
+        }
+      </div>
+    </ng-template>
+
+    <!-- ── The table: active rows, then archived rows under a collapsible divider ───── -->
+    @if (rows().length > 0 || archivedRows().length > 0) {
       <div class="lib-table" role="table" aria-label="Club team library">
         <div class="lib-head" role="row">
           <span role="columnheader" class="col-team">Library team</span>
@@ -61,48 +108,7 @@
         @for (row of rows(); track row.team.clubTeamId) {
           <div class="lib-row" role="row">
 
-            <!-- Team identity -->
-            <div class="col-team" role="cell">
-              <span class="team-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
-              <span class="team-meta">
-                <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
-                @if (row.team.clubTeamLevelOfPlay) {
-                  <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) }}</span>
-                }
-              </span>
-            </div>
-
-            <!-- Registered for: every event, this one first and highlighted, no special column -->
-            <div class="col-history" role="cell">
-              @if (row.history.length === 0) {
-                <span class="history-none">Not registered yet</span>
-              } @else {
-                @let expanded = expandedHistory().has(row.team.clubTeamId);
-                @let shown = expanded ? row.history : row.history.slice(0, historyPreviewCount);
-                <ul class="history-list">
-                  @for (h of shown; track h.jobId) {
-                    <li class="history-chip"
-                        [class.history-chip--here]="isHere(h)"
-                        [class.history-chip--dropped]="h.isDropped"
-                        [class.history-chip--wl]="h.isWaitlisted && !h.isDropped"
-                        [attr.title]="isHere(h) ? 'This event' : null">
-                      @if (isHere(h)) { <i class="bi bi-pin-angle-fill history-here-icon" aria-hidden="true"></i> }
-                      <span class="history-event">{{ eventLabel(h) }}</span>
-                      @if (eventAlias(row, h.eventTeamName); as alias) {
-                        <span class="history-as" [attr.title]="'Registered there as ' + alias">as {{ alias }}</span>
-                      }
-                      @if (h.isDropped) { <span class="history-tag">dropped</span> }
-                      @else if (h.isWaitlisted) { <span class="history-tag">waitlist</span> }
-                    </li>
-                  }
-                </ul>
-                @if (row.history.length > historyPreviewCount) {
-                  <button type="button" class="history-more" (click)="toggleHistory(row.team.clubTeamId)">
-                    {{ expanded ? 'Show fewer' : '+' + (row.history.length - historyPreviewCount) + ' more' }}
-                  </button>
-                }
-              }
-            </div>
+            <ng-container *ngTemplateOutlet="teamCells; context: { $implicit: row }" />
 
             <!-- Actions — library housekeeping only, on EVERY row, in the open (the page has the
                  room a drawer lacks). A locked action stays clickable and answers with its reason
@@ -133,37 +139,33 @@
             </div>
           </div>
         }
-      </div>
-    }
 
-    <!-- ── Archived ───────────────────────────────────────────────────── -->
-    @if (archivedRows().length > 0) {
-      <section class="archived-card">
-        <button type="button" class="archived-head" [attr.aria-expanded]="showArchived()" (click)="showArchived.set(!showArchived())">
-          <i class="bi archived-chevron" [class.bi-chevron-down]="showArchived()" [class.bi-chevron-right]="!showArchived()" aria-hidden="true"></i>
-          <i class="bi bi-archive-fill" aria-hidden="true"></i>
-          <span class="archived-title">Archived</span>
-          <span class="archived-count">{{ archivedRows().length }}</span>
-          <span class="archived-hint">hidden from registration · names stay reserved</span>
-        </button>
-        @if (showArchived()) {
-          <ul class="archived-list">
+        <!-- ── Archived: same columns, same chips, greyed, one action (Todd 2026-09-24). An archived
+             team has usually played the most, and this page is "teams and where they have played". -->
+        @if (archivedRows().length > 0) {
+          <button type="button" class="lib-divider" role="row"
+                  [attr.aria-expanded]="showArchived()" (click)="showArchived.set(!showArchived())">
+            <i class="bi lib-divider-chevron" [class.bi-chevron-down]="showArchived()" [class.bi-chevron-right]="!showArchived()" aria-hidden="true"></i>
+            <i class="bi bi-archive-fill" aria-hidden="true"></i>
+            <span class="lib-divider-title">Archived</span>
+            <span class="lib-divider-count">{{ archivedRows().length }}</span>
+            <span class="lib-divider-hint">hidden from registration · names stay reserved</span>
+          </button>
+          @if (showArchived()) {
             @for (row of archivedRows(); track row.team.clubTeamId) {
-              <li class="archived-item">
-                <span class="team-name">{{ row.team.clubTeamName }}</span>
-                <span class="team-meta"><span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span></span>
-                @if (row.history.length > 0) {
-                  <span class="archived-history">{{ row.history.length }} {{ row.history.length === 1 ? 'event' : 'events' }}</span>
-                }
-                <button type="button" class="btn-action" title="Restore to active library"
-                        [disabled]="actionInProgress()" (click)="askRestore(row)">
-                  <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restore
-                </button>
-              </li>
+              <div class="lib-row lib-row--archived" role="row">
+                <ng-container *ngTemplateOutlet="teamCells; context: { $implicit: row }" />
+                <div class="col-actions" role="cell">
+                  <button type="button" class="btn-action" title="Restore to active library"
+                          [disabled]="actionInProgress()" (click)="askRestore(row)">
+                    <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restore
+                  </button>
+                </div>
+              </div>
             }
-          </ul>
+          }
         }
-      </section>
+      </div>
     }
   </div>
 }
