@@ -10,7 +10,7 @@
          registering here"). Nothing on this page registers a team. -->
     <p class="page-lede">
       <strong>{{ ledeOwner() }}</strong> teams: the list you pick from when you register for an event.
-      Add, rename, edit or archive them here. You are not registering here. That happens in Team Registration.
+      Add, edit or archive them here. You are not registering here. That happens in Team Registration.
     </p>
   </div>
   <div class="page-header__actions">
@@ -110,9 +110,6 @@
               @let editLock = editLockReason(row);
               @let archiveLock = archiveLockReason(row);
               @let deleteLock = deleteLockReason(row);
-              <button type="button" class="btn-action" [disabled]="actionInProgress()" (click)="openRename(row)">
-                <i class="bi bi-input-cursor-text" aria-hidden="true"></i>Rename
-              </button>
               <button type="button" class="btn-action" [class.is-locked]="!!editLock"
                       [disabled]="actionInProgress()" [attr.title]="editLock" [attr.aria-disabled]="!!editLock"
                       (click)="editLock ? explainLock(editLock) : openEdit(row)">
@@ -183,23 +180,6 @@
     [existingTeams]="rows().map(r => r.team).concat(archivedRows().map(r => r.team))"
     (saved)="onTeamEdited()"
     (closed)="editingTeam.set(null)" />
-}
-
-@if (pendingRename(); as renaming) {
-  <team-rename-confirm
-    [editable]="true"
-    audience="rep"
-    [origin]="renaming.origin"
-    [eventLabel]="eventName()"
-    [currentName]="renameEventName(renaming)"
-    [newName]="renameSeed(renaming)"
-    [libraryName]="renameLibraryName(renaming)"
-    [registeredHere]="renameRegisteredHere(renaming)"
-    [canRenameInEvent]="canEdit()"
-    [errorMessage]="renameError()"
-    [busy]="actionInProgress()"
-    (confirmed)="confirmRename($event)"
-    (cancelled)="closeRename()" />
 }
 
 @if (pendingDelete(); as team) {

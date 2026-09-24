@@ -30,7 +30,7 @@
 <p><strong>A club rep registers teams from a list they maintain, instead of typing in their teams for every event.</strong></p>
 <p>For that to be true the rep needs two things:</p>
 <ul>
-<li><strong>Maintain the list.</strong> Add a team, rename it, edit its grad year and level of play, archive it when it is no longer used, restore it, delete it if it never went anywhere.</li>
+<li><strong>Maintain the list.</strong> Add a team, edit its name, grad year and level of play, archive it when it is no longer used, restore it, delete it if it never went anywhere.</li>
 <li><strong>Register from the list.</strong> See which teams on the list are registered for this event and which are not, pick one, place it in an age group, pay.</li>
 </ul>
 <h2>What the club rep has</h2>
@@ -40,12 +40,12 @@
 <li>Every library team has a <strong>library name</strong> (for example <code>2028 Blue</code>).</li>
 <li>Every event registration has its own <strong>event name</strong>. It starts as the library name.</li>
 <li>Renaming from the <strong>Registered Teams</strong> list changes the name <strong>for this event only</strong>. The library and other events keep theirs.</li>
-<li>Renaming from the <strong>library</strong> changes the library name. Existing event registrations keep the name they had.</li>
+<li>Editing a team in the <strong>library</strong> (name, grad year, level of play) changes the library only. Existing event registrations keep the name, grad year and level of play they had. There is no separate Rename in the library.</li>
 <li>Nothing ever renames a team in other events. That is by design.</li>
 </ul>
 <h2>Access Points: the library page and the library fly-in</h2>
 <p>The Club Team Library appears in two places. Same library, same teams, same rules; the difference is where the rep is standing. Both are inside an event. There is no library outside an event: the rep reaches it by opening one of their event registrations.</p>
-<p><strong>The library page</strong> is the Club Team Library page: its own page inside the event, not part of the registration wizard. It is the list's home: add, rename, edit, archive, restore, delete, and see every event each team has been registered for. Nothing on it registers a team. That happens in Team Registration.</p>
+<p><strong>The library page</strong> is the Club Team Library page: its own page inside the event, not part of the registration wizard. It is the list's home: add, edit, archive, restore, delete, and see every event each team has been registered for. Nothing on it registers a team. That happens in Team Registration.</p>
 <p><strong>The library fly-in</strong> is the same library inside Team Registration, on the Teams step. The rep is mid-registration; the fly-in shows the library grouped by what fits this event, so the rep picks a team and registers it without leaving the wizard. Maintenance is there too (kebab on each row), but registering is what it is for.</p>
 <h3>Reaching the library page</h3>
 <ul>
@@ -101,7 +101,7 @@
 <li><input type="checkbox"> C6. Repeat C4 with <code>Zz Test Gamma</code>, click Done, choose <strong>Register it now</strong>. The register sheet opens for that team. Cancel it.</li>
 <li><input type="checkbox"> C7. Type a name already in the library. The modal refuses it and the Register button stays disabled.</li>
 <li><input type="checkbox"> C8. Type a name that is only a year, such as <code>2031</code>. A nudge appears and the Register button still works.</li>
-<li><input type="checkbox"> C9. Kebab on a registered row: Archive team and Delete team are locked with a reason on hover. Rename team works.</li>
+<li><input type="checkbox"> C9. Kebab on a registered row: Archive team and Delete team are locked with a reason on hover. Edit team works and its dialog says it changes the library only.</li>
 <li><input type="checkbox"> C10. Kebab on Zz Test Beta: Edit details opens, change the level of play, save. Archive moves it to Archived. Restore brings it back.</li>
 <li><input type="checkbox"> C11. <strong>Manage full library →</strong> lands on the Club Team Library page.</li>
 </ul>
@@ -109,8 +109,8 @@
 <ul>
 <li><input type="checkbox"> D1. The page says it is the club's list of teams and that you are not registering here. The columns read <strong>Library team</strong> and <strong>Registered for</strong>. There is no Register button, no Team Registration button and no strip anywhere on the page.</li>
 <li><input type="checkbox"> D2. Registered for: one chip per event the team has been registered for. This event's chip comes first, highlighted with a pin. A waitlisted or dropped registration carries a <strong>waitlist</strong> or <strong>dropped</strong> tag on its chip. A team never registered anywhere reads <strong>Not registered yet</strong>. More than three fold behind <strong>+N more</strong>. When two organizers ran events with the same short name, the chips show the organizer in front.</li>
-<li><input type="checkbox"> D3. Every row has an Actions column with Rename, Edit, Archive and Delete, and nothing about this event. A locked action is greyed and struck through; hovering shows the reason and clicking it shows the reason as a toast. A team registered here locks Archive with <strong>Registered for the</strong> event name.</li>
-<li><input type="checkbox"> D4. On Zz Test Beta: <strong>Rename</strong> › new name › save. The row shows the new name. Rename it back.</li>
+<li><input type="checkbox"> D3. Every row has an Actions column with Edit, Archive and Delete, and nothing about this event. A locked action is greyed and struck through; hovering shows the reason and clicking it shows the reason as a toast. A team registered here locks Archive with <strong>Registered for the</strong> event name.</li>
+<li><input type="checkbox"> D4. On Zz Test Beta: <strong>Edit</strong> › the dialog opens with a callout saying it changes the library only and that registered teams keep their name, grad year and level of play › change the name › save. The row shows the new name. Change it back.</li>
 <li><input type="checkbox"> D5. <strong>Add to Library</strong> adds <code>Zz Test Delta</code> without registering it. It appears reading <strong>Not registered yet</strong>.</li>
 <li><input type="checkbox"> D6. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.</li>
 <li><input type="checkbox"> D7. Press F5. You stay logged in and on the page.</li>
@@ -160,7 +160,7 @@
 <ul>
 <li><input type="checkbox"> I1. The help list under the three checkboxes is present and reads correctly.</li>
 <li><input type="checkbox"> I2. Turn <strong>Allow Edit</strong> off, save. As <code>primeaulacrosse</code>: the Teams step pencil is visible but greyed, tooltip <strong>Editing closed by the director</strong>. Fly-in kebab › Edit details and the library page's Edit button stay open: Allow Edit governs the event copy only, never the library.</li>
-<li><input type="checkbox"> I3. With Allow Edit still off, library <strong>Rename</strong> and <strong>Edit</strong> still work on the library page and in the fly-in kebab. Expected: the library is never gated by Allow Edit.</li>
+<li><input type="checkbox"> I3. With Allow Edit still off, library <strong>Edit</strong> still works on the library page and in the fly-in kebab. Expected: the library is never gated by Allow Edit.</li>
 <li><input type="checkbox"> I4. Turn <strong>Allow Delete</strong> off, save. As the rep: <strong>Remove from this event</strong> is locked with <strong>Removal closed by the director</strong>.</li>
 <li><input type="checkbox"> I5. Turn <strong>Allow Add</strong> off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page is unchanged: it never offered registration.</li>
 <li><input type="checkbox"> I6. Turn all three back on, save. Everything reopens.</li>

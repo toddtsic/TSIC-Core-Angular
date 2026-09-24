@@ -18,12 +18,11 @@ import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error
 import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear } from '../components/event-age-group.util';
 
 /**
- * Which side of the two-name model the rep opened the dialog from. The dialog shows both names
- * either way — origin only decides which one is editable and which direction the checkbox runs.
+ * The registered team whose EVENT copy is being renamed. Event origin only: the library has no
+ * Rename of its own any more (Todd 2026-09-24) — its name is one of the details in Edit, library
+ * only, never propagated here. This dialog may carry an event rename back into the library.
  */
-type PendingRename =
-    | { origin: 'event'; team: RegisteredTeamDto }
-    | { origin: 'library'; team: ClubTeamDto };
+type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
 
 /**
  * Teams step — single screen combining library management + event registration.
@@ -231,7 +230,6 @@ type PendingRename =
         (register)="onFlyinRegister($event)"
         (unregister)="onFlyinUnregister($event)"
         (addNew)="onAddNew()"
-        (rename)="onRenameClubTeam($event)"
         (edit)="openEditModal($event)"
         (archive)="askArchiveTeam($event)"
         (delete)="askDeleteTeam($event)"
@@ -259,8 +257,8 @@ type PendingRename =
         (closed)="showAddAndRegisterModal.set(false)" />
     }
 
-    <!-- Library edit — pre-registration housekeeping only (name / grad year / LOP on a team with
-         no event history). A registered team is renamed for the event below, never here. -->
+    <!-- Library edit — name / grad year / LOP on the library row, never gated, never an event write.
+         A registered team's EVENT copy is renamed with the pencil above, never here. -->
     @if (editingTeam(); as editing) {
       <app-team-form-modal
         [clubName]="clubName()"
@@ -270,9 +268,8 @@ type PendingRename =
         (closed)="editingTeam.set(null)" />
     }
 
-    <!-- ONE name dialog, two origins: the Registered Teams pencil (this event) and the library's
-         Rename (their list). The rep edits the side they came from and can tick the other across;
-         nothing sweeps on its own. -->
+    <!-- The Registered Teams pencil: rename THIS EVENT's copy. The rep may tick "use it in the
+         library too"; nothing sweeps on its own. The library never opens this dialog. -->
     @if (pendingRename(); as renaming) {
       <team-rename-confirm
         [editable]="true"
@@ -1079,48 +1076,36 @@ export class TeamTeamsStepComponent implements OnInit {
         this.pendingRename.set({ origin: 'event', team });
     }
 
-    /** Library Rename (kebab). Same dialog, opened on the list side. */
-    onRenameClubTeam(team: ClubTeamDto): void {
-        this.renameError.set(null);
-        this.pendingRename.set({ origin: 'library', team });
-    }
-
     /** Close the dialog and drop any refusal it was showing. */
     closeRename(): void {
         this.pendingRename.set(null);
         this.renameError.set(null);
     }
 
-    /** This event's copy name — '' at library origin when the team isn't registered here. */
+    /** This event's copy name. */
     renameEventName(p: PendingRename): string {
-        if (p.origin === 'event') return p.team.teamName;
-        return this.enteredTeamsMap().get(p.team.clubTeamId)?.eventTeamName ?? '';
+        return p.team.teamName;
     }
 
-    /** What seeds the editable field: the side they opened from. */
+    /** What seeds the editable field. */
     renameSeed(p: PendingRename): string {
-        return p.origin === 'event' ? p.team.teamName : p.team.clubTeamName;
+        return p.team.teamName;
     }
 
-    /**
-     * This event's stored LOP for the dialog (AR-030) — the registered row's, never the library's.
-     * Null at library origin: the dialog doesn't offer the field there, and handing it the club
-     * level would seed an event control from the wrong side.
-     */
+    /** This event's stored LOP for the dialog (AR-030) — the registered row's, never the library's. */
     renameLevelOfPlay(p: PendingRename): string | null {
-        return p.origin === 'event' ? (p.team.levelOfPlay ?? null) : null;
+        return p.team.levelOfPlay ?? null;
     }
 
     /** Library name — looked up from the library the step already holds; null for an orphan. */
     renameLibraryName(p: PendingRename): string | null {
-        if (p.origin === 'library') return p.team.clubTeamName;
         if (p.team.clubTeamId == null) return null;
         return this._clubTeams().find(c => c.clubTeamId === p.team.clubTeamId)?.clubTeamName ?? null;
     }
 
-    /** Is there an event copy to offer the checkbox for? */
-    renameRegisteredHere(p: PendingRename): boolean {
-        return p.origin === 'event' || this.enteredTeamsMap().has(p.team.clubTeamId);
+    /** Always: the pencil only exists on a registered row. */
+    renameRegisteredHere(_p: PendingRename): boolean {
+        return true;
     }
 
     confirmRename(c: TeamRenameConfirmation): void {
@@ -1132,16 +1117,12 @@ export class TeamTeamsStepComponent implements OnInit {
         this.renameError.set(null);
         this.actionInProgress.set(true);
 
-        // LOP rides the event call only (AR-030, THIS EVENT ONLY). The library call has no LOP
-        // parameter by design — its level is locked once the team has been scheduled.
-        const call$ = pending.origin === 'event'
-            ? this.teamReg.renameRegisteredTeam(pending.team.teamId, c.name, c.alsoPropagate, c.levelOfPlay)
-            : this.teamReg.renameClubTeam(pending.team.clubTeamId, c.name, c.alsoPropagate);
+        // LOP rides with the event rename (AR-030, THIS EVENT ONLY). alsoPropagate carries the new
+        // name back into the library — the one direction that exists (Todd 2026-09-24).
+        const call$ = this.teamReg.renameRegisteredTeam(pending.team.teamId, c.name, c.alsoPropagate, c.levelOfPlay);
 
-        const oldName = pending.origin === 'event' ? pending.team.teamName : pending.team.clubTeamName;
-        const where = pending.origin === 'event'
-            ? (c.alsoPropagate ? 'in this event and your Club Team Library' : 'in this event')
-            : (c.alsoPropagate ? 'in your Club Team Library and this event' : 'in your Club Team Library');
+        const oldName = pending.team.teamName;
+        const where = c.alsoPropagate ? 'in this event and your Club Team Library' : 'in this event';
 
         // AR-030: an LOP-only edit leaves the name alone, and "X is now X in this event." reads as a
         // no-op the rep will not trust. Report what actually moved.

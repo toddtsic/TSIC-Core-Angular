@@ -41,18 +41,12 @@ export interface ClubTeamLockContext {
 }
 
 /**
- * Rename: never locked. Todd's ruling of 2026-08-18, restated 2026-09-24. The rename dialog's
- * opt-in "use it for this event too" IS an event write, and that half answers to the director's
- * toggle inside the dialog, not here.
- */
-export function clubTeamRenameLockReason(): string | null {
-    return null;
-}
-
-/**
- * Edit details (grad year, level of play): never locked. Same ruling as rename, 2026-09-24.
- * UpdateClubTeamAsync dropped its schedule refusal the same day. The function stays so every
- * caller keeps asking one place; the `team` argument stays for the day a rule needs it.
+ * Edit (name, grad year, level of play — one dialog, library only): never locked. Todd's rename
+ * ruling of 2026-08-18 extended to all three on 2026-09-24; UpdateClubTeamAsync dropped its
+ * schedule refusal the same day. There is no separate Rename on the library side any more, and
+ * no library-to-event propagation: the event copy is renamed on the Teams step. The function
+ * stays so every caller keeps asking one place; the `team` argument stays for the day a rule
+ * needs it.
  */
 export function clubTeamEditLockReason(_team: ClubTeamDto, _ctx: ClubTeamLockContext): string | null {
     return null;

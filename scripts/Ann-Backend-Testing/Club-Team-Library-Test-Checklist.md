@@ -6,7 +6,7 @@
 
 For that to be true the rep needs two things:
 
-- **Maintain the list.** Add a team, rename it, edit its grad year and level of play, archive it when it is no longer used, restore it, delete it if it never went anywhere.
+- **Maintain the list.** Add a team, edit its name, grad year and level of play, archive it when it is no longer used, restore it, delete it if it never went anywhere.
 - **Register from the list.** See which teams on the list are registered for this event and which are not, pick one, place it in an age group, pay.
 
 ## What the club rep has
@@ -18,14 +18,14 @@ A club rep has one **Club Team Library** per club: the club's list of teams, eac
 - Every library team has a **library name** (for example `2028 Blue`).
 - Every event registration has its own **event name**. It starts as the library name.
 - Renaming from the **Registered Teams** list changes the name **for this event only**. The library and other events keep theirs.
-- Renaming from the **library** changes the library name. Existing event registrations keep the name they had.
+- Editing a team in the **library** (name, grad year, level of play) changes the library only. Existing event registrations keep the name, grad year and level of play they had. There is no separate Rename in the library.
 - Nothing ever renames a team in other events. That is by design.
 
 ## Access Points: the library page and the library fly-in
 
 The Club Team Library appears in two places. Same library, same teams, same rules; the difference is where the rep is standing. Both are inside an event. There is no library outside an event: the rep reaches it by opening one of their event registrations.
 
-**The library page** is the Club Team Library page: its own page inside the event, not part of the registration wizard. It is the list's home: add, rename, edit, archive, restore, delete, and see every event each team has been registered for. Nothing on it registers a team. That happens in Team Registration.
+**The library page** is the Club Team Library page: its own page inside the event, not part of the registration wizard. It is the list's home: add, edit, archive, restore, delete, and see every event each team has been registered for. Nothing on it registers a team. That happens in Team Registration.
 
 **The library fly-in** is the same library inside Team Registration, on the Teams step. The rep is mid-registration; the fly-in shows the library grouped by what fits this event, so the rep picks a team and registers it without leaving the wizard. Maintenance is there too (kebab on each row), but registering is what it is for.
 
@@ -85,7 +85,7 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 - [ ] C6. Repeat C4 with `Zz Test Gamma`, click Done, choose **Register it now**. The register sheet opens for that team. Cancel it.
 - [ ] C7. Type a name already in the library. The modal refuses it and the Register button stays disabled.
 - [ ] C8. Type a name that is only a year, such as `2031`. A nudge appears and the Register button still works.
-- [ ] C9. Kebab on a registered row: Archive team and Delete team are locked with a reason on hover. Rename team works.
+- [ ] C9. Kebab on a registered row: Archive team and Delete team are locked with a reason on hover. Edit team works and its dialog says it changes the library only.
 - [ ] C10. Kebab on Zz Test Beta: Edit details opens, change the level of play, save. Archive moves it to Archived. Restore brings it back.
 - [ ] C11. **Manage full library →** lands on the Club Team Library page.
 
@@ -93,8 +93,8 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 
 - [ ] D1. The page says it is the club's list of teams and that you are not registering here. The columns read **Library team** and **Registered for**. There is no Register button, no Team Registration button and no strip anywhere on the page.
 - [ ] D2. Registered for: one chip per event the team has been registered for. This event's chip comes first, highlighted with a pin. A waitlisted or dropped registration carries a **waitlist** or **dropped** tag on its chip. A team never registered anywhere reads **Not registered yet**. More than three fold behind **+N more**. When two organizers ran events with the same short name, the chips show the organizer in front.
-- [ ] D3. Every row has an Actions column with Rename, Edit, Archive and Delete, and nothing about this event. A locked action is greyed and struck through; hovering shows the reason and clicking it shows the reason as a toast. A team registered here locks Archive with **Registered for the** event name.
-- [ ] D4. On Zz Test Beta: **Rename** › new name › save. The row shows the new name. Rename it back.
+- [ ] D3. Every row has an Actions column with Edit, Archive and Delete, and nothing about this event. A locked action is greyed and struck through; hovering shows the reason and clicking it shows the reason as a toast. A team registered here locks Archive with **Registered for the** event name.
+- [ ] D4. On Zz Test Beta: **Edit** › the dialog opens with a callout saying it changes the library only and that registered teams keep their name, grad year and level of play › change the name › save. The row shows the new name. Change it back.
 - [ ] D5. **Add to Library** adds `Zz Test Delta` without registering it. It appears reading **Not registered yet**.
 - [ ] D6. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.
 - [ ] D7. Press F5. You stay logged in and on the page.
@@ -149,7 +149,7 @@ The director sees every club rep who signed in to the event, including reps who 
 
 - [ ] I1. The help list under the three checkboxes is present and reads correctly.
 - [ ] I2. Turn **Allow Edit** off, save. As `primeaulacrosse`: the Teams step pencil is visible but greyed, tooltip **Editing closed by the director**. Fly-in kebab › Edit details and the library page's Edit button stay open: Allow Edit governs the event copy only, never the library.
-- [ ] I3. With Allow Edit still off, library **Rename** and **Edit** still work on the library page and in the fly-in kebab. Expected: the library is never gated by Allow Edit.
+- [ ] I3. With Allow Edit still off, library **Edit** still works on the library page and in the fly-in kebab. Expected: the library is never gated by Allow Edit.
 - [ ] I4. Turn **Allow Delete** off, save. As the rep: **Remove from this event** is locked with **Removal closed by the director**.
 - [ ] I5. Turn **Allow Add** off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page is unchanged: it never offered registration.
 - [ ] I6. Turn all three back on, save. Everything reopens.

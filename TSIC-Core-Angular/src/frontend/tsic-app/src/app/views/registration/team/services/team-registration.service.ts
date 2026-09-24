@@ -158,9 +158,10 @@ export class TeamRegistrationService {
     }
 
     /**
-     * Rename a club-team LIBRARY entry — the pick list future registrations seed from. Allowed even
-     * once the team has event history (name only; grad year / level of play stay locked). Reaches no
-     * event unless `alsoRenameInThisJob` is set, which applies it to this event's registered copy.
+     * Rename a club-team LIBRARY entry with optional propagation into this event. UNCALLED since
+     * 2026-09-24 (Todd): the library has no Rename — its name is edited with updateClubTeam, library
+     * only, and the event copy is renamed with renameRegisteredTeam. Kept because the endpoint exists.
+     * Reaches no event unless `alsoRenameInThisJob` is set.
      */
     renameClubTeam(clubTeamId: number, clubTeamName: string, alsoRenameInThisJob = false): Observable<void> {
         const body: RenameClubTeamRequest = { clubTeamName, alsoRenameInThisJob };

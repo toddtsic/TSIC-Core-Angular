@@ -35,7 +35,7 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
         <div class="form-hero">
           <h5 class="form-hero-title mb-0">
             @if (isEdit()) {
-              <i class="bi bi-pencil-square me-1"></i>Edit Library Team Details
+              <i class="bi bi-pencil-square me-1"></i>Edit Library Team
             } @else {
               <i class="bi bi-plus-circle me-1"></i>Add Team to Library
             }
@@ -54,14 +54,12 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
             <div class="library-aside library-aside--lead" role="note">
               <i class="bi bi-collection" aria-hidden="true"></i>
               <span><strong>This changes your library only.</strong> Teams already registered for an event keep
-                the grad year and level of play they were registered with. To change a team for an event,
+                the name, grad year and level of play they were registered with. To change a team for an event,
                 use Team Registration.</span>
             </div>
           }
 
-          <!-- ── Step 1 — Name your team (add mode only: Rename owns the name in edit mode,
-               with the dialog that knows about the event copy) ──────────────── -->
-          @if (!isEdit()) {
+          <!-- ── Step 1 — Name your team ─────────────────────────────────────── -->
           <div class="step-section"
                role="group" aria-labelledby="tf-step-1-title"
                [class.is-active]="activeStep() === 1"
@@ -111,7 +109,6 @@ import { isBareYearName } from '@shared/teams/team-name-hints';
               </div>
             }
           </div>
-          }
 
           <!-- ── Step 2 — Team details ───────────────────────────── -->
           <div class="step-section"
@@ -377,14 +374,11 @@ export class TeamFormModalComponent implements OnInit {
     readonly nameIsBareYear = computed(() => isBareYearName(this.teamName()));
 
     /** Step 1 (Name) complete: team name present, not echoing the club name,
-     *  and not duplicating an existing library team. Edit mode has no name step —
-     *  Rename owns the name, with its own dialog that knows about the event copy —
-     *  so the step is done by definition and never blocks a details save. */
+     *  and not duplicating an existing library team (the row being edited excluded). */
     readonly step1Done = computed(() =>
-        this.isEdit()
-        || (this.teamName().trim().length > 0
-            && !this.nameContainsClub()
-            && !this.nameIsDuplicate()),
+        this.teamName().trim().length > 0
+        && !this.nameContainsClub()
+        && !this.nameIsDuplicate(),
     );
 
     /** Step 2 (Details) complete: grad year + LOP both picked. */
@@ -414,10 +408,8 @@ export class TeamFormModalComponent implements OnInit {
     save(): void {
         this.submitted.set(true);
         if (!this.teamName().trim() || !this.gradYear() || !this.levelOfPlay()) return;
-        // Name rules apply to a NEW name only. In edit mode the name is the row's own, unchanged
-        // (a legacy "{Club} 2028" name must not block a grad-year fix; Rename is where it gets fixed).
-        if (!this.isEdit() && this.nameContainsClub()) return;
-        if (!this.isEdit() && this.nameIsDuplicate()) return;
+        if (this.nameContainsClub()) return;
+        if (this.nameIsDuplicate()) return;
 
         this.saving.set(true);
         this.errorMsg.set(null);

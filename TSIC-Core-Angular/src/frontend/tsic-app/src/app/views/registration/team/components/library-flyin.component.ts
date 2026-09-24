@@ -2,7 +2,7 @@ import { AfterViewChecked, AfterViewInit, ChangeDetectionStrategy, Component, El
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { formatLop, normalizeLop } from '@shared/teams/lop-choices';
-import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, clubTeamRenameLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
+import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
 import { EventAgeGroupPickerComponent } from './event-age-group-picker.component';
 import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear, resolveRecommendedAgeGroupId } from './event-age-group.util';
@@ -127,7 +127,7 @@ interface LibraryGroup {
           @if (showHowTo()) {
             <ul class="lib-howto-list">
               <li>Team not in your library? <strong>Add a New Team</strong> &mdash; it's saved to your library and registered here in one step.</li>
-              <li>Name wrong or changed? Open <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row → <strong>Rename team</strong>. Don't add a second entry.</li>
+              <li>Name wrong or changed? Open <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row → <strong>Edit team</strong>. Don't add a second entry. That changes your library only.</li>
               <li>Just this event's name? Rename it from the <strong>Registered Teams</strong> list instead — your library keeps its own name.</li>
               <li>No longer used? Open <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row → <strong>Archive</strong>.</li>
             </ul>
@@ -381,23 +381,13 @@ interface LibraryGroup {
                               <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
                             </button>
                             @if (openMenuTeamId() === team.clubTeamId) {
-                              @let renameLock = renameLockReason();
                               @let editLock = editLockReason(team);
                               @let archiveLock = archiveLockReason(!!registered);
                               @let deleteLock = deleteLockReason(team, !!registered);
                               <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
-                                <!-- Rename stands apart from Edit details: a name is a label the rep
-                                     must always be able to fix, so it survives event history. Grad year
-                                     and level of play do not — they carry the squad's identity. -->
-                                <button type="button" class="lib-menu-item" role="menuitem"
-                                        [disabled]="!!renameLock"
-                                        (click)="handleMenuRename(team)">
-                                  <i class="bi bi-input-cursor-text lib-menu-icon" aria-hidden="true"></i>
-                                  <span class="lib-menu-label">Rename team</span>
-                                  @if (renameLock) {
-                                    <span class="lib-menu-reason">{{ renameLock }}</span>
-                                  }
-                                </button>
+                                <!-- One Edit for name, grad year and level of play, library only
+                                     (Todd 2026-09-24). No separate Rename: the event copy is renamed
+                                     from the Registered Teams list, never from here. -->
                                 <button type="button" class="lib-menu-item" role="menuitem"
                                         [disabled]="!!editLock"
                                         (click)="handleMenuEdit(team)">
@@ -2399,9 +2389,6 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
      *  confirm-dialog + paid-total guard, so the money check stays at one chokepoint. */
     readonly unregister = output<number>();
     readonly addNew = output<void>();
-    /** Rename the library entry (name only). Available regardless of event history — see
-     *  renameLockReason. The parent opens the shared name dialog at library origin. */
-    readonly rename = output<ClubTeamDto>();
     readonly edit = output<ClubTeamDto>();
     readonly archive = output<ClubTeamDto>();
     readonly delete = output<ClubTeamDto>();
@@ -2607,15 +2594,9 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
     private lockContext(registered: boolean): ClubTeamLockContext {
         return { registeredHere: registered, eventLabel: 'this event' };
     }
-    renameLockReason(): string | null { return clubTeamRenameLockReason(); }
     editLockReason(team: ClubTeamDto): string | null { return clubTeamEditLockReason(team, this.lockContext(false)); }
     archiveLockReason(registered: boolean): string | null { return clubTeamArchiveLockReason(this.lockContext(registered)); }
     deleteLockReason(team: ClubTeamDto, registered: boolean): string | null { return clubTeamDeleteLockReason(team, this.lockContext(registered)); }
-
-    handleMenuRename(team: ClubTeamDto): void {
-        this.closeMenu();
-        if (!this.renameLockReason()) this.rename.emit(team);
-    }
 
     handleMenuEdit(team: ClubTeamDto): void {
         this.closeMenu();
