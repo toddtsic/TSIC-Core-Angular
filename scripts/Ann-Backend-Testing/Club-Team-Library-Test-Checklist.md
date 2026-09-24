@@ -58,66 +58,59 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 - A team that has been scheduled at any event cannot have its grad year or level of play edited. Its name can still be renamed.
 - A registered team cannot be archived or deleted. A team with any event registration ever cannot be deleted, only archived.
 - A team with a payment on it cannot be removed from the event by the rep.
-- Typing a URL or opening a bookmark starts a fresh session and asks for login. F5 keeps the session.
+- Typing a URL or opening a bookmark starts a fresh session and asks for login. E5 keeps the session.
 
 ## Club rep tests
 
-### A. Sign-in role picker
+### A. Event landing rep card (`primeaulacrosse`, lftc-fallshowcase-2026)
 
-- [ ] A1. Club Rep rows show event dates and a team count. There is no Past group and no Library button on any row.
-- [ ] A2. The event you arrived from is tagged **this event**.
-- [ ] A3. Clicking a Club Rep row opens that event's landing page.
-- [ ] A4. On an account with many registrations (search-box picker), the same holds.
+- [ ] A1. The card shows the club name and the number of registered teams. The count matches the Teams step.
+- [ ] A2. The money line reads Nothing due now / Balance due / Auto-pay scheduled and agrees with the Teams step footer.
+- [ ] A3. Doors work: Team Registration, Club Team Library, Edit My Rosters. Pay Balance Due appears only when a balance is due.
+- [ ] A4. (`MGoins`, lftc-summer-2027) The card shows **No teams registered yet** and a **Register Teams** door. If this landing page has no registration panel at all, note that and use the header user menu.
 
-### B. Event landing rep card (`primeaulacrosse`, lftc-fallshowcase-2026)
+### B. Teams step (`primeaulacrosse`)
 
-- [ ] B1. The card shows the club name and the number of registered teams. The count matches the Teams step.
-- [ ] B2. The money line reads Nothing due now / Balance due / Auto-pay scheduled and agrees with the Teams step footer.
-- [ ] B3. Doors work: Team Registration, Club Team Library, Edit My Rosters. Pay Balance Due appears only when a balance is due.
-- [ ] B4. (`MGoins`, lftc-summer-2027) The card shows **No teams registered yet** and a **Register Teams** door. If this landing page has no registration panel at all, note that and use the header user menu.
+- [ ] B1. Fee Status on every row reads one of `Deposit $X due now`, `Deposit paid`, `$X balance due now`, `Paid in full`, `Auto-pay · $X`, or `No fee until placed` (a waitlisted team).
+- [ ] B2. Footer reads Paid · Due now · Later, and the sums match the rows.
+- [ ] B3. If unregistered library teams fit this event, the yellow strip names them. **Register** opens the fly-in. The × dismisses it for the session and it returns after logout and login.
+- [ ] B4. The pencil opens the rename dialog. Rename a team for this event only. The library page still shows the old library name; the Teams step shows the new event name.
+- [ ] B5. Rename it back.
 
-### C. Teams step (`primeaulacrosse`)
+### C. Library fly-in (`primeaulacrosse`)
 
-- [ ] C1. Fee Status on every row reads one of `Deposit $X due now`, `Deposit paid`, `$X balance due now`, `Paid in full`, `Auto-pay · $X`, or `No fee until placed` (a waitlisted team).
-- [ ] C2. Footer reads Paid · Due now · Later, and the sums match the rows.
-- [ ] C3. If unregistered library teams fit this event, the yellow strip names them. **Register** opens the fly-in. The × dismisses it for the session and it returns after logout and login.
-- [ ] C4. The pencil opens the rename dialog. Rename a team for this event only. The library page still shows the old library name; the Teams step shows the new event name.
-- [ ] C5. Rename it back.
+- [ ] C1. **Register Another Team** opens the drawer. The Registered strip lists the same teams as the Teams step.
+- [ ] C2. Groups appear: Available for This Event, Outside Event Age Groups, Archived (collapsed), Dropped (if any).
+- [ ] C3. **Add a New Team** › name `Zz Test Alpha`, grad year, level of play, age group › **Register Team for this Event**. Toast confirms. The team appears in the Registered strip and on the Teams step, and the count goes up by one.
+- [ ] C4. **Add a New Team** › name `Zz Test Beta` › **Save to library only**. Warning toast says NOT registered. The row is tinted with **Not registered yet**.
+- [ ] C5. Click **Done** with Zz Test Beta unregistered. The interstitial names the team. **Leave it** closes the drawer. Reopen: Zz Test Beta sits under Available for This Event with no tint.
+- [ ] C6. Repeat C4 with `Zz Test Gamma`, click Done, choose **Register it now**. The register sheet opens for that team. Cancel it.
+- [ ] C7. Type a name already in the library. The modal refuses it and the Register button stays disabled.
+- [ ] C8. Type a name that is only a year, such as `2031`. A nudge appears and the Register button still works.
+- [ ] C9. Kebab on a registered row: Archive team and Delete team are locked with a reason on hover. Rename team works.
+- [ ] C10. Kebab on Zz Test Beta: Edit details opens, change the level of play, save. Archive moves it to Archived. Restore brings it back.
+- [ ] C11. **Manage full library →** lands on the Club Team Library page.
 
-### D. Library fly-in (`primeaulacrosse`)
+### D. Club Team Library page (`primeaulacrosse`)
 
-- [ ] D1. **Register Another Team** opens the drawer. The Registered strip lists the same teams as the Teams step.
-- [ ] D2. Groups appear: Available for This Event, Outside Event Age Groups, Archived (collapsed), Dropped (if any).
-- [ ] D3. **Add a New Team** › name `Zz Test Alpha`, grad year, level of play, age group › **Register Team for this Event**. Toast confirms. The team appears in the Registered strip and on the Teams step, and the count goes up by one.
-- [ ] D4. **Add a New Team** › name `Zz Test Beta` › **Save to library only**. Warning toast says NOT registered. The row is tinted with **Not registered yet**.
-- [ ] D5. Click **Done** with Zz Test Beta unregistered. The interstitial names the team. **Leave it** closes the drawer. Reopen: Zz Test Beta sits under Available for This Event with no tint.
-- [ ] D6. Repeat D4 with `Zz Test Gamma`, click Done, choose **Register it now**. The register sheet opens for that team. Cancel it.
-- [ ] D7. Type a name already in the library. The modal refuses it and the Register button stays disabled.
-- [ ] D8. Type a name that is only a year, such as `2031`. A nudge appears and the Register button still works.
-- [ ] D9. Kebab on a registered row: Archive team and Delete team are locked with a reason on hover. Rename team works.
-- [ ] D10. Kebab on Zz Test Beta: Edit details opens, change the level of play, save. Archive moves it to Archived. Restore brings it back.
-- [ ] D11. **Manage full library →** lands on the Club Team Library page.
+- [ ] D1. The strip counts unregistered teams and names the same rows that show a Register button.
+- [ ] D2. Each registered team shows Registered with the right age group. A waitlisted team shows Waitlisted. A dropped team shows Dropped.
+- [ ] D3. Other events: a team that played earlier events shows a chip per event; a new team shows **First event**. More than three fold behind **+N more**.
+- [ ] D4. Every row's kebab shows two sections, This event and Club Team Library. Locked items show reasons.
+- [ ] D5. On Zz Test Beta: **Register for this event** › pick an age group › register. The row turns Registered. The Teams step now lists it.
+- [ ] D6. On Zz Test Beta (registered, unpaid): **Remove from this event** › confirm. The row returns to Register and the team stays in the library.
+- [ ] D7. **Add to Library** adds `Zz Test Delta` without registering it. It appears with a Register button.
+- [ ] D8. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.
+- [ ] D9. Press E5. You stay logged in and on the page.
 
-### E. Club Team Library page (`primeaulacrosse`)
+### E. Refusals (`MGoins`, lftc-summer-2027)
 
-- [ ] E1. The strip counts unregistered teams and names the same rows that show a Register button.
-- [ ] E2. Each registered team shows Registered with the right age group. A waitlisted team shows Waitlisted. A dropped team shows Dropped.
-- [ ] E3. Other events: a team that played earlier events shows a chip per event; a new team shows **First event**. More than three fold behind **+N more**.
-- [ ] E4. Every row's kebab shows two sections, This event and Club Team Library. Locked items show reasons.
-- [ ] E5. On Zz Test Beta: **Register for this event** › pick an age group › register. The row turns Registered. The Teams step now lists it.
-- [ ] E6. On Zz Test Beta (registered, unpaid): **Remove from this event** › confirm. The row returns to Register and the team stays in the library.
-- [ ] E7. **Add to Library** adds `Zz Test Delta` without registering it. It appears with a Register button.
-- [ ] E8. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.
-- [ ] E9. Press F5. You stay logged in and on the page.
+- [ ] E1. Try to register any team. A **yellow** toast names `adamgoins` and says only one club representative may register. No red "Something went wrong".
+- [ ] E2. The team is still in the library, not registered.
 
-### F. Refusals (`MGoins`, lftc-summer-2027)
+### F. Club rep clean-up
 
-- [ ] F1. Try to register any team. A **yellow** toast names `adamgoins` and says only one club representative may register. No red "Something went wrong".
-- [ ] F2. The team is still in the library, not registered.
-
-### G. Club rep clean-up
-
-- [ ] G1. Remove `Zz Test Alpha` from the event, then archive it (delete is refused because it was registered). Delete `Zz Test Beta` and `Zz Test Gamma` if never registered, otherwise archive them.
+- [ ] F1. Remove `Zz Test Alpha` from the event, then archive it (delete is refused because it was registered). Delete `Zz Test Beta` and `Zz Test Gamma` if never registered, otherwise archive them.
 
 ---
 
@@ -135,36 +128,36 @@ The director sees every club rep who signed in to the event, including reps who 
 
 ## Director tests
 
-### H. Search › Club Reps (lftc-fallshowcase-2026)
+### G. Search › Club Reps (lftc-fallshowcase-2026)
 
-- [ ] H1. `/lftc-fallshowcase-2026/search/club-reps` loads. Until the nav script is re-run there is no menu entry; type the URL. The row count equals the Club Rep registrations on Search › Registrations filtered to the Club Rep role.
-- [ ] H2. A rep with zero teams is present as a row with 0 Active.
-- [ ] H3. `primeaulacrosse`'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. Not Registered `fits / all` matches their library page's strip. That column reads `fits / all`: `2/3` means 3 library teams are not registered here and 2 of them fit an age group at this event.
-- [ ] H4. Click **no teams yet**: only zero-team reps remain. Click **owed**: only reps with an amount owed remain. **Show all** clears it.
-- [ ] H5. Excel export downloads a file with the same rows as the grid.
-- [ ] H6. **Library** on `primeaulacrosse`'s row opens the panel. The table shows every team on their library page with the same This event status and the same Other events chips.
-- [ ] H7. The counts line at the top of the panel matches the table beneath it.
-- [ ] H8. **Open in Search Teams** on a registered row lands on Search › Teams with that team's detail panel already open.
-- [ ] H9. There is no button anywhere in the panel that renames, edits, archives or deletes a library team.
-- [ ] H10. Escape, the ×, and a click on the backdrop each close the panel.
+- [ ] G1. `/lftc-fallshowcase-2026/search/club-reps` loads. Until the nav script is re-run there is no menu entry; type the URL. The row count equals the Club Rep registrations on Search › Registrations filtered to the Club Rep role.
+- [ ] G2. A rep with zero teams is present as a row with 0 Active.
+- [ ] G3. `primeaulacrosse`'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. Not Registered `fits / all` matches their library page's strip. That column reads `fits / all`: `2/3` means 3 library teams are not registered here and 2 of them fit an age group at this event.
+- [ ] G4. Click **no teams yet**: only zero-team reps remain. Click **owed**: only reps with an amount owed remain. **Show all** clears it.
+- [ ] G5. Excel export downloads a file with the same rows as the grid.
+- [ ] G6. **Library** on `primeaulacrosse`'s row opens the panel. The table shows every team on their library page with the same This event status and the same Other events chips.
+- [ ] G7. The counts line at the top of the panel matches the table beneath it.
+- [ ] G8. **Open in Search Teams** on a registered row lands on Search › Teams with that team's detail panel already open.
+- [ ] G9. There is no button anywhere in the panel that renames, edits, archives or deletes a library team.
+- [ ] G10. Escape, the ×, and a click on the backdrop each close the panel.
 
-### I. Search › Teams detail panel
+### H. Search › Teams detail panel
 
-- [ ] I1. Open a team that came from a library. The header shows a **Library** tag with library name, grad year and level of play.
-- [ ] I2. The **Other events** line lists the team's other events, or reads **none — first event for this team**.
-- [ ] I3. A team not linked to any library (an old manually entered team) shows neither line.
-- [ ] I4. Rename the team in the Details tab. As `primeaulacrosse`, the library page still shows the library name, and the This event column shows `as <new name>`.
-- [ ] I5. Rename it back.
+- [ ] H1. Open a team that came from a library. The header shows a **Library** tag with library name, grad year and level of play.
+- [ ] H2. The **Other events** line lists the team's other events, or reads **none — first event for this team**.
+- [ ] H3. A team not linked to any library (an old manually entered team) shows neither line.
+- [ ] H4. Rename the team in the Details tab. As `primeaulacrosse`, the library page still shows the library name, and the This event column shows `as <new name>`.
+- [ ] H5. Rename it back.
 
-### J. Configure › Job Settings › Teams › Club Rep Permissions
+### I. Configure › Job Settings › Teams › Club Rep Permissions
 
-- [ ] J1. The help list under the three checkboxes is present and reads correctly.
-- [ ] J2. Turn **Allow Edit** off, save. As `primeaulacrosse`: the Teams step pencil is visible but greyed, tooltip **Editing closed by the director**. Fly-in kebab › Edit details and library page kebab › Edit details are locked with the same words.
-- [ ] J3. With Allow Edit still off, library **Rename team** in the kebab still works. Expected: rename is not gated by Allow Edit.
-- [ ] J4. Turn **Allow Delete** off, save. As the rep: **Remove from this event** is locked with **Removal closed by the director**.
-- [ ] J5. Turn **Allow Add** off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page shows Closed on unregistered rows with **registration is closed**.
-- [ ] J6. Turn all three back on, save. Everything reopens.
+- [ ] I1. The help list under the three checkboxes is present and reads correctly.
+- [ ] I2. Turn **Allow Edit** off, save. As `primeaulacrosse`: the Teams step pencil is visible but greyed, tooltip **Editing closed by the director**. Fly-in kebab › Edit details and library page kebab › Edit details are locked with the same words.
+- [ ] I3. With Allow Edit still off, library **Rename team** in the kebab still works. Expected: rename is not gated by Allow Edit.
+- [ ] I4. Turn **Allow Delete** off, save. As the rep: **Remove from this event** is locked with **Removal closed by the director**.
+- [ ] I5. Turn **Allow Add** off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page shows Closed on unregistered rows with **registration is closed**.
+- [ ] I6. Turn all three back on, save. Everything reopens.
 
-### K. Director clean-up
+### J. Director clean-up
 
-- [ ] K1. After the club rep clean-up (G1), Search › Club Reps counts for the club are back to what they were in H3.
+- [ ] J1. After the club rep clean-up (F1), Search › Club Reps counts for the club are back to what they were in G3.

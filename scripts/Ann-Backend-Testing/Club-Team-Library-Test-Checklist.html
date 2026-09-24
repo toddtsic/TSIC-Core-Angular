@@ -75,65 +75,58 @@
 <li>A team that has been scheduled at any event cannot have its grad year or level of play edited. Its name can still be renamed.</li>
 <li>A registered team cannot be archived or deleted. A team with any event registration ever cannot be deleted, only archived.</li>
 <li>A team with a payment on it cannot be removed from the event by the rep.</li>
-<li>Typing a URL or opening a bookmark starts a fresh session and asks for login. F5 keeps the session.</li>
+<li>Typing a URL or opening a bookmark starts a fresh session and asks for login. E5 keeps the session.</li>
 </ul>
 <h2>Club rep tests</h2>
-<h3>A. Sign-in role picker</h3>
+<h3>A. Event landing rep card (<code>primeaulacrosse</code>, lftc-fallshowcase-2026)</h3>
 <ul>
-<li><input type="checkbox"> A1. Club Rep rows show event dates and a team count. There is no Past group and no Library button on any row.</li>
-<li><input type="checkbox"> A2. The event you arrived from is tagged <strong>this event</strong>.</li>
-<li><input type="checkbox"> A3. Clicking a Club Rep row opens that event's landing page.</li>
-<li><input type="checkbox"> A4. On an account with many registrations (search-box picker), the same holds.</li>
+<li><input type="checkbox"> A1. The card shows the club name and the number of registered teams. The count matches the Teams step.</li>
+<li><input type="checkbox"> A2. The money line reads Nothing due now / Balance due / Auto-pay scheduled and agrees with the Teams step footer.</li>
+<li><input type="checkbox"> A3. Doors work: Team Registration, Club Team Library, Edit My Rosters. Pay Balance Due appears only when a balance is due.</li>
+<li><input type="checkbox"> A4. (<code>MGoins</code>, lftc-summer-2027) The card shows <strong>No teams registered yet</strong> and a <strong>Register Teams</strong> door. If this landing page has no registration panel at all, note that and use the header user menu.</li>
 </ul>
-<h3>B. Event landing rep card (<code>primeaulacrosse</code>, lftc-fallshowcase-2026)</h3>
+<h3>B. Teams step (<code>primeaulacrosse</code>)</h3>
 <ul>
-<li><input type="checkbox"> B1. The card shows the club name and the number of registered teams. The count matches the Teams step.</li>
-<li><input type="checkbox"> B2. The money line reads Nothing due now / Balance due / Auto-pay scheduled and agrees with the Teams step footer.</li>
-<li><input type="checkbox"> B3. Doors work: Team Registration, Club Team Library, Edit My Rosters. Pay Balance Due appears only when a balance is due.</li>
-<li><input type="checkbox"> B4. (<code>MGoins</code>, lftc-summer-2027) The card shows <strong>No teams registered yet</strong> and a <strong>Register Teams</strong> door. If this landing page has no registration panel at all, note that and use the header user menu.</li>
+<li><input type="checkbox"> B1. Fee Status on every row reads one of <code>Deposit $X due now</code>, <code>Deposit paid</code>, <code>$X balance due now</code>, <code>Paid in full</code>, <code>Auto-pay · $X</code>, or <code>No fee until placed</code> (a waitlisted team).</li>
+<li><input type="checkbox"> B2. Footer reads Paid · Due now · Later, and the sums match the rows.</li>
+<li><input type="checkbox"> B3. If unregistered library teams fit this event, the yellow strip names them. <strong>Register</strong> opens the fly-in. The × dismisses it for the session and it returns after logout and login.</li>
+<li><input type="checkbox"> B4. The pencil opens the rename dialog. Rename a team for this event only. The library page still shows the old library name; the Teams step shows the new event name.</li>
+<li><input type="checkbox"> B5. Rename it back.</li>
 </ul>
-<h3>C. Teams step (<code>primeaulacrosse</code>)</h3>
+<h3>C. Library fly-in (<code>primeaulacrosse</code>)</h3>
 <ul>
-<li><input type="checkbox"> C1. Fee Status on every row reads one of <code>Deposit $X due now</code>, <code>Deposit paid</code>, <code>$X balance due now</code>, <code>Paid in full</code>, <code>Auto-pay · $X</code>, or <code>No fee until placed</code> (a waitlisted team).</li>
-<li><input type="checkbox"> C2. Footer reads Paid · Due now · Later, and the sums match the rows.</li>
-<li><input type="checkbox"> C3. If unregistered library teams fit this event, the yellow strip names them. <strong>Register</strong> opens the fly-in. The × dismisses it for the session and it returns after logout and login.</li>
-<li><input type="checkbox"> C4. The pencil opens the rename dialog. Rename a team for this event only. The library page still shows the old library name; the Teams step shows the new event name.</li>
-<li><input type="checkbox"> C5. Rename it back.</li>
+<li><input type="checkbox"> C1. <strong>Register Another Team</strong> opens the drawer. The Registered strip lists the same teams as the Teams step.</li>
+<li><input type="checkbox"> C2. Groups appear: Available for This Event, Outside Event Age Groups, Archived (collapsed), Dropped (if any).</li>
+<li><input type="checkbox"> C3. <strong>Add a New Team</strong> › name <code>Zz Test Alpha</code>, grad year, level of play, age group › <strong>Register Team for this Event</strong>. Toast confirms. The team appears in the Registered strip and on the Teams step, and the count goes up by one.</li>
+<li><input type="checkbox"> C4. <strong>Add a New Team</strong> › name <code>Zz Test Beta</code> › <strong>Save to library only</strong>. Warning toast says NOT registered. The row is tinted with <strong>Not registered yet</strong>.</li>
+<li><input type="checkbox"> C5. Click <strong>Done</strong> with Zz Test Beta unregistered. The interstitial names the team. <strong>Leave it</strong> closes the drawer. Reopen: Zz Test Beta sits under Available for This Event with no tint.</li>
+<li><input type="checkbox"> C6. Repeat C4 with <code>Zz Test Gamma</code>, click Done, choose <strong>Register it now</strong>. The register sheet opens for that team. Cancel it.</li>
+<li><input type="checkbox"> C7. Type a name already in the library. The modal refuses it and the Register button stays disabled.</li>
+<li><input type="checkbox"> C8. Type a name that is only a year, such as <code>2031</code>. A nudge appears and the Register button still works.</li>
+<li><input type="checkbox"> C9. Kebab on a registered row: Archive team and Delete team are locked with a reason on hover. Rename team works.</li>
+<li><input type="checkbox"> C10. Kebab on Zz Test Beta: Edit details opens, change the level of play, save. Archive moves it to Archived. Restore brings it back.</li>
+<li><input type="checkbox"> C11. <strong>Manage full library →</strong> lands on the Club Team Library page.</li>
 </ul>
-<h3>D. Library fly-in (<code>primeaulacrosse</code>)</h3>
+<h3>D. Club Team Library page (<code>primeaulacrosse</code>)</h3>
 <ul>
-<li><input type="checkbox"> D1. <strong>Register Another Team</strong> opens the drawer. The Registered strip lists the same teams as the Teams step.</li>
-<li><input type="checkbox"> D2. Groups appear: Available for This Event, Outside Event Age Groups, Archived (collapsed), Dropped (if any).</li>
-<li><input type="checkbox"> D3. <strong>Add a New Team</strong> › name <code>Zz Test Alpha</code>, grad year, level of play, age group › <strong>Register Team for this Event</strong>. Toast confirms. The team appears in the Registered strip and on the Teams step, and the count goes up by one.</li>
-<li><input type="checkbox"> D4. <strong>Add a New Team</strong> › name <code>Zz Test Beta</code> › <strong>Save to library only</strong>. Warning toast says NOT registered. The row is tinted with <strong>Not registered yet</strong>.</li>
-<li><input type="checkbox"> D5. Click <strong>Done</strong> with Zz Test Beta unregistered. The interstitial names the team. <strong>Leave it</strong> closes the drawer. Reopen: Zz Test Beta sits under Available for This Event with no tint.</li>
-<li><input type="checkbox"> D6. Repeat D4 with <code>Zz Test Gamma</code>, click Done, choose <strong>Register it now</strong>. The register sheet opens for that team. Cancel it.</li>
-<li><input type="checkbox"> D7. Type a name already in the library. The modal refuses it and the Register button stays disabled.</li>
-<li><input type="checkbox"> D8. Type a name that is only a year, such as <code>2031</code>. A nudge appears and the Register button still works.</li>
-<li><input type="checkbox"> D9. Kebab on a registered row: Archive team and Delete team are locked with a reason on hover. Rename team works.</li>
-<li><input type="checkbox"> D10. Kebab on Zz Test Beta: Edit details opens, change the level of play, save. Archive moves it to Archived. Restore brings it back.</li>
-<li><input type="checkbox"> D11. <strong>Manage full library →</strong> lands on the Club Team Library page.</li>
+<li><input type="checkbox"> D1. The strip counts unregistered teams and names the same rows that show a Register button.</li>
+<li><input type="checkbox"> D2. Each registered team shows Registered with the right age group. A waitlisted team shows Waitlisted. A dropped team shows Dropped.</li>
+<li><input type="checkbox"> D3. Other events: a team that played earlier events shows a chip per event; a new team shows <strong>First event</strong>. More than three fold behind <strong>+N more</strong>.</li>
+<li><input type="checkbox"> D4. Every row's kebab shows two sections, This event and Club Team Library. Locked items show reasons.</li>
+<li><input type="checkbox"> D5. On Zz Test Beta: <strong>Register for this event</strong> › pick an age group › register. The row turns Registered. The Teams step now lists it.</li>
+<li><input type="checkbox"> D6. On Zz Test Beta (registered, unpaid): <strong>Remove from this event</strong> › confirm. The row returns to Register and the team stays in the library.</li>
+<li><input type="checkbox"> D7. <strong>Add to Library</strong> adds <code>Zz Test Delta</code> without registering it. It appears with a Register button.</li>
+<li><input type="checkbox"> D8. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.</li>
+<li><input type="checkbox"> D9. Press E5. You stay logged in and on the page.</li>
 </ul>
-<h3>E. Club Team Library page (<code>primeaulacrosse</code>)</h3>
+<h3>E. Refusals (<code>MGoins</code>, lftc-summer-2027)</h3>
 <ul>
-<li><input type="checkbox"> E1. The strip counts unregistered teams and names the same rows that show a Register button.</li>
-<li><input type="checkbox"> E2. Each registered team shows Registered with the right age group. A waitlisted team shows Waitlisted. A dropped team shows Dropped.</li>
-<li><input type="checkbox"> E3. Other events: a team that played earlier events shows a chip per event; a new team shows <strong>First event</strong>. More than three fold behind <strong>+N more</strong>.</li>
-<li><input type="checkbox"> E4. Every row's kebab shows two sections, This event and Club Team Library. Locked items show reasons.</li>
-<li><input type="checkbox"> E5. On Zz Test Beta: <strong>Register for this event</strong> › pick an age group › register. The row turns Registered. The Teams step now lists it.</li>
-<li><input type="checkbox"> E6. On Zz Test Beta (registered, unpaid): <strong>Remove from this event</strong> › confirm. The row returns to Register and the team stays in the library.</li>
-<li><input type="checkbox"> E7. <strong>Add to Library</strong> adds <code>Zz Test Delta</code> without registering it. It appears with a Register button.</li>
-<li><input type="checkbox"> E8. Delete Zz Test Delta (never registered): it disappears. On any team that has ever been registered, Delete is refused and only Archive is offered.</li>
-<li><input type="checkbox"> E9. Press F5. You stay logged in and on the page.</li>
+<li><input type="checkbox"> E1. Try to register any team. A <strong>yellow</strong> toast names <code>adamgoins</code> and says only one club representative may register. No red "Something went wrong".</li>
+<li><input type="checkbox"> E2. The team is still in the library, not registered.</li>
 </ul>
-<h3>F. Refusals (<code>MGoins</code>, lftc-summer-2027)</h3>
+<h3>F. Club rep clean-up</h3>
 <ul>
-<li><input type="checkbox"> F1. Try to register any team. A <strong>yellow</strong> toast names <code>adamgoins</code> and says only one club representative may register. No red "Something went wrong".</li>
-<li><input type="checkbox"> F2. The team is still in the library, not registered.</li>
-</ul>
-<h3>G. Club rep clean-up</h3>
-<ul>
-<li><input type="checkbox"> G1. Remove <code>Zz Test Alpha</code> from the event, then archive it (delete is refused because it was registered). Delete <code>Zz Test Beta</code> and <code>Zz Test Gamma</code> if never registered, otherwise archive them.</li>
+<li><input type="checkbox"> F1. Remove <code>Zz Test Alpha</code> from the event, then archive it (delete is refused because it was registered). Delete <code>Zz Test Beta</code> and <code>Zz Test Gamma</code> if never registered, otherwise archive them.</li>
 </ul>
 <hr>
 <h1>DIRECTOR</h1>
@@ -146,38 +139,38 @@
 <li>The Club Reps grid counts registrations, so a club with two rep accounts shows two rows.</li>
 </ul>
 <h2>Director tests</h2>
-<h3>H. Search › Club Reps (lftc-fallshowcase-2026)</h3>
+<h3>G. Search › Club Reps (lftc-fallshowcase-2026)</h3>
 <ul>
-<li><input type="checkbox"> H1. <code>/lftc-fallshowcase-2026/search/club-reps</code> loads. Until the nav script is re-run there is no menu entry; type the URL. The row count equals the Club Rep registrations on Search › Registrations filtered to the Club Rep role.</li>
-<li><input type="checkbox"> H2. A rep with zero teams is present as a row with 0 Active.</li>
-<li><input type="checkbox"> H3. <code>primeaulacrosse</code>'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. Not Registered <code>fits / all</code> matches their library page's strip. That column reads <code>fits / all</code>: <code>2/3</code> means 3 library teams are not registered here and 2 of them fit an age group at this event.</li>
-<li><input type="checkbox"> H4. Click <strong>no teams yet</strong>: only zero-team reps remain. Click <strong>owed</strong>: only reps with an amount owed remain. <strong>Show all</strong> clears it.</li>
-<li><input type="checkbox"> H5. Excel export downloads a file with the same rows as the grid.</li>
-<li><input type="checkbox"> H6. <strong>Library</strong> on <code>primeaulacrosse</code>'s row opens the panel. The table shows every team on their library page with the same This event status and the same Other events chips.</li>
-<li><input type="checkbox"> H7. The counts line at the top of the panel matches the table beneath it.</li>
-<li><input type="checkbox"> H8. <strong>Open in Search Teams</strong> on a registered row lands on Search › Teams with that team's detail panel already open.</li>
-<li><input type="checkbox"> H9. There is no button anywhere in the panel that renames, edits, archives or deletes a library team.</li>
-<li><input type="checkbox"> H10. Escape, the ×, and a click on the backdrop each close the panel.</li>
+<li><input type="checkbox"> G1. <code>/lftc-fallshowcase-2026/search/club-reps</code> loads. Until the nav script is re-run there is no menu entry; type the URL. The row count equals the Club Rep registrations on Search › Registrations filtered to the Club Rep role.</li>
+<li><input type="checkbox"> G2. A rep with zero teams is present as a row with 0 Active.</li>
+<li><input type="checkbox"> G3. <code>primeaulacrosse</code>'s row: Active equals their Teams step count. Library equals the number of active rows on their library page. Not Registered <code>fits / all</code> matches their library page's strip. That column reads <code>fits / all</code>: <code>2/3</code> means 3 library teams are not registered here and 2 of them fit an age group at this event.</li>
+<li><input type="checkbox"> G4. Click <strong>no teams yet</strong>: only zero-team reps remain. Click <strong>owed</strong>: only reps with an amount owed remain. <strong>Show all</strong> clears it.</li>
+<li><input type="checkbox"> G5. Excel export downloads a file with the same rows as the grid.</li>
+<li><input type="checkbox"> G6. <strong>Library</strong> on <code>primeaulacrosse</code>'s row opens the panel. The table shows every team on their library page with the same This event status and the same Other events chips.</li>
+<li><input type="checkbox"> G7. The counts line at the top of the panel matches the table beneath it.</li>
+<li><input type="checkbox"> G8. <strong>Open in Search Teams</strong> on a registered row lands on Search › Teams with that team's detail panel already open.</li>
+<li><input type="checkbox"> G9. There is no button anywhere in the panel that renames, edits, archives or deletes a library team.</li>
+<li><input type="checkbox"> G10. Escape, the ×, and a click on the backdrop each close the panel.</li>
 </ul>
-<h3>I. Search › Teams detail panel</h3>
+<h3>H. Search › Teams detail panel</h3>
 <ul>
-<li><input type="checkbox"> I1. Open a team that came from a library. The header shows a <strong>Library</strong> tag with library name, grad year and level of play.</li>
-<li><input type="checkbox"> I2. The <strong>Other events</strong> line lists the team's other events, or reads <strong>none — first event for this team</strong>.</li>
-<li><input type="checkbox"> I3. A team not linked to any library (an old manually entered team) shows neither line.</li>
-<li><input type="checkbox"> I4. Rename the team in the Details tab. As <code>primeaulacrosse</code>, the library page still shows the library name, and the This event column shows <code>as &lt;new name&gt;</code>.</li>
-<li><input type="checkbox"> I5. Rename it back.</li>
+<li><input type="checkbox"> H1. Open a team that came from a library. The header shows a <strong>Library</strong> tag with library name, grad year and level of play.</li>
+<li><input type="checkbox"> H2. The <strong>Other events</strong> line lists the team's other events, or reads <strong>none — first event for this team</strong>.</li>
+<li><input type="checkbox"> H3. A team not linked to any library (an old manually entered team) shows neither line.</li>
+<li><input type="checkbox"> H4. Rename the team in the Details tab. As <code>primeaulacrosse</code>, the library page still shows the library name, and the This event column shows <code>as &lt;new name&gt;</code>.</li>
+<li><input type="checkbox"> H5. Rename it back.</li>
 </ul>
-<h3>J. Configure › Job Settings › Teams › Club Rep Permissions</h3>
+<h3>I. Configure › Job Settings › Teams › Club Rep Permissions</h3>
 <ul>
-<li><input type="checkbox"> J1. The help list under the three checkboxes is present and reads correctly.</li>
-<li><input type="checkbox"> J2. Turn <strong>Allow Edit</strong> off, save. As <code>primeaulacrosse</code>: the Teams step pencil is visible but greyed, tooltip <strong>Editing closed by the director</strong>. Fly-in kebab › Edit details and library page kebab › Edit details are locked with the same words.</li>
-<li><input type="checkbox"> J3. With Allow Edit still off, library <strong>Rename team</strong> in the kebab still works. Expected: rename is not gated by Allow Edit.</li>
-<li><input type="checkbox"> J4. Turn <strong>Allow Delete</strong> off, save. As the rep: <strong>Remove from this event</strong> is locked with <strong>Removal closed by the director</strong>.</li>
-<li><input type="checkbox"> J5. Turn <strong>Allow Add</strong> off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page shows Closed on unregistered rows with <strong>registration is closed</strong>.</li>
-<li><input type="checkbox"> J6. Turn all three back on, save. Everything reopens.</li>
+<li><input type="checkbox"> I1. The help list under the three checkboxes is present and reads correctly.</li>
+<li><input type="checkbox"> I2. Turn <strong>Allow Edit</strong> off, save. As <code>primeaulacrosse</code>: the Teams step pencil is visible but greyed, tooltip <strong>Editing closed by the director</strong>. Fly-in kebab › Edit details and library page kebab › Edit details are locked with the same words.</li>
+<li><input type="checkbox"> I3. With Allow Edit still off, library <strong>Rename team</strong> in the kebab still works. Expected: rename is not gated by Allow Edit.</li>
+<li><input type="checkbox"> I4. Turn <strong>Allow Delete</strong> off, save. As the rep: <strong>Remove from this event</strong> is locked with <strong>Removal closed by the director</strong>.</li>
+<li><input type="checkbox"> I5. Turn <strong>Allow Add</strong> off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page shows Closed on unregistered rows with <strong>registration is closed</strong>.</li>
+<li><input type="checkbox"> I6. Turn all three back on, save. Everything reopens.</li>
 </ul>
-<h3>K. Director clean-up</h3>
+<h3>J. Director clean-up</h3>
 <ul>
-<li><input type="checkbox"> K1. After the club rep clean-up (G1), Search › Club Reps counts for the club are back to what they were in H3.</li>
+<li><input type="checkbox"> J1. After the club rep clean-up (F1), Search › Club Reps counts for the club are back to what they were in G3.</li>
 </ul>
 </body></html>
