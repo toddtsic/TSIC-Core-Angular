@@ -21,32 +21,32 @@ A club rep has one **Club Team Library** per club: the club's list of teams, eac
 - Renaming from the **library** changes the library name. Existing event registrations keep the name they had.
 - Nothing ever renames a team in other events. That is by design.
 
-## Access Points: Standalone vs Integrated
+## Access Points: the library page and the library fly-in
 
-The Club Team Library exists in two forms. Same library, same teams, same rules; the difference is where the rep is standing.
+The Club Team Library appears in two places. Same library, same teams, same rules; the difference is where the rep is standing. Both are inside an event. There is no library outside an event: the rep reaches it by opening one of their event registrations.
 
-**Standalone CTL** is the Club Team Library page: its own page, not part of the registration wizard. The rep goes there to maintain the list: add, rename, edit, archive, restore, delete, and to see every team's status for this event and its other events. Registering from it is possible, but it is the list's home first.
+**The library page** is the Club Team Library page: its own page inside the event, not part of the registration wizard. The rep goes there to maintain the list: add, rename, edit, archive, restore, delete, and to see every team's status for this event and its other events. Registering from it is possible, but it is the list's home first.
 
-**Integrated CTL** is the library fly-in inside Team Registration, on the Teams step. The rep is mid-registration; the fly-in shows the same library grouped by what fits this event, so the rep picks a team and registers it without leaving the wizard. Maintenance is there too (kebab on each row), but registering is what it is for.
+**The library fly-in** is the same library inside Team Registration, on the Teams step. The rep is mid-registration; the fly-in shows the library grouped by what fits this event, so the rep picks a team and registers it without leaving the wizard. Maintenance is there too (kebab on each row), but registering is what it is for.
 
-### Reaching the Standalone CTL
+### Reaching the library page
 
-- **Login / role select screen.** There is no library door here. A club rep picks an event row and reaches the library inside that event. The role list offers only available events (inside the director's user-expiry window); there is no past-events group.
+- **Login / role select screen**: pick the event's Club Rep row. That opens the event's landing page; the library is one click further. The role list offers only available events (inside the director's user-expiry window); there is no past-events group.
 - **Tournament job site, landing page rep card**: the **Club Team Library** door.
 - **Tournament job site, header user menu**: **Club Team Library**, on every page.
-- **From the Integrated CTL**: the fly-in's header link **Manage full library →**.
+- **From the library fly-in**: the fly-in's header link **Manage full library →**.
 
-### Reaching the Integrated CTL
+### Reaching the library fly-in
 
 - **Tournament job site, landing page rep card**: **Team Registration** (reads **Register Teams** for a rep with no teams yet) opens the Teams step; **Register Another Team** there opens the fly-in.
 - **Tournament job site, header user menu**: **Team Registration**, then the same button.
-- **From the Standalone CTL**: the **Team Registration** link at the top of the page.
+- **From the library page**: the **Team Registration** link at the top of the page.
 
 ## The club rep's screens
 
 ### Screen 1 — Sign-in role picker
 
-Each Club Rep row shows the event's dates and how many teams the rep has registered there. The role list offers only available events (inside the director's user-expiry window); there is no past-events group. The event the rep came from is tagged **this event**. With a few registrations the picker is a list of cards; with many it is a search box. Clicking a row opens that event's landing page. There is no Library button on a row and no library door on this screen: the library is reached inside the event.
+Each Club Rep row shows the event's dates and how many teams the rep has registered there. The role list offers only available events (inside the director's user-expiry window); there is no past-events group. The event the rep came from is tagged **this event**. With a few registrations the picker is a list of cards; with many it is a search box. Clicking a row opens that event's landing page. There is no Library button on a row; the library is reached inside the event.
 
 ### Screen 2 — Event landing page, rep card
 
@@ -94,7 +94,7 @@ History is events only. There are no win-loss records anywhere in the library. T
 
 ### A. Sign-in role picker
 
-- [ ] A1. Club Rep rows show event dates and a team count. There is no Past group, no Library button on any row, and no library door anywhere on the screen.
+- [ ] A1. Club Rep rows show event dates and a team count. There is no Past group and no Library button on any row.
 - [ ] A2. The event you arrived from is tagged **this event**.
 - [ ] A3. Clicking a Club Rep row opens that event's landing page.
 - [ ] A4. On an account with many registrations (search-box picker), the same holds.
