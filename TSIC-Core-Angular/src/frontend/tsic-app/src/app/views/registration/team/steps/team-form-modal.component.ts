@@ -74,7 +74,12 @@ import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedu
               <i class="bi bi-collection" aria-hidden="true"></i>
               <span><strong>This changes your library only.</strong> Teams already registered for an event keep
                 the name, grad year and level of play they were registered with.
-                <strong>To change a team for an event, open your menu at the top right and choose Team Registration.</strong></span>
+                @if (eventName()) {
+                  <strong>To change a team for {{ eventName() }}, return to your registration: open your menu at the
+                    top right and choose Team Registration.</strong>
+                } @else {
+                  <strong>To change a team for this event, use the Registered Teams list in your registration.</strong>
+                }</span>
             </div>
           }
 
@@ -181,7 +186,7 @@ import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedu
             <div class="library-aside">
               <i class="bi bi-collection" aria-hidden="true"></i>
               <span>Saved to your library for future events &mdash; <strong>not registered for {{ eventName() }}</strong>.
-                <strong>To register it, open your menu at the top right and choose Team Registration.</strong></span>
+                <strong>To enter it, return to your registration: open your menu at the top right and choose Team Registration.</strong></span>
             </div>
           }
 
@@ -377,9 +382,9 @@ import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedu
 })
 export class TeamFormModalComponent implements OnInit {
     readonly clubName = input('');
-    /** Add mode only: when set, the form states that this save does NOT register the team
-     *  for the named event. The wizard leaves it empty (it only uses add mode while
-     *  registration is closed); the standalone library page always sets it. */
+    /** The event the rep is signed in to, set by the library page only. Add mode: the aside says this
+     *  save does NOT enter the team for it. Edit mode: the callout says where the event copy is changed
+     *  ("return to your registration"). The wizard leaves it empty — the rep is already there. */
     readonly eventName = input('');
     /** When supplied, the modal is in edit mode and updates this team instead of creating. */
     // TODO: Skipped for migration because:

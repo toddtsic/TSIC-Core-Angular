@@ -33,10 +33,9 @@
     <div>
       <div class="purpose-kicker">This page does not register teams</div>
       <div class="purpose-text">
-        <strong>Team Registration offers you the teams in this library.</strong> When you register
-        {{ eventName() ? 'for ' + eventName() : 'for an event' }}, you pick from this list and assign
-        an age group. Nothing here registers a team. To register, open your menu at the top right and choose
-        <strong>Team Registration</strong>.
+        <strong>Your registration{{ eventName() ? ' for ' + eventName() : '' }} offers you the teams in this library.</strong>
+        Return to it to update your entered teams from this list: open your menu at the top right and choose
+        <strong>Team Registration</strong>. Nothing on this page enters a team.
       </div>
     </div>
   </div>
@@ -202,6 +201,7 @@
 @if (editingTeam(); as editing) {
   <app-team-form-modal
     [clubName]="clubName()"
+    [eventName]="eventName()"
     [editingTeam]="editing"
     [archiveLockReason]="editingArchiveLock()"
     [existingTeams]="rows().map(r => r.team).concat(archivedRows().map(r => r.team))"
