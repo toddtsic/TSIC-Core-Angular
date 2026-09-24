@@ -111,7 +111,7 @@
                   }
                   @if (reg.dateLabel || reg.teamLabel) {
                   <span class="role-card-meta">
-                    @if (reg.dateLabel) { <span><i class="bi bi-calendar3" aria-hidden="true"></i>{{ reg.dateLabel }}</span> }
+                    @if (reg.dateLabel) { <span class="role-card-meta--date"><i class="bi bi-calendar3" aria-hidden="true"></i>{{ reg.dateLabel }}</span> }
                     @if (reg.teamLabel) { <span [class.role-card-meta--warn]="reg.teamCount === 0"><i class="bi bi-people" aria-hidden="true"></i>{{ reg.teamLabel }}</span> }
                   </span>
                   }

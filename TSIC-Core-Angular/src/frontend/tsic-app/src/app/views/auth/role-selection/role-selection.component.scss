@@ -161,6 +161,9 @@
 
   > span { display: inline-flex; align-items: center; gap: var(--space-1); }
   .bi { font-size: 0.9em; opacity: 0.8; }
+  // The date of play is what the rows are sorted by (after "this event"), so it is the fact
+  // the eye scans down the list. Bold it; the team count stays quiet.
+  &--date { color: var(--brand-text); font-weight: var(--font-weight-semibold); .bi { opacity: 1; } }
   &--warn { color: var(--bs-warning-text-emphasis); font-weight: var(--font-weight-semibold); }
 }
 
