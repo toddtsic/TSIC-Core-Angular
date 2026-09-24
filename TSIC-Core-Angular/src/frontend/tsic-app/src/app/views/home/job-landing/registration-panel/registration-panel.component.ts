@@ -261,7 +261,6 @@ export class RegistrationPanelComponent {
 			&& this.repTeamCount() > 0;
 	});
 	protected readonly repRegLink = computed(() => `${this.base()}/registration/team`);
-	protected readonly repLibraryLink = computed(() => `${this.base()}/club/library`);
 	protected readonly repRostersLink = computed(() => `${this.base()}/rosters/club`);
 	protected readonly repInsuranceLink = computed(() => `${this.base()}/ClubRepVIUpdate`);
 

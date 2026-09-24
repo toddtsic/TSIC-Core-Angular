@@ -31,7 +31,6 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 
 ### Reaching the library page
 
-- **Tournament job site, landing page rep card**: the **Club Team Library** door.
 - **Tournament job site, header user menu**: **Club Team Library**, on every page.
 - **From the library fly-in**: the fly-in's header link **Manage full library →**.
 
@@ -66,7 +65,7 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 
 - [ ] A1. The card shows the club name and the number of registered teams. The count matches the Teams step.
 - [ ] A2. Money on the card agrees with the Teams step footer. When something is owed now, the **Pay Balance Due** door carries the amount with its phase word (`$X due now`, `$X deposit due now · $Y due later`, `$X balance due now`). When nothing is owed now the status line reads **Nothing due now**, **Auto-pay scheduled**, or **$X deposit paid · $Y due later**. The phase is never named on its own.
-- [ ] A3. Doors work: Team Registration, Club Team Library, Edit My Rosters. Pay Balance Due appears only when a balance is due.
+- [ ] A3. Doors work: Team Registration, Edit My Rosters. There is no Club Team Library door on the card; the library is in the header user menu. Pay Balance Due appears only when a balance is due.
 - [ ] A4. (`MGoins`, lftc-summer-2027) The card shows **No teams registered yet** and a **Register Teams** door. If this landing page has no registration panel at all, note that and use the header user menu.
 
 ### B. Teams step (`primeaulacrosse`)
