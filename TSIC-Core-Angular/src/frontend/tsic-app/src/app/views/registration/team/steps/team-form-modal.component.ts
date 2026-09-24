@@ -181,7 +181,7 @@ import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedu
             <div class="library-aside">
               <i class="bi bi-collection" aria-hidden="true"></i>
               <span>Saved to your library for future events &mdash; <strong>not registered for {{ eventName() }}</strong>.
-                Register it from its row afterwards.</span>
+                <strong>To register it, open your menu at the top right and choose Team Registration.</strong></span>
             </div>
           }
 
