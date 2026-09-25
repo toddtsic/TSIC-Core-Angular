@@ -235,6 +235,30 @@
   }
 }
 
+/* ── bulletins: the SMART band's section header ──
+   Headers mark the two tiers apart — "News & Updates" over the organizer's own
+   bulletins, "Event Info & Links" over the system's standing band.
+
+   The band's header can only be honest if it knows the band rendered something,
+   and it can't: `smart()` is a host opt-in, and the band self-hides on its own
+   internal gate, emitting nothing when it has nothing to say. Reading that gate
+   means changing band code, which is off limits — so the header asks the DOM.
+
+   This lives here rather than in bulletins.component.scss because the selector has
+   to reach INSIDE <app-smart-bulletins>, and emulated encapsulation would stamp the
+   parent's ng-content attribute onto `.sb` and never match.
+
+   Written as a single hide-when-absent rule, and doubled up on the class, for
+   specificity: the component's own `.bulletins-sep` rule carries an ng-content
+   attribute (0,2,0) and would otherwise out-rank a bare `.bulletins-sep--smart`
+   and force it back to `display: flex`.
+
+   Fails SAFE: rename `.sb` and the header disappears rather than stranding itself
+   above empty space. */
+.bulletins-sep.bulletins-sep--smart:not(:has(+ app-smart-bulletins .sb)) {
+  display: none;
+}
+
 /* ── bulletins: author-controlled `[innerHTML]` body ──
    Body content is innerHTML-rendered, so it carries no ng-content attr.
    Reading-grade typography defaults + legacy class hooks, keyed by

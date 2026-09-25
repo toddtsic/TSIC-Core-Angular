@@ -49,6 +49,10 @@
     i { font-size: 0.95rem; }
 }
 
+// .bulletins-sep--smart (the band's header) is hidden/revealed from
+// styles/_component-overrides.scss — the rule has to see INSIDE <app-smart-bulletins>,
+// which emulated encapsulation puts out of this file's reach.
+
 .bulletin {
     // Master scale lever — title, effective subtitle, and body are all em-based
     // and resolve against this. Drop to compress everything proportionally,

@@ -44,12 +44,18 @@
 </div>
 }
 
-<!-- No divider introduces the band, deliberately. `smart()` is a host opt-in, NOT a
-     has-content signal — the band decides for itself whether to render (its own
-     hasContent gate), so a header placed here would sometimes introduce nothing at
-     all. Reading that gate means touching smart-bulletin code, which is off limits.
-     The band's cards carry their own surface, so the boundary still reads. -->
+<!-- Headers mark the two tiers apart: the organizer's words above, the system's
+     standing info here.
+
+     `smart()` is only a host opt-in, NOT a has-content signal — the band decides for
+     itself whether to render anything (its own internal gate), so this header would
+     sometimes introduce an empty space. It can't ask the band, because band code is
+     off limits, so it asks the DOM instead: the SCSS shows this divider only when a
+     rendered band actually follows it. See `.bulletins-sep--smart`. -->
 @if (smart()) {
+<div class="bulletins-sep bulletins-sep--smart">
+    <span class="bulletins-sep__label"><i class="bi bi-compass-fill" aria-hidden="true"></i> Event Info &amp; Links</span>
+</div>
 <app-smart-bulletins [jobPath]="jobPath()" />
 }
 
