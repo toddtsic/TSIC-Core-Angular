@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using TSIC.API.Configuration;
 using TSIC.API.Extensions;
 using TSIC.Contracts.Services;
 
@@ -15,15 +17,43 @@ public class EmailTestSendService : IEmailTestSendService
     private readonly IEmailService _email;
     private readonly IHostEnvironment _env;
     private readonly ILogger<EmailTestSendService> _logger;
+    private readonly string _baseUrl;
+    private readonly string _publicBaseUrl;
 
     public EmailTestSendService(
         IEmailService email,
         IHostEnvironment env,
+        IOptions<FrontendSettings> frontendSettings,
         ILogger<EmailTestSendService> logger)
     {
         _email = email;
         _env = env;
         _logger = logger;
+        _baseUrl = (frontendSettings.Value.BaseUrl ?? string.Empty).TrimEnd('/');
+        _publicBaseUrl = (frontendSettings.Value.PublicBaseUrl ?? string.Empty).TrimEnd('/');
+    }
+
+    /// <summary>
+    /// Point the rendered links at the PUBLIC host.
+    ///
+    /// Rendering happens against the running environment, so on Development every link in the
+    /// letter is <c>http://localhost:4200/...</c> — dead the moment the mail leaves the box, which
+    /// defeats the point of a test send. Swapping the host makes the link clickable from a real
+    /// inbox. It resolves against PRODUCTION, so it proves the URL is well-formed and reachable,
+    /// not that the sandbox's own data sits behind it.
+    ///
+    /// No-op when the two are already equal, when either is unset, or in Production (which cannot
+    /// reach this class at all). Real sends never pass through here.
+    /// </summary>
+    private string ToPublicHost(string rendered)
+    {
+        if (string.IsNullOrEmpty(_baseUrl)
+            || string.IsNullOrEmpty(_publicBaseUrl)
+            || string.Equals(_baseUrl, _publicBaseUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return rendered;
+        }
+        return rendered.Replace(_baseUrl, _publicBaseUrl, StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<EmailTestSendResponse> SendRenderedAsync(
@@ -58,17 +88,20 @@ public class EmailTestSendService : IEmailTestSendService
             };
         }
 
+        var publicBody = ToPublicHost(renderedHtmlBody);
+
         var ok = await _email.SendAsync(new EmailMessageDto
         {
             FromName = "TEAMSPORTSINFO.COM",
             ToAddresses = new List<string> { recipient },
             Subject = $"[TEST — rendered for: {renderedForName}] {renderedSubject}",
-            HtmlBody = renderedHtmlBody
+            HtmlBody = publicBody
         }, sendInDevelopment: true, cancellationToken: ct);
 
         _logger.LogInformation(
-            "Email test send ({Outcome}) to {Recipient}, rendered for {RenderedFor}",
-            ok ? "sent" : "failed", recipient, renderedForName);
+            "Email test send ({Outcome}) to {Recipient}, rendered for {RenderedFor}; links point at {LinkHost}",
+            ok ? "sent" : "failed", recipient, renderedForName,
+            string.IsNullOrEmpty(_publicBaseUrl) ? _baseUrl : _publicBaseUrl);
 
         return new EmailTestSendResponse
         {
