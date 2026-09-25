@@ -195,7 +195,19 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     this._returnUrl = raw && !raw.includes('role-selection') ? raw : null;
     // Trigger fetch
     this.authService.loadAvailableRegistrations();
-    this.authService.loadSuggestedEvents();
+    // DISABLED 2026-09-24 — a director called: he does not want other organizers'
+    // events advertised on a page wearing his branding. This one line is the whole
+    // off switch: with no fetch, authService.suggestedEvents() stays empty, so
+    // hasSuggestedEvents() is false and every entry point below self-hides (the
+    // pivot line, the empty-state link, the modal). The panel, the service call and
+    // GET /api/auth/suggested-events are all left intact and working.
+    //
+    // Before re-enabling: gate suggestions to the ARRIVAL event's customerId
+    // (jobPath -> jobId -> customerId; arrivedJobPath() already resolves the path)
+    // so a client only ever cross-sells their own catalog. Fail closed when the
+    // path is 'tsic' or unresolvable, exclude the arrival event itself, and drop
+    // the "based on events you've registered for before" lede.
+    // this.authService.loadSuggestedEvents();
   }
 
   @ViewChildren(DropDownListComponent) readonly dropdowns!: QueryList<DropDownListComponent>;
