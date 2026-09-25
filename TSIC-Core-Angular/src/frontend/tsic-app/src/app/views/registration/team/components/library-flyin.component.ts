@@ -1,8 +1,9 @@
-import { AfterViewChecked, AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnChanges, OnDestroy, SimpleChanges, computed, input, output, signal, viewChild } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnChanges, OnDestroy, SimpleChanges, computed, input, output, signal, viewChild, inject } from '@angular/core';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { formatLop, normalizeLop } from '@shared/teams/lop-choices';
 import { clubTeamEditLockReason, clubTeamRemoval, type ClubTeamLockContext, type ClubTeamRemoval } from '@shared/teams/club-team-locks';
+import { ToastService } from '@shared-ui/toast.service';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
 import { EventAgeGroupPickerComponent } from './event-age-group-picker.component';
 import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear, resolveRecommendedAgeGroupId } from './event-age-group.util';
@@ -127,9 +128,9 @@ interface LibraryGroup {
           @if (showHowTo()) {
             <ul class="lib-howto-list">
               <li>Team not in your library? <strong>Add a New Team</strong> &mdash; it's saved to your library and registered here in one step.</li>
-              <li>Name wrong or changed? Open <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row → <strong>Edit team</strong>. Don't add a second entry. That changes your library only.</li>
+              <li>Name wrong or changed? Click the <i class="bi bi-pencil" aria-hidden="true"></i> pencil on its row to <strong>edit it</strong>. Don't add a second entry. That changes your library only.</li>
               <li>Just this event's name? Rename it from the <strong>Registered Teams</strong> list instead — your library keeps its own name.</li>
-              <li>No longer used? Open <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row → <strong>Archive</strong>.</li>
+              <li>No longer used? Click <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i> on its row to <strong>archive</strong> it.</li>
             </ul>
           }
         </div>
@@ -370,59 +371,39 @@ interface LibraryGroup {
                           }
 
                           @if (!registered) {
-                          <div class="lib-menu-anchor">
-                            <button type="button" class="lib-kebab"
-                                    [class.is-open]="openMenuTeamId() === team.clubTeamId"
-                                    [disabled]="actionInProgress() || expandedTeamId() === team.clubTeamId"
-                                    aria-label="Manage team"
-                                    aria-haspopup="menu"
-                                    [attr.aria-expanded]="openMenuTeamId() === team.clubTeamId"
-                                    (click)="toggleMenu($event, team.clubTeamId)">
-                              <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
-                            </button>
-                            @if (openMenuTeamId() === team.clubTeamId) {
-                              @let editLock = editLockReason(team);
-                              @let removal = removalFor(team, !!registered);
-                              <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
-                                <!-- One Edit for name, grad year and level of play, library only
-                                     (Todd 2026-09-24). No separate Rename: the event copy is renamed
-                                     from the Registered Teams list, never from here. -->
-                                <button type="button" class="lib-menu-item" role="menuitem"
-                                        [disabled]="!!editLock"
-                                        (click)="handleMenuEdit(team)">
-                                  <i class="bi bi-pencil lib-menu-icon" aria-hidden="true"></i>
-                                  <span class="lib-menu-label">Edit details</span>
-                                  @if (editLock) {
-                                    <span class="lib-menu-reason">{{ editLock }}</span>
-                                  }
+                            <!-- The library page's Actions column, at drawer width: two quiet icon
+                                 buttons instead of a kebab (Todd 2026-09-24). Same shared rules —
+                                 one Edit; Delete until anything references the team, then Archive.
+                                 A locked one stays clickable and toasts its reason, because a
+                                 disabled button says nothing on touch. -->
+                            @let editLock = editLockReason(team);
+                            @let removal = removalFor(team, !!registered);
+                            <span class="lib-icon-actions">
+                              <button type="button" class="lib-icon-action" [class.is-locked]="!!editLock"
+                                      [disabled]="actionInProgress() || expandedTeamId() === team.clubTeamId"
+                                      [attr.title]="editLock ?? 'Edit team'" [attr.aria-label]="editLock ?? 'Edit team'"
+                                      [attr.aria-disabled]="!!editLock"
+                                      (click)="handleEdit(team)">
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                              </button>
+                              @if (removal.kind === 'archive') {
+                                <button type="button" class="lib-icon-action" [class.is-locked]="!!removal.lockReason"
+                                        [disabled]="actionInProgress() || expandedTeamId() === team.clubTeamId"
+                                        [attr.title]="removal.lockReason ?? 'Archive team'" [attr.aria-label]="removal.lockReason ?? 'Archive team'"
+                                        [attr.aria-disabled]="!!removal.lockReason"
+                                        (click)="handleRemove(team, !!registered)">
+                                  <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>
                                 </button>
-                                <!-- ONE way off the list, parallel to the library page's Actions column
-                                     (Todd 2026-09-24): Delete while nothing references the team,
-                                     Archive once anything does. Never both. -->
-                                @if (removal.kind === 'archive') {
-                                  <button type="button" class="lib-menu-item" role="menuitem"
-                                          [disabled]="!!removal.lockReason"
-                                          (click)="handleMenuRemove(team, !!registered)">
-                                    <i class="bi bi-box-arrow-in-down lib-menu-icon" aria-hidden="true"></i>
-                                    <span class="lib-menu-label">Archive team</span>
-                                    @if (removal.lockReason) {
-                                      <span class="lib-menu-reason">{{ removal.lockReason }}</span>
-                                    }
-                                  </button>
-                                } @else {
-                                  <button type="button" class="lib-menu-item lib-menu-item-danger" role="menuitem"
-                                          [disabled]="!!removal.lockReason"
-                                          (click)="handleMenuRemove(team, !!registered)">
-                                    <i class="bi bi-trash lib-menu-icon" aria-hidden="true"></i>
-                                    <span class="lib-menu-label">Delete team</span>
-                                    @if (removal.lockReason) {
-                                      <span class="lib-menu-reason">{{ removal.lockReason }}</span>
-                                    }
-                                  </button>
-                                }
-                              </div>
-                            }
-                          </div>
+                              } @else {
+                                <button type="button" class="lib-icon-action lib-icon-action--danger" [class.is-locked]="!!removal.lockReason"
+                                        [disabled]="actionInProgress() || expandedTeamId() === team.clubTeamId"
+                                        [attr.title]="removal.lockReason ?? 'Delete team'" [attr.aria-label]="removal.lockReason ?? 'Delete team'"
+                                        [attr.aria-disabled]="!!removal.lockReason"
+                                        (click)="handleRemove(team, !!registered)">
+                                  <i class="bi bi-trash" aria-hidden="true"></i>
+                                </button>
+                              }
+                            </span>
                           }
                         </div>
                       </div>
@@ -2071,16 +2052,15 @@ interface LibraryGroup {
         &:disabled { opacity: 0.3; cursor: default; }
       }
 
-      /* ── Manage kebab menu ──────────────────────────────────────
-         Replaces the per-row Edit/Archive/Delete icon stack so every
-         row has a single icon (visual calm). Menu opens with all three
-         lifecycle actions; unavailable ones show their lock reason. */
-      .lib-menu-anchor {
-        position: relative;
-        display: inline-block;
+      /* ── Row icon actions: Edit + Archive-or-Delete, the page's Actions column at drawer
+         width. Locked = greyed + struck, tooltip = reason, click = reason toast. ── */
+      .lib-icon-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
       }
 
-      .lib-kebab {
+      .lib-icon-action {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -2095,11 +2075,22 @@ interface LibraryGroup {
         cursor: pointer;
         transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
 
-        &:hover:not(:disabled),
-        &.is-open {
+        &:hover:not(:disabled):not(.is-locked) {
           background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
           border-color: color-mix(in srgb, var(--bs-primary) 22%, transparent);
           color: var(--bs-primary);
+        }
+
+        &--danger:hover:not(:disabled):not(.is-locked) {
+          background: color-mix(in srgb, var(--bs-danger) 10%, transparent);
+          border-color: color-mix(in srgb, var(--bs-danger) 25%, transparent);
+          color: var(--bs-danger);
+        }
+
+        &.is-locked {
+          opacity: 0.4;
+          cursor: help;
+          i { text-decoration: line-through; text-decoration-thickness: 1.5px; }
         }
 
         &:focus-visible {
@@ -2108,88 +2099,6 @@ interface LibraryGroup {
         }
 
         &:disabled { opacity: 0.3; cursor: default; }
-      }
-
-      .lib-menu {
-        position: absolute;
-        right: 0;
-        top: calc(100% + 4px);
-        min-width: 260px;
-        background: var(--bs-body-bg);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-md);
-        padding: 4px;
-        z-index: 10;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-
-      .lib-menu-item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        width: 100%;
-        padding: var(--space-2);
-        background: transparent;
-        border: none;
-        border-radius: var(--radius-sm);
-        text-align: left;
-        font-size: var(--font-size-sm);
-        color: var(--brand-text);
-        cursor: pointer;
-        transition: background-color 0.1s ease;
-
-        &:hover:not(:disabled) {
-          background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
-        }
-
-        &:focus-visible {
-          outline: none;
-          box-shadow: var(--shadow-focus);
-        }
-
-        &:disabled {
-          color: var(--brand-text-muted);
-          cursor: default;
-          opacity: 0.5;
-
-          .lib-menu-label {
-            font-style: italic;
-            text-decoration: line-through;
-            text-decoration-color: color-mix(in srgb, var(--brand-text-muted) 60%, transparent);
-            text-decoration-thickness: 1px;
-          }
-        }
-      }
-
-      .lib-menu-icon {
-        font-size: var(--font-size-base);
-        flex-shrink: 0;
-        width: 18px;
-        text-align: center;
-      }
-
-      .lib-menu-label {
-        font-weight: var(--font-weight-medium);
-      }
-
-      .lib-menu-reason {
-        margin-left: auto;
-        font-size: var(--font-size-xs);
-        font-style: italic;
-        color: var(--brand-text-muted);
-        text-align: right;
-        white-space: nowrap;
-      }
-
-      .lib-menu-item-danger:not(:disabled) {
-        color: var(--bs-danger);
-
-        &:hover {
-          background: color-mix(in srgb, var(--bs-danger) 10%, transparent);
-        }
       }
 
       /* ── State B (all-archived / library-empty) — hero treatment ─── */
@@ -2395,6 +2304,7 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
     readonly unregister = output<number>();
     readonly addNew = output<void>();
     readonly edit = output<ClubTeamDto>();
+    private readonly toast = inject(ToastService);
     readonly archive = output<ClubTeamDto>();
     readonly delete = output<ClubTeamDto>();
     readonly restore = output<ClubTeamDto>();
@@ -2447,18 +2357,6 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
         const next = new Set(this.collapsedGroups());
         if (next.has(key)) next.delete(key); else next.add(key);
         this.collapsedGroups.set(next);
-    }
-
-    /** Active row whose kebab menu is open (null = none). */
-    readonly openMenuTeamId = signal<number | null>(null);
-
-    toggleMenu(event: MouseEvent, teamId: number): void {
-        event.stopPropagation();
-        this.openMenuTeamId.set(this.openMenuTeamId() === teamId ? null : teamId);
-    }
-
-    closeMenu(): void {
-        this.openMenuTeamId.set(null);
     }
 
     // ── Inline registration expand ─────────────────────────────────────
@@ -2551,7 +2449,6 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
                 ? this.ageGroupIdByName(existing.ageGroupName)
                 : (seedLop ? resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear) : ''),
         );
-        this.closeMenu();
         this.expandedTeamId.set(team.clubTeamId);
     }
 
@@ -2602,23 +2499,23 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
     editLockReason(team: ClubTeamDto): string | null { return clubTeamEditLockReason(team, this.lockContext(false)); }
     removalFor(team: ClubTeamDto, registered: boolean): ClubTeamRemoval { return clubTeamRemoval(team, this.lockContext(registered)); }
 
-    handleMenuEdit(team: ClubTeamDto): void {
-        this.closeMenu();
-        if (!this.editLockReason(team)) this.edit.emit(team);
+    /** A locked action answers with its reason, as the library page does. */
+    private explainLock(reason: string): void {
+        this.toast.show(reason, 'warning', 3500);
     }
 
-    /** The row's one removal action: Archive or Delete by the shared rule, only when it is live. */
-    handleMenuRemove(team: ClubTeamDto, registered: boolean): void {
-        this.closeMenu();
+    handleEdit(team: ClubTeamDto): void {
+        const lock = this.editLockReason(team);
+        if (lock) { this.explainLock(lock); return; }
+        this.edit.emit(team);
+    }
+
+    /** The row's one removal action: Archive or Delete by the shared rule. */
+    handleRemove(team: ClubTeamDto, registered: boolean): void {
         const removal = this.removalFor(team, registered);
-        if (removal.lockReason) return;
+        if (removal.lockReason) { this.explainLock(removal.lockReason); return; }
         if (removal.kind === 'archive') this.archive.emit(team);
         else this.delete.emit(team);
-    }
-
-    @HostListener('document:click')
-    onDocumentClick(): void {
-        if (this.openMenuTeamId() !== null) this.closeMenu();
     }
 
     readonly activeTeams = computed(() =>
@@ -2758,7 +2655,6 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
     onClose(): void {
         if (this.pendingTeams().length > 0) {
             if (!this.confirmingClose()) {
-                this.closeMenu();
                 this.confirmingClose.set(true);
                 return;
             }
@@ -2794,10 +2690,6 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
 
     @HostListener('document:keydown.escape')
     onEscape(): void {
-        if (this.openMenuTeamId() !== null) {
-            this.closeMenu();
-            return;
-        }
         if (this.expandedTeamId() !== null) {
             this.cancelRegister();
             return;
