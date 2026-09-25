@@ -274,21 +274,83 @@
    These are plain classes on author-editable HTML, so they degrade to unstyled markup if a
    director rewrites the body — nothing breaks, it just stops being a pill. */
 .bulletin-body {
+  // Opening line reads a size up from body copy — it is the announcement itself.
+  .sched-lede {
+    font-size: var(--font-size-lg);
+    line-height: 1.5;
+  }
+
+  // The button gets room of its own above and below; a CTA crowded by paragraphs
+  // reads as a link in a sentence.
+  .sched-cta {
+    margin: var(--space-5) 0 var(--space-6);
+  }
+
+  // `!SCHEDULE` emits `a.btn.btn-primary.bl-cta`. Layers on the generic `a.btn`
+  // rule further down: a little more width, a lifted fill, and a trailing arrow
+  // that travels on hover. Without this rule it is still a solid primary button.
+  a.btn.bl-cta {
+    padding: var(--space-3) var(--space-6);
+    background: linear-gradient(
+      135deg,
+      var(--bs-primary),
+      color-mix(in srgb, var(--bs-primary) 80%, #000)
+    );
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+    .bl-cta__go {
+      transition: transform 0.15s ease;
+    }
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-lg);
+
+      .bl-cta__go {
+        transform: translateX(3px);
+      }
+    }
+  }
+
+  // The app links sit in an inset well: one glance separates "get the app" from
+  // "here is the schedule", without a second heading or a hard rule.
+  .sched-app {
+    margin: var(--space-5) 0 0;
+    padding: var(--space-4) var(--space-4) var(--space-5);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--brand-text) 3%, var(--brand-surface, var(--neutral-0)));
+  }
+
+  .sched-app__lede {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--brand-text-muted);
+
+    i {
+      margin-right: var(--space-1);
+    }
+  }
+
   .sched-links {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);
-    margin: var(--space-3) 0 0;
+    margin: var(--space-4) 0 0;
   }
 
   .sched-links__store {
     display: inline-flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    justify-content: center;
-    gap: var(--space-1);
-    min-width: 9.5rem;
-    padding: var(--space-2) var(--space-4);
+    justify-content: flex-start;
+    gap: var(--space-3);
+    // Equal-width peers that share the row's slack, so neither store reads as the
+    // recommended one; they stack full-width once the row can't hold both.
+    flex: 1 1 11rem;
+    min-width: 11rem;
+    padding: var(--space-3) var(--space-4);
     border: 1px solid var(--brand-border);
     border-radius: var(--radius-md);
     // Faint mix of --brand-text into the surface: theme-aware neutral chrome that lets the
@@ -314,6 +376,13 @@
   .sched-links__glyph {
     font-size: 1.9rem;
     line-height: 1;
+    flex: 0 0 auto;
+  }
+
+  .sched-links__label {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
   }
 
   .sched-links__small {
@@ -327,11 +396,16 @@
     display: block;
     font-weight: var(--font-weight-semibold);
     line-height: 1.2;
+    white-space: nowrap;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .sched-links__store { transition: none; }
     .sched-links__store:hover { transform: none; }
+    a.btn.bl-cta,
+    a.btn.bl-cta .bl-cta__go { transition: none; }
+    a.btn.bl-cta:hover { transform: none; }
+    a.btn.bl-cta:hover .bl-cta__go { transform: none; }
   }
 }
 

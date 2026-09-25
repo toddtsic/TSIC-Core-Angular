@@ -118,20 +118,20 @@ public sealed class SchedulePublicationBulletinService : ISchedulePublicationBul
     /// HTML would need them hosted as files.
     /// </summary>
     private const string SeedBody = """
-        <p>Game schedules for !JOBNAME are now available.</p>
-        <p>!SCHEDULE</p>
-        <p>Scores, standings &amp; brackets &mdash; on the web, or in the free TSIC-Events app.</p>
-        <div class="sched-links">
-            <a class="sched-links__store" href="https://itunes.apple.com/app/id1550380490" target="_blank" rel="noopener noreferrer">
-                <i class="bi bi-apple sched-links__glyph" title="Apple App Store"></i>
-                <span class="sched-links__small">Download on the</span>
-                <span class="sched-links__name">App Store</span>
-            </a>
-            <a class="sched-links__store" href="https://play.google.com/store/apps/details?id=com.teamsportsinfo.tsicevents" target="_blank" rel="noopener noreferrer">
-                <i class="bi bi-google-play sched-links__glyph" title="Google Play"></i>
-                <span class="sched-links__small">Get it on</span>
-                <span class="sched-links__name">Google Play</span>
-            </a>
+        <p class="sched-lede">Game schedules for <strong>!JOBNAME</strong> are now available.</p>
+        <p class="sched-cta">!SCHEDULE</p>
+        <div class="sched-app">
+            <p class="sched-app__lede"><i class="bi bi-phone" aria-hidden="true"></i> Scores, standings &amp; brackets travel with you &mdash; free in the TSIC-Events app.</p>
+            <div class="sched-links">
+                <a class="sched-links__store" href="https://itunes.apple.com/app/id1550380490" target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-apple sched-links__glyph" title="Apple App Store"></i>
+                    <span class="sched-links__label"><span class="sched-links__small">Download on the</span><span class="sched-links__name">App Store</span></span>
+                </a>
+                <a class="sched-links__store" href="https://play.google.com/store/apps/details?id=com.teamsportsinfo.tsicevents" target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-google-play sched-links__glyph" title="Google Play"></i>
+                    <span class="sched-links__label"><span class="sched-links__small">Get it on</span><span class="sched-links__name">Google Play</span></span>
+                </a>
+            </div>
         </div>
         """;
 }

@@ -13,6 +13,12 @@ public sealed class ScheduleResolver : IBulletinTokenResolver
             return string.Empty;
         }
 
-        return $"""<a href="/{ctx.JobPath}/schedule" class="btn btn-primary">View Schedule</a>""";
+        // Icon + label + trailing arrow, matching the Schedule Links card's own CTA. The
+        // classes are styled under .bulletin-body (styles/_component-overrides.scss) and all
+        // three tags survive the rich-text sanitizer; with no stylesheet it still degrades to
+        // a plain labelled link, so an unstyled surface loses polish, not the call to action.
+        return $"""
+            <a href="/{ctx.JobPath}/schedule" class="btn btn-primary bl-cta"><i class="bi bi-calendar-event" aria-hidden="true"></i><span>View Schedule</span><i class="bi bi-arrow-right bl-cta__go" aria-hidden="true"></i></a>
+            """;
     }
 }
