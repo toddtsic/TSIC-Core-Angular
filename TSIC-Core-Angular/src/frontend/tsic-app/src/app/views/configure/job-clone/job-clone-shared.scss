@@ -89,7 +89,7 @@
 
 .jc-btn-primary {
 	background: var(--bs-primary);
-	color: var(--bs-white, #fff);
+	color: var(--on-primary);
 	border: 1px solid var(--bs-primary);
 
 	&:hover:not(:disabled) { opacity: 0.9; }

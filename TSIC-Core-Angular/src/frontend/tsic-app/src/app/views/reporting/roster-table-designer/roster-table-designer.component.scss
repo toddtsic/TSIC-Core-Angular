@@ -19,7 +19,7 @@
         font-weight: 600;
         cursor: pointer;
 
-        &:hover { background: var(--bs-primary); color: var(--bs-white); }
+        &:hover { background: var(--bs-primary); color: var(--on-primary); }
         &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
     }
 

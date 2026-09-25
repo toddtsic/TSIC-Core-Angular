@@ -561,7 +561,7 @@
   &.active {
     border-color: var(--bs-primary);
     background: var(--bs-primary);
-    color: var(--bs-white);
+    color: var(--on-primary);
     font-weight: var(--font-weight-semibold);
   }
 }
@@ -801,7 +801,7 @@
 
   &.btn-primary {
     background: var(--bs-primary);
-    color: var(--bs-white);
+    color: var(--on-primary);
 
     &:hover:not(:disabled) {
       background: var(--brand-primary-hover);
@@ -838,7 +838,7 @@
 
     &:hover:not(:disabled) {
       background: var(--bs-primary);
-      color: var(--bs-white);
+      color: var(--on-primary);
     }
   }
 

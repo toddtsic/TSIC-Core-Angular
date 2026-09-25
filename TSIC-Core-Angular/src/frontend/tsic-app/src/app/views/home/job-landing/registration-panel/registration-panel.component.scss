@@ -215,14 +215,22 @@ $rp-mint-icon: #16a34a;
 	}
 }
 
-// Player/Adult — the standout: white content on a GRADED BLUE fill, derived from
-// --bs-primary (mixed toward surface/text) so it stays palette- and light/dark-aware.
+// Player/Adult — the standout: a GRADED BLUE fill derived from --bs-primary (mixed
+// toward surface/text) so it stays palette- and light/dark-aware.
+//
+// Content is --on-primary, NOT the mixin's #fff default. The fill follows the palette
+// and the default does not: in dark mode --bs-primary is a LIGHT slate, so every stop
+// of this gradient resolves light (#b3bac3 → #cbd5e1 → #d4dce5, PALEST at the bottom)
+// and white text measured 1.48:1. The token flips to near-black there, ~12:1 against
+// the palest stop. The teal/mint variants below keep their own literals because their
+// fills are hand-tuned constants — dark in BOTH themes — and do not move with the palette.
 .rp__section--register .rp__link {
 	--reg-grad: linear-gradient(160deg,
 		color-mix(in srgb, var(--bs-primary) 82%, var(--brand-surface)) 0%,
 		var(--bs-primary) 55%,
 		color-mix(in srgb, var(--bs-primary) 78%, var(--brand-text)) 100%);
-	@include rp-fill(var(--reg-grad), var(--bs-primary), $brightness: 1.07);
+	@include rp-fill(var(--reg-grad), var(--bs-primary),
+		$text: var(--on-primary), $icon: var(--on-primary), $brightness: 1.07);
 }
 
 // Register Team + My Teams — the SAME bold teal standout (Ann ties the two team

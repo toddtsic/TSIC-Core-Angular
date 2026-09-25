@@ -26,7 +26,7 @@
   &:hover {
     background: var(--bs-primary);
     border-color: var(--bs-primary);
-    color: #fff;
+    color: var(--on-primary);
   }
 
   &:active {
@@ -99,7 +99,7 @@
     &:hover {
       background: var(--bs-primary);
       border-color: var(--bs-primary);
-      color: #fff;
+      color: var(--on-primary);
     }
 
     &:focus-visible {

@@ -77,7 +77,7 @@
 .btn-page-primary {
     border: 1px solid var(--bs-primary);
     background: var(--bs-primary);
-    color: var(--neutral-0);
+    color: var(--on-primary);
     box-shadow: var(--shadow-sm);
 
     &:hover:not(:disabled) { filter: brightness(0.94); }

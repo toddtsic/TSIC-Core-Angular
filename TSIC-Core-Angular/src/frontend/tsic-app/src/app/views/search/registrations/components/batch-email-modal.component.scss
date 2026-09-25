@@ -262,7 +262,7 @@
   .token-chip {
     padding: var(--space-1) var(--space-2);
     background: var(--bs-primary);
-    color: var(--neutral-0);
+    color: var(--on-primary);
     border: none;
     border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
@@ -434,7 +434,7 @@
 
   .btn-primary {
     background: var(--bs-primary);
-    color: var(--neutral-0);
+    color: var(--on-primary);
 
     &:hover:not(:disabled) {
       background: var(--brand-primary-hover);

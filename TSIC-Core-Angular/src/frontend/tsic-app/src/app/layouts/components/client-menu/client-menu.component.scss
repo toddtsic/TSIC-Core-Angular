@@ -144,7 +144,7 @@
     &--active {
         background: var(--bs-primary);
         border-color: var(--bs-primary);
-        color: var(--neutral-0);
+        color: var(--on-primary);
         font-weight: var(--font-weight-semibold);
         box-shadow: 0 2px 8px rgba(var(--bs-primary-rgb), 0.3);
 
@@ -303,7 +303,7 @@
     &--active {
         background: var(--bs-primary);
         border-color: var(--bs-primary);
-        color: var(--neutral-0);
+        color: var(--on-primary);
         font-weight: var(--font-weight-semibold);
         box-shadow: 0 2px 8px rgba(var(--bs-primary-rgb), 0.3);
 

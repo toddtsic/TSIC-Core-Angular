@@ -731,7 +731,7 @@
 
   &:hover {
     background: var(--bs-primary);
-    color: var(--neutral-0);
+    color: var(--on-primary);
   }
 
   &:active {
@@ -828,7 +828,7 @@
 
   &.btn-primary {
     background: var(--bs-primary);
-    color: var(--bs-white);
+    color: var(--on-primary);
 
     &:hover:not(:disabled) {
       background: var(--brand-primary-hover);
@@ -849,7 +849,7 @@
 
     &:hover:not(:disabled) {
       background: var(--bs-primary);
-      color: var(--bs-white);
+      color: var(--on-primary);
     }
 
     &:disabled {

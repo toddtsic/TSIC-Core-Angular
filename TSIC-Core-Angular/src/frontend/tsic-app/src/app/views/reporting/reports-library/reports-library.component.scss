@@ -224,7 +224,7 @@
 
     &:hover:not(:disabled) {
         background: var(--bs-primary);
-        color: var(--bs-white, #fff);
+        color: var(--on-primary);
         border-color: var(--bs-primary);
     }
     &:active:not(:disabled) { transform: translateY(1px); }

@@ -410,7 +410,7 @@
 
     &.active {
       background: var(--bs-primary);
-      color: var(--neutral-0);
+      color: var(--on-primary);
       box-shadow: var(--shadow-sm);
     }
 
@@ -882,7 +882,7 @@
   cursor: pointer;
   transition: background-color 0.1s ease, color 0.1s ease;
 
-  &:hover { background: var(--bs-primary); color: var(--bs-white); }
+  &:hover { background: var(--bs-primary); color: var(--on-primary); }
   &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 }
 

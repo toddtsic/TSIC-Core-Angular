@@ -65,11 +65,11 @@
 
     &--active {
         background: var(--bs-primary);
-        color: var(--bs-white);
+        color: var(--on-primary);
 
         &:hover:not(:disabled) {
             background: var(--bs-primary);
-            color: var(--bs-white);
+            color: var(--on-primary);
         }
     }
 }

@@ -844,7 +844,7 @@ mark {
         align-items: center;
         padding: var(--space-2) var(--space-3);
         background: var(--bs-primary);
-        color: var(--neutral-0);
+        color: var(--on-primary);
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-bold);
         text-transform: uppercase;
@@ -2116,7 +2116,7 @@ mark {
     padding: 0 var(--space-1);
     border-radius: var(--radius-md);
     background: var(--bs-primary);
-    color: var(--bs-white);
+    color: var(--on-primary);
     font-size: var(--font-size-2xs);
     font-weight: 700;
     flex-shrink: 0;
@@ -2304,7 +2304,7 @@ mark {
     gap: var(--space-1);
     padding: var(--space-2) var(--space-3);
     background: var(--bs-primary);
-    color: var(--neutral-0);
+    color: var(--on-primary);
     border: none;
     border-radius: var(--radius-sm);
     font-weight: 600;

@@ -97,7 +97,7 @@
 	padding: var(--space-3) var(--space-5);
 	border-radius: var(--radius-md);
 	background: var(--bs-primary);
-	color: #fff; // on-primary convention across the app (solid primary fill)
+	color: var(--on-primary); // on-primary convention across the app (solid primary fill)
 	font-weight: var(--font-weight-semibold);
 	font-size: var(--font-size-sm);
 	text-decoration: none;

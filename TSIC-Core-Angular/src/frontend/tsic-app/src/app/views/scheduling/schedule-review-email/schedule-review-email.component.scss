@@ -33,7 +33,7 @@
     padding: 0 var(--space-2);
     border-radius: var(--radius-sm);
     background: var(--bs-primary);
-    color: #fff; // on-primary convention across the app (solid primary fill)
+    color: var(--on-primary); // on-primary convention across the app (solid primary fill)
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-bold);
 }

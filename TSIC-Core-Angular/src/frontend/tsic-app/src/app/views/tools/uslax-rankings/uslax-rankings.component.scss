@@ -143,7 +143,7 @@
 	width: 20px; height: 20px;
 	border-radius: 50%;
 	background: var(--bs-primary);
-	color: var(--bs-white);
+	color: var(--on-primary);
 	font-size: var(--font-size-xs);
 	font-weight: 700;
 	line-height: 1;
@@ -215,7 +215,7 @@
 	border: 1px solid transparent; background: transparent;
 	font-size: var(--font-size-xs); color: var(--bs-secondary-color); cursor: pointer; transition: all 0.15s ease;
 	&:hover { background: color-mix(in srgb, var(--bs-primary) 8%, transparent); color: var(--bs-body-color); }
-	&.active { background: var(--bs-primary); color: var(--neutral-0); font-weight: 600; }
+	&.active { background: var(--bs-primary); color: var(--on-primary); font-weight: 600; }
 }
 
 .filter-badge {
@@ -492,7 +492,7 @@
 	font-size: var(--font-size-2xs);
 	line-height: 1.5;
 	white-space: nowrap;
-	&.active { background: var(--bs-primary); color: var(--neutral-0); border-color: var(--bs-primary); }
+	&.active { background: var(--bs-primary); color: var(--on-primary); border-color: var(--bs-primary); }
 }
 
 .match-hint {

@@ -31,7 +31,7 @@
 
 	&.active {
 		background: var(--bs-primary);
-		color: var(--bs-white, #fff);
+		color: var(--on-primary);
 	}
 
 	&:disabled {
