@@ -106,18 +106,32 @@ public sealed class SchedulePublicationBulletinService : ISchedulePublicationBul
     };
 
     /// <summary>
-    /// Seed body. The store badges are the same artwork, at the same statics URLs, that the
-    /// hand-authored bulletin this replaces has carried for years — a text link where a badge
-    /// belongs is what a director would notice first. Hosted (not embedded): bulletin images
-    /// are link-only by project rule.
+    /// Seed body, wearing the SMART band's treatment rather than the legacy bulletin's
+    /// bulleted list of trademarked store JPGs — this bulletin stands in for the Schedule
+    /// Links card, so it should read like it did.
+    ///
+    /// The <c>sched-links*</c> classes are styled globally under <c>.bulletin-body</c> (see
+    /// styles/_component-overrides.scss) and survive the rich-text sanitizer, which keeps
+    /// <c>class</c>. They degrade to plain links if a director rewrites the body.
+    ///
+    /// No QR codes: the panel generated those per viewer in the browser, and static bulletin
+    /// HTML would need them hosted as files.
     /// </summary>
     private const string SeedBody = """
         <p>Game schedules for !JOBNAME are now available.</p>
         <p>!SCHEDULE</p>
-        <p>Scores, standings and brackets are also in the free TSIC-Events app:</p>
-        <ul>
-            <li><strong>iOS: TSIC-EVENTS</strong>&nbsp;&nbsp;<a href="https://itunes.apple.com/app/id1550380490" target="_blank" rel="noopener noreferrer"><img src="https://statics.teamsportsinfo.com/mobile/images/appstore.jpg" alt="Download on the App Store" /></a></li>
-            <li><strong>Android: TSIC-EVENTS</strong>&nbsp;&nbsp;<a href="https://play.google.com/store/apps/details?id=com.teamsportsinfo.tsicevents" target="_blank" rel="noopener noreferrer"><img src="https://statics.teamsportsinfo.com/mobile/images/playstore.jpg" alt="Get it on Google Play" /></a></li>
-        </ul>
+        <p>Scores, standings &amp; brackets &mdash; on the web, or in the free TSIC-Events app.</p>
+        <div class="sched-links">
+            <a class="sched-links__store" href="https://itunes.apple.com/app/id1550380490" target="_blank" rel="noopener noreferrer">
+                <i class="bi bi-apple sched-links__glyph" title="Apple App Store"></i>
+                <span class="sched-links__small">Download on the</span>
+                <span class="sched-links__name">App Store</span>
+            </a>
+            <a class="sched-links__store" href="https://play.google.com/store/apps/details?id=com.teamsportsinfo.tsicevents" target="_blank" rel="noopener noreferrer">
+                <i class="bi bi-google-play sched-links__glyph" title="Google Play"></i>
+                <span class="sched-links__small">Get it on</span>
+                <span class="sched-links__name">Google Play</span>
+            </a>
+        </div>
         """;
 }
