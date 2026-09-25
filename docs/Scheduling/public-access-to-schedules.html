@@ -1,3 +1,8 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Public Access To Schedules</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -203,6 +208,25 @@
      as "a name goes here" rather than naming anybody. */
   .redact { filter: blur(3.5px); user-select: none; }
 
+  /* Print / PDF: always the light palette (a dark page wastes toner and reads badly on
+     paper), and never split a figure from its caption across a page break. */
+  @media print {
+    :root {
+      --ground: #ffffff; --surface: #ffffff; --surface-sunk: #f2f5f8;
+      --ink: #10202e; --ink-soft: #3d5263; --ink-faint: #64798a;
+      --rule: #dfe6ec; --rule-strong: #c3d0da;
+      --accent: #0369a1; --accent-ink: #ffffff; --accent-wash: #eaf4fb;
+      --caution: #92400e; --caution-wash: #fdf3e3; --caution-rule: #eccb95;
+      --go: #046b4e; --go-wash: #e2f3ec; --go-rule: #a9d8c6;
+      --off: #8d9fad; --off-wash: #eef2f6; --spot: #f0b429;
+    }
+    body { background: #fff; }
+    .wrap { padding-block: 0 0; max-width: none; }
+    .figs { gap: 2rem; }
+    li, figure, .mock, .callout { break-inside: avoid; page-break-inside: avoid; }
+    .fig-head { break-after: avoid; page-break-after: avoid; }
+  }
+
   /* Scheduling Checklist tool tiles */
   .tools-label {
     font-family: "IBM Plex Mono", ui-monospace, monospace;
@@ -285,6 +309,8 @@
     * { animation: none !important; transition: none !important; }
   }
 </style>
+</head>
+<body>
 
 <div class="wrap">
 
@@ -536,3 +562,5 @@
   </footer>
 
 </div>
+</body>
+</html>
