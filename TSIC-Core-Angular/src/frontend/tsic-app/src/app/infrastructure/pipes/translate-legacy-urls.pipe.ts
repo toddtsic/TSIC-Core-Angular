@@ -31,6 +31,82 @@ const COLOR_CLASSES: ReadonlyMap<string, string> = new Map([
 ]);
 
 /**
+ * Highlight backgrounds — the same upgrade as COLOR_CLASSES, applied to the other half
+ * of the pairing.
+ *
+ * Authors highlight through the RTE's `BackgroundColor` button, which emits an inline
+ * `background-color` and NO text colour. The background is a fixed literal; the text
+ * colour comes from the theme. In dark mode the theme supplies near-white, so a yellow
+ * highlight renders white-on-yellow at ~1.02:1 — legible in light mode, invisible in
+ * dark. `_theme-dark.scss` already carries a `mark { color: #1a1a1a }` rule aimed at
+ * this, but it keys on the `<mark>` TAG and the editor has never produced one.
+ *
+ * So: resolve the authored background, and when it is light, tag the element with a
+ * class that pins dark text. Only when the element declares no `color` of its own —
+ * an author who chose both halves keeps their choice.
+ */
+const HIGHLIGHT_CLASS = 'bl-hl';
+
+/** CSS named colours reachable from the legacy editors' swatch grids. */
+const NAMED_COLORS: ReadonlyMap<string, string> = new Map([
+    ['yellow', '#ffff00'], ['gold', '#ffd700'], ['orange', '#ffa500'],
+    ['lime', '#00ff00'], ['aqua', '#00ffff'], ['cyan', '#00ffff'],
+    ['fuchsia', '#ff00ff'], ['magenta', '#ff00ff'], ['pink', '#ffc0cb'],
+    ['white', '#ffffff'], ['silver', '#c0c0c0'],
+    ['lightgray', '#d3d3d3'], ['lightgrey', '#d3d3d3'],
+    ['lightyellow', '#ffffe0'], ['lightgreen', '#90ee90'], ['lightblue', '#add8e6'],
+]);
+
+/**
+ * WCAG relative luminance, or null if the value isn't a colour this can resolve
+ * (gradients, `var(...)`, `currentColor`, anything unrecognised) — callers treat null
+ * as "leave it alone".
+ */
+function relativeLuminance(rawValue: string): number | null {
+    const value = rawValue.trim().toLowerCase();
+    let r: number, g: number, b: number;
+
+    const named = NAMED_COLORS.get(value);
+    const hex = named ?? value;
+
+    const rgbMatch = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(hex);
+    if (rgbMatch) {
+        [r, g, b] = [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
+    } else if (/^#[0-9a-f]{6}$/.test(hex)) {
+        [r, g, b] = [
+            parseInt(hex.slice(1, 3), 16),
+            parseInt(hex.slice(3, 5), 16),
+            parseInt(hex.slice(5, 7), 16),
+        ];
+    } else if (/^#[0-9a-f]{3}$/.test(hex)) {
+        [r, g, b] = [
+            parseInt(hex[1] + hex[1], 16),
+            parseInt(hex[2] + hex[2], 16),
+            parseInt(hex[3] + hex[3], 16),
+        ];
+    } else {
+        return null;
+    }
+
+    const channel = (v: number): number => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+/**
+ * Above this luminance, dark text beats white text on the same fill.
+ *
+ * Not a taste call — it is where the two contrast ratios cross. White scores
+ * 1.05 / (L + 0.05); near-black (#1a1a1a, L ≈ 0.0116) scores (L + 0.05) / 0.0616.
+ * Setting them equal gives (L + 0.05)² = 1.05 × 0.0616, so L ≈ 0.204. Yellow sits at
+ * 0.93 and orange at 0.48, both well clear; a mid grey at 0.22 is marginal either way,
+ * which is exactly what a crossover point means.
+ */
+const LIGHT_BACKGROUND_LUMINANCE = 0.204;
+
+/**
  * Pipe to transform legacy ASP.NET MVC URLs in HTML strings to new Angular routes.
  *
  * Usage in template:
@@ -124,6 +200,10 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
             const keptDecls: string[] = [];
             let imgWidthAttr = '';
             let imgHeightAttr = '';
+            // Pre-scan: an author who set their own text colour keeps it, whatever the
+            // background resolves to. Only a background WITHOUT a partner colour is the
+            // half-authored pair this fixes.
+            const declaresOwnColor = /(^|;)\s*color\s*:/i.test(styleValue);
 
             for (const rawDecl of styleValue.split(';')) {
                 const decl = rawDecl.trim();
@@ -156,6 +236,18 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
 
                 // background-color:transparent → noise, drop (830 occurrences in corpus)
                 if (property === 'background-color' && value.toLowerCase() === 'transparent') continue;
+
+                // A light authored background with no authored text colour: tag it so the
+                // text is pinned dark instead of inheriting the theme's (near-white in dark
+                // mode). The declaration itself is KEPT — we are supplying the missing half
+                // of the pair, not overriding the author's half. `declaresOwnColor` is
+                // pre-scanned because `color` may appear after `background-color` here.
+                if ((property === 'background-color' || property === 'background') && !declaresOwnColor) {
+                    const luminance = relativeLuminance(value);
+                    if (luminance !== null && luminance > LIGHT_BACKGROUND_LUMINANCE) {
+                        addedClasses.push(HIGHLIGHT_CLASS);
+                    }
+                }
 
                 // Not a curated legacy value: keep it in `style`. RichTextPipe decides
                 // whether the property is allowed to render.

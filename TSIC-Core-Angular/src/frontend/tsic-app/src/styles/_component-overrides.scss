@@ -469,6 +469,22 @@
   .bl-fs-14 { font-size: 0.875em; }   // 14 / 16
   .bl-fs-18 { font-size: 1.125em; }   // 18 / 16
   .bl-fs-22 { font-size: 1.375em; }   // 22 / 16
+  // Highlighted text (translate-legacy-urls.pipe adds .bl-hl to any element whose
+  // authored background resolves LIGHT and that set no colour of its own). The author
+  // supplied the fill and nothing else; without this the text inherits --brand-text,
+  // which is near-white in dark mode — a yellow highlight rendered at ~1.02:1.
+  //
+  // A literal, not a token, and deliberately: the fill is a fixed authored colour that
+  // does NOT move with the theme, so its partner must not move either. --brand-text
+  // would reintroduce the exact bug. Descendants are included because the highlight is
+  // usually on a wrapper with the words in a <strong> or <span> inside it.
+  //
+  // Declared ABOVE the .bl-c-* rules on purpose: `.bl-hl *` and `.bl-c-red` tie on
+  // specificity, so source order decides, and an author's explicit colour should win
+  // over the fallback we supply. An inline `style` colour outranks both regardless.
+  .bl-hl,
+  .bl-hl * { color: #1a1a1a; }
+
   .bl-c-blue  { color: var(--bs-primary); }
   .bl-c-red   { color: var(--bs-danger); }
   .bl-c-black { color: var(--brand-text); }
