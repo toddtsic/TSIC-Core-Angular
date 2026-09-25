@@ -27,7 +27,7 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 
 **The library page** is the Club Team Library page: its own page inside the event, not part of the registration wizard. It is the list's home: add, edit, archive, restore, delete, and see every event each team has been registered for. Nothing on it registers a team. That happens in Team Registration.
 
-**The library fly-in** is the same library inside Team Registration, on the Teams step. The rep is mid-registration; the fly-in shows the library grouped by what fits this event, so the rep picks a team and registers it without leaving the wizard. Maintenance is there too (kebab on each row), but registering is what it is for.
+**The library fly-in** is the same library inside Team Registration, on the Teams step. The rep is mid-registration; the fly-in shows the library grouped by what fits this event, so the rep picks a team and registers it without leaving the wizard. Maintenance is there too (a pencil and an archive-or-delete icon on each library row), but registering is what it is for.
 
 ### Reaching the library page
 
@@ -85,8 +85,8 @@ The Club Team Library appears in two places. Same library, same teams, same rule
 - [ ] C6. Repeat C4 with `Zz Test Gamma`, click Done, choose **Register it now**. The register sheet opens for that team. Cancel it.
 - [ ] C7. Type a name already in the library. The modal refuses it and the Register button stays disabled.
 - [ ] C8. Type a name that is only a year, such as `2031`. A nudge appears and the Register button still works.
-- [ ] C9. Kebab on a registered row: one removal item only. A team registered for this event shows **Archive team** greyed with the reason; a team registered for another event shows Archive team live; a team never registered shows **Delete team** live. Never both. Edit team works and its dialog says it changes the library only.
-- [ ] C10. Kebab on Zz Test Beta: Edit details opens, change the level of play, save. Archive moves it to Archived. Restore brings it back.
+- [ ] C9. Each library row in the fly-in has a pencil and ONE removal icon beside Register, no menu. A team registered for another event shows the archive icon live; a team never registered shows the trash icon live; hovering names the action. Never both. The pencil opens Edit and its dialog says it changes the library only. (A team registered for this event sits in the Registered group with no icons.)
+- [ ] C10. Pencil on Zz Test Beta: Edit opens, change the level of play, save. The archive icon moves it to Archived. Restore brings it back.
 - [ ] C11. **Manage full library →** lands on the Club Team Library page.
 
 ### D. Club Team Library page (`primeaulacrosse`)
@@ -149,8 +149,8 @@ The director sees every club rep who signed in to the event, including reps who 
 ### I. Configure › Job Settings › Teams › Club Rep Permissions
 
 - [ ] I1. The help list under the three checkboxes is present and reads correctly.
-- [ ] I2. Turn **Allow Edit** off, save. As `primeaulacrosse`: the Teams step pencil is visible but greyed, tooltip **Editing closed by the director**. Fly-in kebab › Edit details and the library page's Edit button stay open: Allow Edit governs the event copy only, never the library.
-- [ ] I3. With Allow Edit still off, library **Edit** still works on the library page and in the fly-in kebab. Expected: the library is never gated by Allow Edit.
+- [ ] I2. Turn **Allow Edit** off, save. As `primeaulacrosse`: the Teams step pencil is visible but greyed, tooltip **Editing closed by the director**. The fly-in pencil and the library page's Edit button stay open: Allow Edit governs the event copy only, never the library.
+- [ ] I3. With Allow Edit still off, library **Edit** still works on the library page and from the fly-in pencil. Expected: the library is never gated by Allow Edit.
 - [ ] I4. Turn **Allow Delete** off, save. As the rep: **Remove from this event** is locked with **Removal closed by the director**.
 - [ ] I5. Turn **Allow Add** off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page is unchanged: it never offered registration.
 - [ ] I6. Turn all three back on, save. Everything reopens.

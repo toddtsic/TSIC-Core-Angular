@@ -46,7 +46,7 @@
 <h2>Access Points: the library page and the library fly-in</h2>
 <p>The Club Team Library appears in two places. Same library, same teams, same rules; the difference is where the rep is standing. Both are inside an event. There is no library outside an event: the rep reaches it by opening one of their event registrations.</p>
 <p><strong>The library page</strong> is the Club Team Library page: its own page inside the event, not part of the registration wizard. It is the list's home: add, edit, archive, restore, delete, and see every event each team has been registered for. Nothing on it registers a team. That happens in Team Registration.</p>
-<p><strong>The library fly-in</strong> is the same library inside Team Registration, on the Teams step. The rep is mid-registration; the fly-in shows the library grouped by what fits this event, so the rep picks a team and registers it without leaving the wizard. Maintenance is there too (kebab on each row), but registering is what it is for.</p>
+<p><strong>The library fly-in</strong> is the same library inside Team Registration, on the Teams step. The rep is mid-registration; the fly-in shows the library grouped by what fits this event, so the rep picks a team and registers it without leaving the wizard. Maintenance is there too (a pencil and an archive-or-delete icon on each library row), but registering is what it is for.</p>
 <h3>Reaching the library page</h3>
 <ul>
 <li><strong>Tournament job site, header user menu</strong>: <strong>Club Team Library</strong>, on every page.</li>
@@ -101,8 +101,8 @@
 <li><input type="checkbox"> C6. Repeat C4 with <code>Zz Test Gamma</code>, click Done, choose <strong>Register it now</strong>. The register sheet opens for that team. Cancel it.</li>
 <li><input type="checkbox"> C7. Type a name already in the library. The modal refuses it and the Register button stays disabled.</li>
 <li><input type="checkbox"> C8. Type a name that is only a year, such as <code>2031</code>. A nudge appears and the Register button still works.</li>
-<li><input type="checkbox"> C9. Kebab on a registered row: one removal item only. A team registered for this event shows <strong>Archive team</strong> greyed with the reason; a team registered for another event shows Archive team live; a team never registered shows <strong>Delete team</strong> live. Never both. Edit team works and its dialog says it changes the library only.</li>
-<li><input type="checkbox"> C10. Kebab on Zz Test Beta: Edit details opens, change the level of play, save. Archive moves it to Archived. Restore brings it back.</li>
+<li><input type="checkbox"> C9. Each library row in the fly-in has a pencil and ONE removal icon beside Register, no menu. A team registered for another event shows the archive icon live; a team never registered shows the trash icon live; hovering names the action. Never both. The pencil opens Edit and its dialog says it changes the library only. (A team registered for this event sits in the Registered group with no icons.)</li>
+<li><input type="checkbox"> C10. Pencil on Zz Test Beta: Edit opens, change the level of play, save. The archive icon moves it to Archived. Restore brings it back.</li>
 <li><input type="checkbox"> C11. <strong>Manage full library →</strong> lands on the Club Team Library page.</li>
 </ul>
 <h3>D. Club Team Library page (<code>primeaulacrosse</code>)</h3>
@@ -160,8 +160,8 @@
 <h3>I. Configure › Job Settings › Teams › Club Rep Permissions</h3>
 <ul>
 <li><input type="checkbox"> I1. The help list under the three checkboxes is present and reads correctly.</li>
-<li><input type="checkbox"> I2. Turn <strong>Allow Edit</strong> off, save. As <code>primeaulacrosse</code>: the Teams step pencil is visible but greyed, tooltip <strong>Editing closed by the director</strong>. Fly-in kebab › Edit details and the library page's Edit button stay open: Allow Edit governs the event copy only, never the library.</li>
-<li><input type="checkbox"> I3. With Allow Edit still off, library <strong>Edit</strong> still works on the library page and in the fly-in kebab. Expected: the library is never gated by Allow Edit.</li>
+<li><input type="checkbox"> I2. Turn <strong>Allow Edit</strong> off, save. As <code>primeaulacrosse</code>: the Teams step pencil is visible but greyed, tooltip <strong>Editing closed by the director</strong>. The fly-in pencil and the library page's Edit button stay open: Allow Edit governs the event copy only, never the library.</li>
+<li><input type="checkbox"> I3. With Allow Edit still off, library <strong>Edit</strong> still works on the library page and from the fly-in pencil. Expected: the library is never gated by Allow Edit.</li>
 <li><input type="checkbox"> I4. Turn <strong>Allow Delete</strong> off, save. As the rep: <strong>Remove from this event</strong> is locked with <strong>Removal closed by the director</strong>.</li>
 <li><input type="checkbox"> I5. Turn <strong>Allow Add</strong> off, save. As the rep: the Teams step strip is gone, the fly-in's Register buttons are gone, and the library page is unchanged: it never offered registration.</li>
 <li><input type="checkbox"> I6. Turn all three back on, save. Everything reopens.</li>
