@@ -128,8 +128,12 @@
                                         <i class="bi bi-body-text me-1"></i>
                                         Message
                                     </h6>
-                                    <button class="icon-btn" (click)="copyMessageHtml()" title="Copy message HTML">
-                                        <i class="bi" [class.bi-clipboard]="!copied()" [class.bi-check-lg]="copied()"></i>
+                                    <button class="icon-btn" (click)="copyMessageHtml()" [title]="copyTitle()"
+                                            [attr.aria-label]="copyTitle()">
+                                        <i class="bi"
+                                           [class.bi-clipboard]="!copied() && !copyFailed()"
+                                           [class.bi-check-lg]="copied()"
+                                           [class.bi-exclamation-triangle]="copyFailed()"></i>
                                     </button>
                                 </div>
                                 <div class="message-body" [innerHTML]="selectedDetail()?.msg"></div>

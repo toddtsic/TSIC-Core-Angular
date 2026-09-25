@@ -29,7 +29,20 @@ export class EmailLogComponent {
     readonly selectedEmailId = signal<number | null>(null);
     readonly selectedDetail = signal<EmailLogDetailDto | null>(null);
     readonly isDetailLoading = signal(false);
-    readonly copied = signal(false);
+    /** Transient copy outcome: null | 'copied' | 'failed'. A copy button that silently
+     *  does nothing is worse than no button, so failure is SHOWN. */
+    readonly copyState = signal<'copied' | 'failed' | null>(null);
+    readonly copied = computed(() => this.copyState() === 'copied');
+    readonly copyFailed = computed(() => this.copyState() === 'failed');
+    readonly copyTitle = computed(() => {
+        switch (this.copyState()) {
+            case 'copied': return 'Copied — paste into a new email';
+            case 'failed': return 'Copy blocked — the clipboard needs a secure (https) page';
+            default: return 'Copy message';
+        }
+    });
+
+    private copyResetTimer?: ReturnType<typeof setTimeout>;
 
     // Grid settings
     sortSettings: SortSettingsModel = { columns: [{ field: 'sendTs', direction: 'Descending' }] };
@@ -104,13 +117,53 @@ export class EmailLogComponent {
         this.selectedDetail.set(null);
     }
 
-    copyMessageHtml() {
+    /**
+     * Copy the message so it pastes as FORMATTED text, not as source.
+     *
+     * `writeText()` puts the markup on the clipboard as text/plain only, so a rich-text
+     * target (the compose editor, Gmail, Outlook) has nothing but the tags to paste and
+     * shows them literally. The clipboard is a multi-flavor container: write text/html
+     * for rich targets and a tag-stripped text/plain alongside it for plain ones. The
+     * paste target picks the flavor it wants.
+     */
+    async copyMessageHtml(): Promise<void> {
         const html = this.selectedDetail()?.msg;
         if (!html) return;
 
-        navigator.clipboard.writeText(html).then(() => {
-            this.copied.set(true);
-            setTimeout(() => this.copied.set(false), 2000);
-        });
+        try {
+            // navigator.clipboard is UNDEFINED outside a secure context (plain http) and
+            // ClipboardItem is missing on older browsers — both throw rather than reject.
+            if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
+                await navigator.clipboard.writeText(html);
+            } else {
+                await navigator.clipboard.write([new ClipboardItem({
+                    'text/html': new Blob([html], { type: 'text/html' }),
+                    'text/plain': new Blob([this.htmlToPlainText(html)], { type: 'text/plain' }),
+                })]);
+            }
+            this.setCopyState('copied');
+        } catch {
+            this.setCopyState('failed');
+        }
+    }
+
+    /**
+     * Tag-stripped fallback for plain-text paste targets. DOMParser, not a detached div:
+     * an inert document never fetches the `<img src>`s the message body carries.
+     */
+    private htmlToPlainText(html: string): string {
+        const withBreaks = html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/(p|div|tr|li|h[1-6])>/gi, '\n');
+        const text = new DOMParser()
+            .parseFromString(withBreaks, 'text/html')
+            .body.textContent ?? '';
+        return text.replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    private setCopyState(state: 'copied' | 'failed'): void {
+        clearTimeout(this.copyResetTimer);
+        this.copyState.set(state);
+        this.copyResetTimer = setTimeout(() => this.copyState.set(null), 2000);
     }
 }
