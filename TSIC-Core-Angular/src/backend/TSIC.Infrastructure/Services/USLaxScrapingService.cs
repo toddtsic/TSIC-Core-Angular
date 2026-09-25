@@ -40,6 +40,27 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
     private const int ColSched = 6;
     private const int MinColumns = 3;
 
+    // usclublax splits one ranking across TWO tables with an ad slot between them: ranks
+    // 1-5 in .uscl-table-wrap--split-top, the remainder in --split-bottom, which carries
+    // NO <thead> -- its first row is rank 6. It then renders a second "Clean" copy of the
+    // same teams in .uscl-clean-table with a different column order (rank, logo, team,
+    // state, rating). So: take EVERY rankings table, never just the first (that silently
+    // truncated every lookup to 5 teams), and never the clean copy (double-counts every
+    // team and misreads every column).
+    private const string RankingsTablesXPath =
+        "//div[contains(@class, 'desc-container-table')]//table[contains(@class, 'uscl-table--rankings')]";
+
+    // Pre-redesign markup: a single unclassed table. Still excludes the clean copy in case
+    // a page carries one without the rankings class.
+    private const string LegacyTablesXPath =
+        "//div[contains(@class, 'desc-container-table')]//table[not(contains(@class, 'uscl-clean-table'))]";
+
+    // The site's own "We haven't published this ranking yet" card, served when a season has
+    // too few recorded games to rank -- typically a season that has only just opened. That
+    // is an answer from the source, not a scrape failure, and it must not read as one.
+    private const string NotPublishedXPath =
+        "//div[contains(@class, 'noTeamsCard')]";
+
     public USLaxScrapingService(HttpClient http, ILogger<USLaxScrapingService> logger)
     {
         _http = http;
@@ -185,17 +206,30 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
 
-            var table = doc.DocumentNode.SelectSingleNode(
-                "//div[contains(@class, 'desc-container-table')]//table");
+            var tables = doc.DocumentNode.SelectNodes(RankingsTablesXPath)
+                          ?? doc.DocumentNode.SelectNodes(LegacyTablesXPath);
 
-            if (table is null)
+            if (tables is null || tables.Count == 0)
             {
+                // Distinguish "the source has nothing to give" from "the source changed
+                // shape". Both leave us with no table; only one is our problem.
+                if (doc.DocumentNode.SelectSingleNode(NotPublishedXPath) is not null)
+                {
+                    _logger.LogInformation(
+                        "usclublax has not published {AgeGroup} yet (not-published card served)", ageGroupLabel);
+                    return FailResult(ageGroupLabel,
+                        "usclublax.com has not published this ranking yet — there aren't enough recorded games "
+                        + "for this season. Pick the most recently completed season instead.");
+                }
+
                 _logger.LogWarning("No rankings table found for {AgeGroup}", ageGroupLabel);
                 return FailResult(ageGroupLabel, "Could not find rankings table on the page");
             }
 
-            var rankings = ParseTable(table);
-            _logger.LogInformation("Scraped {Count} rankings for {AgeGroup}", rankings.Count, ageGroupLabel);
+            var rankings = ParseTables(tables);
+            _logger.LogInformation(
+                "Scraped {Count} rankings for {AgeGroup} from {TableCount} table(s)",
+                rankings.Count, ageGroupLabel, tables.Count);
 
             return new ScrapeResultDto
             {
@@ -217,27 +251,57 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
         }
     }
 
-    private List<RankingEntryDto> ParseTable(HtmlNode table)
+    /// <summary>
+    /// Parses every table making up one ranking and concatenates them. Handles any number of
+    /// split tables, not just the two the site currently serves, so another slot inserted
+    /// mid-grid costs us nothing.
+    /// </summary>
+    private List<RankingEntryDto> ParseTables(IEnumerable<HtmlNode> tables)
     {
-        var rows = table.SelectNodes(".//tr");
-        if (rows is null || rows.Count < 2)
-            return [];
+        var rankings = new List<RankingEntryDto>();
+        var seenRanks = new HashSet<int>();
+        var duplicates = 0;
 
-        var rankings = new List<RankingEntryDto>(rows.Count - 1);
-
-        // Skip header row (index 0)
-        for (var i = 1; i < rows.Count; i++)
+        foreach (var table in tables)
         {
-            var cells = rows[i].SelectNodes("td");
-            if (cells is null || cells.Count < MinColumns)
+            var rows = table.SelectNodes(".//tr");
+            if (rows is null)
                 continue;
 
-            var entry = ParseRow(cells);
-            if (entry is not null)
+            // Every row, from index 0. The --split-bottom table has no <thead>, so its first
+            // row is a real team; a header row is discarded by the td check below, since
+            // header cells are <th>. Never skip by position.
+            foreach (var row in rows)
+            {
+                var cells = row.SelectNodes("td");
+                if (cells is null || cells.Count < MinColumns)
+                    continue;
+
+                var entry = ParseRow(cells);
+                if (entry is null)
+                    continue;
+
+                // Rank is unique within a ranking. A repeat means our selector picked up a
+                // second rendering of the same teams -- drop it rather than double-count,
+                // and say so, because that is the site changing shape under us again.
+                if (!seenRanks.Add(entry.Rank))
+                {
+                    duplicates++;
+                    continue;
+                }
+
                 rankings.Add(entry);
+            }
         }
 
-        return rankings;
+        if (duplicates > 0)
+        {
+            _logger.LogWarning(
+                "Dropped {Count} duplicate-rank rows while parsing rankings — usclublax markup may have changed",
+                duplicates);
+        }
+
+        return [.. rankings.OrderBy(r => r.Rank)];
     }
 
     private static RankingEntryDto? ParseRow(HtmlNodeCollection cells)
