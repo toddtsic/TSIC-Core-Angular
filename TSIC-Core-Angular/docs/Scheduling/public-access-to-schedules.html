@@ -1,0 +1,538 @@
+<title>Public Access To Schedules</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@500&display=swap">
+
+<style>
+  :root {
+    --ground: #f6f8fa;
+    --surface: #ffffff;
+    --surface-sunk: #eef2f6;
+    --ink: #10202e;
+    --ink-soft: #4a5f70;
+    --ink-faint: #74889a;
+    --rule: #dfe6ec;
+    --rule-strong: #c3d0da;
+    --accent: #0284c7;
+    --accent-ink: #ffffff;
+    --accent-wash: #e6f4fb;
+    --caution: #b45309;
+    --caution-wash: #fdf3e3;
+    --caution-rule: #eccb95;
+    --go: #047857;
+    --go-wash: #e2f3ec;
+    --go-rule: #a9d8c6;
+    --off: #8d9fad;
+    --off-wash: #eef2f6;
+    --spot: #f0b429;
+    --measure: 47rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0b1720;
+      --surface: #12222e;
+      --surface-sunk: #0e1c26;
+      --ink: #e8f0f5;
+      --ink-soft: #a6bccb;
+      --ink-faint: #7b94a5;
+      --rule: #1f3748;
+      --rule-strong: #2d4d63;
+      --accent: #3fb6ef;
+      --accent-ink: #052330;
+      --accent-wash: #102f42;
+      --caution: #e0a458;
+      --caution-wash: #2b2014;
+      --caution-rule: #574021;
+      --go: #4fc79d;
+      --go-wash: #0e2a24;
+      --go-rule: #1f5145;
+      --off: #7b94a5;
+      --off-wash: #16293607;
+      --spot: #f0b429;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0b1720;
+    --surface: #12222e;
+    --surface-sunk: #0e1c26;
+    --ink: #e8f0f5;
+    --ink-soft: #a6bccb;
+    --ink-faint: #7b94a5;
+    --rule: #1f3748;
+    --rule-strong: #2d4d63;
+    --accent: #3fb6ef;
+    --accent-ink: #052330;
+    --accent-wash: #102f42;
+    --caution: #e0a458;
+    --caution-wash: #2b2014;
+    --caution-rule: #574021;
+    --go: #4fc79d;
+    --go-wash: #0e2a24;
+    --go-rule: #1f5145;
+    --off: #7b94a5;
+    --off-wash: #0e1c26;
+    --spot: #f0b429;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+
+  .wrap {
+    max-width: var(--measure);
+    margin-inline: auto;
+    padding-inline: 16px;
+    padding-block: clamp(2rem, 6vw, 3.5rem) 4rem;
+  }
+
+  h1, h2 { font-family: Archivo, ui-sans-serif, system-ui, sans-serif; text-wrap: balance; margin: 0; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    font-size: 0.7rem; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-faint);
+  }
+
+  h1 {
+    font-size: clamp(1.9rem, 6.5vw, 2.6rem); font-weight: 700;
+    line-height: 1.1; letter-spacing: -0.02em; margin-block: 0.5rem 1rem;
+  }
+
+  .masthead { border-bottom: 2px solid var(--rule-strong); padding-bottom: 2rem; margin-bottom: 2.75rem; }
+  .masthead p { max-width: 38rem; margin: 0; }
+  .masthead p + p { margin-top: 0.85rem; }
+
+  .figs { list-style: none; padding: 0; margin: 0; display: grid; gap: 3.25rem; }
+  figure { margin: 0; }
+
+  .fig-head {
+    display: grid; grid-template-columns: 2.4rem 1fr; gap: 0.9rem;
+    align-items: baseline; margin-bottom: 0.9rem;
+  }
+  .num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.8rem; font-weight: 500;
+    color: var(--accent-ink); background: var(--accent); border-radius: 6px;
+    padding: 0.25rem 0; text-align: center; font-variant-numeric: tabular-nums;
+  }
+  h2 { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+
+  figcaption { margin-top: 1rem; color: var(--ink-soft); font-size: 1rem; max-width: 38rem; }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+
+  /* ── Mock UI: drawn, not screenshotted ─────────────────────── */
+  .mock {
+    border: 1px solid var(--rule-strong);
+    border-radius: 10px;
+    background: var(--surface);
+    overflow: hidden;
+    font-size: 0.95rem;
+  }
+  .mock__bar {
+    background: var(--surface-sunk);
+    border-bottom: 1px solid var(--rule);
+    padding: 0.5rem 0.9rem;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  .mock__body { padding: 1.1rem; display: grid; gap: 1rem; }
+
+  /* toggles */
+  .tgl { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem 0.8rem; align-items: center; }
+  .tgl__sw {
+    width: 2.6rem; height: 1.45rem; border-radius: 999px; position: relative;
+    background: var(--off-wash); border: 1px solid var(--rule-strong); flex: none;
+  }
+  .tgl__sw::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 1.05rem; height: 1.05rem; border-radius: 50%;
+    background: var(--off);
+  }
+  .tgl__sw.is-on { background: var(--accent); border-color: var(--accent); }
+  .tgl__sw.is-on::after { left: auto; right: 2px; background: #fff; }
+  .tgl__label { font-weight: 600; }
+  .tgl__tip { grid-column: 2; margin-top: -0.55rem; color: var(--ink-faint); font-size: 0.88rem; }
+
+  /* grid rows */
+  .grid-mock { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  .grid-mock th {
+    text-align: left; font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.66rem; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 500;
+    padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--rule);
+  }
+  .grid-mock td { padding: 0.7rem; border-bottom: 1px solid var(--rule); }
+  .grid-mock tr:last-child td { border-bottom: 0; }
+  .grid-mock .c { text-align: center; }
+  .row-spot { background: color-mix(in srgb, var(--spot) 13%, transparent); }
+
+  .pill {
+    display: inline-block; border-radius: 999px; padding: 0.12rem 0.6rem;
+    font-size: 0.76rem; font-weight: 600; white-space: nowrap;
+  }
+  .pill--off { background: var(--off-wash); color: var(--ink-soft); border: 1px solid var(--rule-strong); }
+  .pill--on  { background: var(--go-wash); color: var(--go); border: 1px solid var(--go-rule); }
+  .pill--count { background: var(--accent); color: var(--accent-ink); }
+
+  /* the rendered bulletin */
+  .bulletin {
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    background: var(--surface);
+    padding: 1.1rem 1.25rem;
+  }
+  .bulletin h3 { font-family: Archivo, sans-serif; font-size: 1.2rem; margin: 0 0 0.9rem; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+  .btn-primary-mock {
+    background: var(--accent); color: var(--accent-ink);
+    border-radius: 7px; padding: 0.6rem 1.1rem; font-weight: 600; font-size: 0.95rem;
+  }
+  .btn-store {
+    border: 1px solid var(--rule-strong); border-radius: 7px;
+    padding: 0.6rem 0.9rem; font-weight: 600; font-size: 0.95rem;
+    background: var(--surface-sunk); color: var(--ink);
+  }
+
+  .chev { color: var(--ink-faint); }
+
+  /* Stand-in for a real club rep row: placeholder text, blurred so the mock reads
+     as "a name goes here" rather than naming anybody. */
+  .redact { filter: blur(3.5px); user-select: none; }
+
+  /* Scheduling Checklist tool tiles */
+  .tools-label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.66rem; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 500;
+  }
+  .tools-label em { font-family: "Source Sans 3", sans-serif; font-size: 0.8rem; letter-spacing: 0; text-transform: none; }
+
+  .tools-grid {
+    display: grid; gap: 0.6rem; margin-top: 0.7rem;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  }
+  .tool {
+    border: 1px solid var(--rule); border-radius: 8px;
+    padding: 0.85rem 0.7rem; background: var(--surface);
+    display: flex; gap: 0.45rem; align-items: flex-start;
+    font-size: 0.86rem; line-height: 1.3; color: var(--ink-soft);
+  }
+  .tool .ic { color: var(--ink-faint); flex: none; }
+  .tool--spot {
+    border-color: var(--accent); border-width: 2px; padding: calc(0.85rem - 1px) calc(0.7rem - 1px);
+    background: var(--accent-wash); color: var(--ink); font-weight: 600;
+  }
+  .tool--spot .ic { color: var(--accent); }
+
+  /* send page */
+  .field {
+    border: 1px solid var(--rule-strong); border-radius: 7px;
+    padding: 0.55rem 0.7rem; background: var(--surface-sunk); color: var(--ink-soft);
+    font-size: 0.92rem;
+  }
+  .field--select { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+  .flabel {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.66rem; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--ink-faint); display: block; margin-bottom: 0.3rem;
+  }
+  .banner {
+    background: var(--accent-wash); border-radius: 7px;
+    padding: 0.7rem 0.85rem; font-size: 0.9rem; color: var(--ink-soft);
+  }
+  .letter { display: grid; gap: 0.55rem; font-size: 0.93rem; color: var(--ink-soft); }
+  .letter .tok { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.85em; color: var(--accent); }
+
+  /* ── Callouts & inline ────────────────────────────────────── */
+  .callout {
+    border: 1px solid var(--caution-rule); border-left: 4px solid var(--caution);
+    background: var(--caution-wash); border-radius: 0 10px 10px 0;
+    padding: 1.1rem 1.25rem; margin-block: 3.25rem;
+  }
+  .callout .label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.68rem;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--caution);
+    display: block; margin-bottom: 0.4rem;
+  }
+  .callout p { margin: 0; font-size: 1rem; }
+
+  .ui {
+    font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; font-size: 0.86em;
+    background: var(--surface-sunk); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 0.1em 0.38em; white-space: nowrap;
+  }
+  .path {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.86em;
+    color: var(--ink-soft); overflow-wrap: anywhere;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule); margin-top: 3.5rem; padding-top: 1.25rem;
+    color: var(--ink-faint); font-size: 0.9rem;
+  }
+  footer p { margin: 0; }
+
+  @media (max-width: 460px) {
+    .fig-head { grid-template-columns: 2.2rem 1fr; gap: 0.7rem; }
+    .grid-mock .hide-sm { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Scheduler's guide</p>
+    <h1>Public Access To Schedules</h1>
+    <p>
+      Turning on <span class="ui">Allow Public Schedule Access</span> makes your game schedule
+      readable by anyone with the link — no login required. What it does <em>not</em> do is
+      announce it. Nothing appears on your event page by itself.
+    </p>
+    <p>
+      Instead, saving that setting automatically creates a <strong>bulletin</strong> for you,
+      titled <span class="ui">Schedules Available!</span>, in
+      <strong>Communications&nbsp;&rsaquo; Bulletins</strong>. That bulletin is created
+      <strong>Inactive</strong> — it is written and waiting, but invisible to everyone until you
+      set it Active yourself. You decide when the announcement goes up, and you can edit or
+      rename it before it does. If you had an older schedule bulletin from a previous season, it
+      is removed at the same time so you are not left with two.
+    </p>
+    <p>
+      That gap between access and announcement is deliberate: it gives you a window to have your
+      club reps check the schedule before the general public sees a word about it.
+    </p>
+    <p>The walkthrough below follows that sequence end to end.</p>
+  </header>
+
+  <ol class="figs">
+
+    <li>
+      <figure>
+        <div class="fig-head"><span class="num">01</span><h2>Before: access is off</h2></div>
+        <div class="mock">
+          <div class="mock__bar">Configure Job &rsaquo; Scheduling</div>
+          <div class="mock__body">
+            <div class="tgl">
+              <span class="tgl__sw" aria-hidden="true"></span>
+              <span class="tgl__label">Allow Public Schedule Access</span>
+              <span class="tgl__tip">The game schedule is hidden from the public.</span>
+            </div>
+          </div>
+        </div>
+        <figcaption>
+          The starting point, on <strong>Configure Job&nbsp;&rsaquo; Scheduling</strong>. Your
+          schedule is visible to you and your staff and to nobody else.
+          <span class="ui">Allow Public Schedule Access</span> is the switch this whole guide is
+          about. Read the grey line underneath it — it always tells you the current state in plain
+          words, so you never have to guess which way the switch is thrown.
+        </figcaption>
+      </figure>
+    </li>
+
+    <li>
+      <figure>
+        <div class="fig-head"><span class="num">02</span><h2>After: access is on</h2></div>
+        <div class="mock">
+          <div class="mock__bar">Configure Job &rsaquo; Scheduling</div>
+          <div class="mock__body">
+            <div class="tgl">
+              <span class="tgl__sw is-on" aria-hidden="true"></span>
+              <span class="tgl__label">Allow Public Schedule Access</span>
+              <span class="tgl__tip">The game schedule is visible to the public.</span>
+            </div>
+          </div>
+        </div>
+        <figcaption>
+          Save, and the schedule is readable at
+          <span class="path">teamsportsinfo.com/<em>your-event</em>/schedule</span> by anyone with
+          the address. The grey line confirms it.
+          <strong>Your event page still says nothing about it.</strong>
+        </figcaption>
+      </figure>
+    </li>
+
+    <li>
+      <figure>
+        <div class="fig-head"><span class="num">03</span><h2>A new bulletin, switched off</h2></div>
+        <div class="mock">
+          <div class="mock__bar">Communications &rsaquo; Bulletins</div>
+          <table class="grid-mock">
+            <thead>
+              <tr><th>Title</th><th class="c">Status</th><th class="hide-sm">Start</th><th class="hide-sm">End</th></tr>
+            </thead>
+            <tbody>
+              <tr class="row-spot">
+                <td><strong>Schedules Available!</strong></td>
+                <td class="c"><span class="pill pill--off">Inactive</span></td>
+                <td class="hide-sm">Nov 1, 2026</td>
+                <td class="hide-sm">—</td>
+              </tr>
+              <tr>
+                <td>Club Reps: Pay Team(s) Balance Due</td>
+                <td class="c"><span class="pill pill--on">Active</span></td>
+                <td class="hide-sm">Sep 2, 2026</td>
+                <td class="hide-sm">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <figcaption>
+          A bulletin titled <span class="ui">Schedules Available!</span> now sits in
+          <strong>Communications&nbsp;&rsaquo; Bulletins</strong>.
+          <strong>It arrives Inactive.</strong> It is not on your event page and nobody can see it.
+          Edit it freely while it's off — reword it, rename it, add your own notes.
+        </figcaption>
+      </figure>
+    </li>
+
+    <li>
+      <figure>
+        <div class="fig-head"><span class="num">04</span><h2>You switch it on</h2></div>
+        <div class="mock">
+          <div class="mock__bar">Communications &rsaquo; Bulletins</div>
+          <table class="grid-mock">
+            <thead>
+              <tr><th>Title</th><th class="c">Status</th><th class="hide-sm">Start</th><th class="hide-sm">End</th></tr>
+            </thead>
+            <tbody>
+              <tr class="row-spot">
+                <td><strong>Schedules Available!</strong></td>
+                <td class="c"><span class="pill pill--on">Active</span></td>
+                <td class="hide-sm">Nov 1, 2026</td>
+                <td class="hide-sm">—</td>
+              </tr>
+              <tr>
+                <td>Club Reps: Pay Team(s) Balance Due</td>
+                <td class="c"><span class="pill pill--on">Active</span></td>
+                <td class="hide-sm">Sep 2, 2026</td>
+                <td class="hide-sm">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <figcaption>
+          By hand, when you're ready. <strong>This is the only step that announces the
+          schedule</strong>, and nothing does it for you.
+        </figcaption>
+      </figure>
+    </li>
+
+    <li>
+      <figure>
+        <div class="fig-head"><span class="num">05</span><h2>What visitors then see</h2></div>
+        <div class="mock">
+          <div class="mock__bar">Your event page &rsaquo; News &amp; Updates</div>
+          <div class="mock__body">
+            <div class="bulletin">
+              <h3>Schedules Available!</h3>
+              <div class="btn-row">
+                <span class="btn-primary-mock">View Schedule &rarr;</span>
+                <span class="btn-store">App Store</span>
+                <span class="btn-store">Google Play</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption>
+          The bulletin on your public event page, with a <strong>View Schedule</strong> button and
+          links to the TSIC&#8209;Events app already built in.
+        </figcaption>
+      </figure>
+    </li>
+
+    <li>
+      <figure>
+        <div class="fig-head"><span class="num">06</span><h2>Where the email tool lives</h2></div>
+        <div class="mock">
+          <div class="mock__bar">Scheduling Checklist</div>
+          <div class="mock__body">
+            <div class="tools-label">Tools <em>available once games are scheduled</em></div>
+            <div class="tools-grid">
+              <div class="tool"><span class="ic">&#9636;</span><span>Master Schedule</span></div>
+              <div class="tool"><span class="ic">&#8635;</span><span>Rescheduler</span></div>
+              <div class="tool"><span class="ic">&#9673;</span><span>Schedule Viewer</span></div>
+              <div class="tool"><span class="ic">&#9998;</span><span>Schedule Reports</span></div>
+              <div class="tool"><span class="ic">&#9745;</span><span>QA Results</span></div>
+              <div class="tool"><span class="ic">&#9873;</span><span>Tournament Parking</span></div>
+              <div class="tool"><span class="ic">&#9647;</span><span>Mobile Scorers</span></div>
+              <div class="tool tool--spot"><span class="ic">&#9993;</span><span>Send Club Coaches Preview Email</span></div>
+            </div>
+          </div>
+        </div>
+        <figcaption>
+          A button in the <strong>Tools</strong> row at the bottom of the
+          <strong>Scheduling Checklist</strong>:
+          <span class="ui">Send Club Coaches Preview Email</span>. The Tools row stays greyed out
+          until games are actually scheduled. This is how you get the schedule in front of your
+          reps and their coaches before the announcement goes up.
+        </figcaption>
+      </figure>
+    </li>
+
+    <li>
+      <figure>
+        <div class="fig-head"><span class="num">07</span><h2>Sending the letter</h2></div>
+        <div class="mock">
+          <div class="mock__bar">Send Club Coaches Preview Email</div>
+          <div class="mock__body">
+            <div class="banner">
+              The schedule link in this letter is an ordinary link, not a personal one — reps can
+              forward it to their coaches and it still works. It only opens for them once the
+              schedule is public.
+            </div>
+            <div>
+              <span class="flabel">Recipients <span class="pill pill--count">20</span></span>
+              <div class="field field--select">
+                <span class="redact">Club name &middot; Rep name &middot; rep@example.com (3)</span>
+                <span class="chev">&#9662;</span>
+              </div>
+            </div>
+            <div>
+              <span class="flabel">Subject</span>
+              <div class="field">Please review the schedule for <span class="tok">!JOBNAME</span></div>
+            </div>
+            <div>
+              <span class="flabel">Body</span>
+              <div class="field letter">
+                <span>Hi <span class="tok">!PERSON</span>,</span>
+                <span>The schedule for <span class="tok">!JOBNAME</span> is posted. Please review your teams and let us know right away if anything looks wrong.</span>
+                <span class="tok">!SCHEDULELINK</span>
+                <span><strong>Please forward this to your coaches</strong> so they can check their own games, and send any corrections back through us.</span>
+              </div>
+            </div>
+            <div class="btn-row"><span class="btn-primary-mock">Send to 20 club reps</span></div>
+          </div>
+        </div>
+        <figcaption>
+          It goes to every active club rep with at least one team in the schedule. You get the
+          count and the full list before you send, and the letter is yours to edit. Leave
+          <span class="ui">!SCHEDULELINK</span> in place — that becomes the link to your schedule.
+          Reps with no address on file, or who have opted out of email, appear greyed out in the
+          list and are not counted or sent to.
+        </figcaption>
+      </figure>
+    </li>
+
+  </ol>
+
+  <div class="callout">
+    <span class="label">Order matters</span>
+    <p>
+      <strong>Send the email only after public access is on.</strong> The link inside the letter
+      opens nothing until the schedule is public.
+    </p>
+  </div>
+
+  <footer>
+    <p>TeamSportsInfo &middot; Scheduling</p>
+  </footer>
+
+</div>
