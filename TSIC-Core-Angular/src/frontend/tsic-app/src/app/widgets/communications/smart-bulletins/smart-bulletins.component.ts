@@ -41,6 +41,23 @@ export class SmartBulletinsComponent {
 	/** Absolute, jobPath-prefixed base (the jobPath is in the path, so it's preserved). */
 	readonly jobPath = input.required<string>();
 
+	/**
+	 * Which half of the band this instance renders.
+	 *
+	 * Ruling (Todd + Ann, 2026-09-25): the organizer's own bulletins lead the page, BUT the
+	 * Registration panel is the page's primary task and job-landing has no hero to carry it —
+	 * so registration is hoisted ABOVE the bulletins and the standing info (store, USA Lacrosse,
+	 * event status) sits below them. The host mounts this component twice, once per zone.
+	 *
+	 * 'all' keeps the original single-band behaviour for any other consumer.
+	 * Each instance still self-hides when its own zone has nothing, so the split never
+	 * leaves an empty band behind.
+	 */
+	readonly zone = input<'all' | 'registration' | 'rest'>('all');
+
+	private readonly inRegistrationZone = computed(() => this.zone() !== 'rest');
+	private readonly inRestZone = computed(() => this.zone() !== 'registration');
+
 	private readonly pulseService = inject(JobPulseService);
 	private readonly auth = inject(AuthService);
 	private readonly jobService = inject(JobService);
@@ -95,8 +112,9 @@ export class SmartBulletinsComponent {
 	// TEMPORARILY DISABLED 2026-09-24 (Todd) — publishing the schedule auto-raised BOTH
 	// the Schedule Links card and the countdown clock (showClock derives from this gate)
 	// with no director off switch. Revisiting; restore by deleting the false line below
-	// and uncommenting the original.
-	// protected readonly showGameDay = computed(() => this.scheduleLinkable() && this.live());
+	// and uncommenting the original. (The commented line carries the zone guard so a restore
+	// lands in the 'rest' zone only, instead of painting the card in both instances.)
+	// protected readonly showGameDay = computed(() => this.inRestZone() && this.scheduleLinkable() && this.live());
 	protected readonly showGameDay = computed(() => false);
 
 	// Final-standings link handed to Event Status in the concluded phase. Null when there's
@@ -116,6 +134,7 @@ export class SmartBulletinsComponent {
 	// key is absent in the concluded phase, so a finished event drops the rosters row from
 	// BOTH this gate and the panel at once, and the panel self-hides for a public viewer.
 	protected readonly showRegistration = computed(() => {
+		if (!this.inRegistrationZone()) return false;
 		const p = this.pulse();
 		if (!p || !this.jobPath()) return false;
 		const allowed = this.allowedKeys();
@@ -156,6 +175,7 @@ export class SmartBulletinsComponent {
 	});
 
 	protected readonly showStore = computed(() => {
+		if (!this.inRestZone()) return false;
 		const p = this.pulse();
 		return !!p?.storeHasActiveItems && this.allowedKeys().has('store');
 	});
@@ -166,6 +186,7 @@ export class SmartBulletinsComponent {
 	// Registration panel's register-player section gate so the notice can't appear
 	// without the action it explains. Purely informational; pre-empts USLax support calls.
 	protected readonly showUsLax = computed(() => {
+		if (!this.inRestZone()) return false;
 		const p = this.pulse();
 		if (!p || !p.playerRegRequiresUsLax) return false;
 		return this.allowedKeys().has('register-player') && isPlayerRegistrationEffectivelyOpen(p);
@@ -181,7 +202,7 @@ export class SmartBulletinsComponent {
 	// The planned/preview "coming soon" copy was deleted 2026-09-20 (see the component's
 	// header for why); a site that is not open, scheduled or concluded now shows the
 	// director's own bulletins and no smart band at all, which is the intent.
-	protected readonly showEventStatus = computed(() => this.phase() === 'concluded');
+	protected readonly showEventStatus = computed(() => this.inRestZone() && this.phase() === 'concluded');
 
 	/** The band self-hides when no smart section has content. */
 	protected readonly hasContent = computed(() =>

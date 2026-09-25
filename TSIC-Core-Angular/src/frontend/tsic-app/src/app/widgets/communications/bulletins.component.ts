@@ -12,12 +12,13 @@ import { SmartBulletinsComponent } from './smart-bulletins/smart-bulletins.compo
 import type { BulletinDto } from '@core/api';
 
 /**
- * Bulletins widget — the unified "bulletins" surface = the director's hand-authored
- * bulletins FIRST, then the ✨ SMART band (the self-assembling, pulse-driven compound
- * viewers). The organizer speaks before the system does; see the template header for
- * the ordering ruling. Wherever this widget is dropped (public job-landing AND the
- * admin widget-dashboard), both tiers come along — so the dashboard shows the
- * director exactly what the public sees.
+ * Bulletins widget — the unified "bulletins" surface, in three zones: the ✨ SMART band's
+ * REGISTRATION panel (bare, hoisted — it is the page's primary task and job-landing has no
+ * hero), then the director's hand-authored bulletins, then the REST of the band. The
+ * organizer speaks before the system does, but never in front of the register button; see
+ * the template header for the ordering ruling. Wherever this widget is dropped (public
+ * job-landing AND the admin widget-dashboard), all of it comes along — so the dashboard
+ * shows the director exactly what the public sees.
  *
  * Self-sufficient: injects JobService for bulletin data and resolves jobPath from
  * auth state or route tree. Zero inputs required.

@@ -1,11 +1,18 @@
-<!-- ORDER (Todd, 2026-09-25): the ORGANIZER SPEAKS FIRST. Their hand-authored
-     bulletins lead the page; the ✨ SMART band — self-assembling, always-current,
-     standing infrastructure — follows below. It is their site, and today's news
-     outranks the furniture. The two are never interleaved.
+<!-- ORDER (Todd + Ann, 2026-09-25), three zones:
+       1. REGISTRATION — the band's registration panel, hoisted. job-landing has no
+          hero, so this panel IS the page's primary task; it must not sit below a
+          director's bulletin stack. Deliberately BARE (no section header): it is an
+          action strip, not reading material.
+       2. NEWS & UPDATES — the ORGANIZER SPEAKS FIRST among the reading material. It
+          is their site, and today's news outranks standing infrastructure.
+       3. EVENT INFO & LINKS — the rest of the ✨ SMART band (store, USA Lacrosse,
+          event status): always-current, says the same thing most days.
+     Each band instance self-hides when ITS zone is empty, so no zone can strand a
+     header or leave a gap. The two tiers are never interleaved. -->
+@if (smart()) {
+<app-smart-bulletins [jobPath]="jobPath()" zone="registration" />
+}
 
-     Known and accepted: registration CTAs live inside the band, so on a job that
-     runs a lot of bulletins they now sit below them. The answer to that is
-     bulletin hygiene (the admin hide control on each one), NOT another re-order. -->
 @if (bulletins() && bulletins().length > 0) {
 <div class="bulletins-sep">
     <span class="bulletins-sep__label"><i class="bi bi-megaphone-fill" aria-hidden="true"></i> News &amp; Updates</span>
@@ -56,7 +63,7 @@
 <div class="bulletins-sep bulletins-sep--smart">
     <span class="bulletins-sep__label"><i class="bi bi-compass-fill" aria-hidden="true"></i> Event Info &amp; Links</span>
 </div>
-<app-smart-bulletins [jobPath]="jobPath()" />
+<app-smart-bulletins [jobPath]="jobPath()" zone="rest" />
 }
 
 @if (loading()) {
