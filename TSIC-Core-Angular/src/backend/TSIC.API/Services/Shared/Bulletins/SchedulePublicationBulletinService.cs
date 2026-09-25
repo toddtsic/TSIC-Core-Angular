@@ -105,13 +105,19 @@ public sealed class SchedulePublicationBulletinService : ISchedulePublicationBul
         Modified = DateTime.Now
     };
 
+    /// <summary>
+    /// Seed body. The store badges are the same artwork, at the same statics URLs, that the
+    /// hand-authored bulletin this replaces has carried for years — a text link where a badge
+    /// belongs is what a director would notice first. Hosted (not embedded): bulletin images
+    /// are link-only by project rule.
+    /// </summary>
     private const string SeedBody = """
         <p>Game schedules for !JOBNAME are now available.</p>
         <p>!SCHEDULE</p>
         <p>Scores, standings and brackets are also in the free TSIC-Events app:</p>
         <ul>
-            <li><a href="https://itunes.apple.com/app/id1550380490" target="_blank" rel="noopener noreferrer">iOS &mdash; App Store</a></li>
-            <li><a href="https://play.google.com/store/apps/details?id=com.teamsportsinfo.tsicevents" target="_blank" rel="noopener noreferrer">Android &mdash; Google Play</a></li>
+            <li><strong>iOS: TSIC-EVENTS</strong>&nbsp;&nbsp;<a href="https://itunes.apple.com/app/id1550380490" target="_blank" rel="noopener noreferrer"><img src="https://statics.teamsportsinfo.com/mobile/images/appstore.jpg" alt="Download on the App Store" /></a></li>
+            <li><strong>Android: TSIC-EVENTS</strong>&nbsp;&nbsp;<a href="https://play.google.com/store/apps/details?id=com.teamsportsinfo.tsicevents" target="_blank" rel="noopener noreferrer"><img src="https://statics.teamsportsinfo.com/mobile/images/playstore.jpg" alt="Get it on Google Play" /></a></li>
         </ul>
         """;
 }

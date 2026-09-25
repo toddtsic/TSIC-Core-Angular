@@ -292,6 +292,40 @@
     }
   }
 
+  // A !TOKEN-emitted call to action (!SCHEDULE and friends) renders as an anchor
+  // carrying .btn. The `a` rule above outranks Bootstrap's .btn-primary on both
+  // color and text-decoration, so without this the CTA paints primary-colored,
+  // underlined text on a primary fill — blue on blue with a line through it.
+  // Styled here from our own tokens rather than left to Bootstrap: the widget owns
+  // this surface, and the button has to survive a palette switch either way.
+  a.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-md);
+    background: var(--bs-primary);
+    color: #fff; // on-primary convention across the app (solid primary fill)
+    font-weight: var(--font-weight-semibold);
+    text-decoration: none;
+    transition: box-shadow 0.15s ease;
+
+    &:hover {
+      text-decoration: none;
+      box-shadow: var(--shadow-md);
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+      border-radius: var(--radius-md);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    a.btn { transition: none; }
+  }
+
   img {
     max-width: min(100%, 450px);
     max-height: 400px;
