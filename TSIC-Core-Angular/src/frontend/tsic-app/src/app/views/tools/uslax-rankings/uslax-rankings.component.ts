@@ -381,11 +381,12 @@ export class UsLaxRankingsComponent {
 		this.rankingsService.getSeasons().subscribe({
 			next: seasons => {
 				this.seasons.set(seasons);
-				const current = seasons.find(s => s.isCurrent) ?? seasons[0];
-				this.selectedSeason.set(current?.value ?? '');
-				// Omit yr on the first load so we take whatever season the site serves,
-				// rather than asserting one it may not publish.
-				this.loadScrapedAgeGroups();
+				const preselect = this.defaultSeason(seasons);
+				this.selectedSeason.set(preselect?.value ?? '');
+				// Load the age groups for the season we actually preselected. Their values
+				// carry their own yr, so letting the site serve its current season here
+				// would hand the scrape a year the dropdown is not showing.
+				this.loadScrapedAgeGroups(preselect?.value);
 			},
 			error: (err: { error?: { message?: string } }) => {
 				this.seasons.set([]);
@@ -396,6 +397,24 @@ export class UsLaxRankingsComponent {
 				this.loadScrapedAgeGroups();
 			}
 		});
+	}
+
+	/**
+	 * Preselect the most recently COMPLETED season, not the one usclublax marks active.
+	 *
+	 * A season that has only just opened has too few recorded games for the site to rank —
+	 * it serves a "we haven't published this ranking yet" card instead of a table. Defaulting
+	 * to it hands every director an empty screen during exactly the months they are seeding.
+	 * It is also what step 2 of the on-screen instructions tells them to pick: the completed
+	 * season has a full year of results behind it.
+	 *
+	 * The list arrives newest-first, so the completed season is the next index along. Falls
+	 * back to the active season when there is nothing older.
+	 */
+	private defaultSeason(seasons: RankingSeasonDto[]): RankingSeasonDto | undefined {
+		const active = seasons.findIndex(s => s.isCurrent);
+		if (active < 0) return seasons[0];
+		return seasons[active + 1] ?? seasons[active];
 	}
 
 	/**
