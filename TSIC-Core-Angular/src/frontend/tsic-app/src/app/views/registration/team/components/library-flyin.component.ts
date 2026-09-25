@@ -2415,12 +2415,25 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
      * Commit-button label. "Submit" is a form word; the button should name the
      * outcome, and name it HONESTLY — a full age group waitlists the team, so
      * labelling that click "Register" would mislead at the moment of commitment.
+     *
+     * It names the AGE GROUP, never the team (Todd 2026-09-24): the header above the
+     * picker already says "Registering {team}", and a team called 2033 going into age
+     * group 2033 made "Waitlist 2033" unreadable. Bare-year names are legal by ruling.
      */
     readonly submitLabel = computed(() => {
         const team = this.expandedTeam();
         if (!team) return 'Submit';
         if (this.editingExisting()) return 'Save Changes';
-        return `${this.willWaitlist() ? 'Waitlist' : 'Register'} ${team.clubTeamName}`;
+        const ag = this.selectedAgeGroupLabel();
+        if (!ag) return this.willWaitlist() ? 'Join the waitlist' : 'Register';
+        return this.willWaitlist() ? `Join the ${ag} waitlist` : `Register in ${ag}`;
+    });
+
+    /** The selected age group as the rep reads it — a WAITLIST twin shows its parent's name. */
+    private readonly selectedAgeGroupLabel = computed(() => {
+        const id = this.selectedAgeGroupId();
+        const name = id ? this.ageGroups().find(a => a.ageGroupId === id)?.ageGroupName : undefined;
+        return name ? name.replace(/^WAITLISTs*-?s*/i, '').trim() : '';
     });
 
     toggleRegister(team: ClubTeamDto): void {

@@ -85,7 +85,7 @@ import { buildAgeGroupSlots, describeSlotPricing, type SlotPricing } from './eve
       <!-- The register sheet's price line for the SELECTED pick (opt-in). Same phase logic
            as the pill variant, one line under the chips: "Deposit $500 now · $2,000 total". -->
       @if (showSelectedFee() && selectedPricing(); as pr) {
-        <p class="eagp-fee-line" [class.eagp-fee-line--muted]="pr.kind === 'waitlist' || pr.kind === 'free'">
+        <p class="eagp-fee-line" [class.eagp-fee-line--muted]="pr.kind === 'free'" [class.eagp-fee-line--waitlist]="pr.kind === 'waitlist'">
           @switch (pr.kind) {
             @case ('waitlist') { <i class="bi bi-hourglass-split" aria-hidden="true"></i>Waitlisted &mdash; no fee until placed }
             @case ('free') { <i class="bi bi-check-circle" aria-hidden="true"></i>No fee }
@@ -192,6 +192,10 @@ import { buildAgeGroupSlots, describeSlotPricing, type SlotPricing } from './eve
         margin: var(--space-2) 0 0;
         font-size: var(--font-size-xs);
         color: var(--brand-text-muted);
+
+        // The waitlist reason has to be read BEFORE the orange button below it: body colour,
+        // medium weight, never italic (Todd 2026-09-24).
+        &--waitlist { color: var(--brand-text); font-weight: var(--font-weight-medium); font-style: normal; }
 
         strong { color: var(--brand-text); font-weight: var(--font-weight-semibold); }
         .bi { color: var(--bs-primary); }
