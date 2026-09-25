@@ -104,8 +104,8 @@ export class TestSendButtonComponent {
     readonly send = output<TestSendOptions>();
 
     readonly open = signal(false);
-    /** Default per Todd: Ann's test inbox — same precedent as the invite sandbox test recipient. */
-    readonly extra = signal('anntsic@gmail.com');
+    /** Default per Todd: his own test inbox — same precedent as the invite sandbox test recipient. */
+    readonly extra = signal('toddtsic@gmail.com');
 
     readonly canFire = computed(() => this.extra().trim().includes('@'));
 

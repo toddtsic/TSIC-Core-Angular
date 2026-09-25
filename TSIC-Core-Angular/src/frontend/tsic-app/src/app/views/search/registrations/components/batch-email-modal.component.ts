@@ -197,8 +197,8 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
 
   // Staging-only test inbox. Every invite email in the batch is delivered to this one address
   // server-side so the token link can be received and clicked. Editable; defaults below.
-  readonly defaultSandboxTestRecipient = 'anntsic@gmail.com';
-  sandboxTestRecipient = signal<string>('anntsic@gmail.com');
+  readonly defaultSandboxTestRecipient = 'toddtsic@gmail.com';
+  sandboxTestRecipient = signal<string>('toddtsic@gmail.com');
 
   readonly availableTokens = computed(() => {
     // Invite links are intentionally NOT offered here — they are seeded by the Invite action.
