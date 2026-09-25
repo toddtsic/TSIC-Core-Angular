@@ -1,14 +1,12 @@
-<!-- ✨ SMART band — the self-assembling, always-current bulletins. ALWAYS pinned
-     above the director's hand-authored ones (never interleaved). Self-hides when
-     empty. -->
-@if (smart()) {
-<!-- The band carries its own "Happening Now" lead-in (with the live game clock
-     flush-right), parallel to the News & Updates divider below. -->
-<app-smart-bulletins [jobPath]="jobPath()" />
-}
+<!-- ORDER (Todd, 2026-09-25): the ORGANIZER SPEAKS FIRST. Their hand-authored
+     bulletins lead the page; the ✨ SMART band — self-assembling, always-current,
+     standing infrastructure — follows below. It is their site, and today's news
+     outranks the furniture. The two are never interleaved.
 
+     Known and accepted: registration CTAs live inside the band, so on a job that
+     runs a lot of bulletins they now sit below them. The answer to that is
+     bulletin hygiene (the admin hide control on each one), NOT another re-order. -->
 @if (bulletins() && bulletins().length > 0) {
-<!-- Divider: the smart band above is the system's; below is the organizer's. -->
 <div class="bulletins-sep">
     <span class="bulletins-sep__label"><i class="bi bi-megaphone-fill" aria-hidden="true"></i> News &amp; Updates</span>
 </div>
@@ -44,6 +42,15 @@
     </article>
     }
 </div>
+}
+
+<!-- No divider introduces the band, deliberately. `smart()` is a host opt-in, NOT a
+     has-content signal — the band decides for itself whether to render (its own
+     hasContent gate), so a header placed here would sometimes introduce nothing at
+     all. Reading that gate means touching smart-bulletin code, which is off limits.
+     The band's cards carry their own surface, so the boundary still reads. -->
+@if (smart()) {
+<app-smart-bulletins [jobPath]="jobPath()" />
 }
 
 @if (loading()) {
