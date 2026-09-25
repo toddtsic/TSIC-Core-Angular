@@ -229,7 +229,10 @@ export class SchedulingChecklistComponent implements OnInit {
         { title: 'Schedule Reports', icon: 'bi-file-earmark-text', route: '../reporting/reports-library', queryParams: { tab: 'Schedules', from: 'scheduling' } },
         { title: 'QA Results', icon: 'bi-check2-square', route: 'schedule-hub', queryParams: { mode: 'qa' } },
         { title: 'Tournament Parking', icon: 'bi-car-front', route: '../scheduling/tournament-parking', queryParams: { from: 'scheduling' } },
-        { title: 'Mobile Scorers', icon: 'bi-phone', route: '../scheduling/mobile-scorers', queryParams: { from: 'scheduling' } }
+        { title: 'Mobile Scorers', icon: 'bi-phone', route: '../scheduling/mobile-scorers', queryParams: { from: 'scheduling' } },
+        // The letter to club reps asking them to review the built schedule. A tool, not a step:
+        // it is reached whenever a rebuild needs re-reviewing, and "finished" is not computable.
+        { title: 'Send Club Coaches Preview Email', icon: 'bi-envelope-paper', route: '../scheduling/schedule-review-email', queryParams: { from: 'scheduling' } }
     ];
 
     ngOnInit(): void {

@@ -631,6 +631,12 @@ export const routes: Routes = [
 				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], title: 'Mobile Scorers', helpKey: 'mobile-scorers' },
 				loadComponent: () => import('./views/scheduling/mobile-scorers/mobile-scorers.component').then(m => m.MobileScorersComponent)
 			},
+			{
+				path: 'scheduling/schedule-review-email',
+				canActivate: [authGuard],
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], title: 'Send Club Coaches Preview Email' },
+				loadComponent: () => import('./views/scheduling/schedule-review-email/schedule-review-email.component').then(m => m.ScheduleReviewEmailComponent)
+			},
 			// Scheduling — shell (checklist front door + steps)
 			{
 				path: 'scheduling',

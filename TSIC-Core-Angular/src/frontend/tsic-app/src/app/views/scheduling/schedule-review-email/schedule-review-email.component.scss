@@ -1,0 +1,111 @@
+// Schedule-review email tool. Sections stack: who gets it, what it says, send it.
+
+.info-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--brand-border);
+    border-left: 3px solid var(--bs-primary);
+    border-radius: var(--radius-md);
+    background: var(--bs-primary-bg-subtle);
+    color: var(--brand-text);
+    font-size: var(--font-size-sm);
+}
+
+.sre-section {
+    margin-bottom: var(--space-8);
+}
+
+.sre-section__title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--brand-text);
+}
+
+// Recipient count rides the heading so the audience size is legible before scrolling.
+.sre-count {
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bs-primary);
+    color: #fff; // on-primary convention across the app (solid primary fill)
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+}
+
+.sre-note {
+    margin-bottom: var(--space-3);
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+.sre-table {
+    th {
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+}
+
+// Unsendable rows stay visible but recede — they explain the gap between the list
+// length and the send count, and shouldn't read as normal recipients.
+.sre-row--muted {
+    color: var(--brand-text-muted);
+}
+
+// Never colour alone: the muted row is paired with a labelled icon chip.
+.sre-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--bs-warning-text-emphasis, var(--brand-text-muted));
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+}
+
+.sre-tokens {
+    margin-top: var(--space-2);
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-xs);
+
+    code {
+        color: var(--bs-primary);
+    }
+}
+
+.sre-send {
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--brand-border);
+}
+
+.sre-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.sre-progress {
+    margin-bottom: var(--space-4);
+}
+
+.sre-progress__text {
+    margin: var(--space-2) 0 0;
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+@media (max-width: 575px) {
+    .sre-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

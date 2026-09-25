@@ -1,0 +1,156 @@
+<div class="page-header">
+    <div>
+        <h2 class="page-title"><app-checklist-back-link /><i class="bi bi-envelope-paper page-title-icon"></i> Send Club Coaches Preview Email</h2>
+        <p class="page-subtitle">Ask your club reps to review the schedule and pass it to their coaches</p>
+    </div>
+</div>
+
+<div class="info-banner">
+    <i class="bi bi-info-circle me-2"></i>
+    The schedule link in this letter is an ordinary link, not a personal one &mdash; reps can forward
+    it to their coaches and it still works. It only opens for them once the schedule is public.
+</div>
+
+<!-- ── Recipients ───────────────────────────────────────────────────────── -->
+<section class="sre-section">
+    <h3 class="sre-section__title">
+        <i class="bi bi-people" aria-hidden="true"></i> Recipients
+        @if (!isLoading() && !loadFailed()) {
+            <span class="sre-count">{{ deliverableCount() }}</span>
+        }
+    </h3>
+
+    @if (isLoading()) {
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-body-secondary">Finding club reps with scheduled teams…</p>
+        </div>
+    }
+
+    @if (loadFailed()) {
+        <div class="alert alert-danger d-flex align-items-center justify-content-between">
+            <span><i class="bi bi-exclamation-triangle me-2"></i>Could not load the recipient list.</span>
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="load()">Try again</button>
+        </div>
+    }
+
+    @if (!isLoading() && !loadFailed() && recipients().length === 0) {
+        <div class="text-center py-4">
+            <i class="bi bi-people fs-1 d-block mb-3 text-body-secondary" aria-hidden="true"></i>
+            <h5>No club reps to email</h5>
+            <p class="text-body-secondary mb-0">
+                This letter goes to active club reps whose teams appear in the schedule.
+                Build the schedule first, or check that teams are placed.
+            </p>
+        </div>
+    }
+
+    @if (!isLoading() && !loadFailed() && recipients().length > 0) {
+        @if (optedOutCount() > 0 || noEmailCount() > 0) {
+            <p class="sre-note">
+                <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+                @if (optedOutCount() > 0) { {{ optedOutCount() }} opted out of email. }
+                @if (noEmailCount() > 0) { {{ noEmailCount() }} have no address on file. }
+                They stay listed below so the totals make sense, but will not be sent to.
+            </p>
+        }
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle sre-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Club</th>
+                        <th scope="col">Club Rep</th>
+                        <th scope="col">Email</th>
+                        <th scope="col" class="text-end">Scheduled teams</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (r of recipients(); track r.registrationId) {
+                        <tr [class.sre-row--muted]="r.emailOptOut || !r.email">
+                            <td>{{ r.clubName || '—' }}</td>
+                            <td>{{ displayName(r) }}</td>
+                            <td>
+                                @if (r.email) {
+                                    {{ r.email }}
+                                } @else {
+                                    <span class="sre-flag"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> no address</span>
+                                }
+                                @if (r.emailOptOut) {
+                                    <span class="sre-flag ms-2"><i class="bi bi-slash-circle" aria-hidden="true"></i> opted out</span>
+                                }
+                            </td>
+                            <td class="text-end">{{ r.scheduledTeamCount }}</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<!-- ── Letter ───────────────────────────────────────────────────────────── -->
+<section class="sre-section">
+    <h3 class="sre-section__title"><i class="bi bi-pencil-square" aria-hidden="true"></i> Letter</h3>
+
+    <div class="mb-3">
+        <label class="form-label" for="sre-subject">Subject</label>
+        <input id="sre-subject" type="text" class="form-control"
+               [ngModel]="subject()" (ngModelChange)="subject.set($event)"
+               [disabled]="isSending()" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label" for="sre-body">Body</label>
+        <app-email-body-editor [(body)]="body" [disabled]="isSending()" [height]="320" />
+    </div>
+
+    <p class="sre-tokens">
+        <code>!PERSON</code> the rep&rsquo;s name &middot;
+        <code>!JOBNAME</code> this event &middot;
+        <code>!SCHEDULELINK</code> a forwardable link to the schedule
+    </p>
+</section>
+
+<!-- ── Send ─────────────────────────────────────────────────────────────── -->
+<section class="sre-section sre-send">
+    @if (status(); as s) {
+        <div class="sre-progress" role="status">
+            <div class="progress" aria-label="Send progress">
+                <div class="progress-bar" [style.width.%]="percentProcessed(s)"></div>
+            </div>
+            <p class="sre-progress__text">
+                {{ s.processed ?? 0 }} of {{ s.totalRecipients }} processed &middot; {{ s.sent }} sent
+                @if (s.failed > 0) { &middot; {{ s.failed }} failed }
+                @if (s.optedOut > 0) { &middot; {{ s.optedOut }} opted out }
+            </p>
+        </div>
+    }
+
+    <div class="sre-actions">
+        @if (isTestSendVisible) {
+            <app-test-send-button
+                [disabled]="isSending() || recipients().length === 0"
+                [busy]="isSendingTest()"
+                align="left"
+                (send)="sendTest($event)" />
+        }
+
+        <button type="button" class="btn btn-primary" [disabled]="!canSend()" (click)="askToSend()">
+            @if (isSending()) {
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Sending…
+            } @else {
+                <i class="bi bi-send me-1" aria-hidden="true"></i>Send to {{ deliverableCount() }} club rep{{ deliverableCount() === 1 ? '' : 's' }}
+            }
+        </button>
+    </div>
+</section>
+
+@if (showConfirm()) {
+    <confirm-dialog
+        title="Send this letter?"
+        [message]="'This emails ' + deliverableCount() + ' club rep(s) for ' + jobName() + '. They are expected to forward it to their coaches.'"
+        confirmLabel="Send"
+        (confirmed)="confirmSend()"
+        (cancelled)="showConfirm.set(false)" />
+}

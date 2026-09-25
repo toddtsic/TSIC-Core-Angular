@@ -26,7 +26,7 @@ public static class JobTokens
     public static readonly IReadOnlyList<string> Names = new[]
     {
         "JSEG", "JOBNAME", "JOBCODE", "JOBPATH", "JOBURL", "JOBDESCRIPTION", "JOBLOGO",
-        "JOBLINK", "PAYTO", "MAILTO", "CUSTOMERNAME", "SEASON", "SPORT", "YEAR",
+        "JOBLINK", "SCHEDULELINK", "PAYTO", "MAILTO", "CUSTOMERNAME", "SEASON", "SPORT", "YEAR",
         "USLAXVALIDTHROUGHDATE"
     };
 
@@ -60,6 +60,12 @@ public static class JobTokens
             ["JOBDESCRIPTION"] = j.JobDescription ?? string.Empty,
             ["JOBLOGO"] = logo,
             ["JOBLINK"] = $"<a href='{frontendBaseUrl}/{j.JobPath}' target='_blank'>{WebUtility.HtmlEncode(j.JobName)}</a>",
+            // A PLAIN anchor to the public schedule — deliberately not the bulletin
+            // !SCHEDULE resolver, which emits a .btn-classed CTA that no mail client styles,
+            // and which blanks itself when the schedule is unpublished. This one is a letter's
+            // link: it survives forwarding, because it carries no per-recipient token and
+            // nothing about it is bound to who opens it.
+            ["SCHEDULELINK"] = $"<a href='{frontendBaseUrl}/{j.JobPath}/schedule' target='_blank'>View the schedule</a>",
             ["PAYTO"] = j.PayTo ?? string.Empty,
             ["MAILTO"] = j.MailTo ?? string.Empty,
             ["CUSTOMERNAME"] = j.CustomerName ?? string.Empty,

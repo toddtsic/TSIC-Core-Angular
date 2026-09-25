@@ -452,6 +452,11 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         tokens["!JOBLINK"] = !string.IsNullOrEmpty(f.JobPath)
             ? $"<a href='{_frontendBaseUrl}/{f.JobPath}' target='_blank'>{WebUtility.HtmlEncode(f.JobName ?? string.Empty)}</a>"
             : string.Empty;
+        // Kept in step with JobTokens.Build — the two are parallel implementations of the same
+        // vocabulary and a token added to one alone renders verbatim on whichever path misses it.
+        tokens["!SCHEDULELINK"] = !string.IsNullOrEmpty(f.JobPath)
+            ? $"<a href='{_frontendBaseUrl}/{f.JobPath}/schedule' target='_blank'>View the schedule</a>"
+            : string.Empty;
     }
 
     private async Task AddComplexTokensAsync(

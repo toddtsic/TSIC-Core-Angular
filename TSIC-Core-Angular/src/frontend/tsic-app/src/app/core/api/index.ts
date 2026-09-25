@@ -691,6 +691,7 @@ export type { ScheduleICalExportRequest } from './models/ScheduleICalExportReque
 export type { ScheduleListColumnDto } from './models/ScheduleListColumnDto';
 export type { ScheduleListFieldDto } from './models/ScheduleListFieldDto';
 export type { ScheduleListRequestDto } from './models/ScheduleListRequestDto';
+export type { ScheduleReviewRecipientDto } from './models/ScheduleReviewRecipientDto';
 export type { SchedulingChecklistDto } from './models/SchedulingChecklistDto';
 export type { SchedulingMetrics } from './models/SchedulingMetrics';
 export type { ScorerLoginRequest } from './models/ScorerLoginRequest';

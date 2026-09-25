@@ -153,6 +153,39 @@ public partial class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<ScheduleReviewRecipientDto>> GetScheduleReviewRecipientsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // One pass, one shape. The team → schedule test mirrors ClubTeamRepository's
+        // GetScheduledClubTeamIdsAsync (the team named as either side of a game), pivoted to the
+        // rep who owns the team via Teams.ClubrepRegistrationid. The correlated Count doubles as
+        // the existence filter, so a rep with zero scheduled teams drops out without a second
+        // predicate saying the same thing.
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId
+                && r.RoleId == RoleConstants.ClubRep
+                && r.BActive == true)
+            .Select(r => new ScheduleReviewRecipientDto
+            {
+                RegistrationId = r.RegistrationId,
+                FirstName = r.User!.FirstName,
+                LastName = r.User!.LastName,
+                Email = r.User!.Email,
+                ClubName = r.ClubName,
+                ScheduledTeamCount = _context.Teams.Count(t =>
+                    t.ClubrepRegistrationid == r.RegistrationId
+                    && _context.Schedule.Any(s => s.T1Id == t.TeamId || s.T2Id == t.TeamId)),
+                EmailOptOut = r.BemailOptOut
+            })
+            .Where(x => x.ScheduledTeamCount > 0)
+            .OrderBy(x => x.ClubName)
+            .ThenBy(x => x.LastName)
+            .ThenBy(x => x.FirstName)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<RegistrationDto>> GetSuperUserRegistrationsAsync(
         string userId,
         CancellationToken cancellationToken = default)
