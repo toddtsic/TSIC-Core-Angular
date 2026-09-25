@@ -92,7 +92,12 @@ export class SmartBulletinsComponent {
 	// and both app-store columns, leaving a header + one button under the same bi-flag-fill
 	// icon the Event Status card uses — two stacked cards, one of them near-empty. The link
 	// now rides inside Event Status (standingsLink below) and this panel stands down.
-	protected readonly showGameDay = computed(() => this.scheduleLinkable() && this.live());
+	// TEMPORARILY DISABLED 2026-09-24 (Todd) — publishing the schedule auto-raised BOTH
+	// the Schedule Links card and the countdown clock (showClock derives from this gate)
+	// with no director off switch. Revisiting; restore by deleting the false line below
+	// and uncommenting the original.
+	// protected readonly showGameDay = computed(() => this.scheduleLinkable() && this.live());
+	protected readonly showGameDay = computed(() => false);
 
 	// Final-standings link handed to Event Status in the concluded phase. Null when there's
 	// no schedule to point at, so the notice renders without a button rather than offering a
