@@ -419,16 +419,6 @@
     }
   }
 
-  // Text color for a solid --bs-primary fill. NOT a hardcoded #fff: dark mode
-  // redefines primary as a LIGHT slate (`--brand-primary: #cbd5e1`,
-  // styles/_theme-dark.scss), where white text lands at 1.48:1 and the button reads
-  // as a DISABLED control — this app's own dark `.btn-primary:disabled` is exactly
-  // that, a washed fill with faint text. Flipping to near-black over the light fill
-  // gives ~11:1 and keeps the CTA the most emphatic thing in the bulletin.
-  // Declared on .bulletin-body so every button-styled link in an authored body
-  // inherits it, not just the seeded schedule CTA.
-  --bulletin-on-primary: #fff;
-
   // A !TOKEN-emitted call to action (!SCHEDULE and friends) renders as an anchor
   // carrying .btn. The `a` rule above outranks Bootstrap's .btn-primary on both
   // color and text-decoration, so without this the CTA paints primary-colored,
@@ -442,7 +432,7 @@
     padding: var(--space-3) var(--space-5);
     border-radius: var(--radius-md);
     background: var(--bs-primary);
-    color: var(--bulletin-on-primary);
+    color: var(--on-primary);
     font-weight: var(--font-weight-semibold);
     text-decoration: none;
     transition: box-shadow 0.15s ease;
@@ -482,13 +472,6 @@
   .bl-c-blue  { color: var(--bs-primary); }
   .bl-c-red   { color: var(--bs-danger); }
   .bl-c-black { color: var(--brand-text); }
-}
-
-// The dark palette's primary is LIGHT, so the on-primary text has to invert with it.
-// --neutral-100 is the dark theme's near-black (#1c1917); against the primary fill and
-// against the darker end of the .bl-cta gradient it holds ~11:1 and ~7:1 respectively.
-[data-bs-theme='dark'] .bulletin-body {
-  --bulletin-on-primary: var(--neutral-100);
 }
 
 @media (max-width: 575px) {

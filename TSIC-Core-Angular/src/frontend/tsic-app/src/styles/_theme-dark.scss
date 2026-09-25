@@ -72,6 +72,10 @@
     --bs-primary: var(--brand-primary);
     --bs-primary-rgb: 203, 213, 225;
     /* Slate-300 RGB */
+    /* Primary is LIGHT here, so content on top of it has to be dark — the inverse
+       of light mode. --neutral-100 (#1c1917) gives ~11:1 on the flat fill and holds
+       up on the darker end of gradients mixed from primary. */
+    --on-primary: var(--neutral-100);
     --bs-secondary: var(--neutral-400);
     --bs-success: var(--brand-success);
     --bs-danger: var(--brand-danger);
@@ -234,28 +238,36 @@
         }
     }
 
-    /* Primary button - dark mode styling */
+    /* Primary button - dark mode styling.
+       Text is --on-primary, NOT #ffffff: the fill is the dark palette's LIGHT slate,
+       so white text measured 1.48:1 here while the disabled state below measured
+       3.22:1 — the disabled button was more legible than the enabled one. This single
+       declaration is what every `btn btn-primary` in the app inherits. */
     .btn-primary {
-        --bs-btn-color: #ffffff;
+        --bs-btn-color: var(--on-primary);
         --bs-btn-bg: var(--bs-primary);
         --bs-btn-border-color: var(--bs-primary);
-        --bs-btn-hover-color: #ffffff;
+        --bs-btn-hover-color: var(--on-primary);
         --bs-btn-hover-bg: var(--brand-primary-dark);
         --bs-btn-hover-border-color: var(--brand-primary-dark);
         --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
-        --bs-btn-active-color: #ffffff;
+        --bs-btn-active-color: var(--on-primary);
         --bs-btn-active-bg: var(--brand-primary-dark);
         --bs-btn-active-border-color: var(--brand-primary-dark);
     }
 
-    /* Outline primary button - dark mode styling */
+    /* Outline primary button - dark mode styling.
+       Resting state is primary TEXT on the body background, which is fine. The hover
+       and active states FILL with primary, so their text follows the same rule as the
+       solid button: --on-primary, not --neutral-0 (which is #ffffff here — the dark
+       theme inverts the neutral scale from 50 up and leaves 0 alone). */
     .btn-outline-primary {
         --bs-btn-color: var(--bs-primary);
         --bs-btn-border-color: var(--bs-primary);
-        --bs-btn-hover-color: var(--neutral-0);
+        --bs-btn-hover-color: var(--on-primary);
         --bs-btn-hover-bg: var(--bs-primary);
         --bs-btn-hover-border-color: var(--bs-primary);
-        --bs-btn-active-color: var(--neutral-0);
+        --bs-btn-active-color: var(--on-primary);
         --bs-btn-active-bg: var(--brand-primary-dark);
         --bs-btn-active-border-color: var(--brand-primary-dark);
     }

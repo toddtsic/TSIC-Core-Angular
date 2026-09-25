@@ -268,6 +268,13 @@
    --bs-primary-rgb: 14, 165, 233;
    --bs-primary-hover-bg: var(--brand-primary-dark);
    --bs-primary-hover-border-color: var(--brand-primary-dark);
+   /* Text/icon color for content sitting ON a solid --bs-primary fill. It exists
+      because the two halves of that pairing are set in different places: the fill
+      follows the palette, and callers used to hardcode #fff beside it. Dark mode
+      redefines --brand-primary as a LIGHT slate (#cbd5e1), at which point white
+      text lands at 1.48:1 — under the 3:1 floor the spec allows even for large
+      bold text. Pair with the fill, never hardcode. See _theme-dark.scss. */
+   --on-primary: #ffffff;
    --bs-secondary: var(--neutral-600);
    --bs-secondary-color: var(--brand-text);
    --bs-secondary-color-rgb: var(--brand-text-rgb);
