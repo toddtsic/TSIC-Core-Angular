@@ -2433,7 +2433,7 @@ export class LibraryFlyinComponent implements AfterViewInit, AfterViewChecked, O
     private readonly selectedAgeGroupLabel = computed(() => {
         const id = this.selectedAgeGroupId();
         const name = id ? this.ageGroups().find(a => a.ageGroupId === id)?.ageGroupName : undefined;
-        return name ? name.replace(/^WAITLISTs*-?s*/i, '').trim() : '';
+        return name ? name.replace(/^WAITLIST\s*-?\s*/i, '').trim() : '';
     });
 
     toggleRegister(team: ClubTeamDto): void {
