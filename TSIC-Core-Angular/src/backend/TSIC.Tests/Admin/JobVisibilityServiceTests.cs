@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Moq;
 using TSIC.API.Services.Admin;
+using TSIC.API.Services.Shared.Bulletins;
 using TSIC.Contracts.Dtos.JobConfig;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
@@ -39,7 +40,7 @@ public class JobVisibilityServiceTests
         repo.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
-        return (new JobVisibilityService(repo.Object), job);
+        return (new JobVisibilityService(repo.Object, new Mock<ISchedulePublicationBulletinService>().Object), job);
     }
 
     /// <summary>

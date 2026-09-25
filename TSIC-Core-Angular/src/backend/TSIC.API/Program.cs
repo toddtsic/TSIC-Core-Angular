@@ -243,6 +243,7 @@ builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
 builder.Services.AddScoped<IDiscountCodeEvaluator, DiscountCodeEvaluatorService>();
 builder.Services.AddScoped<ITextSubstitutionService, TextSubstitutionService>();
 builder.Services.AddScoped<IBulletinService, BulletinService>();
+builder.Services.AddScoped<ISchedulePublicationBulletinService, SchedulePublicationBulletinService>();
 
 // Bulletin !TOKEN resolvers — each registered as IBulletinTokenResolver; BulletinTokenRegistry collects them.
 builder.Services.AddScoped<IBulletinTokenResolver, RegisterPlayerResolver>();

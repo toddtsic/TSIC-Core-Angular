@@ -79,6 +79,16 @@ public class BulletinRepository : IBulletinRepository
             .FirstOrDefaultAsync(b => b.BulletinId == bulletinId, cancellationToken);
     }
 
+    public async Task<List<Bulletins>> GetAllForJobTrackedAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // Deliberately TRACKED (no AsNoTracking) — the caller removes rows from this set.
+        return await _context.Bulletins
+            .Where(b => b.JobId == jobId)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<int> BatchUpdateActiveStatusAsync(
         Guid jobId,
         bool active,

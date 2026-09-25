@@ -1,3 +1,4 @@
+using TSIC.API.Services.Shared.Bulletins;
 using TSIC.Contracts.Dtos.JobConfig;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -16,8 +17,15 @@ namespace TSIC.API.Services.Admin;
 public class JobVisibilityService : IJobVisibilityService
 {
     private readonly IJobConfigRepository _repo;
+    private readonly ISchedulePublicationBulletinService _schedulePublication;
 
-    public JobVisibilityService(IJobConfigRepository repo) => _repo = repo;
+    public JobVisibilityService(
+        IJobConfigRepository repo,
+        ISchedulePublicationBulletinService schedulePublication)
+    {
+        _repo = repo;
+        _schedulePublication = schedulePublication;
+    }
 
     public async Task<JobVisibilityDto> GetAsync(Guid jobId, CancellationToken ct = default)
     {
@@ -62,6 +70,10 @@ public class JobVisibilityService : IJobVisibilityService
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
+        // Releasing the schedule seeds an inactive announcement bulletin — but only on a real
+        // false → true transition, never on a re-save of a flag that was already on.
+        var schedulePublishedNow = req.PublishSchedule == true && job.BScheduleAllowPublicAccess != true;
+
         // Only non-null flags are applied — supports per-toggle save-on-change.
         // Admin-editable (Director/SuperDirector/SuperUser).
         if (req.AllowPlayerRegistration.HasValue) job.BRegistrationAllowPlayer = req.AllowPlayerRegistration.Value;
@@ -84,5 +96,12 @@ public class JobVisibilityService : IJobVisibilityService
 
         job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
+
+        // After the flag is committed, and sequentially — the bulletin repository shares this
+        // request's scoped DbContext (no Task.WhenAll).
+        if (schedulePublishedNow)
+        {
+            await _schedulePublication.OnSchedulePublishedAsync(jobId, ct);
+        }
     }
 }

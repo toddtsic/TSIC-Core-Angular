@@ -9,6 +9,7 @@ using TSIC.Domain.JobRules;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Adults;
 using TSIC.API.Services.Metadata;
+using TSIC.API.Services.Shared.Bulletins;
 using TSIC.API.Services.Shared.Utilities;
 
 namespace TSIC.API.Services.Admin;
@@ -25,6 +26,7 @@ public class JobConfigService : IJobConfigService
     private readonly IPlayerRegistrationService _playerRegService;
     private readonly IScheduleRepository _scheduleRepo;
     private readonly IProfileMetadataMigrationService _profileMigration;
+    private readonly ISchedulePublicationBulletinService _schedulePublication;
     private readonly ILogger<JobConfigService> _logger;
 
     public JobConfigService(
@@ -34,6 +36,7 @@ public class JobConfigService : IJobConfigService
         IPlayerRegistrationService playerRegService,
         IScheduleRepository scheduleRepo,
         IProfileMetadataMigrationService profileMigration,
+        ISchedulePublicationBulletinService schedulePublication,
         ILogger<JobConfigService> logger)
     {
         _repo = repo;
@@ -42,6 +45,7 @@ public class JobConfigService : IJobConfigService
         _playerRegService = playerRegService;
         _scheduleRepo = scheduleRepo;
         _profileMigration = profileMigration;
+        _schedulePublication = schedulePublication;
         _logger = logger;
     }
 
@@ -440,6 +444,12 @@ public class JobConfigService : IJobConfigService
 
         var prevShowTeamNameOnly = job.BShowTeamNameOnlyInSchedules;
 
+        // This tab assigns BScheduleAllowPublicAccess on EVERY save, so the seeding hook has to
+        // key on a real false → true transition — otherwise re-saving an already-published job
+        // would re-seed the bulletin a director had deliberately deleted.
+        var schedulePublishedNow = req.BScheduleAllowPublicAccess == true
+            && job.BScheduleAllowPublicAccess != true;
+
         job.EventStartDate = req.EventStartDate;
         job.EventEndDate = req.EventEndDate;
         job.BScheduleAllowPublicAccess = req.BScheduleAllowPublicAccess;
@@ -499,6 +509,12 @@ public class JobConfigService : IJobConfigService
                 "BShowTeamNameOnlyInSchedules flipped on Job {JobId} ({Prev}→{New}) — recomposing schedule names.",
                 jobId, prevShowTeamNameOnly, req.BShowTeamNameOnlyInSchedules);
             await _scheduleRepo.RecomposeScheduleNamesForJobAsync(jobId, ct: ct);
+        }
+
+        // Sequential, after the flag is committed — shared scoped DbContext (no Task.WhenAll).
+        if (schedulePublishedNow)
+        {
+            await _schedulePublication.OnSchedulePublishedAsync(jobId, ct);
         }
     }
 

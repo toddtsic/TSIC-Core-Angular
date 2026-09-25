@@ -32,6 +32,19 @@ public interface IBulletinRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get ALL of a job's bulletins as TRACKED entities (no active/date filter).
+    ///
+    /// Tracked because the caller both inspects bodies and removes rows — the
+    /// schedule-release seeding path, which needs the title and the body of every
+    /// bulletin on the job in one round trip. A job carries a handful of rows, so
+    /// this is cheaper than a body query plus a title query plus a re-fetch to delete.
+    /// Read-only callers want <see cref="GetAllBulletinsForJobAsync"/> instead.
+    /// </summary>
+    Task<List<Bulletins>> GetAllForJobTrackedAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Batch update active status for all bulletins in a job.
     /// </summary>
     Task<int> BatchUpdateActiveStatusAsync(

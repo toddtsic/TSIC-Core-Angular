@@ -16,6 +16,13 @@ namespace TSIC.API.Services.Shared.Bulletins;
 /// </summary>
 public static class LegacyBulletinPatterns
 {
+    /// <summary>
+    /// The legacy SCHEDULE link fragment, on its own because one caller needs to identify
+    /// schedule bulletins specifically rather than legacy bulletins generally — see
+    /// <see cref="HasLegacyScheduleLink"/>.
+    /// </summary>
+    public const string ScheduleFragment = "schedules/index";
+
     // Lowercase fragments, matched case-insensitively against the bulletin body.
     // Mirrors the substrings TranslateLegacyUrlsPipe keys on.
     private static readonly string[] Fragments =
@@ -24,7 +31,7 @@ public static class LegacyBulletinPatterns
         "jobadministrator/admin",
         "rosters/rosterspubliclookuptourny",
         "rosters/rosterpubliclookup",
-        "schedules/index",
+        ScheduleFragment,
         "playerwaiverupdate",
     };
 
@@ -48,4 +55,20 @@ public static class LegacyBulletinPatterns
 
         return false;
     }
+
+    /// <summary>
+    /// True if the bulletin body links at the legacy SCHEDULE route (case-insensitive).
+    ///
+    /// Narrower than <see cref="HasLegacyLink"/> on purpose. The schedule-release path
+    /// removes the job's superseded schedule bulletin; matching the full fragment list
+    /// there would also delete the job's legacy registration and roster bulletins, which
+    /// have nothing to do with releasing a schedule.
+    ///
+    /// Matched on the BODY, never the title: the same bulletin ships under at least
+    /// "Schedules Now Available!", "Schedules Are Posted!", "SCHEDULES ARE LIVE" and
+    /// "Schedule is UP!" — a title match finds barely half of them.
+    /// </summary>
+    public static bool HasLegacyScheduleLink(string? text) =>
+        !string.IsNullOrEmpty(text)
+        && text.Contains(ScheduleFragment, StringComparison.OrdinalIgnoreCase);
 }
