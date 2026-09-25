@@ -44,31 +44,33 @@
     font-size: var(--font-size-sm);
 }
 
-.sre-table {
-    th {
-        color: var(--brand-text-muted);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-bold);
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-    }
+// The headline the director decides on. Reads a size up from the surrounding notes
+// because it is the answer to "who is this going to", not a caveat about it.
+.sre-summary {
+    margin-bottom: var(--space-3);
+    font-size: var(--font-size-lg);
 }
 
-// Unsendable rows stay visible but recede — they explain the gap between the list
-// length and the send count, and shouldn't read as normal recipients.
-.sre-row--muted {
+.sre-browse__label {
     color: var(--brand-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
-// Never colour alone: the muted row is paired with a labelled icon chip.
-.sre-flag {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    color: var(--bs-warning-text-emphasis, var(--brand-text-muted));
-    font-size: var(--font-size-xs);
-    white-space: nowrap;
+// A plain closed select: fixed height whether the job has 20 club reps or 400, which
+// is the entire point of moving off the table.
+.sre-browse {
+    max-width: 42rem;
 }
+
+.sre-browse__hint {
+    margin: var(--space-2) 0 0;
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+}
+
 
 .sre-tokens {
     margin-top: var(--space-2);

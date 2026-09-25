@@ -79,6 +79,16 @@ export class ScheduleReviewEmailComponent implements OnInit, OnDestroy {
     /** A rep with no address on file cannot be reached; worth surfacing before the send, not after. */
     protected readonly noEmailCount = computed(() => this.recipients().filter(r => !r.email?.trim()).length);
 
+    /**
+     * Teams covered by the reps who will actually be emailed. The headline number on a big
+     * tournament: "247 reps" means nothing on its own, "247 reps covering 1,800 teams" is the
+     * sanity check that the audience is the whole event and not a fragment of it.
+     */
+    protected readonly totalScheduledTeams = computed(() =>
+        this.recipients()
+            .filter(r => !r.emailOptOut)
+            .reduce((sum, r) => sum + (r.scheduledTeamCount ?? 0), 0));
+
     protected readonly canSend = computed(() =>
         !this.isSending()
         && this.deliverableCount() > 0

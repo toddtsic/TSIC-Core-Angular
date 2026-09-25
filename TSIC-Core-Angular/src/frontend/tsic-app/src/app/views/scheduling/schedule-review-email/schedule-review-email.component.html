@@ -55,37 +55,29 @@
             </p>
         }
 
-        <div class="table-responsive">
-            <table class="table table-sm align-middle sre-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Club</th>
-                        <th scope="col">Club Rep</th>
-                        <th scope="col">Email</th>
-                        <th scope="col" class="text-end">Scheduled teams</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (r of recipients(); track r.registrationId) {
-                        <tr [class.sre-row--muted]="r.emailOptOut || !r.email">
-                            <td>{{ r.clubName || '—' }}</td>
-                            <td>{{ displayName(r) }}</td>
-                            <td>
-                                @if (r.email) {
-                                    {{ r.email }}
-                                } @else {
-                                    <span class="sre-flag"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> no address</span>
-                                }
-                                @if (r.emailOptOut) {
-                                    <span class="sre-flag ms-2"><i class="bi bi-slash-circle" aria-hidden="true"></i> opted out</span>
-                                }
-                            </td>
-                            <td class="text-end">{{ r.scheduledTeamCount }}</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+        <!-- A dropdown, not a table: a large tournament has hundreds of club reps, and a
+             row-per-rep pushes the letter itself off the screen. The totals are what the
+             director actually decides on; the list is for spot-checking one name. -->
+        <p class="sre-summary">
+            <strong>{{ deliverableCount() }}</strong>
+            {{ deliverableCount() === 1 ? 'club rep' : 'club reps' }} will be emailed,
+            covering <strong>{{ totalScheduledTeams() }}</strong>
+            {{ totalScheduledTeams() === 1 ? 'scheduled team' : 'scheduled teams' }}.
+        </p>
+
+        <label class="form-label sre-browse__label" for="sre-recipients">Browse the list</label>
+        <select id="sre-recipients" class="form-select sre-browse" size="1">
+            @for (r of recipients(); track r.registrationId) {
+                <option [disabled]="r.emailOptOut || !r.email">
+                    {{ r.clubName || '—' }} &middot; {{ displayName(r) }} &middot;
+                    {{ r.email || 'no address on file' }}
+                    ({{ r.scheduledTeamCount }})@if (r.emailOptOut) { &middot; opted out }
+                </option>
+            }
+        </select>
+        <p class="sre-browse__hint">
+            Club &middot; rep &middot; email (scheduled teams). Anyone who cannot be emailed is greyed out.
+        </p>
     }
 </section>
 
