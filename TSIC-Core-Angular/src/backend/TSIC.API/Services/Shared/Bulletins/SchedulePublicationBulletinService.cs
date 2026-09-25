@@ -106,11 +106,17 @@ public sealed class SchedulePublicationBulletinService : ISchedulePublicationBul
     };
 
     /// <summary>
-    /// Seed body, wearing the SMART band's treatment rather than the legacy bulletin's
-    /// bulleted list of trademarked store JPGs — this bulletin stands in for the Schedule
-    /// Links card, so it should read like it did.
+    /// Seed body: one row, no prose. The bulletin TITLE already says "Schedules Available!",
+    /// so a lede sentence would only say it again — the body's whole job is the actions.
+    /// Primary action first, the two app links beside it as quieter peers.
     ///
-    /// The <c>sched-links*</c> classes are styled globally under <c>.bulletin-body</c> (see
+    /// The store links keep their two-word labels rather than going glyph-only (Todd,
+    /// 2026-09-25). A bare Apple mark next to a play triangle reads as a share target, not
+    /// an app download — and that is the one thing the title does NOT already convey. The
+    /// visible text is also the accessible name: the sanitizer strips <c>aria-*</c>, so an
+    /// unlabelled icon link would reach a screen reader as its bare href.
+    ///
+    /// The <c>sched-*</c> classes are styled globally under <c>.bulletin-body</c> (see
     /// styles/_component-overrides.scss) and survive the rich-text sanitizer, which keeps
     /// <c>class</c>. They degrade to plain links if a director rewrites the body.
     ///
@@ -118,20 +124,10 @@ public sealed class SchedulePublicationBulletinService : ISchedulePublicationBul
     /// HTML would need them hosted as files.
     /// </summary>
     private const string SeedBody = """
-        <p class="sched-lede">Game schedules for <strong>!JOBNAME</strong> are now available.</p>
-        <p class="sched-cta">!SCHEDULE</p>
-        <div class="sched-app">
-            <p class="sched-app__lede"><i class="bi bi-phone" aria-hidden="true"></i> Scores, standings &amp; brackets travel with you &mdash; free in the TSIC-Events app.</p>
-            <div class="sched-links">
-                <a class="sched-links__store" href="https://itunes.apple.com/app/id1550380490" target="_blank" rel="noopener noreferrer">
-                    <i class="bi bi-apple sched-links__glyph" title="Apple App Store"></i>
-                    <span class="sched-links__label"><span class="sched-links__small">Download on the</span><span class="sched-links__name">App Store</span></span>
-                </a>
-                <a class="sched-links__store" href="https://play.google.com/store/apps/details?id=com.teamsportsinfo.tsicevents" target="_blank" rel="noopener noreferrer">
-                    <i class="bi bi-google-play sched-links__glyph" title="Google Play"></i>
-                    <span class="sched-links__label"><span class="sched-links__small">Get it on</span><span class="sched-links__name">Google Play</span></span>
-                </a>
-            </div>
+        <div class="sched-row">
+            !SCHEDULE
+            <a class="sched-links__store" href="https://itunes.apple.com/app/id1550380490" target="_blank" rel="noopener noreferrer"><i class="bi bi-apple sched-links__glyph"></i><span class="sched-links__name">App Store</span></a>
+            <a class="sched-links__store" href="https://play.google.com/store/apps/details?id=com.teamsportsinfo.tsicevents" target="_blank" rel="noopener noreferrer"><i class="bi bi-google-play sched-links__glyph"></i><span class="sched-links__name">Google Play</span></a>
         </div>
         """;
 }

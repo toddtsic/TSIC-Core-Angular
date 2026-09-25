@@ -259,14 +259,15 @@
   display: none;
 }
 
-/* ── bulletins: the seeded "Schedules Available!" app-links block ──
-   Gives the seeded schedule bulletin the SMART band's treatment rather than the legacy
-   bulletin's bulleted list of trademarked store JPGs. Mirrors game-day-panel's `.gd__store`:
-   neutral elevated pills, the store glyph on its own line over a two-line label, both stores
-   as equal peers.
+/* ── bulletins: the seeded "Schedules Available!" action row ──
+   Minimalist by ruling (Todd, 2026-09-25): the bulletin TITLE is the announcement, so the
+   body is nothing but actions — the primary CTA and the two app links, one row, no prose.
 
    Deliberately NOT the App Store / Google Play artwork. The smart panel chose generic
    on-brand chrome over the trademarked badges, and this block is that panel's stand-in.
+   The two-word labels stay: a bare Apple mark beside a play triangle reads as a share
+   target, not an app download, and the visible text is also the link's accessible name
+   (the rich-text sanitizer strips `aria-*`).
 
    No QR codes here. The panel generated those client-side per viewer; static bulletin HTML
    would need them hosted as image files, which is a separate call.
@@ -274,16 +275,13 @@
    These are plain classes on author-editable HTML, so they degrade to unstyled markup if a
    director rewrites the body — nothing breaks, it just stops being a pill. */
 .bulletin-body {
-  // Opening line reads a size up from body copy — it is the announcement itself.
-  .sched-lede {
-    font-size: var(--font-size-lg);
-    line-height: 1.5;
-  }
-
-  // The button gets room of its own above and below; a CTA crowded by paragraphs
-  // reads as a link in a sentence.
-  .sched-cta {
-    margin: var(--space-5) 0 var(--space-6);
+  // One band: primary action, then its quieter peers. Wraps before it ever squeezes.
+  .sched-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin: var(--space-4) 0 0;
   }
 
   // `!SCHEDULE` emits `a.btn.btn-primary.bl-cta`. Layers on the generic `a.btn`
@@ -313,50 +311,21 @@
     }
   }
 
-  // The app links sit in an inset well: one glance separates "get the app" from
-  // "here is the schedule", without a second heading or a hard rule.
-  .sched-app {
-    margin: var(--space-5) 0 0;
-    padding: var(--space-4) var(--space-4) var(--space-5);
-    border: 1px solid var(--brand-border);
-    border-radius: var(--radius-lg);
-    background: color-mix(in srgb, var(--brand-text) 3%, var(--brand-surface, var(--neutral-0)));
-  }
-
-  .sched-app__lede {
-    margin: 0;
-    font-size: var(--font-size-sm);
-    color: var(--brand-text-muted);
-
-    i {
-      margin-right: var(--space-1);
-    }
-  }
-
-  .sched-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    margin: var(--space-4) 0 0;
-  }
-
   .sched-links__store {
     display: inline-flex;
-    flex-direction: row;
     align-items: center;
-    justify-content: flex-start;
-    gap: var(--space-3);
-    // Equal-width peers that share the row's slack, so neither store reads as the
-    // recommended one; they stack full-width once the row can't hold both.
-    flex: 1 1 11rem;
-    min-width: 11rem;
+    gap: var(--space-2);
+    // Same vertical padding as the CTA so the row reads as one band, and the
+    // resulting ~45px height clears the 44px touch-target minimum on its own.
     padding: var(--space-3) var(--space-4);
+    min-height: 2.75rem;
     border: 1px solid var(--brand-border);
     border-radius: var(--radius-md);
     // Faint mix of --brand-text into the surface: theme-aware neutral chrome that lets the
     // store logo lead, instead of a colour wash that reads washed-out at badge size.
     background: color-mix(in srgb, var(--brand-text) 6%, var(--brand-surface, var(--neutral-0)));
     color: var(--brand-text);
+    font-weight: var(--font-weight-semibold);
     text-decoration: none;
     transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 
@@ -374,28 +343,12 @@
   }
 
   .sched-links__glyph {
-    font-size: 1.9rem;
+    font-size: 1.35rem;
     line-height: 1;
     flex: 0 0 auto;
   }
 
-  .sched-links__label {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  .sched-links__small {
-    display: block;
-    font-size: var(--font-size-xs);
-    color: var(--brand-text-muted);
-    line-height: 1.2;
-  }
-
   .sched-links__name {
-    display: block;
-    font-weight: var(--font-weight-semibold);
-    line-height: 1.2;
     white-space: nowrap;
   }
 
