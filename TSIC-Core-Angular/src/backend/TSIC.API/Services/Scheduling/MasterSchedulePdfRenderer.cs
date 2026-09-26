@@ -42,6 +42,13 @@ internal static class MasterSchedulePdfRenderer
         WordWrap = PdfWordWrapType.Word,
     };
 
+    private static readonly PdfStringFormat TopCentered = new(PdfTextAlignment.Center, PdfVerticalAlignment.Top)
+    {
+        WordWrap = PdfWordWrapType.Word,
+    };
+
+    private const float MatchupGap = 1.5f;       // space above and below the VS line
+
     private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
 
     /// <param name="parking">Null → Collegiate Coach layout; supplied → Operations layout with cars columns.</param>
@@ -130,8 +137,7 @@ internal static class MasterSchedulePdfRenderer
             {
                 var cell = c < row.Cells.Count ? row.Cells[c] : null;
                 if (cell == null) continue;
-                var size = fonts.Cell.MeasureString(CellText(cell), textW, Centered);
-                h = Math.Max(h, size.Height + (CellPad * 2));
+                h = Math.Max(h, MatchupHeight(cell, textW, fonts) + (CellPad * 2));
             }
             return h;
         }).ToList();
@@ -201,9 +207,7 @@ internal static class MasterSchedulePdfRenderer
                 var fill = ParseColor(cell.Color) ?? new PdfColor(255, 255, 255);
                 var ink = ParseColor(cell.ContrastColor) ?? new PdfColor(0, 0, 0);
                 g.DrawRectangle(pens.Grid, new PdfSolidBrush(fill), rect);
-                g.DrawString(CellText(cell), fonts.Cell, new PdfSolidBrush(ink),
-                    new RectangleF(rect.X + CellPad, rect.Y + CellPad, rect.Width - (CellPad * 2), rect.Height - (CellPad * 2)),
-                    Centered);
+                DrawMatchup(g, cell, rect, new PdfSolidBrush(ink), fonts);
             }
 
             y += h;
@@ -243,8 +247,38 @@ internal static class MasterSchedulePdfRenderer
             new RectangleF(rect.X + CellPad, rect.Y, rect.Width - (CellPad * 2), rect.Height), Centered);
     }
 
-    private static string CellText(MasterScheduleCell cell) =>
-        $"{TeamLabel(cell.T1Name)}\nVS\n{TeamLabel(cell.T2Name)}";
+    /// <summary>
+    /// Matchup stack — TEAM 1 (bold) / vs (smaller, regular) / TEAM 2 (bold) — so the split between
+    /// the two teams reads at a glance. Measured and drawn by the same pieces so row heights agree.
+    /// </summary>
+    private static (string Text, PdfFont Font, float Height)[] MatchupParts(
+        MasterScheduleCell cell, float textW, Fonts fonts)
+    {
+        (string, PdfFont)[] parts =
+        [
+            (TeamLabel(cell.T1Name), fonts.Team),
+            ("VS", fonts.Vs),
+            (TeamLabel(cell.T2Name), fonts.Team),
+        ];
+        return parts
+            .Select(p => (p.Item1, p.Item2, p.Item2.MeasureString(p.Item1, textW, TopCentered).Height))
+            .ToArray();
+    }
+
+    private static float MatchupHeight(MasterScheduleCell cell, float textW, Fonts fonts) =>
+        MatchupParts(cell, textW, fonts).Sum(p => p.Height) + (MatchupGap * 2);
+
+    private static void DrawMatchup(PdfGraphics g, MasterScheduleCell cell, RectangleF rect, PdfBrush ink, Fonts fonts)
+    {
+        var textW = rect.Width - (CellPad * 2);
+        var parts = MatchupParts(cell, textW, fonts);
+        var y = rect.Y + ((rect.Height - (parts.Sum(p => p.Height) + (MatchupGap * 2))) / 2f);
+        foreach (var (text, font, height) in parts)
+        {
+            g.DrawString(text, font, ink, new RectangleF(rect.X + CellPad, y, textW, height), TopCentered);
+            y += height + MatchupGap;
+        }
+    }
 
     // Stored names are "club:team" — the colon prints as a space.
     private static string TeamLabel(string name) =>
@@ -278,7 +312,8 @@ internal static class MasterSchedulePdfRenderer
     {
         public PdfStandardFont Header { get; } = new(PdfFontFamily.Helvetica, 13, PdfFontStyle.Bold);
         public PdfStandardFont Time { get; } = new(PdfFontFamily.Helvetica, 13, PdfFontStyle.Bold);
-        public PdfStandardFont Cell { get; } = new(PdfFontFamily.Helvetica, 9.5f);
+        public PdfStandardFont Team { get; } = new(PdfFontFamily.Helvetica, 9.5f, PdfFontStyle.Bold);
+        public PdfStandardFont Vs { get; } = new(PdfFontFamily.Helvetica, 7.5f);
     }
 
     private sealed class Pens
