@@ -51,11 +51,13 @@ public class SchedulePreviewInviteSendTests
 
     private static async Task<string> RefusalAsync(Fixture f, BatchEmailRequest request)
     {
-        // A send that passes the checks continues into mocked collaborators, which may fail for unrelated
-        // reasons; only a preview refusal matters here.
         try { await f.Svc.StartBatchEmailAsync(f.Job.JobId, "admin-1", request); }
         catch (InvalidOperationException ex) { return ex.Message; }
-        catch (Exception) { }
+        catch (Exception)
+        {
+            // A send that passes the checks continues into mocked collaborators, which may fail for unrelated
+            // reasons; only a preview refusal matters here.
+        }
         return "";
     }
 
