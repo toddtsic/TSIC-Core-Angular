@@ -64,7 +64,6 @@
                     <span class="item-body">
                       <span class="item-text">
                         {{ data.displayText }}
-                        @if (data.isHere) { <span class="here-chip">this event</span> }
                       </span>
                       @if (data.dateLabel || data.teamLabel) {
                       <span class="item-sub">
@@ -84,7 +83,7 @@
                 <h3 class="role-ledger-header" [attr.id]="'rs-label-' + i">{{ roleLabel(group.roleName) }}</h3>
                 <ul class="role-ledger-list">
                   @for (reg of group.all; track reg.regId) {
-                  <li class="role-card-li" [class.is-here]="reg.isHere">
+                  <li class="role-card-li">
                     <ng-container *ngTemplateOutlet="roleRow; context: { $implicit: reg }" />
                   </li>
                   }
@@ -104,7 +103,6 @@
                 <span class="role-card-body">
                   <span class="role-card-title">
                     {{ reg.title }}
-                    @if (reg.isHere) { <span class="here-chip">this event</span> }
                   </span>
                   @if (reg.detail) {
                   <span class="role-card-detail">{{ reg.detail }}</span>

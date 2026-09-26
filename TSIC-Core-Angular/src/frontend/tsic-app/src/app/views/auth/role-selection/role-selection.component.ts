@@ -4,7 +4,6 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { MenuStateService } from '../../../layouts/services/menu-state.service';
-import { LastLocationService } from '@infrastructure/services/last-location.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
 import { SuggestedEventsModalComponent } from './suggested-events-modal.component';
@@ -21,14 +20,12 @@ export interface RoleRow extends RegistrationDto {
   detail: string;
   dateLabel: string;
   teamLabel: string | null;
-  /** This row's job is the one whose page the user arrived from — flagged, never auto-opened. */
-  isHere: boolean;
 }
 
 interface RoleGroupView {
   roleName: string;
   isClubRep: boolean;
-  /** Every row, ordered: arrived-at first, then by event start date. */
+  /** Every row, ordered by job name. */
   all: RoleRow[];
 }
 
@@ -62,7 +59,6 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly menuState = inject(MenuStateService);
-  private readonly lastLocation = inject(LastLocationService);
 
   /** At or above this row count in ANY role group, the whole page renders as typeaheads. */
   private static readonly TYPEAHEAD_THRESHOLD = 7;
@@ -119,23 +115,6 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   }
 
   /**
-   * The jobPath whose page the user arrived from. Rows for that job are flagged "this event"
-   * and sorted first — pre-selected in the reader's eye, never opened for them: a Director
-   * who also holds a Club Rep row here must still choose.
-   *
-   * The route's own :jobPath is usually the house `tsic` (login redirects here without a
-   * job), so the real answer is the last CONFIRMED job the browser was on — the same memory
-   * the anonymous landing uses to send people back to their event.
-   */
-  private readonly arrivedJobPath = computed(() => {
-    const fromRoute = (this.route.snapshot.paramMap.get('jobPath')
-      ?? this.route.parent?.snapshot.paramMap.get('jobPath')
-      ?? '').toLowerCase();
-    if (fromRoute && fromRoute !== 'tsic') return fromRoute;
-    return (this.lastLocation.getLastJobPath() ?? '').toLowerCase();
-  });
-
-  /**
    * Split the colon-mashed displayText into title + detail. Player rows look like
    * "JobName:FirstName LastName:AgegroupName:TeamName"; admin rows are just "JobName".
    * Then date the row from the event window and, for a Club Rep, count its teams.
@@ -153,19 +132,23 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
       teamLabel: isClubRep && n !== null && n !== undefined
         ? (n === 0 ? 'no teams yet' : `${n} ${n === 1 ? 'team' : 'teams'}`)
         : null,
-      isHere: !!reg.jobPath && reg.jobPath.toLowerCase() === this.arrivedJobPath(),
     };
   }
 
-  /** The API groups, re-shaped for both renderings: "this event" first, then by start date. */
+  /**
+   * The API groups, re-shaped for both renderings, sorted by job name (then by detail, so a
+   * family with two kids in one job gets a stable order). Ruling: Todd 2026-09-26 — job name,
+   * period. Not by start date: Jobs.EventStartDate is NULL on most live jobs, and a date sort
+   * put every undated job first A–Z, then restarted A–Z through the dated ones, oldest first.
+   * No "this event" pin either — it keyed off the last event page the browser loaded, which
+   * pinned whatever job was viewed last.
+   */
   readonly groups = computed<RoleGroupView[]>(() => {
-    const time = (v: string | null | undefined) => (v ? new Date(v).getTime() : 0);
     return this.registrations().map((g: RegistrationRoleDto) => {
       const isClubRep = g.roleName === 'Club Rep';
       const all = g.roleRegistrations.map(r => this.toRow(r, isClubRep)).sort((a, b) =>
-        Number(b.isHere) - Number(a.isHere)
-        || time(a.eventStartDate) - time(b.eventStartDate)
-        || a.title.localeCompare(b.title));
+        a.title.localeCompare(b.title)
+        || a.detail.localeCompare(b.detail));
       return { roleName: g.roleName, isClubRep, all };
     });
   });
@@ -203,7 +186,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     // GET /api/auth/suggested-events are all left intact and working.
     //
     // Before re-enabling: gate suggestions to the ARRIVAL event's customerId
-    // (jobPath -> jobId -> customerId; arrivedJobPath() already resolves the path)
+    // (jobPath -> jobId -> customerId; route :jobPath, else LastLocationService)
     // so a client only ever cross-sells their own catalog. Fail closed when the
     // path is 'tsic' or unresolvable, exclude the arrival event itself, and drop
     // the "based on events you've registered for before" lede.

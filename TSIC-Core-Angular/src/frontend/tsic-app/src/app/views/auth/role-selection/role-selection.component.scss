@@ -128,27 +128,6 @@
 .role-card-li {
   display: flex;
   align-items: stretch;
-
-  &.is-here {
-    background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
-    box-shadow: inset 3px 0 0 0 var(--bs-primary);
-  }
-}
-
-.here-chip {
-  display: inline-block;
-  margin-left: var(--space-2);
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--bs-primary) 30%, transparent);
-  color: var(--bs-primary);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  vertical-align: middle;
-  line-height: 1.4;
 }
 
 .role-card-meta {
@@ -161,8 +140,8 @@
 
   > span { display: inline-flex; align-items: center; gap: var(--space-1); }
   .bi { font-size: 0.9em; opacity: 0.8; }
-  // The date of play is what the rows are sorted by (after "this event"), so it is the fact
-  // the eye scans down the list. Bold it; the team count stays quiet.
+  // The date of play tells apart same-named events across seasons, so it is the fact the eye
+  // checks on each row. Bold it; the team count stays quiet.
   &--date { color: var(--brand-text); font-weight: var(--font-weight-semibold); .bi { opacity: 1; } }
   &--warn { color: var(--bs-warning-text-emphasis); font-weight: var(--font-weight-semibold); }
 }
