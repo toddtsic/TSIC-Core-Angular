@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, computed, DestroyRef } from '@angular/core';
+import { CurrencyPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
+import { EMPTY, catchError, concatMap, defer, from, map, of } from 'rxjs';
+import { RegisteredTeamsGridComponent, sumDueNowOf } from '../components/registered-teams-grid.component';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -10,7 +12,13 @@ import { JobService } from '@infrastructure/services/job.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
 import { AddAndRegisterTeamModalComponent } from './add-and-register-team-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
-import { LibraryFlyinComponent, type RegisterRequest, type RegisteredInfo } from '../components/library-flyin.component';
+// Library fly-in RETIRED from this step 2026-09-26 (Todd: the Club Team Library is now a segment of
+// the step, not a drawer over it). Kept, commented, in case we return to it — the component file
+// itself is untouched. Re-enable = this import, the imports[] entry, the <app-library-flyin> block
+// in the template, and the fly-in methods/signal in the class (all marked RETIRED FLY-IN).
+// import { LibraryFlyinComponent, type RegisterRequest, type RegisteredInfo } from '../components/library-flyin.component';
+import { LibrarySegmentComponent } from '../components/library-segment.component';
+import type { LibraryRegisterRequest } from '../components/library-segment.types';
 import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
 import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
@@ -24,14 +32,24 @@ import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear } from '../component
  */
 type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
 
+/** The step's two segments. */
+type TeamsSegment = 'library' | 'registered';
+
 /**
- * Teams step — single screen combining library management + event registration.
- * Assigning an age group IS the registration act. No separate review step needed.
+ * Teams step — two segments on one card (Todd 2026-09-26):
+ *
+ *   Club Team Library             the club's teams, entered once; Register from here.
+ *   {event} Registered Teams      what this event holds, and what it owes.
+ *
+ * Which one opens is decided ONCE, when the step's data first lands (see pickOpeningSegment), from
+ * the rep's state: nothing in the library, nothing registered, money due now, or teams still to
+ * bring. It never flips on its own after that — registering a team mid-visit must not yank the
+ * rep off the list they are working. Assigning an age group IS the registration act.
  */
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent, TeamRenameConfirmComponent],
+    imports: [CurrencyPipe, RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, /* RETIRED FLY-IN: LibraryFlyinComponent, */ LibrarySegmentComponent, TeamRenameConfirmComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -43,165 +61,239 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
       <div class="alert alert-danger">{{ error() }}</div>
     } @else {
 
-      <!-- ── Registered teams for THIS event (single primary card) ── -->
-      <!-- The green edge means teams are in; empty gets the plain card (Todd 2026-09-24). -->
+      <!-- ── One card, two segments (Todd 2026-09-26). The green edge means teams are in. ── -->
       <div class="step-card" [class.step-card-registered]="enteredTeams().length > 0">
-        @if (enteredTeams().length === 0) {
-          <!-- Nothing registered yet: neutral, no check. Green and a check mean done (Todd 2026-09-24). -->
-          <div class="section-header section-pending">
-            <i class="bi bi-clipboard me-1" aria-hidden="true"></i>
-            Registered Teams
-          </div>
-        } @else {
-          <div class="section-titlebar section-titlebar-registered">
-            <i class="bi bi-trophy-fill section-titlebar-icon" aria-hidden="true"></i>
-            <h3 class="section-titlebar-title">
-              <span class="section-titlebar-tail">Registered Teams</span>
-            </h3>
-            <span class="phase-badge">
-              <span class="phase-badge__label">Payment Phase</span>
-              <span class="phase-badge__value">{{ phaseBadgeLabel() }}</span>
+
+        <div class="seg-bar" role="tablist" aria-label="Club Team Library or Registered Teams">
+          <button type="button" role="tab" id="teams-seg-tab-library"
+                  class="seg-tab seg-tab--library"
+                  [class.is-active]="segment() === 'library'"
+                  [attr.aria-selected]="segment() === 'library'"
+                  aria-controls="teams-seg-panel"
+                  [attr.tabindex]="segment() === 'library' ? 0 : -1"
+                  (click)="selectSegment('library')"
+                  (keydown)="onSegmentKey($event)">
+            <i class="bi bi-collection-fill seg-tab-icon" aria-hidden="true"></i>
+            <span class="seg-tab-text">
+              <span class="seg-tab-title">Club Team Library</span>
+              <span class="seg-tab-sub">{{ librarySegmentSub() }}</span>
             </span>
-          </div>
-        }
+          </button>
+          <button type="button" role="tab" id="teams-seg-tab-registered"
+                  class="seg-tab seg-tab--registered"
+                  [class.is-active]="segment() === 'registered'"
+                  [attr.aria-selected]="segment() === 'registered'"
+                  aria-controls="teams-seg-panel"
+                  [attr.tabindex]="segment() === 'registered' ? 0 : -1"
+                  (click)="selectSegment('registered')"
+                  (keydown)="onSegmentKey($event)">
+            <i class="bi bi-trophy-fill seg-tab-icon" aria-hidden="true"></i>
+            <span class="seg-tab-text">
+              <span class="seg-tab-title">{{ eventName() }} Registered Teams</span>
+              <span class="seg-tab-sub">
+                @if (enteredTeams().length === 0) {
+                  None yet
+                } @else {
+                  {{ enteredTeams().length }} registered &middot;
+                  @if (dueNow() > 0) { {{ dueNow() | currency }} due now } @else { nothing due now }
+                }
+              </span>
+            </span>
+          </button>
+        </div>
 
-        @if (enteredTeams().length === 0) {
-          @if (allLibraryTeams().length === 0) {
-            <div class="two-step-hero">
-              <div class="two-step-eyebrow">
-                <span>How Team Registration Works</span>
-              </div>
-              <h3 class="two-step-headline">
-                Two steps to get your teams into <span class="event-name">{{ eventName() }}</span>
-              </h3>
+        <div class="seg-panel" role="tabpanel" id="teams-seg-panel"
+             [attr.aria-labelledby]="segment() === 'library' ? 'teams-seg-tab-library' : 'teams-seg-tab-registered'">
 
-              <div class="two-step-cards">
-                <div class="step-mini step-mini-library">
-                  <div class="step-mini-head">
-                    <span class="step-mini-num">1</span>
-                    <i class="bi bi-collection-fill" aria-hidden="true"></i>
+          @if (segment() === 'library') {
+            @if (allLibraryTeams().length === 0) {
+              <!-- New rep, empty library: the two-step explainer (wording ruled 2026-09-24, keep). -->
+              <div class="two-step-hero">
+                <div class="two-step-eyebrow">
+                  <span>How Team Registration Works</span>
+                </div>
+                <h3 class="two-step-headline">
+                  Two steps to get your teams into <span class="event-name">{{ eventName() }}</span>
+                </h3>
+
+                <div class="two-step-cards">
+                  <div class="step-mini step-mini-library">
+                    <div class="step-mini-head">
+                      <span class="step-mini-num">1</span>
+                      <i class="bi bi-collection-fill" aria-hidden="true"></i>
+                    </div>
+                    <strong>Build your Club Team Library</strong>
+                    <span>
+                      Add each team to your library &mdash; anytime, one at a time.
+                      Once it's in, it's there for <em>every</em> future TSIC event &mdash; no re-entry.
+                    </span>
                   </div>
-                  <strong>Build your Club Team Library</strong>
-                  <span>
-                    Add each team to your library &mdash; anytime, one at a time.
-                    Once it's in, it's there for <em>every</em> future TSIC event &mdash; no re-entry.
-                  </span>
-                </div>
 
-                <div class="two-step-arrow" aria-hidden="true">
-                  <i class="bi bi-arrow-right"></i>
-                </div>
-
-                <div class="step-mini step-mini-event">
-                  <div class="step-mini-head">
-                    <span class="step-mini-num">2</span>
-                    <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+                  <div class="two-step-arrow" aria-hidden="true">
+                    <i class="bi bi-arrow-right"></i>
                   </div>
-                  <strong>Register for this event</strong>
-                  <span>
-                    Pick teams from your library to register to play in
-                    <strong>{{ eventName() }}</strong>.
-                  </span>
-                </div>
-              </div>
 
-              <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-library"
-                      (click)="showAddAndRegisterModal.set(true)">
-                <i class="bi bi-trophy-fill me-2"></i>
-                Register Your First Team
-                <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
-              </button>
-            </div>
+                  <div class="step-mini step-mini-event">
+                    <div class="step-mini-head">
+                      <span class="step-mini-num">2</span>
+                      <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+                    </div>
+                    <strong>Register for this event</strong>
+                    <span>
+                      Pick teams from your library to register to play in
+                      <strong>{{ eventName() }}</strong>.
+                    </span>
+                  </div>
+                </div>
+
+                <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-library"
+                        (click)="showAddAndRegisterModal.set(true)">
+                  <i class="bi bi-trophy-fill me-2"></i>
+                  Register Your First Team
+                  <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
+                </button>
+              </div>
+            } @else {
+              <div class="seg-panel-body">
+                <app-library-segment
+                  [clubTeams]="allLibraryTeams()"
+                  [registeredTeams]="enteredTeams()"
+                  [droppedTeams]="droppedTeams()"
+                  [ageGroups]="ageGroups()"
+                  [clubName]="clubName()"
+                  [eventName]="eventName()"
+                  [canRegister]="canRegisterTeam()"
+                  [actionInProgress]="actionInProgress()"
+                  [pendingLibraryOnly]="pendingLibraryOnly()"
+                  [revealPending]="revealPending()"
+                  (register)="onLibraryRegister($event)"
+                  (registerMany)="onLibraryRegisterMany($event)"
+                  (addNew)="onAddNew()"
+                  (edit)="openEditModal($event)"
+                  (archive)="askArchiveTeam($event)"
+                  (delete)="askDeleteTeam($event)"
+                  (restore)="askRestoreTeam($event)" />
+              </div>
+            }
           } @else {
-            <div class="wizard-empty-state cta-empty-wrap" style="padding: var(--space-6) var(--space-4)">
-              <i class="bi bi-clipboard-plus"></i>
-              <strong>{{ allLibraryTeams().length }} library
-                {{ allLibraryTeams().length === 1 ? 'team' : 'teams' }}
-                ready &mdash; none registered for {{ eventName() }} yet</strong>
-              <span>Pick from your library, or add a new team, to register to play in <strong>{{ eventName() }}</strong>.</span>
-              <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
-                      (click)="openLibraryFlyin()">
-                <i class="bi bi-trophy-fill me-2"></i>
-                Register Your First Team
-                <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
-              </button>
-            </div>
+            @if (enteredTeams().length === 0) {
+              <!-- Nothing registered yet: neutral, no check. Green and a check mean done (Todd 2026-09-24). -->
+              <div class="wizard-empty-state cta-empty-wrap" style="padding: var(--space-6) var(--space-4)">
+                <i class="bi bi-clipboard"></i>
+                <strong>No teams registered for {{ eventName() }} yet</strong>
+                <span>
+                  @if (activeLibraryCount() > 0) {
+                    Your Club Team Library has {{ activeLibraryCount() }} {{ activeLibraryCount() === 1 ? 'team' : 'teams' }}.
+                    Register them from there, one press each.
+                  } @else {
+                    Start in your Club Team Library: add a team and register it in one step.
+                  }
+                </span>
+                <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
+                        (click)="selectSegment('library')">
+                  <i class="bi bi-collection-fill me-2"></i>
+                  Go to Club Team Library
+                  <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
+                </button>
+              </div>
+            } @else {
+              <div class="seg-panel-body">
+                <div class="registered-head">
+                  <span class="phase-badge">
+                    <span class="phase-badge__label">Payment Phase</span>
+                    <span class="phase-badge__value">{{ phaseBadgeLabel() }}</span>
+                  </span>
+                </div>
+                <!-- AR-095 item 5. Ann filed "delete the summary line" because club reps (and,
+                     she reports 09-18, directors) read this card as their accounting statement.
+                     The totals are NOT wrong — every cell is an honest sum of the column above
+                     it — so deleting them removes the evidence, not the misreading, which the
+                     rows carry just as strongly. What was missing is a statement of which
+                     document this is. It sits ABOVE the numbers so nobody reaches $41,400
+                     without having been told. Teams step ONLY: on the director's club-rep
+                     accounting grid the totals genuinely ARE the statement. -->
+                <p class="pricing-notice">
+                  <i class="bi bi-info-circle" aria-hidden="true"></i>
+                  <span>Each team's fee status is keyed to <strong>now</strong>, <strong>later</strong> or
+                    <strong>paid</strong>. Amounts are the fee itself &mdash; any processing fee is added when you
+                    <strong>Continue to Payment</strong> below.</span>
+                </p>
+                <app-registered-teams-grid
+                  [teams]="enteredTeams()"
+                  [showStructure]="true"
+                  [showTotalFee]="false"
+                  [showDeposit]="false"
+                  [showBalance]="false"
+                  [showOwed]="false"
+                  [showPaid]="false"
+                  [showProcessing]="false"
+                  [showCcOwed]="false"
+                  [showCkOwed]="false"
+                  [showRegDate]="false"
+                  [showLop]="true"
+                  [showRemove]="canRemoveTeam()"
+                  [showRename]="true"
+                  [renameLockReason]="canEditTeam() ? null : 'Editing closed by the director'"
+                  [actionInProgress]="actionInProgress()"
+                  [frozenTeamCol]="false"
+                  [teamColWidth]="120"
+                  [gridHeight]="'auto'"
+                  (removeTeam)="onRemoveTeam($event)"
+                  (renameTeam)="onRenameTeam($event)" />
+              </div>
+            }
           }
-        } @else {
-          <div style="padding: var(--space-2) var(--space-3)">
-            <!-- AR-095 item 5. Ann filed "delete the summary line" because club reps (and,
-                 she reports 09-18, directors) read this card as their accounting statement.
-                 The totals are NOT wrong — every cell is an honest sum of the column above
-                 it — so deleting them removes the evidence, not the misreading, which the
-                 rows carry just as strongly. What was missing is a statement of which
-                 document this is. It sits ABOVE the numbers so nobody reaches $41,400
-                 without having been told. Teams step ONLY: on the director's club-rep
-                 accounting grid the totals genuinely ARE the statement. -->
-            <p class="pricing-notice">
-              <i class="bi bi-info-circle" aria-hidden="true"></i>
-              <span>Each team's fee status is keyed to <strong>now</strong>, <strong>later</strong> or
-                <strong>paid</strong>. Amounts are the fee itself &mdash; any processing fee is added when you
-                <strong>Continue to Payment</strong> below.</span>
-            </p>
-            <app-registered-teams-grid
-              [teams]="enteredTeams()"
-              [showStructure]="true"
-              [showTotalFee]="false"
-              [showDeposit]="false"
-              [showBalance]="false"
-              [showOwed]="false"
-              [showPaid]="false"
-              [showProcessing]="false"
-              [showCcOwed]="false"
-              [showCkOwed]="false"
-              [showRegDate]="false"
-              [showLop]="true"
-              [showRemove]="canRemoveTeam()"
-              [showRename]="true"
-              [renameLockReason]="canEditTeam() ? null : 'Editing closed by the director'"
-              [actionInProgress]="actionInProgress()"
-              [frozenTeamCol]="false"
-              [teamColWidth]="120"
-              [gridHeight]="'auto'"
-              (removeTeam)="onRemoveTeam($event)"
-              (renameTeam)="onRenameTeam($event)" />
+        </div>
 
-          </div>
-
+        <!-- Continue lives OUTSIDE the segments: either view can move on. Full weight only when
+             money is due now; with nothing due it is the quiet way to finish. -->
+        @if (enteredTeams().length > 0) {
           <div class="step-card-footer">
-            <div class="action-segments" role="group" aria-label="What's next?">
-              <button type="button" class="action-segment action-segment-stay"
-                      (click)="openLibraryFlyin()">
-                <i class="bi bi-plus-circle-fill action-segment-icon" aria-hidden="true"></i>
-                <span class="action-segment-content">
-                  <span class="action-segment-title">Register Another Team</span>
-                  <!-- The one fact the old nudge strip knew (Todd 2026-09-24: the strip was a second
-                       door with a nag attached): how many library teams fit an age group here and
-                       are not in. A count, not a warning; the names are one click away. -->
-                  <span class="action-segment-sub">
-                    @if (unregisteredEligible().length > 0) {
-                      {{ unregisteredEligible().length }} library {{ unregisteredEligible().length === 1 ? 'team fits' : 'teams fit' }} an age group here
-                    } @else {
-                      Go to Club Team Library
-                    }
+            @if (confirmingContinue()) {
+              <!-- The P0 guard the fly-in's Done used to carry: a team saved to the library this
+                   session and still not registered here. The rep picks one of two named outcomes. -->
+              <div class="continue-interstitial" role="alertdialog"
+                   aria-labelledby="continue-interstitial-title" aria-describedby="continue-interstitial-names">
+                <div class="ci-head">
+                  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                  <span id="continue-interstitial-title">
+                    {{ pendingTeams().length === 1 ? '1 team is' : pendingTeams().length + ' teams are' }}
+                    in your Club Team Library but <strong>not registered for {{ eventName() }}</strong>
+                  </span>
+                </div>
+                <ul class="ci-names" id="continue-interstitial-names">
+                  @for (t of pendingTeams(); track t.clubTeamId) {
+                    <li>{{ t.clubTeamName }}<span class="ci-grad">Grad {{ t.clubTeamGradYear || '—' }}</span></li>
+                  }
+                </ul>
+                <div class="ci-actions">
+                  <button type="button" class="btn-ci-leave" (click)="continueWithoutPending()">
+                    Continue without {{ pendingTeams().length === 1 ? 'it' : 'them' }}
+                  </button>
+                  <button type="button" class="btn-ci-register" (click)="registerPendingNow()">
+                    <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+                    Register {{ pendingTeams().length === 1 ? 'it' : 'them' }} now
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <button type="button" class="continue-btn" [class.continue-btn--due]="dueNow() > 0"
+                      [disabled]="actionInProgress()"
+                      (click)="onContinue()">
+                <span class="continue-text">
+                  <span class="continue-title">Continue to Payment</span>
+                  <span class="continue-sub">
+                    @if (dueNow() > 0) { {{ dueNow() | currency }} due now } @else { Nothing due now &middot; review and finish }
                   </span>
                 </span>
+                <i class="bi bi-arrow-right-circle-fill continue-icon" aria-hidden="true"></i>
               </button>
-
-              <button type="button" class="action-segment action-segment-advance"
-                      (click)="proceedToPayment.emit()">
-                <span class="action-segment-content">
-                  <span class="action-segment-title">Continue to Payment</span>
-                  <span class="action-segment-sub">All my teams are registered</span>
-                </span>
-                <i class="bi bi-currency-dollar action-segment-icon" aria-hidden="true"></i>
-              </button>
-            </div>
+            }
           </div>
         }
       </div>
 
-      <!-- ── Library fly-in (right-side drawer; shows on demand) ── -->
+      <!-- RETIRED FLY-IN (2026-09-26) — the Club Team Library segment above replaces it. Kept for a return.
       <app-library-flyin
         [isOpen]="showLibraryFlyin()"
         [clubTeams]="allLibraryTeams()"
@@ -223,6 +315,7 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
         (archive)="askArchiveTeam($event)"
         (delete)="askDeleteTeam($event)"
         (restore)="askRestoreTeam($event)" />
+      -->
     }
 
     <!-- ═══ MODALS ═══ -->
@@ -353,102 +446,181 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
       }
 
 
-      /* Footer = decision fork rendered as a segmented control. Two halves
-         joined by a single divider, sharing one outer border. Each segment
-         carries its accent color at rest (subtle tint + 3px top accent bar)
-         so the fork is visible without hover. Equal visual weight — neither
-         side dominates; the rep picks based on which subtext is true. */
+      /* ── Segment bar — the step's two views as tabs on one card (Todd 2026-09-26). Library =
+         primary, Registered = success: the same two colors as the two-step explainer, so the
+         story "library, then event" reads the same everywhere. The active tab joins the panel
+         below it (surface background + a 3px accent under it); the other sits back, tinted.
+         Never color alone: each tab carries its own icon and words. ── */
+      .seg-bar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-bottom: 1px solid var(--border-color);
+        background: color-mix(in srgb, var(--bs-body-color) 4%, var(--brand-surface));
+      }
+
+      .seg-tab {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        min-width: 0;
+        padding: var(--space-3) var(--space-4);
+        border: none;
+        background: transparent;
+        font-family: inherit;
+        text-align: left;
+        color: var(--brand-text-muted);
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease;
+
+        &::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: -1px;
+          height: 3px;
+          background: transparent;
+        }
+
+        &:hover:not(.is-active) {
+          background: color-mix(in srgb, var(--bs-body-color) 6%, transparent);
+          color: var(--brand-text);
+        }
+        &:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--bs-primary); }
+        &.is-active { background: var(--brand-surface); color: var(--brand-text); }
+      }
+
+      .seg-tab + .seg-tab { border-left: 1px solid var(--border-color); }
+      .seg-tab--library.is-active::after { background: var(--bs-primary); }
+      .seg-tab--registered.is-active::after { background: var(--bs-success); }
+
+      .seg-tab-icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; opacity: 0.55; }
+      .seg-tab--library.is-active .seg-tab-icon { color: var(--bs-primary); opacity: 1; }
+      .seg-tab--registered.is-active .seg-tab-icon { color: var(--bs-success); opacity: 1; }
+
+      .seg-tab-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+      .seg-tab-title {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-bold);
+        line-height: var(--line-height-tight);
+      }
+
+      .seg-tab-sub {
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .seg-panel-body { padding: var(--space-3); }
+
+      .registered-head {
+        display: flex;
+        align-items: center;
+        margin-bottom: var(--space-2);
+      }
+
+      /* ── Footer: Continue sits outside the segments so either view can move on. Full weight
+         (filled tint + shadow) only when money is due now; with nothing due it is the quiet way
+         to finish, so it never competes with the Register buttons for a paid-up rep. ── */
       .step-card-footer {
         padding: var(--space-3);
         border-top: 1px solid var(--border-color);
         background: rgba(var(--bs-dark-rgb), 0.015);
       }
 
-      .action-segments {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        border-radius: var(--radius-md);
-        overflow: hidden;
-        box-shadow: var(--shadow-sm);
-      }
-
-      .action-segment {
-        position: relative;
+      .continue-btn {
         display: flex;
         align-items: center;
         gap: var(--space-3);
-        padding: var(--space-4) var(--space-4);
-        border: none;
-        border-radius: 0;
+        width: 100%;
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid color-mix(in srgb, var(--emerald-600) 35%, transparent);
+        border-radius: var(--radius-md);
+        background: var(--brand-surface);
+        color: var(--emerald-600);
         font-family: inherit;
         text-align: left;
         cursor: pointer;
-        transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+        transition: background-color 0.15s ease, box-shadow 0.15s ease;
 
-        &:focus-visible {
-          outline: none;
-          box-shadow: inset 0 0 0 2px currentColor;
+        &:hover:not(:disabled) { background: color-mix(in srgb, var(--emerald-600) 8%, var(--brand-surface)); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+        &:disabled { opacity: 0.5; cursor: default; }
+
+        &--due {
+          border-color: var(--emerald-600);
+          background: color-mix(in srgb, var(--emerald-600) 14%, var(--brand-surface));
+          box-shadow: var(--shadow-sm);
+
+          &:hover:not(:disabled) { background: color-mix(in srgb, var(--emerald-600) 24%, var(--brand-surface)); }
         }
       }
 
-      .action-segment-icon {
-        font-size: 2rem;
-        flex-shrink: 0;
-        line-height: 1;
-      }
+      .continue-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .continue-title { font-size: var(--font-size-base); font-weight: var(--font-weight-bold); line-height: var(--line-height-tight); }
+      .continue-sub { font-size: var(--font-size-xs); color: color-mix(in srgb, currentColor 75%, var(--brand-text)); }
+      .continue-icon { font-size: 1.75rem; line-height: 1; flex-shrink: 0; }
 
-      .action-segment-content {
+      /* The save-only guard on Continue */
+      .continue-interstitial {
         display: flex;
         flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-        flex: 1;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        border: 1px solid color-mix(in srgb, var(--bs-warning) 45%, transparent);
+        border-left: 3px solid var(--bs-warning);
+        border-radius: var(--radius-md);
+        background: color-mix(in srgb, var(--bs-warning) 8%, var(--brand-surface));
       }
 
-      .action-segment-title {
-        font-size: var(--font-size-base);
-        font-weight: var(--font-weight-bold);
-        line-height: var(--line-height-tight);
-        color: currentColor;
+      .ci-head {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+
+        .bi { color: var(--bs-warning); }
       }
 
-      .action-segment-sub {
-        font-size: var(--font-size-xs);
-        font-style: italic;
-        line-height: var(--line-height-normal);
-        color: color-mix(in srgb, currentColor 80%, var(--brand-text));
+      .ci-names { margin: 0; padding-left: var(--space-6); font-size: var(--font-size-sm); color: var(--brand-text); }
+      .ci-grad { margin-left: var(--space-2); font-size: var(--font-size-2xs); color: var(--brand-text-muted); }
+      .ci-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); }
+
+      .btn-ci-leave,
+      .btn-ci-register {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: 5px var(--space-3);
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
       }
 
-      /* Each option owns its color zone from rest — two distinct tinted
-         backgrounds split the bar, the contrast between them reads as the
-         divider. Hover deepens the same tint and lifts a hair. Light/dark
-         compatible: color-mix to transparent layers over whatever surface
-         the parent provides. */
-      .action-segment-stay {
-        color: var(--amber-700);
-        background: color-mix(in srgb, var(--amber-500) 18%, transparent);
+      .btn-ci-leave {
+        border: 1px solid var(--bs-border-color);
+        background: transparent;
+        color: var(--brand-text);
 
-        &:hover {
-          background: color-mix(in srgb, var(--amber-500) 32%, transparent);
-          box-shadow: inset 0 -2px 0 var(--amber-700);
-        }
-        &:active { transform: translateY(1px); }
+        &:hover { background: color-mix(in srgb, var(--bs-body-color) 5%, transparent); }
       }
 
-      .action-segment-advance {
-        color: var(--emerald-600);
-        background: color-mix(in srgb, var(--emerald-600) 14%, transparent);
+      .btn-ci-register {
+        border: 1px solid var(--bs-success);
+        background: var(--bs-success);
+        color: var(--neutral-0);
+        font-weight: var(--font-weight-semibold);
 
-        &:hover {
-          background: color-mix(in srgb, var(--emerald-600) 26%, transparent);
-          box-shadow: inset 0 -2px 0 var(--emerald-600);
-        }
-        &:active { transform: translateY(1px); }
+        &:hover { filter: brightness(0.93); }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .action-segment { transition: none !important; }
-        .action-segment:active { transform: none; }
+        .seg-tab, .continue-btn { transition: none !important; }
       }
 
       /* ── Section banner header ── */
@@ -679,19 +851,14 @@ type PendingRename = { origin: 'event'; team: RegisteredTeamDto };
 
       /* ── Mobile ── */
       @media (max-width: 575.98px) {
-        .step-card-footer {
-          padding: var(--space-2);
-        }
+        .step-card-footer { padding: var(--space-2); }
 
-        .action-segments {
-          grid-template-columns: 1fr;
-        }
-
-        /* Stacked: divider becomes horizontal. */
-        .action-segment + .action-segment {
-          border-left: none;
-          border-top: 1px solid var(--border-color);
-        }
+        /* Two tabs stay side by side; the long event name wraps instead of the icons crowding it. */
+        .seg-tab { gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+        .seg-tab-icon { display: none; }
+        .seg-tab-title { font-size: var(--font-size-sm); }
+        .seg-panel-body { padding: var(--space-2); }
+        .continue-btn { padding: var(--space-3); }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -764,8 +931,17 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly pendingArchive = signal<ClubTeamDto | null>(null);
     /** When set, the restore-confirm dialog is open for this team. */
     readonly pendingRestore = signal<ClubTeamDto | null>(null);
-    /** Library fly-in open state. Opens only on explicit user action — never auto-opened. */
-    readonly showLibraryFlyin = signal(false);
+    // RETIRED FLY-IN: open state. Opened only on explicit user action — never auto-opened.
+    // readonly showLibraryFlyin = signal(false);
+
+    // ── Segments ───────────────────────────────────────────────────────
+    /** Which view is showing. Set ONCE by pickOpeningSegment when the first load lands, then only by the rep. */
+    readonly segment = signal<TeamsSegment>('library');
+    private openingSegmentChosen = false;
+    /** Continue was pressed with library-only saves still unregistered — the footer asks first. */
+    readonly confirmingContinue = signal(false);
+    /** Bumped by "Register it now" so the Library segment scrolls to the pending rows even when already showing. */
+    readonly revealPending = signal(0);
 
     private readonly _registeredTeams = signal<RegisteredTeamDto[]>([]);
     /** Teams a director moved into a "DROPPED" age group — read-only history fed
@@ -784,28 +960,13 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly enteredTeams = computed(() => this._registeredTeams());
 
     /**
-     * Map of clubTeamId → registration info — flyin uses this to mark rows as
-     * Registered AND to display *which* age group + LOP each is registered as.
+     * Map of clubTeamId → this event's registration. (The retired fly-in took a slimmer
+     * RegisteredInfo projection of this; re-enabling it means restoring that shape.)
      */
     readonly enteredTeamsMap = computed(() => {
-        const map = new Map<number, RegisteredInfo>();
+        const map = new Map<number, RegisteredTeamDto>();
         for (const r of this._registeredTeams()) {
-            if (r.clubTeamId != null) {
-                map.set(r.clubTeamId, {
-                    ageGroupName: r.ageGroupName ?? '',
-                    ageGroupDisplayName: r.ageGroupDisplayName ?? '',
-                    isWaitlisted: r.isWaitlisted ?? false,
-                    levelOfPlay: r.levelOfPlay ?? '',
-                    // Carried so the flyin's Registered strip can mirror the grid's
-                    // Remove rule (hidden once anything is paid) without a second
-                    // source of truth. The guard is still re-applied in onRemoveTeam.
-                    teamId: r.teamId,
-                    // This event's name — the strip shows it in parens when a this-event
-                    // rename made it differ from the library name.
-                    eventTeamName: r.teamName,
-                    paidTotal: r.paidTotal,
-                });
-            }
+            if (r.clubTeamId != null) map.set(r.clubTeamId, r);
         }
         return map;
     });
@@ -835,9 +996,98 @@ export class TeamTeamsStepComponent implements OnInit {
             .sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName));
     });
 
-    /** Up to three names, then "+N more" — the strip is one line, not a list. */
+    /** Active (not archived) library teams. */
+    readonly activeLibraryCount = computed(() => this._clubTeams().filter(t => !t.bArchived).length);
+
+    /** What the rep owes today — the grid footer's own rule (sumDueNowOf), never a second copy. */
+    readonly dueNow = computed(() => sumDueNowOf(this._registeredTeams()));
+
+    /** The Club Team Library tab's second line. */
+    readonly librarySegmentSub = computed(() => {
+        const active = this.activeLibraryCount();
+        if (active === 0) return 'Start here: add your first team';
+        const teams = `${active} ${active === 1 ? 'team' : 'teams'}`;
+        const ready = this.unregisteredEligible().length;
+        return this.canRegisterTeam() && ready > 0 ? `${teams} · ${ready} ready to register` : teams;
+    });
+
+    /** Library-only saves from this session, resolved to rows — what the Continue guard names. */
+    readonly pendingTeams = computed<ClubTeamDto[]>(() => {
+        const pending = this.pendingLibraryOnly();
+        if (pending.size === 0) return [];
+        return this._clubTeams()
+            .filter(t => pending.has(t.clubTeamId))
+            .sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName));
+    });
+
     ngOnInit(): void {
         this.loadTeamsMetadata(true);
+    }
+
+    // ── Segments ───────────────────────────────────────────────────────
+
+    /**
+     * The segment that opens, from the rep's state on arrival (Todd 2026-09-26), first match wins:
+     *
+     *   library empty                         → Library (nothing else can be done)
+     *   nothing registered here               → Library (the list is the picker)
+     *   money due now                         → Registered (they are here to pay)
+     *   nothing due, library teams still fit  → Library (a paid-up rep is back to add a team)
+     *   otherwise                             → Registered (confirm and finish)
+     *
+     * "Due now", not "paid in full": a deposit-paid team still owes its balance, just not today.
+     * Deliberately not gated on canRegisterTeam — the pulse can land after the metadata, and a
+     * closed event's library rows say "Registration closed" on their own.
+     */
+    private pickOpeningSegment(): TeamsSegment {
+        if (this.activeLibraryCount() === 0) return 'library';
+        if (this._registeredTeams().length === 0) return 'library';
+        if (this.dueNow() > 0) return 'registered';
+        if (this.unregisteredEligible().length > 0) return 'library';
+        return 'registered';
+    }
+
+    selectSegment(segment: TeamsSegment): void {
+        this.confirmingContinue.set(false);
+        this.segment.set(segment);
+    }
+
+    /** Arrow keys move between the two tabs (WAI-ARIA tabs pattern). */
+    onSegmentKey(event: KeyboardEvent): void {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
+        event.preventDefault();
+        const next: TeamsSegment = event.key === 'Home' ? 'library'
+            : event.key === 'End' ? 'registered'
+            : this.segment() === 'library' ? 'registered' : 'library';
+        this.selectSegment(next);
+        document.getElementById(next === 'library' ? 'teams-seg-tab-library' : 'teams-seg-tab-registered')?.focus();
+    }
+
+    // ── Continue (outside the segments) ────────────────────────────────
+
+    /**
+     * The P0 guard the fly-in's Done carried: a team saved to the library this session and still
+     * not registered here stops Continue once, by name. Otherwise straight on.
+     */
+    onContinue(): void {
+        if (this.pendingTeams().length > 0) {
+            this.confirmingContinue.set(true);
+            return;
+        }
+        this.proceedToPayment.emit();
+    }
+
+    /** "Continue without it": the rep has been told and chose; stop asking this session. */
+    continueWithoutPending(): void {
+        this.confirmingContinue.set(false);
+        this.clearPendingLibraryOnly();
+        this.proceedToPayment.emit();
+    }
+
+    /** "Register it now": the Library segment, where the pending rows are tinted and scrolled to. */
+    registerPendingNow(): void {
+        this.selectSegment('library');
+        this.revealPending.update(n => n + 1);
     }
 
     isEnteredTeam(clubTeamId: number): boolean {
@@ -848,28 +1098,75 @@ export class TeamTeamsStepComponent implements OnInit {
         return this._registeredTeams().find(r => r.clubTeamId === clubTeamId) ?? null;
     }
 
-    /** Library fly-in open/close. */
-    openLibraryFlyin(): void { this.showLibraryFlyin.set(true); }
-    closeLibraryFlyin(): void { this.showLibraryFlyin.set(false); }
+    // RETIRED FLY-IN: open/close, and its header door to the standalone library page.
+    // openLibraryFlyin(): void { this.showLibraryFlyin.set(true); }
+    // closeLibraryFlyin(): void { this.showLibraryFlyin.set(false); }
+    // goToLibraryPage(): void {
+    //     const jobPath = this.state.jobPath();
+    //     if (!jobPath) return;
+    //     this.showLibraryFlyin.set(false);
+    //     this.router.navigateByUrl(`/${jobPath}/club/library`);
+    // }
 
-    /** Fly-in header → the standalone Club Team Library page (same job, same session). */
-    goToLibraryPage(): void {
-        const jobPath = this.state.jobPath();
-        if (!jobPath) return;
-        this.showLibraryFlyin.set(false);
-        this.router.navigateByUrl(`/${jobPath}/club/library`);
-    }
-
-    /** Flyin emits {team, ageGroupId, levelOfPlay} from its inline-expand picker. */
-    onFlyinRegister(req: RegisterRequest): void {
-        // Build a ClubTeamDto-compatible object with the picker-selected LOP so
-        // downstream registerTeamForEvent gets the rep's adjusted value rather
-        // than the library team's stored default.
+    /**
+     * One team from the Club Team Library segment — its one-press Register, or its editor.
+     * The LOP rides as the EVENT's level of play; the library row keeps its own.
+     */
+    onLibraryRegister(req: LibraryRegisterRequest): void {
+        // A ClubTeamDto-compatible object carrying the picked LOP, so registerTeamForEvent gets the
+        // rep's value rather than the library team's stored default.
         const team: ClubTeamDto = {
             ...req.team,
             clubTeamLevelOfPlay: req.levelOfPlay || req.team.clubTeamLevelOfPlay,
         };
         this.onSelectAgeGroup(team, req.ageGroupId);
+    }
+
+    /**
+     * "Register all": one POST per team, strictly in order (each one can fill an age group the
+     * next is heading for, and the server decides the waitlist per call). The first refusal
+     * stops the run — a closed event or a director toggle would refuse every call after it, and
+     * the interceptor has already toasted the reason once. One reload and one summary at the end.
+     */
+    onLibraryRegisterMany(reqs: LibraryRegisterRequest[]): void {
+        if (reqs.length === 0 || this.actionInProgress()) return;
+        this.actionInProgress.set(true);
+
+        let registered = 0;
+        let waitlisted = 0;
+        let stopped = false;
+
+        from(reqs).pipe(
+            concatMap(req => defer(() => stopped
+                ? EMPTY
+                : this.teamReg.registerTeamForEvent({
+                    clubTeamId: req.team.clubTeamId,
+                    ageGroupId: req.ageGroupId,
+                    teamName: req.team.clubTeamName,
+                    clubTeamGradYear: req.team.clubTeamGradYear,
+                    levelOfPlay: req.levelOfPlay || req.team.clubTeamLevelOfPlay || undefined,
+                }).pipe(
+                    map(resp => (resp.isWaitlisted ? 'waitlisted' : 'registered') as 'waitlisted' | 'registered'),
+                    catchError(() => { stopped = true; return of('failed' as const); }),
+                ))),
+            takeUntilDestroyed(this.destroyRef),
+        ).subscribe({
+            next: outcome => {
+                if (outcome === 'registered') registered++;
+                else if (outcome === 'waitlisted') waitlisted++;
+            },
+            complete: () => {
+                const done = registered + waitlisted;
+                const notTried = reqs.length - done - (stopped ? 1 : 0);
+                const parts: string[] = [];
+                if (registered) parts.push(`${registered} ${registered === 1 ? 'team' : 'teams'} registered for ${this.eventName()}`);
+                if (waitlisted) parts.push(`${waitlisted} waitlisted`);
+                if (stopped) parts.push(`stopped after a refusal${notTried > 0 ? `, ${notTried} not tried` : ''}`);
+                const msg = parts.length ? parts.join(' · ') + '.' : 'No teams were registered.';
+                const tone = stopped || done === 0 ? 'warning' : waitlisted ? 'warning' : 'success';
+                this.loadTeamsMetadata(false, () => this.toast.show(msg, tone, 5000));
+            },
+        });
     }
 
     /** Register (or re-register) a team with the selected age group. */
@@ -902,10 +1199,9 @@ export class TeamTeamsStepComponent implements OnInit {
                         // HTTP 400, which HttpClient routes to `error:` below.
                         const msg = resp.isWaitlisted
                             ? `${team.clubTeamName} waitlisted for ${this.stripWaitlistPrefix(resp.waitlistAgegroupName)}`
-                            : `${team.clubTeamName} registered for the event!`;
-                        // Keep the flyin open: the row transitions in-place to a green "Registered"
-                        // badge, reinforcing that the library team is now ALSO an event registration.
-                        // Lets the rep register multiple teams in a row without re-opening the drawer.
+                            : `${team.clubTeamName} registered for ${this.eventName()}.`;
+                        // The segment stays put: the row turns "Registered in {age group}" in place and
+                        // the Registered Teams tab's count ticks, so the rep can keep working down the list.
                         this.loadTeamsMetadata(false, () =>
                             this.toast.show(msg, resp.isWaitlisted ? 'warning' : 'success', 3000));
                     },
@@ -1178,10 +1474,11 @@ export class TeamTeamsStepComponent implements OnInit {
      * guard and the confirm dialog stay on the single path the teams grid already
      * uses — the flyin never gets its own removal route.
      */
-    onFlyinUnregister(clubTeamId: number): void {
-        const team = this.getEnteredInfo(clubTeamId);
-        if (team) this.onRemoveTeam(team);
-    }
+    // RETIRED FLY-IN: its Registered strip's trash can.
+    // onFlyinUnregister(clubTeamId: number): void {
+    //     const team = this.getEnteredInfo(clubTeamId);
+    //     if (team) this.onRemoveTeam(team);
+    // }
 
     confirmRemove(): void {
         const team = this.pendingRemove();
@@ -1265,6 +1562,12 @@ export class TeamTeamsStepComponent implements OnInit {
                     this._clubTeams.set(meta.clubTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);
                     this.state.applyTeamsMetadata(meta);
+                    // Once, on the first landing — never again, or a registration mid-visit would
+                    // move the rep off the list they are working.
+                    if (!this.openingSegmentChosen) {
+                        this.openingSegmentChosen = true;
+                        this.segment.set(this.pickOpeningSegment());
+                    }
                     onLoaded?.();
                 },
                 error: () => {

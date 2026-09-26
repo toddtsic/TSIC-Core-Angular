@@ -16,6 +16,17 @@ export type TeamFeeStatus =
     | { kind: 'paid' };
 
 /**
+ * "Due now": what the rep owes today — waitlisted rows owe nothing until placed, and auto-pay rows
+ * are drafted on their own schedule. The grid's footer and the teams step's opening-segment rule
+ * both read this, so the number the rep sees and the number that picks the segment never differ.
+ */
+export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
+    return teams
+        .filter(t => !t.isWaitlisted && !(t.paymentScheduled && (t.owedTotal ?? 0) > 0))
+        .reduce((s, t) => s + Math.max(0, t.owedTotal ?? 0), 0);
+}
+
+/**
  * Registered-TEAMS summary grid. Club rep surfaces only: the teams step (interactive, with
  * delete), the payment step (read-only), and the director's club-rep accounting view.
  *
@@ -606,9 +617,7 @@ export class RegisteredTeamsGridComponent {
         return !t.isWaitlisted && !t.fullPaymentRequired && (t.deposit ?? 0) > 0 && (t.balanceDue ?? 0) > 0;
     }
     /** Owed by hand, now — scheduled (auto-pay) rows are listed separately, not here. */
-    readonly sumDueNow = computed(() => this.teams()
-        .filter(t => !t.isWaitlisted && !(t.paymentScheduled && (t.owedTotal ?? 0) > 0))
-        .reduce((s, t) => s + Math.max(0, t.owedTotal ?? 0), 0));
+    readonly sumDueNow = computed(() => sumDueNowOf(this.teams()));
     readonly sumAutoPay = computed(() => this.teams()
         .filter(t => !t.isWaitlisted && t.paymentScheduled && (t.owedTotal ?? 0) > 0)
         .reduce((s, t) => s + (t.owedTotal ?? 0), 0));
