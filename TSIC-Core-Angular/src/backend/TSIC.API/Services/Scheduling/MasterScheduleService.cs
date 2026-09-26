@@ -222,4 +222,11 @@ public class MasterScheduleService : IMasterScheduleService
 
         return workbook.ToByteArray();
     }
+
+    public async Task<byte[]> ExportCoachPdfAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Coach handout — never carries referee assignments.
+        var data = await GetMasterScheduleAsync(jobId, includeReferees: false, ct);
+        return CoachMasterSchedulePdfRenderer.Render(data);
+    }
 }

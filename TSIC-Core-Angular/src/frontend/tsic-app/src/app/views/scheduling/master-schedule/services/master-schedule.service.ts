@@ -18,4 +18,8 @@ export class MasterScheduleService {
 			{ includeReferees, dayIndex: dayIndex ?? null },
 			{ responseType: 'blob' });
 	}
+
+	exportCoachPdf(): Observable<Blob> {
+		return this.http.get(this.apiUrl + '/coach-pdf', { responseType: 'blob' });
+	}
 }

@@ -26,6 +26,12 @@
 				<i class="bi bi-files me-1"></i>
 				Export All Days
 			</button>
+			<button class="btn btn-outline-primary btn-sm"
+				[disabled]="isExporting()"
+				(click)="exportCoachPdf()">
+				<i class="bi bi-file-earmark-pdf me-1"></i>
+				Collegiate Coach Master Schedule
+			</button>
 		</div>
 	}
 </div>

@@ -88,6 +88,17 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 		});
 	}
 
+	exportCoachPdf(): void {
+		this.isExporting.set(true);
+		this.svc.exportCoachPdf().subscribe({
+			next: (blob) => {
+				this.downloadBlob(blob, 'Collegiate-Coach-Master-Schedule.pdf');
+				this.isExporting.set(false);
+			},
+			error: () => this.isExporting.set(false),
+		});
+	}
+
 	private downloadBlob(blob: Blob, fileName: string): void {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');

@@ -64,6 +64,18 @@ public class MasterScheduleController : ControllerBase
             fileName);
     }
 
+    /// <summary>GET /api/master-schedule/coach-pdf — Collegiate Coach Master Schedule (.pdf), all days.</summary>
+    [HttpGet("coach-pdf")]
+    public async Task<IActionResult> ExportCoachPdf(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var bytes = await _service.ExportCoachPdfAsync(jobId.Value, ct);
+        return File(bytes, "application/pdf", "Collegiate-Coach-Master-Schedule.pdf");
+    }
+
     private bool IsAdmin()
     {
         var roleName = User.FindFirstValue(ClaimTypes.Role)
