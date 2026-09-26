@@ -446,58 +446,61 @@ type TeamsSegment = 'library' | 'registered';
       }
 
 
-      /* ── Segment bar — the step's two views as tabs on one card (Todd 2026-09-26). Library =
-         primary, Registered = success: the same two colors as the two-step explainer, so the
-         story "library, then event" reads the same everywhere. The active tab joins the panel
-         below it (surface background + a 3px accent under it); the other sits back, tinted.
-         Never color alone: each tab carries its own icon and words. ── */
+      /* ── Segmented control — the step's two views (Todd 2026-09-26). It must read as a SWITCH at a
+         glance, not as a card header: a recessed track holding two raised pills, the selected pill
+         FILLED in its own color with light text, the other flat and muted inside the track.
+         Library = primary, Registered = success: the two-step explainer's colors, so "library,
+         then event" reads the same everywhere. Never color alone: fill vs flat, raised vs sunk,
+         and each pill carries its own icon and words. ── */
       .seg-bar {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        border-bottom: 1px solid var(--border-color);
-        background: color-mix(in srgb, var(--bs-body-color) 4%, var(--brand-surface));
+        gap: var(--space-1);
+        margin: var(--space-3) var(--space-3) 0;
+        padding: var(--space-1);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        background: color-mix(in srgb, var(--bs-body-color) 7%, var(--brand-surface));
+        box-shadow: inset 0 1px 3px color-mix(in srgb, var(--bs-body-color) 12%, transparent);
       }
 
       .seg-tab {
-        position: relative;
         display: flex;
         align-items: center;
         gap: var(--space-3);
         min-width: 0;
-        padding: var(--space-3) var(--space-4);
-        border: none;
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid transparent;
+        border-radius: var(--radius-md);
         background: transparent;
         font-family: inherit;
         text-align: left;
         color: var(--brand-text-muted);
         cursor: pointer;
-        transition: background-color 0.15s ease, color 0.15s ease;
-
-        &::after {
-          content: '';
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: -1px;
-          height: 3px;
-          background: transparent;
-        }
+        transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 
         &:hover:not(.is-active) {
-          background: color-mix(in srgb, var(--bs-body-color) 6%, transparent);
+          background: color-mix(in srgb, var(--brand-surface) 70%, transparent);
+          border-color: var(--border-color);
           color: var(--brand-text);
         }
-        &:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--bs-primary); }
-        &.is-active { background: var(--brand-surface); color: var(--brand-text); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+        &.is-active {
+          color: var(--on-primary);
+          box-shadow: var(--shadow-md);
+          cursor: default;
+
+          .seg-tab-icon { opacity: 1; color: inherit; }
+          .seg-tab-sub { color: inherit; opacity: 0.88; }
+          &:focus-visible { box-shadow: var(--shadow-md), var(--shadow-focus); }
+        }
       }
 
-      .seg-tab + .seg-tab { border-left: 1px solid var(--border-color); }
-      .seg-tab--library.is-active::after { background: var(--bs-primary); }
-      .seg-tab--registered.is-active::after { background: var(--bs-success); }
+      .seg-tab--library.is-active { background: var(--bs-primary); border-color: var(--bs-primary); }
+      .seg-tab--registered.is-active { background: var(--bs-success); border-color: var(--bs-success); color: var(--neutral-0); }
 
-      .seg-tab-icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; opacity: 0.55; }
-      .seg-tab--library.is-active .seg-tab-icon { color: var(--bs-primary); opacity: 1; }
-      .seg-tab--registered.is-active .seg-tab-icon { color: var(--bs-success); opacity: 1; }
+      .seg-tab-icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; opacity: 0.5; }
 
       .seg-tab-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
@@ -854,7 +857,8 @@ type TeamsSegment = 'library' | 'registered';
         .step-card-footer { padding: var(--space-2); }
 
         /* Two tabs stay side by side; the long event name wraps instead of the icons crowding it. */
-        .seg-tab { gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+        .seg-bar { margin: var(--space-2) var(--space-2) 0; }
+        .seg-tab { gap: var(--space-2); padding: var(--space-2); }
         .seg-tab-icon { display: none; }
         .seg-tab-title { font-size: var(--font-size-sm); }
         .seg-panel-body { padding: var(--space-2); }
