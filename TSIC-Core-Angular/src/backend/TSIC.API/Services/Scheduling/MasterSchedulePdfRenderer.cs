@@ -50,6 +50,7 @@ internal static class MasterSchedulePdfRenderer
 
     private const float MatchupGap = 1.5f;       // space above and below the VS line
     private const float NoteBandH = 20f;         // settings note under the grid (Operations only)
+    private const int LoadLightest = 245;        // gray level of a complex's quietest CARS ON SITE cell
     private const int LoadDarkest = 90;          // gray level of a complex's peak CARS ON SITE cell
 
     private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
@@ -187,8 +188,7 @@ internal static class MasterSchedulePdfRenderer
             x += col.Width;
         }
 
-        // Cars per (complex, row), and each complex's peak across the printed rows — the load shading
-        // runs white (no cars) → dark gray (that complex's busiest printed time).
+        // Cars per (complex, row) — the load shading ramps across each complex's printed min..max.
         var carsByComplex = cols
             .Where(c => c.Complex != null)
             .Select(c => c.Complex!)
@@ -216,7 +216,7 @@ internal static class MasterSchedulePdfRenderer
                 {
                     var series = carsByComplex[col.Complex];
                     var cars = series[r];
-                    var (shade, text) = LoadShade(cars, series.Max());
+                    var (shade, text) = LoadShade(cars, series.Min(), series.Max());
                     g.DrawRectangle(pens.Grid, new PdfSolidBrush(shade), rect);
                     g.DrawString(cars.ToString("N0", CultureInfo.InvariantCulture), fonts.Time, new PdfSolidBrush(text), rect, Centered);
                     continue;
@@ -258,13 +258,15 @@ internal static class MasterSchedulePdfRenderer
     }
 
     /// <summary>
-    /// Gray load ramp for a CARS ON SITE cell: white at 0 → dark gray at the complex's peak, with the
-    /// grid's black/white text pick. Gray, because every hue is already an agegroup color on the sheet.
+    /// Gray load ramp for a CARS ON SITE cell, stretched across the complex's printed range for the
+    /// day: its quietest row near-white → its peak dark gray, so mid-range differences stay visible.
+    /// A flat day (min == max) stays light. Text uses the grid's black/white pick. Gray, because every
+    /// hue is already an agegroup color on the sheet.
     /// </summary>
-    private static (PdfColor Fill, PdfColor Text) LoadShade(int cars, int peak)
+    private static (PdfColor Fill, PdfColor Text) LoadShade(int cars, int min, int max)
     {
-        var t = peak > 0 ? Math.Clamp((float)cars / peak, 0f, 1f) : 0f;
-        var v = (byte)Math.Round(255 - (t * (255 - LoadDarkest)));
+        var t = max > min ? Math.Clamp((float)(cars - min) / (max - min), 0f, 1f) : 0f;
+        var v = (byte)Math.Round(LoadLightest - (t * (LoadLightest - LoadDarkest)));
         var text = ColorUtility.GetContrastColor($"#{v:X2}{v:X2}{v:X2}") == "#fff"
             ? new PdfColor(255, 255, 255)
             : new PdfColor(0, 0, 0);
