@@ -2,13 +2,14 @@ import { ChangeDetectionStrategy, Component, computed, input, signal, output } f
 import type { StandingsByDivisionResponse } from '@core/api';
 import { contrastText } from '../../shared/utils/scheduling-helpers';
 import { AgeGroupPickerComponent, type AgePickerItem } from '../../shared/components/age-group-picker/age-group-picker.component';
+import { SwipePagerDirective } from '@shared-ui/directives/swipe-pager.directive';
 
 type StandingsMode = 'all' | 'rr';
 
 @Component({
     selector: 'app-standings-tab',
     standalone: true,
-    imports: [AgeGroupPickerComponent],
+    imports: [AgeGroupPickerComponent, SwipePagerDirective],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (isLoading()) {
@@ -54,51 +55,59 @@ type StandingsMode = 'all' | 'rr';
                     </div>
                 </div>
 
-                <!-- Division cards for selected age group -->
-                @for (div of activeDivisions(); track div.divId) {
-                    <div class="division-block">
-                        <div class="division-header">
-                            {{ div.divName }}
-                        </div>
+                <!-- Division cards for the selected age group. Swipe sideways to walk the
+                     age groups, same gesture and page turn as the brackets tab; the pager
+                     is both gesture host and the thing that turns. -->
+                <div class="standings-pager"
+                     appSwipePager
+                     [appSwipePagerCanPrev]="canStepPrev()"
+                     [appSwipePagerCanNext]="canStepNext()"
+                     (appSwipePagerStep)="stepAgTab($event)">
+                    @for (div of activeDivisions(); track div.divId) {
+                        <div class="division-block">
+                            <div class="division-header">
+                                {{ div.divName }}
+                            </div>
 
-                        <table class="standings-table">
-                            <thead>
-                                <tr>
-                                    <th class="col-rank">#</th>
-                                    <th class="col-team">Team</th>
-                                    <th class="col-num">GP</th>
-                                    <th class="col-num">W</th>
-                                    <th class="col-num">L</th>
-                                    <th class="col-num">T</th>
-                                    <th class="col-num">GF</th>
-                                    <th class="col-num">GA</th>
-                                    <th class="col-num">GD</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (team of div.teams; track team.teamId; let i = $index) {
-                                    <tr [class.top-rank]="team.rankOrder === 1">
-                                        <td class="col-rank">{{ team.rankOrder ?? (i + 1) }}</td>
-                                        <td class="col-team">
-                                            <span class="team-link"
-                                                  [class.team-name--followed]="isFollowed(team.teamId)"
-                                                  (click)="viewTeamResults.emit(team.teamId)">
-                                                {{ team.teamName }}
-                                            </span>
-                                        </td>
-                                        <td class="col-num">{{ team.games }}</td>
-                                        <td class="col-num">{{ team.wins }}</td>
-                                        <td class="col-num">{{ team.losses }}</td>
-                                        <td class="col-num">{{ team.ties }}</td>
-                                        <td class="col-num">{{ team.goalsFor }}</td>
-                                        <td class="col-num">{{ team.goalsAgainst }}</td>
-                                        <td class="col-num">{{ formatGoalDiff(team.goalDiffMax9) }}</td>
+                            <table class="standings-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-rank">#</th>
+                                        <th class="col-team">Team</th>
+                                        <th class="col-num">GP</th>
+                                        <th class="col-num">W</th>
+                                        <th class="col-num">L</th>
+                                        <th class="col-num">T</th>
+                                        <th class="col-num">GF</th>
+                                        <th class="col-num">GA</th>
+                                        <th class="col-num">GD</th>
                                     </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                                </thead>
+                                <tbody>
+                                    @for (team of div.teams; track team.teamId; let i = $index) {
+                                        <tr [class.top-rank]="team.rankOrder === 1">
+                                            <td class="col-rank">{{ team.rankOrder ?? (i + 1) }}</td>
+                                            <td class="col-team">
+                                                <span class="team-link"
+                                                      [class.team-name--followed]="isFollowed(team.teamId)"
+                                                      (click)="viewTeamResults.emit(team.teamId)">
+                                                    {{ team.teamName }}
+                                                </span>
+                                            </td>
+                                            <td class="col-num">{{ team.games }}</td>
+                                            <td class="col-num">{{ team.wins }}</td>
+                                            <td class="col-num">{{ team.losses }}</td>
+                                            <td class="col-num">{{ team.ties }}</td>
+                                            <td class="col-num">{{ team.goalsFor }}</td>
+                                            <td class="col-num">{{ team.goalsAgainst }}</td>
+                                            <td class="col-num">{{ formatGoalDiff(team.goalDiffMax9) }}</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
             </div>
         }
     `,
@@ -121,6 +130,15 @@ type StandingsMode = 'all' | 'rr';
             display: flex;
             flex-direction: column;
             gap: var(--space-4);
+        }
+
+        /* The turning page — carries the wrapper's column gap between division
+           blocks, and is positioned so the pager's shading layer can cover it. */
+        .standings-pager {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: inherit;
         }
 
         /* ── Toolbar: tabs + toggle ── */
@@ -483,6 +501,19 @@ export class StandingsTabComponent {
     readonly activeAgId = computed(() => String(this.activeAgTabIndex()));
     onAgePicked(id: string): void {
         this.selectAgTab(Number(id));
+    }
+
+    readonly canStepPrev = computed(() => this.activeAgTabIndex() > 0);
+    readonly canStepNext = computed(() => this.activeAgTabIndex() < this.ageGroupTabs().length - 1);
+
+    /**
+     * Swipe: walk the age-group list by one. Clamped rather than wrapping, as on
+     * the brackets tab — the ends tug instead of jumping back to the start.
+     */
+    stepAgTab(delta: number): void {
+        const next = this.activeAgTabIndex() + delta;
+        if (next < 0 || next >= this.ageGroupTabs().length) return;
+        this.selectAgTab(next);
     }
 
     formatGoalDiff(gd: number): string {
