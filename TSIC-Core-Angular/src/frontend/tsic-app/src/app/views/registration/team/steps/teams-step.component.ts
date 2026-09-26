@@ -166,6 +166,7 @@ type TeamsSegment = 'library' | 'registered';
                   [actionInProgress]="actionInProgress()"
                   [pendingLibraryOnly]="pendingLibraryOnly()"
                   [revealPending]="revealPending()"
+                  [listFirst]="enteredTeams().length === 0"
                   (register)="onLibraryRegister($event)"
                   (registerMany)="onLibraryRegisterMany($event)"
                   (addNew)="onAddNew()"
@@ -1031,24 +1032,19 @@ export class TeamTeamsStepComponent implements OnInit {
     // ── Segments ───────────────────────────────────────────────────────
 
     /**
-     * The segment that opens, from the rep's state on arrival (Todd 2026-09-26), first match wins:
+     * The segment that opens — a SIMPLE BINARY (Todd 2026-09-26):
      *
-     *   library empty                         → Library (nothing else can be done)
-     *   nothing registered here               → Library (the list is the picker)
-     *   money due now                         → Registered (they are here to pay)
-     *   nothing due, library teams still fit  → Library (a paid-up rep is back to add a team)
-     *   otherwise                             → Registered (confirm and finish)
+     *   no teams registered here → Library. Getting the Club Team Library right is priority #1;
+     *                              an empty library is just what that tab shows, not a third state.
+     *   teams registered here    → Registered Teams. Assume they don't need the library; it is one
+     *                              tab away "prn".
      *
-     * "Due now", not "paid in full": a deposit-paid team still owes its balance, just not today.
-     * Deliberately not gated on canRegisterTeam — the pulse can land after the metadata, and a
-     * closed event's library rows say "Registration closed" on their own.
+     * There is no reliable way to tell a legacy veteran new to the library from anyone else (the
+     * population script back-filled every library and history signal), so the rule keys on the
+     * one hard fact this event has.
      */
     private pickOpeningSegment(): TeamsSegment {
-        if (this.activeLibraryCount() === 0) return 'library';
-        if (this._registeredTeams().length === 0) return 'library';
-        if (this.dueNow() > 0) return 'registered';
-        if (this.unregisteredEligible().length > 0) return 'library';
-        return 'registered';
+        return this._registeredTeams().length === 0 ? 'library' : 'registered';
     }
 
     selectSegment(segment: TeamsSegment): void {
