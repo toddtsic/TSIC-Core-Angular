@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Syncfusion.Drawing;
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
+using TSIC.API.Utilities;
 using TSIC.Contracts.Dtos.Scheduling;
 
 namespace TSIC.API.Services.Scheduling;
@@ -48,11 +49,18 @@ internal static class MasterSchedulePdfRenderer
     };
 
     private const float MatchupGap = 1.5f;       // space above and below the VS line
+    private const float NoteBandH = 20f;         // settings note under the grid (Operations only)
+    private const int LoadDarkest = 90;          // gray level of a complex's peak CARS ON SITE cell
 
     private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
 
     /// <param name="parking">Null → Collegiate Coach layout; supplied → Operations layout with cars columns.</param>
-    public static byte[] Render(MasterScheduleResponse data, TournamentParkingResponse? parking = null)
+    /// <param name="parkingRequest">The parameters the parking report ran with — printed under the grid so
+    /// two sheets run with different inputs can be told apart.</param>
+    public static byte[] Render(
+        MasterScheduleResponse data,
+        TournamentParkingResponse? parking = null,
+        TournamentParkingRequest? parkingRequest = null)
     {
         var doc = new PdfDocument();
         doc.PageSettings.Orientation = PdfPageOrientation.Landscape;
@@ -75,10 +83,16 @@ internal static class MasterSchedulePdfRenderer
             cd => (Complex: cd.FieldComplex, cd.Day.Date),
             cd => cd.Timeslots.OrderBy(t => t.Time).ToList());
 
+        var settingsNote = parkingRequest == null
+            ? null
+            : $"CARS ON SITE ESTIMATE:   ARRIVAL BUFFER {parkingRequest.ArrivalBufferMinutes} MIN   |   " +
+              $"DEPARTURE BUFFER {parkingRequest.DepartureBufferMinutes} MIN   |   " +
+              $"{parkingRequest.CarMultiplier} CARS PER TEAM";
+
         foreach (var day in data.Days)
         {
             var page = doc.Pages.Add();
-            DrawDay(page, day, data.FieldColumns, parkingSlots, fonts, pens);
+            DrawDay(page, day, data.FieldColumns, parkingSlots, settingsNote, fonts, pens);
         }
 
         return Save(doc);
@@ -94,10 +108,12 @@ internal static class MasterSchedulePdfRenderer
     private static void DrawDay(
         PdfPage page, MasterScheduleDay day, List<string> fieldColumns,
         Dictionary<(string Complex, DateTime Date), List<ParkingTimeslotDto>>? parkingSlots,
-        Fonts fonts, Pens pens)
+        string? settingsNote, Fonts fonts, Pens pens)
     {
         var clientW = PageW - (Margin * 2);
-        var clientH = PageH - (Margin * 2);
+        var pageClientH = PageH - (Margin * 2);
+        // The settings note sits under the grid at full size; the grid fits in what's left.
+        var clientH = pageClientH - (settingsNote != null ? NoteBandH : 0f);
 
         // Only the fields that host a game this day.
         var fieldIdx = Enumerable.Range(0, fieldColumns.Count)
@@ -171,6 +187,14 @@ internal static class MasterSchedulePdfRenderer
             x += col.Width;
         }
 
+        // Cars per (complex, row), and each complex's peak across the printed rows — the load shading
+        // runs white (no cars) → dark gray (that complex's busiest printed time).
+        var carsByComplex = cols
+            .Where(c => c.Complex != null)
+            .Select(c => c.Complex!)
+            .Distinct()
+            .ToDictionary(cx => cx, cx => day.Rows.Select(r => CarsOnSite(parkingSlots!, cx, r.SortKey)).ToArray());
+
         // Data rows.
         var y = HeaderRowH;
         for (var r = 0; r < day.Rows.Count; r++)
@@ -190,9 +214,11 @@ internal static class MasterSchedulePdfRenderer
 
                 if (col.Complex != null)
                 {
-                    var cars = CarsOnSite(parkingSlots!, col.Complex, row.SortKey);
-                    g.DrawRectangle(pens.Grid, PdfBrushes.White, rect);
-                    g.DrawString(cars.ToString("N0", CultureInfo.InvariantCulture), fonts.Time, PdfBrushes.Black, rect, Centered);
+                    var series = carsByComplex[col.Complex];
+                    var cars = series[r];
+                    var (shade, text) = LoadShade(cars, series.Max());
+                    g.DrawRectangle(pens.Grid, new PdfSolidBrush(shade), rect);
+                    g.DrawString(cars.ToString("N0", CultureInfo.InvariantCulture), fonts.Time, new PdfSolidBrush(text), rect, Centered);
                     continue;
                 }
 
@@ -216,9 +242,33 @@ internal static class MasterSchedulePdfRenderer
         var scale = Math.Min(1f, Math.Min(clientW / gridW, clientH / gridH));
         var drawW = gridW * scale;
         var drawH = gridH * scale;
-        page.Graphics.DrawPdfTemplate(tpl,
-            new PointF((clientW - drawW) / 2f, (clientH - drawH) / 2f),
-            new SizeF(drawW, drawH));
+
+        // Grid + settings note center on the page as one unit.
+        var blockH = drawH + (settingsNote != null ? NoteBandH : 0f);
+        var left = (clientW - drawW) / 2f;
+        var top = (pageClientH - blockH) / 2f;
+        page.Graphics.DrawPdfTemplate(tpl, new PointF(left, top), new SizeF(drawW, drawH));
+
+        if (settingsNote != null)
+        {
+            page.Graphics.DrawString(settingsNote, fonts.Note, new PdfSolidBrush(new PdfColor(64, 64, 64)),
+                new RectangleF(left, top + drawH, drawW, NoteBandH),
+                new PdfStringFormat(PdfTextAlignment.Left, PdfVerticalAlignment.Middle));
+        }
+    }
+
+    /// <summary>
+    /// Gray load ramp for a CARS ON SITE cell: white at 0 → dark gray at the complex's peak, with the
+    /// grid's black/white text pick. Gray, because every hue is already an agegroup color on the sheet.
+    /// </summary>
+    private static (PdfColor Fill, PdfColor Text) LoadShade(int cars, int peak)
+    {
+        var t = peak > 0 ? Math.Clamp((float)cars / peak, 0f, 1f) : 0f;
+        var v = (byte)Math.Round(255 - (t * (255 - LoadDarkest)));
+        var text = ColorUtility.GetContrastColor($"#{v:X2}{v:X2}{v:X2}") == "#fff"
+            ? new PdfColor(255, 255, 255)
+            : new PdfColor(0, 0, 0);
+        return (new PdfColor(v, v, v), text);
     }
 
     /// <summary>
@@ -314,6 +364,7 @@ internal static class MasterSchedulePdfRenderer
         public PdfStandardFont Time { get; } = new(PdfFontFamily.Helvetica, 13, PdfFontStyle.Bold);
         public PdfStandardFont Team { get; } = new(PdfFontFamily.Helvetica, 9.5f, PdfFontStyle.Bold);
         public PdfStandardFont Vs { get; } = new(PdfFontFamily.Helvetica, 7.5f);
+        public PdfStandardFont Note { get; } = new(PdfFontFamily.Helvetica, 9, PdfFontStyle.Bold);
     }
 
     private sealed class Pens

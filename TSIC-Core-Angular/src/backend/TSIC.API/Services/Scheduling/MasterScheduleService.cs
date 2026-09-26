@@ -238,6 +238,6 @@ public class MasterScheduleService : IMasterScheduleService
         // Sequential awaits — both share the scoped DbContext.
         var data = await GetMasterScheduleAsync(jobId, includeReferees: false, ct);
         var parking = await _parkingService.GetParkingReportAsync(jobId, parkingRequest, ct);
-        return MasterSchedulePdfRenderer.Render(data, parking);
+        return MasterSchedulePdfRenderer.Render(data, parking, parkingRequest);
     }
 }
