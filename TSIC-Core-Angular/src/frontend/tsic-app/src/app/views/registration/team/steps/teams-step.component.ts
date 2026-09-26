@@ -18,6 +18,7 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 // in the template, and the fly-in methods/signal in the class (all marked RETIRED FLY-IN).
 // import { LibraryFlyinComponent, type RegisterRequest, type RegisteredInfo } from '../components/library-flyin.component';
 import { LibrarySegmentComponent } from '../components/library-segment.component';
+import { RegisterTeamModalComponent } from '../components/register-team-modal.component';
 import type { LibraryRegisterRequest } from '../components/library-segment.types';
 import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
 import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
@@ -49,7 +50,7 @@ type TeamsSegment = 'library' | 'registered';
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [CurrencyPipe, RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, /* RETIRED FLY-IN: LibraryFlyinComponent, */ LibrarySegmentComponent, TeamRenameConfirmComponent],
+    imports: [CurrencyPipe, RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, /* RETIRED FLY-IN: LibraryFlyinComponent, */ LibrarySegmentComponent, RegisterTeamModalComponent, TeamRenameConfirmComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -64,27 +65,7 @@ type TeamsSegment = 'library' | 'registered';
       <!-- ── One card, two segments (Todd 2026-09-26). The green edge means teams are in. ── -->
       <div class="step-card" [class.step-card-registered]="enteredTeams().length > 0">
 
-        <div class="seg-bar" role="tablist" aria-label="Club Team Library or Registered Teams">
-          <button type="button" role="tab" id="teams-seg-tab-library"
-                  class="seg-tab seg-tab--library"
-                  [class.is-active]="segment() === 'library'"
-                  [attr.aria-selected]="segment() === 'library'"
-                  aria-controls="teams-seg-panel"
-                  [attr.tabindex]="segment() === 'library' ? 0 : -1"
-                  (click)="selectSegment('library')"
-                  (keydown)="onSegmentKey($event)">
-            <i class="bi seg-tab-radio" aria-hidden="true"
-               [class.bi-record-circle-fill]="segment() === 'library'"
-               [class.bi-circle]="segment() !== 'library'"></i>
-            <i class="bi bi-collection-fill seg-tab-icon" aria-hidden="true"></i>
-            <span class="seg-tab-text">
-              <span class="seg-tab-title">Club Team Library</span>
-              <span class="seg-tab-sub">{{ librarySegmentSub() }}</span>
-            </span>
-            @if (segment() !== 'library') {
-              <span class="seg-tab-switch" aria-hidden="true">Switch<i class="bi bi-chevron-right"></i></span>
-            }
-          </button>
+        <div class="seg-bar" role="tablist" aria-label="Registered Teams or Club Team Library">
           <button type="button" role="tab" id="teams-seg-tab-registered"
                   class="seg-tab seg-tab--registered"
                   [class.is-active]="segment() === 'registered'"
@@ -109,6 +90,26 @@ type TeamsSegment = 'library' | 'registered';
               </span>
             </span>
             @if (segment() !== 'registered') {
+              <span class="seg-tab-switch" aria-hidden="true">Switch<i class="bi bi-chevron-right"></i></span>
+            }
+          </button>
+          <button type="button" role="tab" id="teams-seg-tab-library"
+                  class="seg-tab seg-tab--library"
+                  [class.is-active]="segment() === 'library'"
+                  [attr.aria-selected]="segment() === 'library'"
+                  aria-controls="teams-seg-panel"
+                  [attr.tabindex]="segment() === 'library' ? 0 : -1"
+                  (click)="selectSegment('library')"
+                  (keydown)="onSegmentKey($event)">
+            <i class="bi seg-tab-radio" aria-hidden="true"
+               [class.bi-record-circle-fill]="segment() === 'library'"
+               [class.bi-circle]="segment() !== 'library'"></i>
+            <i class="bi bi-collection-fill seg-tab-icon" aria-hidden="true"></i>
+            <span class="seg-tab-text">
+              <span class="seg-tab-title">Club Team Library</span>
+              <span class="seg-tab-sub">{{ librarySegmentSub() }}</span>
+            </span>
+            @if (segment() !== 'library') {
               <span class="seg-tab-switch" aria-hidden="true">Switch<i class="bi bi-chevron-right"></i></span>
             }
           </button>
@@ -179,8 +180,7 @@ type TeamsSegment = 'library' | 'registered';
                   [pendingLibraryOnly]="pendingLibraryOnly()"
                   [revealPending]="revealPending()"
                   [listFirst]="enteredTeams().length === 0"
-                  (register)="onLibraryRegister($event)"
-                  (registerMany)="onLibraryRegisterMany($event)"
+                  (openRegister)="openRegisterModal()"
                   (addNew)="onAddNew()"
                   (edit)="openEditModal($event)"
                   (archive)="askArchiveTeam($event)"
@@ -195,19 +195,23 @@ type TeamsSegment = 'library' | 'registered';
                 <i class="bi bi-clipboard"></i>
                 <strong>No teams registered for {{ eventName() }} yet</strong>
                 <span>
-                  @if (activeLibraryCount() > 0) {
-                    Your Club Team Library has {{ activeLibraryCount() }} {{ activeLibraryCount() === 1 ? 'team' : 'teams' }}.
-                    Register them from there, one press each.
+                  @if (!canRegisterTeam()) {
+                    Team registration for {{ eventName() }} is closed.
+                  } @else if (activeLibraryCount() > 0) {
+                    Pick the teams you're bringing from your Club Team Library &mdash;
+                    {{ activeLibraryCount() }} {{ activeLibraryCount() === 1 ? 'team' : 'teams' }} in it.
                   } @else {
-                    Start in your Club Team Library: add a team and register it in one step.
+                    Add a team and register it in one step.
                   }
                 </span>
-                <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
-                        (click)="selectSegment('library')">
-                  <i class="bi bi-collection-fill me-2"></i>
-                  Go to Club Team Library
-                  <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
-                </button>
+                @if (canRegisterTeam()) {
+                  <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
+                          (click)="activeLibraryCount() > 0 ? openRegisterModal() : showAddAndRegisterModal.set(true)">
+                    <i class="bi bi-trophy-fill me-2"></i>
+                    Register Your First Team
+                    <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
+                  </button>
+                }
               </div>
             } @else {
               <div class="seg-panel-body">
@@ -225,6 +229,12 @@ type TeamsSegment = 'library' | 'registered';
                      document this is. It sits ABOVE the numbers so nobody reaches $41,400
                      without having been told. Teams step ONLY: on the director's club-rep
                      accounting grid the totals genuinely ARE the statement. -->
+                <!-- What the pencil means HERE (Todd 2026-09-26): this event's record, not the library. -->
+                <p class="edit-scope">
+                  <i class="bi bi-pencil" aria-hidden="true"></i>
+                  <span>The <b>pencil</b> edits a team's registration for {{ eventName() }} &mdash; its name and level of
+                    play at this event. Your Club Team Library, what future events start from, is not changed.</span>
+                </p>
                 <p class="pricing-notice">
                   <i class="bi bi-info-circle" aria-hidden="true"></i>
                   <span>Each team's fee status is keyed to <strong>now</strong>, <strong>later</strong> or
@@ -289,14 +299,14 @@ type TeamsSegment = 'library' | 'registered';
                   </button>
                 </div>
               </div>
-            } @else if (segment() === 'registered' && canRegisterTeam()) {
-              <!-- On Registered Teams the way to add a team must be a VERB on the screen, not the
-                   library tab's noun (Todd 2026-09-26: "not clear at all how I would add a team").
-                   The old fork, ruled earlier; Register Another Team now opens the Club Team Library
-                   segment, so the tab above lights up and teaches where the library lives. -->
+            } @else if (canRegisterTeam()) {
+              <!-- The way to add a team is a VERB on the screen, not the library tab's noun (Todd
+                   2026-09-26: "not clear at all how I would add a team"). Register Another Team opens
+                   the Register-a-team modal — the ONE register path — from either segment. -->
               <div class="action-segments" role="group" aria-label="What's next?">
                 <button type="button" class="action-segment action-segment-stay"
-                        (click)="selectSegment('library')">
+                        [disabled]="actionInProgress()"
+                        (click)="openRegisterModal()">
                   <i class="bi bi-plus-circle-fill action-segment-icon" aria-hidden="true"></i>
                   <span class="action-segment-content">
                     <span class="action-segment-title">Register Another Team</span>
@@ -370,6 +380,22 @@ type TeamsSegment = 'library' | 'registered';
         [existingTeams]="allLibraryTeams()"
         (saved)="onTeamAdded()"
         (closed)="showAddModal.set(false)" />
+    }
+
+    <!-- Register a team — the ONE register path (Todd 2026-09-26). Stays open across registrations. -->
+    @if (showRegisterModal()) {
+      <app-register-team-modal
+        [clubTeams]="allLibraryTeams()"
+        [registeredTeams]="enteredTeams()"
+        [ageGroups]="ageGroups()"
+        [clubName]="clubName()"
+        [eventName]="eventName()"
+        [canRegister]="canRegisterTeam()"
+        [actionInProgress]="actionInProgress()"
+        (register)="onLibraryRegister($event)"
+        (addNew)="onRegisterModalAddNew()"
+        (openLibrary)="onRegisterModalOpenLibrary()"
+        (closed)="showRegisterModal.set(false)" />
     }
 
     @if (showAddAndRegisterModal()) {
@@ -595,6 +621,21 @@ type TeamsSegment = 'library' | 'registered';
       }
 
       .seg-panel-body { padding: var(--space-3); }
+
+      /* What the pencil means on Registered Teams — this event's record; never the library */
+      .edit-scope {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-sm);
+        background: color-mix(in srgb, var(--bs-success) 6%, transparent);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text);
+
+        .bi { color: var(--bs-success); flex-shrink: 0; }
+      }
 
       .registered-head {
         display: flex;
@@ -1060,6 +1101,8 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly showAddModal = signal(false);
     /** Combined add+register modal — every add while registration is open, first team or not. */
     readonly showAddAndRegisterModal = signal(false);
+    /** The Register-a-team modal — every registration of a library team goes through it. */
+    readonly showRegisterModal = signal(false);
     /**
      * clubTeamIds saved to the library WITHOUT registering during this wizard session.
      * Pruned by `pendingLibraryOnly` as each one registers; cleared when the rep tells
@@ -1200,8 +1243,9 @@ export class TeamTeamsStepComponent implements OnInit {
     onSegmentKey(event: KeyboardEvent): void {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
         event.preventDefault();
-        const next: TeamsSegment = event.key === 'Home' ? 'library'
-            : event.key === 'End' ? 'registered'
+        // Tab order: Registered Teams first, Club Team Library second (Todd 2026-09-26).
+        const next: TeamsSegment = event.key === 'Home' ? 'registered'
+            : event.key === 'End' ? 'library'
             : this.segment() === 'library' ? 'registered' : 'library';
         this.selectSegment(next);
         document.getElementById(next === 'library' ? 'teams-seg-tab-library' : 'teams-seg-tab-registered')?.focus();
@@ -1228,10 +1272,29 @@ export class TeamTeamsStepComponent implements OnInit {
         this.proceedToPayment.emit();
     }
 
-    /** "Register it now": the Library segment, where the pending rows are tinted and scrolled to. */
+    /** "Register it now": the Register-a-team modal, where the pending teams are waiting with their Register buttons. */
     registerPendingNow(): void {
+        this.confirmingContinue.set(false);
+        this.openRegisterModal();
+    }
+
+    // ── Register a team (the modal — the one register path) ──────────────
+
+    openRegisterModal(): void {
+        if (!this.canRegisterTeam()) return;
+        this.showRegisterModal.set(true);
+    }
+
+    /** "Not in your library? Add a New Team": one modal at a time. */
+    onRegisterModalAddNew(): void {
+        this.showRegisterModal.set(false);
+        this.onAddNew();
+    }
+
+    /** "Open Club Team Library": fix a name / grad year / archive there, come back via Register Another Team. */
+    onRegisterModalOpenLibrary(): void {
+        this.showRegisterModal.set(false);
         this.selectSegment('library');
-        this.revealPending.update(n => n + 1);
     }
 
     isEnteredTeam(clubTeamId: number): boolean {

@@ -72,7 +72,7 @@ import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedu
           @if (isEdit()) {
             <div class="library-aside library-aside--lead" role="note">
               <i class="bi bi-collection" aria-hidden="true"></i>
-              <span><strong>This changes your library only.</strong> Teams already registered for an event keep
+              <span><strong>This changes your Club Team Library &mdash; what every future event starts from.</strong> Teams already registered for an event keep
                 the name, grad year and level of play they were registered with.
                 @if (eventName()) {
                   <strong>To change a team for {{ eventName() }}, return to your registration: open your menu at the

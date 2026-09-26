@@ -539,6 +539,13 @@ export class TeamRenameConfirmComponent {
             case 'reset':
                 return 'This puts the event back to the name the team carries in the Club Team Library.';
             default:
+                // The rep's Registered Teams pencil (the only door that turns on the LOP field): say
+                // plainly this edits the event's record, and the library stays put (Todd 2026-09-26).
+                if (this.showLevelOfPlay()) {
+                    const ev = this.namedEvent() || 'this event';
+                    return `You are editing this team's registration for ${ev}: its name and level of play `
+                        + 'at this event. Your Club Team Library — what future events start from — stays as it is.';
+                }
                 return 'A team\'s name lives in two places. You are changing the one this event uses.';
         }
     });

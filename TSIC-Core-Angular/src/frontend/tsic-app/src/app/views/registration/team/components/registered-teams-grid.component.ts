@@ -79,7 +79,7 @@ export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
                           [disabled]="actionInProgress() || !!renameLockReason()"
                           [attr.aria-disabled]="!!renameLockReason()"
                           (click)="renameTeam.emit(data)"
-                          [title]="renameLockReason() ?? 'Rename ' + data.teamName + ' for this event'">
+                          [title]="renameLockReason() ?? 'Edit the registration of ' + data.teamName + ' for this event (name, level of play). Your Club Team Library is not changed.'">
                     <i class="bi bi-pencil"></i>
                   </button>
                 }

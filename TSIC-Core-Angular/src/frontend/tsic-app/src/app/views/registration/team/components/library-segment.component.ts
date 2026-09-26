@@ -1,32 +1,11 @@
 import { AfterViewChecked, ChangeDetectionStrategy, Component, ElementRef, OnChanges, SimpleChanges, computed, inject, input, output, signal } from '@angular/core';
-import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
-import { formatLop, normalizeLop } from '@shared/teams/lop-choices';
+import { formatLop } from '@shared/teams/lop-choices';
 import { clubTeamEditLockReason, clubTeamRemoval, type ClubTeamLockContext, type ClubTeamRemoval } from '@shared/teams/club-team-locks';
 import { ToastService } from '@shared-ui/toast.service';
-import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
-import { EventAgeGroupPickerComponent } from './event-age-group-picker.component';
-import { RegisterAllDialogComponent } from './register-all-dialog.component';
-import { describeSlotPricing, isTeamOfferedAtEvent, resolveOldestOfferedGradYear, resolveRecommendedAgeGroupId, type SlotPricing } from './event-age-group.util';
-import { ageGroupLabel, isWaitlistAgeGroup, type LibraryRegisterRequest } from './library-segment.types';
-
-/**
- * What pressing this row's button does right now, resolved from the library team and this event's
- * age groups. `ready` is the one-press case: the library already knows the level of play and the
- * grad year names exactly one age group, so the button can say where the team is going.
- */
-type RowPlan =
-    | { kind: 'registered' }
-    | { kind: 'ready'; req: LibraryRegisterRequest; ageGroupLabel: string; waitlist: boolean; pricing: SlotPricing }
-    /** A real choice: no LOP saved; no exact age group but the team can play up; or older than every age group here. */
-    | { kind: 'choose'; why: 'lop' | 'playUp' | 'outside' }
-    | { kind: 'closed' };
-
-/** Sort key: the 20xx grad year, or +Infinity when there is none. */
-function gradKey(team: ClubTeamDto): number {
-    const m = (team.clubTeamGradYear ?? '').match(/(20\d{2})/);
-    return m ? Number(m[1]) : Number.POSITIVE_INFINITY;
-}
+import { resolveOldestOfferedGradYear } from './event-age-group.util';
+import { byGradYearThenName, fitsEvent } from './library-register-plan';
 
 interface SegmentRow {
     team: ClubTeamDto;
@@ -34,34 +13,32 @@ interface SegmentRow {
     registered: RegisteredTeamDto | null;
     /** A director moved this team's registration here into a DROPPED age group. */
     dropped: boolean;
-    plan: RowPlan;
 }
 
 /**
  * Club Team Library — one of the Teams step's two segments (the other is the event's Registered
- * Teams). Replaces the library fly-in (Todd 2026-09-26): the library is no longer a drawer opened
- * over the event, it is a view of its own, and a row's place on screen says which thing it is.
+ * Teams). Replaces the library fly-in (Todd 2026-09-26).
  *
- *   LEFT  — the library team: name, grad year, level of play, and the library housekeeping
- *           (Edit / Archive / Delete / Restore). Never an event write.
- *   RIGHT — this event: Register in {age group}, or where it is already registered.
+ * LIST-ONLY (Todd 2026-09-26: registering FROM the library blurred the club's list with an event
+ * act; the Register-a-team modal is the one register path). Every write here is to the LIBRARY —
+ * the teams every future event starts from — and the segment says so where the rep acts:
  *
- * The reader is an experienced club rep who is new to the library (every other system made them
- * retype their teams for every event), so the segment says what the library is and why, then
- * makes registering from it one press per team, or one press for all of them.
+ *   LEFT  — the library team: name, grad year, level of play, and Edit / Archive / Delete / Restore.
+ *   RIGHT — this event, READ-ONLY: where the team is registered here, or that it isn't.
  *
  * Owns no domain state: the Teams step feeds rows and flags and runs every mutation.
  */
 @Component({
     selector: 'app-library-segment',
     standalone: true,
-    imports: [CurrencyPipe, NgTemplateOutlet, LevelOfPlayPickerComponent, EventAgeGroupPickerComponent, RegisterAllDialogComponent],
+    imports: [NgTemplateOutlet],
     template: `
     <!-- ── The head: GET THE LIST RIGHT when nothing is registered here yet (Todd 2026-09-26). The
          rep most likely to be here is a legacy veteran whose library was filled FOR them from past
          registrations, so the first questions are "do I need new teams, should I archive my
-         graduated ones, can I fix these names?", never "how does Register work". Guide, don't
-         intrude: no team is picked for them. Once anything is registered, one quiet line. ── -->
+         graduated ones, can I fix these names?". Guide, don't intrude: no team is picked for them.
+         Once anything is registered, one quiet line. Either way the head says what an edit here
+         touches: the library, i.e. future events — never a registration. ── -->
     @if (listFirst()) {
       <div class="list-first">
         <div class="list-first-text">
@@ -69,26 +46,38 @@ interface SegmentRow {
             <i class="bi bi-collection-fill" aria-hidden="true"></i>
             Before you register, make sure your Club Team Library is right.
           </strong>
+          <span class="list-first-why">
+            It's the list of teams every event you register for starts from &mdash; this one and every one after.
+          </span>
           <ul class="list-first-checks">
             <li><span class="lf-q">New team this season?</span> <b>Add a New Team</b>.</li>
             <li><span class="lf-q">Graduated or moved on?</span> <b>Archive</b> it &mdash; its history is kept.</li>
-            <li><span class="lf-q">Name or grad year out of date?</span> <b>Edit</b> it &mdash; that changes your library only, never an event.</li>
+            <li><span class="lf-q">Name, grad year or level out of date?</span> <b>Edit</b> it.</li>
           </ul>
           @if (canRegister()) {
-            <span class="list-first-then">When your list is right, press <b>Register</b> on each team you're bringing to {{ eventName() }}.</span>
+            <span class="list-first-then">When your list is right, register the teams you're bringing to {{ eventName() }}.</span>
           } @else {
             <span class="list-first-then">Team registration for {{ eventName() }} is closed. Your library is still yours to keep right.</span>
           }
         </div>
-        <button type="button" class="btn-add-team" [disabled]="actionInProgress()" (click)="addNew.emit()">
-          <i class="bi bi-plus-circle" aria-hidden="true"></i>
-          {{ canRegister() ? 'Add a New Team' : 'Add Library Team' }}
-        </button>
+        <div class="list-first-actions">
+          @if (canRegister()) {
+            <button type="button" class="btn-register-teams" [disabled]="actionInProgress()" (click)="openRegister.emit()">
+              <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+              Register teams for {{ eventName() }}
+            </button>
+          }
+          <button type="button" class="btn-add-team" [disabled]="actionInProgress()" (click)="addNew.emit()">
+            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+            {{ canRegister() ? 'Add a New Team' : 'Add Library Team' }}
+          </button>
+        </div>
       </div>
     } @else {
       <div class="seg-lib-head">
         <p class="lib-lede">
-          {{ clubPossessive() }} Club Team Library. Register another team from here, or add, edit or archive teams as needed.
+          {{ clubPossessive() }} Club Team Library &mdash; the teams every event you register for starts from.
+          Add, edit or archive here to keep it right for the next one.
         </p>
         <button type="button" class="btn-add-team" [disabled]="actionInProgress()" (click)="addNew.emit()">
           <i class="bi bi-plus-circle" aria-hidden="true"></i>
@@ -97,16 +86,22 @@ interface SegmentRow {
       </div>
     }
 
+    <!-- What Edit means HERE, said once, above every Edit button (Todd 2026-09-26). -->
+    <p class="edit-scope">
+      <i class="bi bi-pencil" aria-hidden="true"></i>
+      <span><b>Edit</b> changes the team in your library, so every future event starts from the new details.
+        A team already registered for {{ eventName() }} keeps its registration as it is &mdash; change that on
+        <b>{{ eventName() }} Registered Teams</b>.</span>
+    </p>
+
     <!-- One row's cells. Shared by every group so a team looks the same wherever it sits. -->
     <ng-template #rowTpl let-row>
       @let team = row.team;
-      @let plan = row.plan;
-      @let editing = editingId() === team.clubTeamId;
+      @let reg = row.registered;
       <div class="lib-row"
-           [class.is-registered]="plan.kind === 'registered'"
+           [class.is-registered]="!!reg"
            [class.is-archived]="team.bArchived"
            [class.is-pending]="isPending(team.clubTeamId)"
-           [class.is-editing]="editing"
            [attr.data-club-team-id]="team.clubTeamId">
 
         <!-- LEFT: the library team + library housekeeping -->
@@ -115,7 +110,7 @@ interface SegmentRow {
           <span class="team-meta">
             <span class="meta-pair"><span class="meta-key">Grad</span>{{ team.clubTeamGradYear || '—' }}</span>
             <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(team.clubTeamLevelOfPlay) || '—' }}</span>
-            @if (isPending(team.clubTeamId) && plan.kind !== 'registered') {
+            @if (isPending(team.clubTeamId) && !reg) {
               <span class="pending-pill"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>Just added &middot; not registered yet</span>
             }
           </span>
@@ -130,7 +125,7 @@ interface SegmentRow {
               @let removal = removalFor(row);
               <button type="button" class="btn-lib" [class.is-locked]="!!editLock"
                       [disabled]="actionInProgress()"
-                      [attr.title]="editLock ?? 'Edit this team in your Club Team Library (name, grad year, level of play)'"
+                      [attr.title]="editLock ?? 'Edit this team in your Club Team Library — what future events start from. Its registration for ' + eventName() + ' is not changed.'"
                       [attr.aria-disabled]="!!editLock"
                       (click)="editLock ? explainLock(editLock) : edit.emit(team)">
                 <i class="bi bi-pencil" aria-hidden="true"></i>Edit
@@ -156,103 +151,28 @@ interface SegmentRow {
           </span>
         </div>
 
-        <!-- RIGHT: this event -->
+        <!-- RIGHT: this event — status only. Registering happens in the Register-a-team modal. -->
         <div class="col-event">
-          @if (row.dropped && plan.kind !== 'registered') {
-            <span class="ev-dropped"><i class="bi bi-x-circle" aria-hidden="true"></i>Dropped from {{ eventName() }} by the director</span>
-          }
-          @switch (plan.kind) {
-            @case ('registered') {
-              @let reg = row.registered!;
-              <span class="ev-done" [class.ev-done--wl]="reg.isWaitlisted">
-                @if (reg.isWaitlisted) {
-                  <i class="bi bi-hourglass-split" aria-hidden="true"></i>On the {{ reg.ageGroupDisplayName || reg.ageGroupName }} waitlist
-                } @else {
-                  <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Registered in {{ reg.ageGroupDisplayName || reg.ageGroupName }}
-                }
-              </span>
-              <span class="ev-sub">
-                @if (reg.levelOfPlay) { LOP {{ formatLop(reg.levelOfPlay) }} }
-                @if (reg.teamName && reg.teamName !== team.clubTeamName) { &middot; as {{ reg.teamName }} }
-              </span>
-            }
-            @case ('ready') {
-              @let ready = $any(plan);
-              <button type="button" class="btn-reg" [class.btn-reg--wl]="ready.waitlist"
-                      [disabled]="actionInProgress() || (editingId() !== null && !editing)"
-                      (click)="registerNow(ready.req)">
-                <i class="bi" [class.bi-trophy-fill]="!ready.waitlist" [class.bi-hourglass-split]="ready.waitlist" aria-hidden="true"></i>
-                {{ ready.waitlist ? 'Join the ' + ready.ageGroupLabel + ' waitlist' : 'Register in ' + ready.ageGroupLabel }}
-              </button>
-              <span class="ev-sub">
-                @switch (ready.pricing.kind) {
-                  @case ('waitlist') { {{ ready.ageGroupLabel }} is full &middot; no fee until placed }
-                  @case ('free') { No fee }
-                  @case ('deposit') { Deposit {{ ready.pricing.now | currency }} now &middot; {{ ready.pricing.total | currency }} total }
-                  @case ('full') { {{ ready.pricing.total | currency }} }
-                }
-                &middot;
-                <button type="button" class="btn-change" [disabled]="actionInProgress() || (editingId() !== null && !editing)"
-                        (click)="openEditor(team)">change</button>
-              </span>
-            }
-            @case ('choose') {
-              <button type="button" class="btn-reg btn-reg--choose"
-                      [disabled]="actionInProgress() || (editingId() !== null && !editing)"
-                      (click)="openEditor(team)">
-                <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
-                {{ $any(plan).why === 'lop' ? 'Choose level & age group' : 'Choose age group' }}
-              </button>
-              <span class="ev-sub">
-                @switch ($any(plan).why) {
-                  @case ('lop') { No level of play saved on this team }
-                  @case ('playUp') { No {{ team.clubTeamGradYear || 'matching' }} age group here &middot; pick one to play up in }
-                  @case ('outside') { Older than every age group here }
-                }
-              </span>
-            }
-            @case ('closed') {
-              <span class="ev-closed"><i class="bi bi-lock-fill" aria-hidden="true"></i>Registration closed</span>
-            }
+          @if (reg) {
+            <span class="ev-done" [class.ev-done--wl]="reg.isWaitlisted">
+              @if (reg.isWaitlisted) {
+                <i class="bi bi-hourglass-split" aria-hidden="true"></i>On the {{ reg.ageGroupDisplayName || reg.ageGroupName }} waitlist
+              } @else {
+                <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Registered in {{ reg.ageGroupDisplayName || reg.ageGroupName }}
+              }
+            </span>
+            <span class="ev-sub">
+              @if (reg.levelOfPlay) { LOP {{ formatLop(reg.levelOfPlay) }} }
+              @if (reg.teamName && reg.teamName !== team.clubTeamName) { &middot; as {{ reg.teamName }} }
+            </span>
+          } @else if (row.dropped) {
+            <span class="ev-muted"><i class="bi bi-x-circle" aria-hidden="true"></i>Dropped from {{ eventName() }} by the director</span>
+          } @else if (team.bArchived) {
+            <span class="ev-muted">Archived &middot; not offered for registration</span>
+          } @else {
+            <span class="ev-muted"><i class="bi bi-dash-circle" aria-hidden="true"></i>Not registered</span>
           }
         </div>
-
-        <!-- The register editor, full width under its row. Only when the rep asked to choose. -->
-        @if (editing) {
-          <div class="reg-editor" role="group" [attr.aria-label]="'Register ' + team.clubTeamName">
-            <div class="reg-editor-head">
-              Registering <strong>{{ team.clubTeamName }}</strong> for {{ eventName() }}
-            </div>
-            <div class="reg-editor-step">
-              <span class="step-label"><span class="step-num">1</span>Level of play for {{ eventName() }}</span>
-              <app-level-of-play-picker [selected]="pickLop()" (selectedChange)="onLopPicked($event)" />
-              <span class="step-hint">Your library team keeps its own level of play.</span>
-            </div>
-            <div class="reg-editor-step">
-              <span class="step-label"><span class="step-num">2</span>Age group</span>
-              @if (!pickLop()) {
-                <span class="step-gate"><i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i>Choose a level of play above, then the age groups unlock.</span>
-              }
-              <app-event-age-group-picker
-                variant="chip"
-                [ageGroups]="ageGroups()"
-                [gradYear]="team.clubTeamGradYear"
-                [disabled]="actionInProgress() || !pickLop()"
-                [showSelectedFee]="true"
-                [selected]="pickAg()"
-                (selectedChange)="pickAg.set($event)" />
-            </div>
-            <div class="reg-editor-actions">
-              <button type="button" class="btn-editor-cancel" (click)="closeEditor()">Cancel</button>
-              <button type="button" class="btn-reg" [class.btn-reg--wl]="pickWaitlists()"
-                      [disabled]="actionInProgress() || !pickLop() || !pickAg()"
-                      (click)="commitEditor(team)">
-                <i class="bi" [class.bi-trophy-fill]="!pickWaitlists()" [class.bi-hourglass-split]="pickWaitlists()" aria-hidden="true"></i>
-                {{ editorSubmitLabel() }}
-              </button>
-            </div>
-          </div>
-        }
       </div>
     </ng-template>
 
@@ -266,28 +186,17 @@ interface SegmentRow {
     <div class="lib-table" aria-label="Club Team Library">
       <div class="lib-head">
         <span>Library team</span>
-        <span>For {{ eventName() }}</span>
+        <span>At {{ eventName() }}</span>
       </div>
 
-      <!-- Ready to register: the working list -->
-      @if (toRegisterRows().length > 0) {
+      <!-- Not registered here, and fits an age group -->
+      @if (notRegisteredRows().length > 0) {
         <div class="lib-group">
-          <span class="lib-group-title">{{ canRegister() ? 'Ready to register' : 'Not registered' }}</span>
-          <span class="lib-group-count">{{ toRegisterRows().length }}</span>
+          <span class="lib-group-title">Not registered</span>
+          <span class="lib-group-count">{{ notRegisteredRows().length }}</span>
           <span class="lib-group-hint">fit an age group at {{ eventName() }}</span>
-          <!-- "Register all" WITHDRAWN 2026-09-26: a pre-ticked batch decides for the rep which
-               teams are coming — "presumptuous and unnecessary" (Todd). Register is per team.
-               RegisterAllDialogComponent + onLibraryRegisterMany are kept, uncalled.
-          @if (bulkCandidates().length >= 2) {
-            <button type="button" class="btn-reg-all"
-                    [disabled]="actionInProgress() || editingId() !== null"
-                    (click)="showRegisterAll.set(true)">
-              <i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>Register all {{ bulkCandidates().length }}
-            </button>
-          }
-          -->
         </div>
-        @for (row of toRegisterRows(); track row.team.clubTeamId) {
+        @for (row of notRegisteredRows(); track row.team.clubTeamId) {
           <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row }" />
         }
       }
@@ -304,9 +213,9 @@ interface SegmentRow {
         }
       }
 
-      <!-- Older than every age group here: still registerable (ruling 08-06). While the rep is getting
-           the list right these are exactly the graduated teams they came to archive, so they show,
-           open, with the hint that says so. Afterwards they fold away. -->
+      <!-- Older than every age group here. While the rep is getting the list right these are exactly
+           the graduated teams they came to archive, so they show, open, with the hint that says so.
+           Afterwards they fold away. -->
       @if (outsideRows().length > 0) {
         <button type="button" class="lib-group lib-group--toggle"
                 [attr.aria-expanded]="outsideOpen()" (click)="toggleOutside()">
@@ -342,15 +251,6 @@ interface SegmentRow {
         }
       }
     </div>
-
-    @if (showRegisterAll()) {
-      <app-register-all-dialog
-        [candidates]="bulkCandidates()"
-        [ageGroups]="ageGroups()"
-        [eventName]="eventName()"
-        (confirmed)="onRegisterAllConfirmed($event)"
-        (cancelled)="showRegisterAll.set(false)" />
-    }
     `,
     styles: [`
       :host { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -412,6 +312,45 @@ interface SegmentRow {
       .lf-q { font-weight: var(--font-weight-semibold); }
 
       .list-first-then { color: var(--brand-text-muted); }
+      .list-first-why { color: var(--brand-text-muted); }
+
+      .list-first-actions { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); flex-shrink: 0; }
+
+      .btn-register-teams {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--bs-success);
+        border-radius: var(--radius-sm);
+        background: var(--bs-success);
+        color: var(--neutral-0);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        white-space: nowrap;
+        cursor: pointer;
+        box-shadow: var(--shadow-xs);
+        transition: filter 0.12s ease;
+
+        &:hover:not(:disabled) { filter: brightness(0.93); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+        &:disabled { opacity: 0.45; cursor: default; }
+      }
+
+      /* What Edit means on this tab — library, i.e. future events; never a registration */
+      .edit-scope {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-sm);
+        background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text);
+
+        .bi { color: var(--bs-primary); flex-shrink: 0; }
+      }
 
       .btn-add-team {
         display: inline-flex;
@@ -480,7 +419,6 @@ interface SegmentRow {
           background: color-mix(in srgb, var(--bs-warning) 8%, transparent);
           box-shadow: inset 3px 0 0 var(--bs-warning);
         }
-        &.is-editing { background: color-mix(in srgb, var(--bs-primary) 4%, transparent); }
         &.is-archived .team-name { font-style: italic; font-weight: var(--font-weight-medium); color: var(--brand-text-muted); }
       }
 
@@ -526,27 +464,6 @@ interface SegmentRow {
       }
 
       .lib-group-hint { font-size: var(--font-size-2xs); font-style: italic; }
-
-      .btn-reg-all {
-        margin-left: auto;
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-1);
-        padding: 3px var(--space-3);
-        border: 1px solid var(--bs-success);
-        border-radius: var(--radius-full);
-        background: var(--bs-success);
-        color: var(--neutral-0);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        white-space: nowrap;
-        cursor: pointer;
-        transition: filter 0.12s ease;
-
-        &:hover:not(:disabled) { filter: brightness(0.93); }
-        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-        &:disabled { opacity: 0.45; cursor: default; }
-      }
 
       /* LEFT: library team */
       .col-team { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -617,61 +534,14 @@ interface SegmentRow {
         }
       }
 
-      /* RIGHT: this event */
+
+      /* RIGHT: this event — status only */
       .col-event { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
-
-      .btn-reg {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        max-width: 100%;
-        padding: 5px var(--space-3);
-        border: 1px solid var(--bs-success);
-        border-radius: var(--radius-sm);
-        background: var(--bs-success);
-        color: var(--neutral-0);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        cursor: pointer;
-        box-shadow: var(--shadow-xs);
-        transition: filter 0.12s ease, transform 0.12s ease;
-
-        &:hover:not(:disabled) { filter: brightness(0.93); transform: translateY(-1px); }
-        &:active:not(:disabled) { transform: translateY(0); }
-        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-        &:disabled { opacity: 0.4; cursor: default; transform: none; }
-
-        &--wl { border-color: var(--bs-warning); background: var(--bs-warning); color: var(--bs-dark); }
-        &--choose {
-          border-color: var(--bs-success);
-          background: var(--brand-surface);
-          color: var(--bs-success);
-          box-shadow: none;
-          &:hover:not(:disabled) { filter: none; background: color-mix(in srgb, var(--bs-success) 8%, var(--brand-surface)); }
-        }
-      }
 
       .ev-sub {
         font-size: var(--font-size-2xs);
         color: var(--brand-text-muted);
         font-variant-numeric: tabular-nums;
-      }
-
-      .btn-change {
-        padding: 0;
-        border: none;
-        background: transparent;
-        color: var(--bs-primary);
-        font-size: inherit;
-        font-weight: var(--font-weight-semibold);
-        text-decoration: underline;
-        cursor: pointer;
-
-        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
-        &:disabled { opacity: 0.4; cursor: default; }
       }
 
       .ev-done {
@@ -685,7 +555,7 @@ interface SegmentRow {
         &--wl { color: var(--brand-text); .bi { color: var(--bs-warning); } }
       }
 
-      .ev-dropped, .ev-closed {
+      .ev-muted {
         display: inline-flex;
         align-items: center;
         gap: var(--space-1);
@@ -693,84 +563,19 @@ interface SegmentRow {
         color: var(--brand-text-muted);
       }
 
-      /* ── Register editor (full row width) ── */
-      .reg-editor {
-        grid-column: 1 / -1;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-        margin-top: var(--space-1);
-        padding: var(--space-3);
-        border: 1px solid color-mix(in srgb, var(--bs-primary) 30%, transparent);
-        border-radius: var(--radius-md);
-        background: var(--brand-surface);
-        box-shadow: var(--shadow-sm);
-      }
-
-      .reg-editor-head { font-size: var(--font-size-sm); color: var(--brand-text); }
-
-      .reg-editor-step { display: flex; flex-direction: column; gap: var(--space-1); }
-
-      .step-label {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-      }
-
-      .step-num {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: var(--bs-primary);
-        color: var(--neutral-0);
-        font-size: 10px;
-      }
-
-      .step-hint { font-size: var(--font-size-2xs); color: var(--brand-text-muted); }
-
-      .step-gate {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-1);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-medium);
-        color: var(--bs-primary);
-      }
-
-      .reg-editor-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
-
-      .btn-editor-cancel {
-        padding: 5px var(--space-3);
-        border: 1px solid var(--bs-border-color);
-        border-radius: var(--radius-sm);
-        background: transparent;
-        color: var(--brand-text);
-        font-size: var(--font-size-sm);
-        cursor: pointer;
-
-        &:hover { background: color-mix(in srgb, var(--bs-body-color) 5%, transparent); }
-        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-      }
-
       /* ── Mobile ── */
       @media (max-width: 575.98px) {
         .seg-lib-head, .list-first { flex-direction: column; align-items: stretch; }
         .list-first { padding: var(--space-3); }
-        .btn-add-team { justify-content: center; }
+        .list-first-actions { flex-direction: column; align-items: stretch; }
+        .btn-add-team, .btn-register-teams { justify-content: center; }
         .lib-head { display: none; }
-        .lib-row { grid-template-columns: 1fr; row-gap: var(--space-2); }
+        .lib-row { grid-template-columns: 1fr; row-gap: var(--space-1); }
         .lib-group-hint { display: none; }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .btn-add-team, .btn-reg, .btn-reg-all, .btn-lib, .lib-row { transition: none !important; }
-        .btn-reg:hover:not(:disabled) { transform: none; }
+        .btn-add-team, .btn-register-teams, .btn-lib, .lib-row { transition: none !important; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -788,15 +593,15 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
     /** Team registration open AND the director allows adds. */
     readonly canRegister = input(false);
     readonly actionInProgress = input(false);
-    /** Saved to the library (not registered) during this session — tinted and scrolled to. */
     /** Nothing is registered for this event yet: the head asks the rep to get the list right first. */
     readonly listFirst = input(false);
+    /** Saved to the library (not registered) during this session — tinted and scrolled to. */
     readonly pendingLibraryOnly = input<ReadonlySet<number>>(new Set());
-    /** Bumped by the step's "Register it now": bring the first pending row into view again. */
+    /** Bumped by the step to bring the first pending row into view again. */
     readonly revealPending = input(0);
 
-    readonly register = output<LibraryRegisterRequest>();
-    readonly registerMany = output<LibraryRegisterRequest[]>();
+    /** "Register teams for {event}": the step opens the Register-a-team modal. */
+    readonly openRegister = output<void>();
     readonly addNew = output<void>();
     readonly edit = output<ClubTeamDto>();
     readonly archive = output<ClubTeamDto>();
@@ -813,7 +618,6 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
     readonly outsideOpen = computed(() => this.outsideToggled() ?? this.listFirst());
     toggleOutside(): void { this.outsideToggled.set(!this.outsideOpen()); }
     readonly showArchived = signal(false);
-    readonly showRegisterAll = signal(false);
 
     /** "STEPS Elite NJ's" / "Your club's". */
     readonly clubPossessive = computed(() => {
@@ -832,24 +636,20 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
     private readonly droppedClubTeamIds = computed(() =>
         new Set(this.droppedTeams().map(d => d.clubTeamId).filter((id): id is number => id != null)));
 
-    /** Every library team with its plan for this event, alphabetical. */
+    /** Every library team with its status here, in club order (grad year, then name). */
     private readonly rows = computed<SegmentRow[]>(() => {
         const registered = this.registeredByClubTeam();
         const dropped = this.droppedClubTeamIds();
         return [...this.clubTeams()]
-            // Club order: by grad year, then name. A team with no readable grad year sorts last.
-            .sort((a, b) => gradKey(a) - gradKey(b) || a.clubTeamName.localeCompare(b.clubTeamName))
-            .map(team => {
-                const reg = registered.get(team.clubTeamId) ?? null;
-                return { team, registered: reg, dropped: dropped.has(team.clubTeamId), plan: this.planFor(team, reg) };
-            });
+            .sort(byGradYearThenName)
+            .map(team => ({ team, registered: registered.get(team.clubTeamId) ?? null, dropped: dropped.has(team.clubTeamId) }));
     });
 
     private fits(team: ClubTeamDto): boolean {
-        return isTeamOfferedAtEvent(this.oldestOffered(), team.clubTeamGradYear);
+        return fitsEvent(team, { oldestOffered: this.oldestOffered() });
     }
 
-    readonly toRegisterRows = computed(() =>
+    readonly notRegisteredRows = computed(() =>
         this.rows().filter(r => !r.team.bArchived && !r.registered && this.fits(r.team)));
     /** Registered here — including a team whose library row was archived since, so no registration ever drops out of sight. */
     readonly registeredRows = computed(() => this.rows().filter(r => !!r.registered));
@@ -857,50 +657,6 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
         this.rows().filter(r => !r.team.bArchived && !r.registered && !this.fits(r.team)));
     readonly archivedRows = computed(() => this.rows().filter(r => r.team.bArchived && !r.registered));
     readonly activeCount = computed(() => this.clubTeams().filter(t => !t.bArchived).length);
-
-    /** Rows whose answer is obvious — the ones "Register all" can take without asking anything. */
-    readonly bulkCandidates = computed<LibraryRegisterRequest[]>(() => {
-        const out: LibraryRegisterRequest[] = [];
-        for (const r of this.toRegisterRows()) if (r.plan.kind === 'ready') out.push(r.plan.req);
-        return out;
-    });
-
-    /**
-     * The one-press plan: level of play from the library row (must be on the 1–5 scale), age group
-     * from the grad year (redirected to the WAITLIST twin when full, same rule the fly-in seeded).
-     * Anything short of both is a choice for the rep, not a guess on their behalf.
-     */
-    private planFor(team: ClubTeamDto, reg: RegisteredTeamDto | null): RowPlan {
-        if (reg) return { kind: 'registered' };
-        if (!this.canRegister() || team.bArchived) return { kind: 'closed' };
-        const lop = normalizeLop(team.clubTeamLevelOfPlay);
-        if (!lop) return { kind: 'choose', why: 'lop' };
-        const ageGroupId = this.fits(team) ? resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear) : '';
-        const ag = ageGroupId ? this.ageGroups().find(a => a.ageGroupId === ageGroupId) : undefined;
-        if (!ag) return { kind: 'choose', why: this.fits(team) ? 'playUp' : 'outside' };
-        const waitlist = this.waitlists(ag);
-        return {
-            kind: 'ready',
-            req: { team, ageGroupId: ag.ageGroupId, levelOfPlay: lop },
-            ageGroupLabel: ageGroupLabel(ag),
-            waitlist,
-            pricing: waitlist ? { kind: 'waitlist' } : this.pricingOf(ag),
-        };
-    }
-
-    private waitlists(ag: AgeGroupDto): boolean {
-        return isWaitlistAgeGroup(ag) || ag.registeredCount >= ag.maxTeams;
-    }
-
-    private pricingOf(ag: AgeGroupDto): SlotPricing {
-        return describeSlotPricing({
-            isFull: false,
-            fee: (ag.deposit || 0) + (ag.balanceDue || 0),
-            deposit: ag.deposit || 0,
-            balanceDue: ag.balanceDue || 0,
-            fullPaymentRequired: !!ag.fullPaymentRequired,
-        });
-    }
 
     // ── Locks: the shared rules, so this segment and the library page never disagree ──
     private lockContext(registeredHere: boolean): ClubTeamLockContext {
@@ -916,64 +672,6 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
 
     isPending(clubTeamId: number): boolean {
         return this.pendingLibraryOnly().has(clubTeamId);
-    }
-
-    registerNow(req: LibraryRegisterRequest): void {
-        if (this.actionInProgress()) return;
-        this.register.emit(req);
-    }
-
-    onRegisterAllConfirmed(reqs: LibraryRegisterRequest[]): void {
-        this.showRegisterAll.set(false);
-        if (reqs.length) this.registerMany.emit(reqs);
-    }
-
-    // ── The register editor (a real choice: no LOP saved, no age-group match, or "change") ──
-    readonly editingId = signal<number | null>(null);
-    readonly pickLop = signal('');
-    readonly pickAg = signal('');
-
-    readonly pickWaitlists = computed(() => {
-        const ag = this.ageGroups().find(a => a.ageGroupId === this.pickAg());
-        return !!ag && this.waitlists(ag);
-    });
-
-    /** Names the AGE GROUP, never the team (ruling 2026-09-24): the editor's head already names the team. */
-    readonly editorSubmitLabel = computed(() => {
-        const ag = this.ageGroups().find(a => a.ageGroupId === this.pickAg());
-        if (!ag) return 'Register';
-        const label = ageGroupLabel(ag);
-        return this.pickWaitlists() ? `Join the ${label} waitlist` : `Register in ${label}`;
-    });
-
-    openEditor(team: ClubTeamDto): void {
-        if (this.editingId() === team.clubTeamId) { this.closeEditor(); return; }
-        const lop = normalizeLop(team.clubTeamLevelOfPlay);
-        this.pickLop.set(lop);
-        this.pickAg.set(lop ? resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear) : '');
-        this.editingId.set(team.clubTeamId);
-    }
-
-    /** First LOP pick lays the grad-year seed; never re-seeds over a pick the rep made. */
-    onLopPicked(lop: string): void {
-        this.pickLop.set(lop);
-        if (!lop || this.pickAg()) return;
-        const team = this.clubTeams().find(t => t.clubTeamId === this.editingId());
-        if (team) this.pickAg.set(resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear));
-    }
-
-    closeEditor(): void {
-        this.editingId.set(null);
-        this.pickLop.set('');
-        this.pickAg.set('');
-    }
-
-    commitEditor(team: ClubTeamDto): void {
-        const ageGroupId = this.pickAg();
-        const levelOfPlay = this.pickLop();
-        if (!ageGroupId || !levelOfPlay || this.actionInProgress()) return;
-        this.register.emit({ team, ageGroupId, levelOfPlay });
-        this.closeEditor();
     }
 
     // ── A team saved to the library only is brought into view (it may land mid-list) ──
