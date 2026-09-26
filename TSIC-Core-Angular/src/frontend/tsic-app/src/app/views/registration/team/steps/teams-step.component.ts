@@ -73,11 +73,17 @@ type TeamsSegment = 'library' | 'registered';
                   [attr.tabindex]="segment() === 'library' ? 0 : -1"
                   (click)="selectSegment('library')"
                   (keydown)="onSegmentKey($event)">
+            <i class="bi seg-tab-radio" aria-hidden="true"
+               [class.bi-record-circle-fill]="segment() === 'library'"
+               [class.bi-circle]="segment() !== 'library'"></i>
             <i class="bi bi-collection-fill seg-tab-icon" aria-hidden="true"></i>
             <span class="seg-tab-text">
               <span class="seg-tab-title">Club Team Library</span>
               <span class="seg-tab-sub">{{ librarySegmentSub() }}</span>
             </span>
+            @if (segment() !== 'library') {
+              <span class="seg-tab-switch" aria-hidden="true">Switch<i class="bi bi-chevron-right"></i></span>
+            }
           </button>
           <button type="button" role="tab" id="teams-seg-tab-registered"
                   class="seg-tab seg-tab--registered"
@@ -87,6 +93,9 @@ type TeamsSegment = 'library' | 'registered';
                   [attr.tabindex]="segment() === 'registered' ? 0 : -1"
                   (click)="selectSegment('registered')"
                   (keydown)="onSegmentKey($event)">
+            <i class="bi seg-tab-radio" aria-hidden="true"
+               [class.bi-record-circle-fill]="segment() === 'registered'"
+               [class.bi-circle]="segment() !== 'registered'"></i>
             <i class="bi bi-trophy-fill seg-tab-icon" aria-hidden="true"></i>
             <span class="seg-tab-text">
               <span class="seg-tab-title">{{ eventName() }} Registered Teams</span>
@@ -99,6 +108,9 @@ type TeamsSegment = 'library' | 'registered';
                 }
               </span>
             </span>
+            @if (segment() !== 'registered') {
+              <span class="seg-tab-switch" aria-hidden="true">Switch<i class="bi bi-chevron-right"></i></span>
+            }
           </button>
         </div>
 
@@ -276,6 +288,38 @@ type TeamsSegment = 'library' | 'registered';
                     Register {{ pendingTeams().length === 1 ? 'it' : 'them' }} now
                   </button>
                 </div>
+              </div>
+            } @else if (segment() === 'registered' && canRegisterTeam()) {
+              <!-- On Registered Teams the way to add a team must be a VERB on the screen, not the
+                   library tab's noun (Todd 2026-09-26: "not clear at all how I would add a team").
+                   The old fork, ruled earlier; Register Another Team now opens the Club Team Library
+                   segment, so the tab above lights up and teaches where the library lives. -->
+              <div class="action-segments" role="group" aria-label="What's next?">
+                <button type="button" class="action-segment action-segment-stay"
+                        (click)="selectSegment('library')">
+                  <i class="bi bi-plus-circle-fill action-segment-icon" aria-hidden="true"></i>
+                  <span class="action-segment-content">
+                    <span class="action-segment-title">Register Another Team</span>
+                    <span class="action-segment-sub">
+                      @if (unregisteredEligible().length > 0) {
+                        {{ unregisteredEligible().length }} library {{ unregisteredEligible().length === 1 ? 'team fits' : 'teams fit' }} an age group here
+                      } @else {
+                        From your Club Team Library
+                      }
+                    </span>
+                  </span>
+                </button>
+                <button type="button" class="action-segment action-segment-advance"
+                        [disabled]="actionInProgress()"
+                        (click)="onContinue()">
+                  <span class="action-segment-content">
+                    <span class="action-segment-title">Continue to Payment</span>
+                    <span class="action-segment-sub">
+                      @if (dueNow() > 0) { {{ dueNow() | currency }} due now } @else { Nothing due now &middot; review and finish }
+                    </span>
+                  </span>
+                  <i class="bi bi-currency-dollar action-segment-icon" aria-hidden="true"></i>
+                </button>
               </div>
             } @else {
               <button type="button" class="continue-btn" [class.continue-btn--due]="dueNow() > 0"
@@ -465,45 +509,61 @@ type TeamsSegment = 'library' | 'registered';
         box-shadow: inset 0 1px 3px color-mix(in srgb, var(--bs-body-color) 12%, transparent);
       }
 
+      /* Each pill carries its own color in --seg-color (Library = primary, Registered = success).
+         UNSELECTED = an obvious button: raised surface, colored border + title, radio circle, and a
+         "Switch >" cue; hover lifts it. SELECTED = filled in its color, light text, filled radio. */
       .seg-tab {
+        --seg-color: var(--bs-primary);
         display: flex;
         align-items: center;
         gap: var(--space-3);
         min-width: 0;
         padding: var(--space-2) var(--space-3);
-        border: 1px solid transparent;
+        border: 1.5px solid color-mix(in srgb, var(--seg-color) 45%, transparent);
         border-radius: var(--radius-md);
-        background: transparent;
+        background: var(--brand-surface);
+        box-shadow: var(--shadow-xs);
         font-family: inherit;
         text-align: left;
-        color: var(--brand-text-muted);
+        color: var(--brand-text);
         cursor: pointer;
-        transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+        transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+        .seg-tab-title { color: var(--seg-color); }
+        .seg-tab-icon { color: var(--seg-color); }
+        .seg-tab-radio { color: var(--seg-color); }
 
         &:hover:not(.is-active) {
-          background: color-mix(in srgb, var(--brand-surface) 70%, transparent);
-          border-color: var(--border-color);
-          color: var(--brand-text);
+          border-color: var(--seg-color);
+          background: color-mix(in srgb, var(--seg-color) 7%, var(--brand-surface));
+          box-shadow: var(--shadow-md);
+          transform: translateY(-1px);
+
+          .seg-tab-switch { opacity: 1; }
         }
+        &:active:not(.is-active) { transform: translateY(0); }
         &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
         &.is-active {
-          color: var(--on-primary);
+          border-color: var(--seg-color);
+          background: var(--seg-color);
+          color: var(--neutral-0);
           box-shadow: var(--shadow-md);
           cursor: default;
 
-          .seg-tab-icon { opacity: 1; color: inherit; }
-          .seg-tab-sub { color: inherit; opacity: 0.88; }
+          .seg-tab-title, .seg-tab-icon, .seg-tab-radio { color: inherit; }
+          .seg-tab-sub { color: inherit; opacity: 0.9; }
           &:focus-visible { box-shadow: var(--shadow-md), var(--shadow-focus); }
         }
       }
 
-      .seg-tab--library.is-active { background: var(--bs-primary); border-color: var(--bs-primary); }
-      .seg-tab--registered.is-active { background: var(--bs-success); border-color: var(--bs-success); color: var(--neutral-0); }
+      .seg-tab--library { --seg-color: var(--bs-primary); }
+      .seg-tab--registered { --seg-color: var(--bs-success); }
 
-      .seg-tab-icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; opacity: 0.5; }
+      .seg-tab-radio { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+      .seg-tab-icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; }
 
-      .seg-tab-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .seg-tab-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 
       .seg-tab-title {
         font-size: var(--font-size-base);
@@ -515,6 +575,23 @@ type TeamsSegment = 'library' | 'registered';
         font-size: var(--font-size-xs);
         color: var(--brand-text-muted);
         font-variant-numeric: tabular-nums;
+      }
+
+      .seg-tab-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        flex-shrink: 0;
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-full);
+        background: color-mix(in srgb, var(--seg-color) 12%, transparent);
+        color: var(--seg-color);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-bold);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.85;
+        transition: opacity 0.15s ease;
       }
 
       .seg-panel-body { padding: var(--space-3); }
@@ -560,6 +637,69 @@ type TeamsSegment = 'library' | 'registered';
 
           &:hover:not(:disabled) { background: color-mix(in srgb, var(--emerald-600) 24%, var(--brand-surface)); }
         }
+      }
+
+      /* Registered Teams footer: the two-way fork (Register Another Team | Continue to Payment).
+         Two tinted halves sharing one outer edge; each owns its color zone from rest. */
+      .action-segments {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .action-segment {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border: none;
+        border-radius: 0;
+        font-family: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+        &:focus-visible { outline: none; box-shadow: inset 0 0 0 2px currentColor; }
+        &:active:not(:disabled) { transform: translateY(1px); }
+        &:disabled { opacity: 0.5; cursor: default; }
+      }
+
+      .action-segment-icon { font-size: 2rem; flex-shrink: 0; line-height: 1; }
+
+      .action-segment-content { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+
+      .action-segment-title {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-bold);
+        line-height: var(--line-height-tight);
+      }
+
+      .action-segment-sub {
+        font-size: var(--font-size-xs);
+        font-style: italic;
+        line-height: var(--line-height-normal);
+        color: color-mix(in srgb, currentColor 80%, var(--brand-text));
+      }
+
+      .action-segment-stay {
+        color: var(--amber-700);
+        background: color-mix(in srgb, var(--amber-500) 18%, transparent);
+
+        &:hover { background: color-mix(in srgb, var(--amber-500) 32%, transparent); box-shadow: inset 0 -2px 0 var(--amber-700); }
+      }
+
+      .action-segment-advance {
+        color: var(--emerald-600);
+        background: color-mix(in srgb, var(--emerald-600) 14%, transparent);
+
+        &:hover:not(:disabled) { background: color-mix(in srgb, var(--emerald-600) 26%, transparent); box-shadow: inset 0 -2px 0 var(--emerald-600); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .action-segment { transition: none !important; }
+        .action-segment:active { transform: none; }
       }
 
       .continue-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -625,6 +765,7 @@ type TeamsSegment = 'library' | 'registered';
 
       @media (prefers-reduced-motion: reduce) {
         .seg-tab, .continue-btn { transition: none !important; }
+        .seg-tab:hover:not(.is-active) { transform: none; }
       }
 
       /* ── Section banner header ── */
@@ -861,9 +1002,12 @@ type TeamsSegment = 'library' | 'registered';
         .seg-bar { margin: var(--space-2) var(--space-2) 0; }
         .seg-tab { gap: var(--space-2); padding: var(--space-2); }
         .seg-tab-icon { display: none; }
+        .seg-tab-switch { display: none; }
         .seg-tab-title { font-size: var(--font-size-sm); }
         .seg-panel-body { padding: var(--space-2); }
         .continue-btn { padding: var(--space-3); }
+        .action-segments { grid-template-columns: 1fr; }
+        .action-segment + .action-segment { border-top: 1px solid var(--border-color); }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
