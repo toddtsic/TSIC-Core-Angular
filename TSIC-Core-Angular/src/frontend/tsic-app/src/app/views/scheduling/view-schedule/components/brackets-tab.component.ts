@@ -15,7 +15,6 @@ import {
 import { DataManager } from '@syncfusion/ej2-data';
 import { contrastText, agBg, formatTime } from '../../shared/utils/scheduling-helpers';
 import { AgeGroupPickerComponent, type AgePickerItem } from '../../shared/components/age-group-picker/age-group-picker.component';
-import { SwipePagerDirective } from '@shared-ui/directives/swipe-pager.directive';
 
 // A game that is NOT part of the single-elimination ladder: the bronze (3rd-place) match, which
 // has no parent to advance into, and consolation (placement) games, which were never in the tree.
@@ -59,7 +58,7 @@ interface BracketNode {
 @Component({
     selector: 'app-brackets-tab',
     standalone: true,
-    imports: [AgeGroupPickerComponent, SwipePagerDirective],
+    imports: [AgeGroupPickerComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (isLoading()) {
@@ -90,85 +89,76 @@ interface BracketNode {
                 }
             </div>
 
-            <!-- Swipe sideways to walk the divisions, same gesture and page turn as
-                 the mobile app. The pager is both gesture host and the thing that
-                 turns; a swipe on the diagram pans it to its edge first, then pages. -->
-            <div class="bracket-pager"
-                 appSwipePager
-                 [appSwipePagerCanPrev]="canStepPrev()"
-                 [appSwipePagerCanNext]="canStepNext()"
-                 (appSwipePagerStep)="stepTab($event)">
-                <!-- Diagram rendered imperatively. Hidden for consolation-only divisions (no ladder). -->
-                <div class="diagram-container" [class.is-hidden]="!hasLadder()">
-                    <div #diagramHost></div>
-                </div>
-
-                <!-- Games outside the ladder: bronze (no parent) + consolation (never in the tree) -->
-                @if (outsideCards().length > 0) {
-                    <div class="outside-ladder">
-                        @for (group of outsideGroups(); track group.kind) {
-                            <div class="ol-group">
-                                <div class="ol-group__label">{{ group.kind }}</div>
-                                <div class="ol-cards">
-                                    @for (card of group.cards; track card.gid) {
-                                        <div class="ol-card"
-                                             [style.background]="cardBg()"
-                                             [style.border-left-color]="stripeColor()">
-                                            @if (canScore()) {
-                                                <button type="button" class="ol-card__edit"
-                                                        title="Edit Score"
-                                                        (click)="emitScoreEdit(card)">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/></svg>
-                                                </button>
-                                            }
-                                            @if (card.location) {
-                                                <div class="ol-card__loc">
-                                                    @if (card.fieldId) {
-                                                        <button type="button" class="ol-card__link"
-                                                                (click)="viewFieldInfo.emit(card.fieldId!)">{{ card.location }}</button>
-                                                    } @else {
-                                                        {{ card.location }}
-                                                    }
-                                                </div>
-                                            }
-                                            <!-- Black-tie: the gold trophy is the sole winner cue;
-                                                 names and scores stay neutral for both teams. The
-                                                 glyph slot is always rendered so scores align. -->
-                                            <div class="ol-card__row">
-                                                @if (card.t1Id) {
-                                                    <button type="button" class="ol-card__team"
-                                                            [class.followed]="isFollowed(card.t1Id)"
-                                                            (click)="viewTeamResults.emit(card.t1Id!)">{{ card.t1Name }}</button>
-                                                } @else {
-                                                    <span class="ol-card__team">{{ card.t1Name }}</span>
-                                                }
-                                                <span class="ol-card__glyph" aria-hidden="true">
-                                                    @if (card.t1Win) { <i class="bi bi-trophy-fill"></i> }
-                                                </span>
-                                                <span class="ol-card__score">{{ card.t1Score }}</span>
-                                            </div>
-                                            <div class="ol-card__divider"></div>
-                                            <div class="ol-card__row">
-                                                @if (card.t2Id) {
-                                                    <button type="button" class="ol-card__team"
-                                                            [class.followed]="isFollowed(card.t2Id)"
-                                                            (click)="viewTeamResults.emit(card.t2Id!)">{{ card.t2Name }}</button>
-                                                } @else {
-                                                    <span class="ol-card__team">{{ card.t2Name }}</span>
-                                                }
-                                                <span class="ol-card__glyph" aria-hidden="true">
-                                                    @if (card.t2Win) { <i class="bi bi-trophy-fill"></i> }
-                                                </span>
-                                                <span class="ol-card__score">{{ card.t2Score }}</span>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
+            <!-- Diagram rendered imperatively. Hidden for consolation-only divisions (no ladder). -->
+            <div class="diagram-container" [class.is-hidden]="!hasLadder()">
+                <div #diagramHost></div>
             </div>
+
+            <!-- Games outside the ladder: bronze (no parent) + consolation (never in the tree) -->
+            @if (outsideCards().length > 0) {
+                <div class="outside-ladder">
+                    @for (group of outsideGroups(); track group.kind) {
+                        <div class="ol-group">
+                            <div class="ol-group__label">{{ group.kind }}</div>
+                            <div class="ol-cards">
+                                @for (card of group.cards; track card.gid) {
+                                    <div class="ol-card"
+                                         [style.background]="cardBg()"
+                                         [style.border-left-color]="stripeColor()">
+                                        @if (canScore()) {
+                                            <button type="button" class="ol-card__edit"
+                                                    title="Edit Score"
+                                                    (click)="emitScoreEdit(card)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/></svg>
+                                            </button>
+                                        }
+                                        @if (card.location) {
+                                            <div class="ol-card__loc">
+                                                @if (card.fieldId) {
+                                                    <button type="button" class="ol-card__link"
+                                                            (click)="viewFieldInfo.emit(card.fieldId!)">{{ card.location }}</button>
+                                                } @else {
+                                                    {{ card.location }}
+                                                }
+                                            </div>
+                                        }
+                                        <!-- Black-tie: the gold trophy is the sole winner cue;
+                                             names and scores stay neutral for both teams. The
+                                             glyph slot is always rendered so scores align. -->
+                                        <div class="ol-card__row">
+                                            @if (card.t1Id) {
+                                                <button type="button" class="ol-card__team"
+                                                        [class.followed]="isFollowed(card.t1Id)"
+                                                        (click)="viewTeamResults.emit(card.t1Id!)">{{ card.t1Name }}</button>
+                                            } @else {
+                                                <span class="ol-card__team">{{ card.t1Name }}</span>
+                                            }
+                                            <span class="ol-card__glyph" aria-hidden="true">
+                                                @if (card.t1Win) { <i class="bi bi-trophy-fill"></i> }
+                                            </span>
+                                            <span class="ol-card__score">{{ card.t1Score }}</span>
+                                        </div>
+                                        <div class="ol-card__divider"></div>
+                                        <div class="ol-card__row">
+                                            @if (card.t2Id) {
+                                                <button type="button" class="ol-card__team"
+                                                        [class.followed]="isFollowed(card.t2Id)"
+                                                        (click)="viewTeamResults.emit(card.t2Id!)">{{ card.t2Name }}</button>
+                                            } @else {
+                                                <span class="ol-card__team">{{ card.t2Name }}</span>
+                                            }
+                                            <span class="ol-card__glyph" aria-hidden="true">
+                                                @if (card.t2Win) { <i class="bi bi-trophy-fill"></i> }
+                                            </span>
+                                            <span class="ol-card__score">{{ card.t2Score }}</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
         }
     `,
     styles: [`
@@ -270,10 +260,6 @@ interface BracketNode {
                 border-bottom: 1px solid var(--bs-border-color);
             }
         }
-
-        /* The turning page. Positioned so the swipe pager's shading layer has
-           something to cover. */
-        .bracket-pager { position: relative; }
 
         /* ── Diagram container ── */
 
@@ -578,21 +564,6 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
     readonly activeAgId = computed(() => String(this.activeTabIndex()));
     onAgePicked(id: string): void {
         this.selectTab(Number(id));
-    }
-
-    readonly canStepPrev = computed(() => this.activeTabIndex() > 0);
-    readonly canStepNext = computed(() => this.activeTabIndex() < this.tabItems().length - 1);
-
-    /**
-     * Swipe: walk the division list by one. Clamped rather than wrapping — running
-     * off the end and landing back at the start reads as a glitch when the list
-     * isn't visible, and the picker is there for jumping. Goes through selectTab
-     * so the imperative diagram is rebuilt.
-     */
-    stepTab(delta: number): void {
-        const next = this.activeTabIndex() + delta;
-        if (next < 0 || next >= this.tabItems().length) return;
-        this.selectTab(next);
     }
 
     private destroyDiagram(): void {
