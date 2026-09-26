@@ -17,13 +17,16 @@ namespace TSIC.API.Controllers;
 public class TournamentParkingController : ControllerBase
 {
     private readonly ITournamentParkingService _service;
+    private readonly IMasterScheduleService _masterScheduleService;
     private readonly IJobLookupService _jobLookupService;
 
     public TournamentParkingController(
         ITournamentParkingService service,
+        IMasterScheduleService masterScheduleService,
         IJobLookupService jobLookupService)
     {
         _service = service;
+        _masterScheduleService = masterScheduleService;
         _jobLookupService = jobLookupService;
     }
 
@@ -40,15 +43,43 @@ public class TournamentParkingController : ControllerBase
         if (jobId == null)
             return BadRequest(new { message = "Scheduling context required" });
 
-        // Validate parameter ranges
-        if (request.ArrivalBufferMinutes < 0 || request.ArrivalBufferMinutes > 60)
-            return BadRequest(new { message = "Arrival buffer must be 0-60 minutes" });
-        if (request.DepartureBufferMinutes < 0 || request.DepartureBufferMinutes > 60)
-            return BadRequest(new { message = "Departure buffer must be 0-60 minutes" });
-        if (request.CarMultiplier < 0 || request.CarMultiplier > 30)
-            return BadRequest(new { message = "Car multiplier must be 0-30" });
+        var invalid = ValidateParameters(request);
+        if (invalid != null)
+            return BadRequest(new { message = invalid });
 
         var result = await _service.GetParkingReportAsync(jobId.Value, request, ct);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Operations Master Schedule (.pdf) — the master grid plus CARS ON SITE per field complex,
+    /// computed with the parameters currently set on the parking page.
+    /// </summary>
+    [HttpPost("operations-master-schedule-pdf")]
+    public async Task<IActionResult> ExportOperationsMasterSchedulePdf(
+        [FromBody] TournamentParkingRequest request,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Scheduling context required" });
+
+        var invalid = ValidateParameters(request);
+        if (invalid != null)
+            return BadRequest(new { message = invalid });
+
+        var bytes = await _masterScheduleService.ExportOperationsPdfAsync(jobId.Value, request, ct);
+        return File(bytes, "application/pdf", "Operations-Master-Schedule.pdf");
+    }
+
+    private static string? ValidateParameters(TournamentParkingRequest request)
+    {
+        if (request.ArrivalBufferMinutes < 0 || request.ArrivalBufferMinutes > 60)
+            return "Arrival buffer must be 0-60 minutes";
+        if (request.DepartureBufferMinutes < 0 || request.DepartureBufferMinutes > 60)
+            return "Departure buffer must be 0-60 minutes";
+        if (request.CarMultiplier < 0 || request.CarMultiplier > 30)
+            return "Car multiplier must be 0-30";
+        return null;
     }
 }

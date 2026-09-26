@@ -8,25 +8,29 @@ using TSIC.Contracts.Dtos.Scheduling;
 namespace TSIC.API.Services.Scheduling;
 
 /// <summary>
-/// Renders the Collegiate Coach Master Schedule — a print-ready date×field grid for college coaches,
-/// operations staff and parking staff. One 18"×12" landscape page per day, ½" margins, the grid
-/// centered on the page and scaled down (never cropped) when a day is too big to fit.
+/// Renders the print-ready Master Schedule PDFs — a date×field grid, one 18"×12" landscape page per
+/// day, ½" margins, the grid centered on the page and scaled down (never cropped) when a day is too
+/// big to fit.
 /// <list type="bullet">
-/// <item>Header row: the day's date (MM/dd/yyyy) in the corner cell, then field names.</item>
-/// <item>Time column + header row: larger bold ALL CAPS, bordered like the game cells.</item>
-/// <item>Game cell: TEAM 1 / VS / TEAM 2, ALL CAPS, centered both ways, on the agegroup color with
-/// the same black/white contrast pick as the grid. No agegroup/pool line, no scores, no referees.</item>
-/// <item>The stored "club:team" colon prints as a space.</item>
-/// <item>Fields with no games that day are omitted from that day's page.</item>
+/// <item><b>Collegiate Coach</b> (no parking): college coaches' handout.</item>
+/// <item><b>Operations</b> (parking supplied): adds a CARS ON SITE column ahead of each field
+/// complex's fields — the cars on site at that complex at that row's date/time, from the Tournament
+/// Parking report run with the director's on-screen buffers.</item>
 /// </list>
+/// Common layout: the day's date (MM/dd/yyyy) in the corner cell, then field names; time column +
+/// header row larger bold ALL CAPS, bordered like the game cells; game cell TEAM 1 / VS / TEAM 2,
+/// ALL CAPS, centered both ways, on the agegroup color with the grid's black/white contrast pick;
+/// no agegroup/pool line, no scores, no referees; the stored "club:team" colon prints as a space;
+/// fields with no games that day are omitted from that day's page.
 /// Additive to the Excel exports — those are unchanged.
 /// </summary>
-internal static class CoachMasterSchedulePdfRenderer
+internal static class MasterSchedulePdfRenderer
 {
     // 18in × 12in at 72pt/in, ½" margins.
     private const float PageW = 1296f, PageH = 864f, Margin = 36f;
 
     private const float TimeColW = 90f;
+    private const float CarsColW = 80f;
     private const float MinFieldColW = 100f;     // below this the grid scales down instead
     private const float HeaderRowH = 34f;
     private const float CellPad = 5f;
@@ -40,7 +44,8 @@ internal static class CoachMasterSchedulePdfRenderer
 
     private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
 
-    public static byte[] Render(MasterScheduleResponse data)
+    /// <param name="parking">Null → Collegiate Coach layout; supplied → Operations layout with cars columns.</param>
+    public static byte[] Render(MasterScheduleResponse data, TournamentParkingResponse? parking = null)
     {
         var doc = new PdfDocument();
         doc.PageSettings.Orientation = PdfPageOrientation.Landscape;
@@ -58,36 +63,70 @@ internal static class CoachMasterSchedulePdfRenderer
             return Save(doc);
         }
 
+        // (complex, day) → timeslots in time order, for the "as of" cars lookup.
+        var parkingSlots = parking?.ComplexDays.ToDictionary(
+            cd => (Complex: cd.FieldComplex, cd.Day.Date),
+            cd => cd.Timeslots.OrderBy(t => t.Time).ToList());
+
         foreach (var day in data.Days)
         {
             var page = doc.Pages.Add();
-            DrawDay(page, day, data.FieldColumns, fonts, pens);
+            DrawDay(page, day, data.FieldColumns, parkingSlots, fonts, pens);
         }
 
         return Save(doc);
     }
 
-    private static void DrawDay(PdfPage page, MasterScheduleDay day, List<string> fieldColumns, Fonts fonts, Pens pens)
+    /// <summary>Same derivation as the parking report: the field name up to the first "-", trimmed.</summary>
+    private static string FieldComplex(string fieldName) =>
+        fieldName.Contains('-') ? fieldName[..fieldName.IndexOf('-')].Trim() : fieldName;
+
+    /// <summary>A page column: a field (index into FieldColumns), or a complex's CARS ON SITE.</summary>
+    private sealed record Col(int? FieldIndex, string? Complex, float Width);
+
+    private static void DrawDay(
+        PdfPage page, MasterScheduleDay day, List<string> fieldColumns,
+        Dictionary<(string Complex, DateTime Date), List<ParkingTimeslotDto>>? parkingSlots,
+        Fonts fonts, Pens pens)
     {
         var clientW = PageW - (Margin * 2);
         var clientH = PageH - (Margin * 2);
 
         // Only the fields that host a game this day.
-        var cols = Enumerable.Range(0, fieldColumns.Count)
+        var fieldIdx = Enumerable.Range(0, fieldColumns.Count)
             .Where(c => day.Rows.Any(r => c < r.Cells.Count && r.Cells[c] != null))
             .ToList();
-        if (cols.Count == 0) return;
+        if (fieldIdx.Count == 0) return;
 
         // Columns fill the page width, but never narrower than MinFieldColW (then the grid scales).
-        var fieldColW = Math.Max(MinFieldColW, (clientW - TimeColW) / cols.Count);
-        var gridW = TimeColW + (fieldColW * cols.Count);
+        // FieldColumns are name-sorted, so a complex's fields are contiguous.
+        var complexCount = parkingSlots == null
+            ? 0
+            : fieldIdx.Select(c => FieldComplex(fieldColumns[c])).Distinct().Count();
+        var fieldColW = Math.Max(MinFieldColW,
+            (clientW - TimeColW - (CarsColW * complexCount)) / fieldIdx.Count);
+
+        var cols = new List<Col>();
+        string? prevComplex = null;
+        foreach (var c in fieldIdx)
+        {
+            if (parkingSlots != null)
+            {
+                var complex = FieldComplex(fieldColumns[c]);
+                if (complex != prevComplex) cols.Add(new Col(null, complex, CarsColW));
+                prevComplex = complex;
+            }
+            cols.Add(new Col(c, null, fieldColW));
+        }
+
+        var gridW = TimeColW + cols.Sum(c => c.Width);
         var textW = fieldColW - (CellPad * 2);
 
         // Natural row heights: tallest cell text in the row, wrapped to the column width.
         var rowHeights = day.Rows.Select(row =>
         {
             var h = MinRowH;
-            foreach (var c in cols)
+            foreach (var c in fieldIdx)
             {
                 var cell = c < row.Cells.Count ? row.Cells[c] : null;
                 if (cell == null) continue;
@@ -113,15 +152,17 @@ internal static class CoachMasterSchedulePdfRenderer
         var tpl = new PdfTemplate(gridW, gridH);
         var g = tpl.Graphics;
 
-        // Header row — date in the corner, then field names.
+        // Header row — date in the corner, then cars / field names.
         var dateLabel = day.Rows.Count > 0
             ? day.Rows[0].SortKey.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture)
             : day.ShortLabel.ToUpperInvariant();
         DrawHeaderCell(g, dateLabel, new RectangleF(0, 0, TimeColW, HeaderRowH), fonts, pens);
-        for (var i = 0; i < cols.Count; i++)
+        var x = TimeColW;
+        foreach (var col in cols)
         {
-            DrawHeaderCell(g, Caps(fieldColumns[cols[i]]),
-                new RectangleF(TimeColW + (i * fieldColW), 0, fieldColW, HeaderRowH), fonts, pens);
+            var text = col.FieldIndex is int fi ? Caps(fieldColumns[fi]) : "CARS ON SITE";
+            DrawHeaderCell(g, text, new RectangleF(x, 0, col.Width, HeaderRowH), fonts, pens);
+            x += col.Width;
         }
 
         // Data rows.
@@ -135,12 +176,22 @@ internal static class CoachMasterSchedulePdfRenderer
             g.DrawRectangle(pens.Grid, PdfBrushes.White, timeRect);
             g.DrawString(Caps(row.TimeLabel), fonts.Time, PdfBrushes.Black, timeRect, Centered);
 
-            for (var i = 0; i < cols.Count; i++)
+            x = TimeColW;
+            foreach (var col in cols)
             {
-                var c = cols[i];
-                var cell = c < row.Cells.Count ? row.Cells[c] : null;
-                var rect = new RectangleF(TimeColW + (i * fieldColW), y, fieldColW, h);
+                var rect = new RectangleF(x, y, col.Width, h);
+                x += col.Width;
 
+                if (col.Complex != null)
+                {
+                    var cars = CarsOnSite(parkingSlots!, col.Complex, row.SortKey);
+                    g.DrawRectangle(pens.Grid, PdfBrushes.White, rect);
+                    g.DrawString(cars.ToString("N0", CultureInfo.InvariantCulture), fonts.Time, PdfBrushes.Black, rect, Centered);
+                    continue;
+                }
+
+                var fi = col.FieldIndex!.Value;
+                var cell = fi < row.Cells.Count ? row.Cells[fi] : null;
                 if (cell == null)
                 {
                     g.DrawRectangle(pens.Grid, PdfBrushes.White, rect);
@@ -164,6 +215,25 @@ internal static class CoachMasterSchedulePdfRenderer
         page.Graphics.DrawPdfTemplate(tpl,
             new PointF((clientW - drawW) / 2f, (clientH - drawH) / 2f),
             new SizeF(drawW, drawH));
+    }
+
+    /// <summary>
+    /// Cars on site at <paramref name="complex"/> as of <paramref name="at"/>: the running total of the
+    /// latest parking timeslot at or before that moment (arrivals ahead of the game are counted).
+    /// No timeslot yet that day → 0.
+    /// </summary>
+    private static int CarsOnSite(
+        Dictionary<(string Complex, DateTime Date), List<ParkingTimeslotDto>> parkingSlots,
+        string complex, DateTime at)
+    {
+        if (!parkingSlots.TryGetValue((complex, at.Date), out var slots)) return 0;
+        var cars = 0;
+        foreach (var s in slots)
+        {
+            if (s.Time > at) break;
+            cars = s.CarsOnSite;
+        }
+        return cars;
     }
 
     private static void DrawHeaderCell(PdfGraphics g, string text, RectangleF rect, Fonts fonts, Pens pens)

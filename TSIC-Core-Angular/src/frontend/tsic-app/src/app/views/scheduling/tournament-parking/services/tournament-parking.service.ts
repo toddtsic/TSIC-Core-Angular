@@ -55,4 +55,8 @@ export class TournamentParkingService {
 	getReport(request: TournamentParkingRequest): Observable<TournamentParkingResponse> {
 		return this.http.post<TournamentParkingResponse>(`${this.apiUrl}/report`, request);
 	}
+
+	exportOperationsMasterSchedulePdf(request: TournamentParkingRequest): Observable<Blob> {
+		return this.http.post(`${this.apiUrl}/operations-master-schedule-pdf`, request, { responseType: 'blob' });
+	}
 }

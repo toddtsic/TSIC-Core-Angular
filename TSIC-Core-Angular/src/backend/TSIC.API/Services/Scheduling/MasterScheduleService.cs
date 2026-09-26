@@ -10,10 +10,12 @@ namespace TSIC.API.Services.Scheduling;
 public class MasterScheduleService : IMasterScheduleService
 {
     private readonly IScheduleRepository _scheduleRepo;
+    private readonly ITournamentParkingService _parkingService;
 
-    public MasterScheduleService(IScheduleRepository scheduleRepo)
+    public MasterScheduleService(IScheduleRepository scheduleRepo, ITournamentParkingService parkingService)
     {
         _scheduleRepo = scheduleRepo;
+        _parkingService = parkingService;
     }
 
     public async Task<MasterScheduleResponse> GetMasterScheduleAsync(
@@ -227,6 +229,15 @@ public class MasterScheduleService : IMasterScheduleService
     {
         // Coach handout — never carries referee assignments.
         var data = await GetMasterScheduleAsync(jobId, includeReferees: false, ct);
-        return CoachMasterSchedulePdfRenderer.Render(data);
+        return MasterSchedulePdfRenderer.Render(data);
+    }
+
+    public async Task<byte[]> ExportOperationsPdfAsync(
+        Guid jobId, TournamentParkingRequest parkingRequest, CancellationToken ct = default)
+    {
+        // Sequential awaits — both share the scoped DbContext.
+        var data = await GetMasterScheduleAsync(jobId, includeReferees: false, ct);
+        var parking = await _parkingService.GetParkingReportAsync(jobId, parkingRequest, ct);
+        return MasterSchedulePdfRenderer.Render(data, parking);
     }
 }

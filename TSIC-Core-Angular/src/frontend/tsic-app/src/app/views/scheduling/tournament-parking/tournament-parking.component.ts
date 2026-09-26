@@ -29,6 +29,7 @@ export class TournamentParkingComponent implements OnInit {
 
 	// ── UI State ──
 	isLoading = signal(false);
+	isExportingOps = signal(false);
 	errorMessage = signal<string | null>(null);
 
 	// ── Parameters ──
@@ -141,6 +142,31 @@ export class TournamentParkingComponent implements OnInit {
 
 	onParameterChange(): void {
 		this.loadReport();
+	}
+
+	/** Operations Master Schedule PDF — master grid + cars on site, using the on-screen parameters. */
+	exportOperationsMasterSchedule(): void {
+		this.isExportingOps.set(true);
+		this.errorMessage.set(null);
+		this.parkingService.exportOperationsMasterSchedulePdf({
+			arrivalBufferMinutes: this.arrivalBuffer(),
+			departureBufferMinutes: this.departureBuffer(),
+			carMultiplier: this.carMultiplier()
+		}).subscribe({
+			next: (blob) => {
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = 'Operations-Master-Schedule.pdf';
+				a.click();
+				URL.revokeObjectURL(url);
+				this.isExportingOps.set(false);
+			},
+			error: () => {
+				this.errorMessage.set('Failed to export the Operations Master Schedule');
+				this.isExportingOps.set(false);
+			}
+		});
 	}
 
 	setActiveTab(index: number): void {

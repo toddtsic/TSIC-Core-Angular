@@ -12,4 +12,11 @@ public interface IMasterScheduleService
 
     /// <summary>Collegiate Coach Master Schedule — print-ready PDF, one 18"×12" page per day.</summary>
     Task<byte[]> ExportCoachPdfAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Operations Master Schedule — the Collegiate Coach PDF plus a CARS ON SITE column per field
+    /// complex, computed with the director's Tournament Parking parameters.
+    /// </summary>
+    Task<byte[]> ExportOperationsPdfAsync(
+        Guid jobId, TournamentParkingRequest parkingRequest, CancellationToken ct = default);
 }
