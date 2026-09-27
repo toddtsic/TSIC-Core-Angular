@@ -234,19 +234,22 @@ interface LibRow {
           <h3 class="board-title" id="board-reg-title" [attr.title]="'Registered for ' + eventName()">
             <i class="bi bi-trophy-fill" aria-hidden="true"></i>Registered Teams
           </h3>
-          <!-- Count only (Todd 2026-09-27): no money and no phase chip up here — "Final Balance Due"
-               names a later stage and read as owed-now beside "nothing due now". Due now lives on
-               the Continue card; each team's state lives on its row. -->
-          <span class="board-sub">
-            @if (registeredRows().length === 0) { None yet for this event } @else {
-              {{ registeredRows().length }} {{ registeredRows().length === 1 ? 'team' : 'teams' }}
-              <!-- Money RECEIVED, honestly (Todd 2026-09-27): what left the club's account, card fees
-                   included — the treasurer's number. Rows show the fee; this says "paid", not "fees". -->
-              &middot; {{ paidTotal() | currency }} paid
-              <!-- Due now: the SAME sum as the Continue card (fee only). Always shown — $0.00 is an answer. -->
-              &middot; <span class="due-now" [class.is-owed]="dueNow() > 0">{{ dueNow() | currency }} due now</span>
-            }
-          </span>
+          <!-- A stat strip (Todd 2026-09-27): Teams · Paid · Due now, read at a glance. No phase chip —
+               "Final Balance Due" names a later stage and read as owed-now. -->
+          @if (registeredRows().length === 0) {
+            <span class="board-sub">None yet for this event</span>
+          } @else {
+            <span class="board-sub board-stats">
+              <span class="stat"><span class="stat-key">Teams</span><span class="stat-val">{{ registeredRows().length }}</span></span>
+              <!-- Money RECEIVED, honestly: what left the club's account, card fees included — the
+                   treasurer's number. Rows show the fee; this says "paid", not "fees". -->
+              <span class="stat"><span class="stat-key">Paid</span><span class="stat-val">{{ paidTotal() | currency }}</span></span>
+              <!-- The SAME sum as the Continue card (fee only). Always shown — $0.00 is an answer. -->
+              <span class="stat" [class.is-owed]="dueNow() > 0">
+                <span class="stat-key">Due now</span><span class="stat-val">{{ dueNow() | currency }}</span>
+              </span>
+            </span>
+          }
         </div>
       </header>
 
@@ -580,8 +583,26 @@ interface LibRow {
 
       /* The event, accented in the empty Registered panel — this side's color, darkened toward the
          text color so it holds AA on the tinted panel in every palette. */
-      /* Owed = weight, not just color (never color alone). */
-      .due-now.is-owed { color: var(--brand-text); font-weight: var(--font-weight-bold); }
+      /* Header stat strip: small-caps key, bold value — the rows' "AG 2030" idiom, one size up. */
+      .board-stats {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: var(--space-3);
+        row-gap: 2px;
+        white-space: normal;
+        overflow: visible;
+      }
+      .stat { display: inline-flex; align-items: baseline; gap: var(--space-1); white-space: nowrap; }
+      .stat-key { text-transform: uppercase; letter-spacing: 0.06em; font-weight: var(--font-weight-semibold); }
+      .stat-val { font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); color: var(--brand-text); }
+      /* Owed: a warning pill — shape and weight as well as color, never color alone. */
+      .stat.is-owed .stat-val {
+        padding: 0 var(--space-2);
+        border: 1px solid var(--bs-warning);
+        border-radius: var(--radius-full);
+        background: color-mix(in srgb, var(--bs-warning) 18%, var(--brand-surface));
+      }
       .ev-name { color: color-mix(in srgb, var(--bs-success) 65%, var(--brand-text)); font-weight: var(--font-weight-bold); }
 
       /* ── Buttons ── */
