@@ -314,8 +314,12 @@ interface LibRow {
               <span class="row-meta">
                 @if (!canRegister()) {
                   Team registration for {{ eventName() }} is closed.
+                } @else if (empty()) {
+                  <span>Build your list of teams in the Club Team Library, then press <b>Register</b> on each one you're bringing.</span>
+                } @else if (activeCount() === 0) {
+                  <span>Restore or add a team in the Club Team Library, then press <b>Register</b> on it.</span>
                 } @else {
-                  Registered teams appear here.
+                  <span>Press <b>Register</b> on a library team to register it for {{ eventName() }}.</span>
                 }
               </span>
             </div>
