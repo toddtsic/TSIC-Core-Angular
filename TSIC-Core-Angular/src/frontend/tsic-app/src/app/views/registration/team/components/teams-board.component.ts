@@ -71,10 +71,16 @@ interface LibRow {
                    pencil invited the wrong one, and a library edit here changes nothing on the right.
                    The library entry is editable again under Available Teams in the next event. -->
               @for (row of registeredLibRows(); track row.team.clubTeamId) {
+                @let r = row.registered!;
                 <div class="lib-row is-quiet">
                   <div class="row-main">
                     <div class="row-text">
-                      <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+                      <!-- Where it went, in words (Todd 2026-09-27): "{name} registered in {age group}". -->
+                      <span class="row-name-line">
+                        <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+                        <span class="reg-in">{{ r.isWaitlisted ? 'waitlisted in' : 'registered in' }}
+                          <b>{{ r.ageGroupDisplayName || r.ageGroupName }}</b></span>
+                      </span>
                       <span class="row-meta">
                         <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
                         <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) || '—' }}</span>
@@ -527,6 +533,15 @@ interface LibRow {
       .row-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 
       .row-name-line { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+      /* The name gives way first; the age group never truncates. */
+      .reg-in {
+        flex-shrink: 0;
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        white-space: nowrap;
+
+        b { color: var(--brand-text); font-weight: var(--font-weight-semibold); }
+      }
 
       .row-name {
         min-width: 0;
