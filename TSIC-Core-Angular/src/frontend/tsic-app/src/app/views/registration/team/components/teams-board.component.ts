@@ -53,7 +53,7 @@ interface LibRow {
         </div>
         <!-- One header for every club, new or established (Todd 2026-09-27): no empty-state variant. -->
         <button type="button" class="btn-add" [disabled]="actionInProgress()" (click)="addNew.emit()">
-          <i class="bi bi-plus-circle" aria-hidden="true"></i>Add Team
+          <i class="bi bi-plus-circle" aria-hidden="true"></i>Add Library Team
         </button>
       </header>
 
