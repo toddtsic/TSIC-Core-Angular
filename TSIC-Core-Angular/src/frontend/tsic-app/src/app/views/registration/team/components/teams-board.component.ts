@@ -9,6 +9,7 @@ import { ageGroupLabel, type LibraryRegisterRequest } from './library-segment.ty
 import { ageGroupWaitlists, byGradYearThenName, pricingOfAgeGroup } from './library-register-plan';
 import { sumDueNowOf, teamFeeStatusOf, type TeamFeeStatus } from './registered-teams-grid.component';
 import { LibraryTeamInlineEditorComponent } from './library-team-inline-editor.component';
+import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-editor.component';
 
 /** The open register editor's two picks. '' = no pick. */
 interface RegPick { lop: string; ag: string; }
@@ -34,7 +35,7 @@ interface LibRow {
 @Component({
     selector: 'app-teams-board',
     standalone: true,
-    imports: [CurrencyPipe, DatePipe, NgTemplateOutlet, LibraryTeamInlineEditorComponent],
+    imports: [CurrencyPipe, DatePipe, NgTemplateOutlet, LibraryTeamInlineEditorComponent, RegisteredTeamInlineEditorComponent],
     template: `
     <div class="board">
 
@@ -234,7 +235,16 @@ interface LibRow {
             @let s = feeStatus(t);
             @let undoMin = undoMinutesLeft(t.teamId);
             @let removable = canRemove() && t.paidTotal === 0;
-            <div class="reg-row" [class.is-wl]="t.isWaitlisted">
+            <div class="reg-row" [class.is-wl]="t.isWaitlisted" [class.is-open]="renameId() === t.teamId">
+              @if (renameId() === t.teamId) {
+                <!-- This event's name + level, edited in the row (Todd 2026-09-27, inline, no modal). -->
+                <app-registered-team-inline-editor class="reg-editor-host"
+                  [team]="t"
+                  [libraryName]="libraryNameOf(t)"
+                  [eventName]="eventName()"
+                  (saved)="onRenameSaved($event)"
+                  (cancelled)="renameId.set(null)" />
+              } @else {
               <div class="row-text">
                 <span class="row-name-line">
                   <span class="row-name" [attr.title]="t.teamName">{{ t.teamName }}</span>
@@ -243,7 +253,7 @@ interface LibRow {
                           [attr.aria-disabled]="!!renameLockReason()"
                           [attr.aria-label]="'Edit the registration of ' + t.teamName"
                           [attr.title]="renameLockReason() ?? 'Edit the registration of ' + t.teamName + ' for ' + eventName() + ' (name, level of play). Your Club Team Library is not changed.'"
-                          (click)="renameLockReason() ? explainLock(renameLockReason()!) : rename.emit(t)">
+                          (click)="renameLockReason() ? explainLock(renameLockReason()!) : startRename(t)">
                     <i class="bi bi-pencil" aria-hidden="true"></i>
                   </button>
                 </span>
@@ -283,6 +293,7 @@ interface LibRow {
                         (click)="remove.emit(t)">
                   <i class="bi bi-trash" aria-hidden="true"></i>
                 </button>
+              }
               }
             </div>
           } @empty {
@@ -491,7 +502,10 @@ interface LibRow {
         gap: var(--space-2);
 
         &.is-wl { background: color-mix(in srgb, var(--bs-warning) 6%, transparent); }
+        &.is-open { background: color-mix(in srgb, var(--bs-success) 10%, transparent); }
       }
+
+      .reg-editor-host { flex: 1; min-width: 0; }
 
       .row-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 
@@ -827,7 +841,8 @@ export class TeamsBoardComponent {
 
     readonly register = output<LibraryRegisterRequest>();
     readonly remove = output<RegisteredTeamDto>();
-    readonly rename = output<RegisteredTeamDto>();
+    /** An inline event edit landed — carries the toast text; the step reloads, then shows it. */
+    readonly renameSaved = output<string>();
     readonly addNew = output<void>();
     /** A library edit saved (inline) — the step reloads. */
     readonly librarySaved = output<void>();
@@ -844,6 +859,8 @@ export class TeamsBoardComponent {
     readonly openId = signal<number | null>(null);
     /** The library row being edited inline. One open row at a time: register and edit close each other. */
     readonly editId = signal<number | null>(null);
+    /** The registered row being edited inline (teamId). */
+    readonly renameId = signal<string | null>(null);
     private readonly pick = signal<RegPick>({ lop: '', ag: '' });
     readonly currentPick = this.pick.asReadonly();
 
@@ -909,7 +926,26 @@ export class TeamsBoardComponent {
     // ── Inline library edit ──
     startEdit(team: ClubTeamDto): void {
         this.openId.set(null);
+        this.renameId.set(null);
         this.editId.set(team.clubTeamId);
+    }
+
+    // ── Inline registered-team edit (this event's name + level) ──
+    startRename(t: RegisteredTeamDto): void {
+        this.openId.set(null);
+        this.editId.set(null);
+        this.renameId.set(t.teamId);
+    }
+
+    onRenameSaved(message: string): void {
+        this.renameId.set(null);
+        this.renameSaved.emit(message);
+    }
+
+    /** The linked library entry's name; null for an orphan or an entry no longer in the list. */
+    libraryNameOf(t: RegisteredTeamDto): string | null {
+        if (t.clubTeamId == null) return null;
+        return this.clubTeams().find(c => c.clubTeamId === t.clubTeamId)?.clubTeamName ?? null;
     }
 
     onLibrarySaved(): void {
@@ -930,6 +966,7 @@ export class TeamsBoardComponent {
             ag: resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear),
         });
         this.editId.set(null);
+        this.renameId.set(null);
         this.openId.set(team.clubTeamId);
         // A row near the bottom of the scrolled list opens its editor out of sight — bring it in.
         afterNextRender(() => {

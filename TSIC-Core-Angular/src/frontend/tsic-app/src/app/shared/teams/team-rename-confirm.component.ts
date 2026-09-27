@@ -27,6 +27,19 @@ export interface TeamRenameConfirmation {
     levelOfPlay: string | null;
 }
 
+/**
+ * The toast after a rep's event rename landed — shared by the pencil dialog's host and the teams
+ * board's inline editor. AR-030: an LOP-only edit leaves the name alone, and "X is now X in this
+ * event." reads as a no-op the rep will not trust, so it reports what actually moved.
+ */
+export function renameSuccessMessage(oldName: string, c: TeamRenameConfirmation): string {
+    const where = c.alsoPropagate ? 'in this event and your Club Team Library' : 'in this event';
+    return oldName !== c.name
+        ? `${oldName} is now ${c.name} ${where}.`
+            + (c.levelOfPlay ? ` Level of play set to ${c.levelOfPlay} for this event.` : '')
+        : `${oldName}: level of play set to ${c.levelOfPlay} for this event.`;
+}
+
 /** Sentinel default for `eventLabel`: generic prose, so no event name is shown as a scope line. */
 const UNNAMED_EVENT = 'this event';
 

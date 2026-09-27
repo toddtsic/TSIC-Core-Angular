@@ -21,7 +21,7 @@ import { LibrarySegmentComponent } from '../components/library-segment.component
 import { RegisterTeamModalComponent } from '../components/register-team-modal.component';
 import { TeamsBoardComponent } from '../components/teams-board.component';
 import type { LibraryRegisterRequest } from '../components/library-segment.types';
-import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
+import { TeamRenameConfirmComponent, renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
 import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
@@ -85,7 +85,7 @@ type TeamsSegment = 'library' | 'registered';
             [phaseLabel]="enteredTeams().length > 0 ? phaseBadgeLabel() : null"
             (register)="onLibraryRegister($event)"
             (remove)="onRemoveTeam($event)"
-            (rename)="onRenameTeam($event)"
+            (renameSaved)="onInlineRenameSaved($event)"
             (addNew)="onAddLibraryTeam()"
             (librarySaved)="onTeamEdited()"
             (archive)="askArchiveTeam($event)"
@@ -1387,6 +1387,11 @@ export class TeamTeamsStepComponent implements OnInit {
         this.pendingRename.set({ origin: 'event', team });
     }
 
+    /** The board's inline event edit landed (it made the call itself): reload, then say what moved. */
+    onInlineRenameSaved(message: string): void {
+        this.loadTeamsMetadata(false, () => this.toast.show(message, 'success', 3000));
+    }
+
     /** Close the dialog and drop any refusal it was showing. */
     closeRename(): void {
         this.pendingRename.set(null);
@@ -1432,16 +1437,7 @@ export class TeamTeamsStepComponent implements OnInit {
         // name back into the library — the one direction that exists (Todd 2026-09-24).
         const call$ = this.teamReg.renameRegisteredTeam(pending.team.teamId, c.name, c.alsoPropagate, c.levelOfPlay);
 
-        const oldName = pending.team.teamName;
-        const where = c.alsoPropagate ? 'in this event and your Club Team Library' : 'in this event';
-
-        // AR-030: an LOP-only edit leaves the name alone, and "X is now X in this event." reads as a
-        // no-op the rep will not trust. Report what actually moved.
-        const nameChanged = oldName !== c.name;
-        const message = nameChanged
-            ? `${oldName} is now ${c.name} ${where}.`
-                + (c.levelOfPlay ? ` Level of play set to ${c.levelOfPlay} for this event.` : '')
-            : `${oldName}: level of play set to ${c.levelOfPlay} for this event.`;
+        const message = renameSuccessMessage(pending.team.teamName, c);
 
         call$.pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
