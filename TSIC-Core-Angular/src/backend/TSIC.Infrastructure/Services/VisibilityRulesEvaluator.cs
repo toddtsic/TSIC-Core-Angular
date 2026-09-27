@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
+using TSIC.Domain.UsLax;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Services;
@@ -18,6 +19,7 @@ namespace TSIC.Infrastructure.Services;
 ///   CoreRegformPlayer -> teamEligibilityByAge (when 2nd pipe == 'BYAGERANGE')
 ///   JobTypeId in (1,4,6) -> playerSiteOnly
 ///   customer has any ApiAuthorized registration -> hasThirdPartyHistory
+///   PlayerProfileMetadataJson requires the USA Lacrosse number -> usLaxRequired
 /// </summary>
 public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
 {
@@ -51,6 +53,7 @@ public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
                 j.AdnArb,
                 j.BenableStp,
                 j.CoreRegformPlayer,
+                j.PlayerProfileMetadataJson,
                 // Customer has EVER had a vendor export login (any job, active or not) —
                 // gates the "3rd Party Data Access" console leaf: the screen is reuse-only,
                 // so a customer with no history has nothing to manage there.
@@ -72,6 +75,9 @@ public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
         // registered devices (see scripts/ungate-push-notification-nav.sql).
         if (raw.BenableStp == true) flags.Add("stayToPlayEnabled");
         if (raw.HasThirdPartyHistory) flags.Add("hasThirdPartyHistory");
+        // Same predicate registration enforces at submit, so the USA Lacrosse menu's presence is an
+        // honest "validation is on for this job" tell (AR-113). JSON parse, hence post-materialization.
+        if (UsLaxMetadataPolicy.RequiresUsLax(raw.PlayerProfileMetadataJson)) flags.Add("usLaxRequired");
 
         if (!string.IsNullOrEmpty(raw.CoreRegformPlayer))
         {

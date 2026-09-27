@@ -283,7 +283,8 @@ public class NavEditorRepository : INavEditorRepository
             "stayToPlayEnabled",
             "teamEligibilityByAge",
             "playerSiteOnly",
-            "hasThirdPartyHistory"
+            "hasThirdPartyHistory",
+            "usLaxRequired"
         };
 
         return new NavVisibilityOptionsDto

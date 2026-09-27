@@ -121,6 +121,7 @@ function New-AdminItem {
 #   stayToPlayEnabled      <- BenableStp
 #   teamEligibilityByAge   <- CoreRegformPlayer (2nd pipe == 'BYAGERANGE')
 #   playerSiteOnly         <- JobTypeId IN (1,4,6)
+#   usLaxRequired          <- PlayerProfileMetadataJson requires the USA Lacrosse number
 $rulesTournamentLeague   = '{"jobTypes":["Tournament Scheduling","League Scheduling"]}'
 $rulesStoreEnabled       = '{"requiresFlags":["storeEnabled"]}'
 $rulesStayToPlay         = '{"requiresFlags":["stayToPlayEnabled"]}'
@@ -129,6 +130,8 @@ $rulesAdnArb             = '{"requiresFlags":["adnArb"]}'
 $rulesLacrosse           = '{"sports":["Lacrosse"]}'
 $rulesPlayerSite         = '{"requiresFlags":["playerSiteOnly"]}'
 $rulesCampSales          = '{"jobTypes":["Camp Registration","Sales Venue"]}'
+# USA Lacrosse section: shown only where validation is on, so its presence is the tell (AR-113).
+$rulesUsLaxSection       = '{"sports":["Lacrosse"],"requiresFlags":["usLaxRequired"]}'
 
 # Section-level rules keyed by Controller name. These override any value inferred
 # from per-item aggregation and land on the L1 section parent. Use this when the
@@ -140,7 +143,7 @@ $rulesCampSales          = '{"jobTypes":["Camp Registration","Sales Venue"]}'
 $sectionRules = @{
     # 'Scheduling' is a -Standalone leaf as of 2026-08-04 — its T/L gate rides inline
     'Officials'   = $rulesTournamentLeague
-    'USA Lacrosse' = $rulesLacrosse
+    'USA Lacrosse' = $rulesUsLaxSection
 }
 
 # Functional admin manifest. L1 = a functional Section (grouping key in the

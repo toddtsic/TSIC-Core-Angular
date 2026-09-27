@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-09-27 15:30:37 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-09-27 15:42:30 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -206,7 +206,7 @@ CREATE TABLE #SectionRules (
     VisibilityRules NVARCHAR(MAX) NOT NULL
 );
 INSERT INTO #SectionRules VALUES (N'Officials', N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}');
-INSERT INTO #SectionRules VALUES (N'USA Lacrosse', N'{"sports":["Lacrosse"]}');
+INSERT INTO #SectionRules VALUES (N'USA Lacrosse', N'{"sports":["Lacrosse"],"requiresFlags":["usLaxRequired"]}');
 
 -- Fan out admin manifest per admin role
 DECLARE @navId INT, @parentId INT, @roleId NVARCHAR(450);
