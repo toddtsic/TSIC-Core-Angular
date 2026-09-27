@@ -65,6 +65,9 @@ type TeamsSegment = 'library' | 'registered';
       <!-- ── One card, two segments (Todd 2026-09-26). The green edge means teams are in. ── -->
       <div class="step-card" [class.step-card-registered]="enteredTeams().length > 0">
 
+        <!-- No tabs for a brand-new club (empty library, nothing registered): two empty views are
+             nothing to switch between. Both come back with the first team (Todd 2026-09-26). -->
+        @if (showSegments()) {
         <div class="seg-bar" role="tablist" aria-label="Registered Teams or Club Team Library">
           <button type="button" role="tab" id="teams-seg-tab-registered"
                   class="seg-tab seg-tab--registered"
@@ -114,80 +117,35 @@ type TeamsSegment = 'library' | 'registered';
             }
           </button>
         </div>
+        }
 
-        <div class="seg-panel" role="tabpanel" id="teams-seg-panel"
-             [attr.aria-labelledby]="segment() === 'library' ? 'teams-seg-tab-library' : 'teams-seg-tab-registered'">
+        <div class="seg-panel" id="teams-seg-panel"
+             [attr.role]="showSegments() ? 'tabpanel' : null"
+             [attr.aria-labelledby]="!showSegments() ? null : segment() === 'library' ? 'teams-seg-tab-library' : 'teams-seg-tab-registered'">
 
           @if (segment() === 'library') {
-            @if (allLibraryTeams().length === 0) {
-              <!-- New rep, empty library: the two-step explainer (wording ruled 2026-09-24, keep). -->
-              <div class="two-step-hero">
-                <div class="two-step-eyebrow">
-                  <span>How Team Registration Works</span>
-                </div>
-                <h3 class="two-step-headline">
-                  Two steps to get your teams into <span class="event-name">{{ eventName() }}</span>
-                </h3>
-
-                <div class="two-step-cards">
-                  <div class="step-mini step-mini-library">
-                    <div class="step-mini-head">
-                      <span class="step-mini-num">1</span>
-                      <i class="bi bi-collection-fill" aria-hidden="true"></i>
-                    </div>
-                    <strong>Build your Club Team Library</strong>
-                    <span>
-                      Add each team to your library &mdash; anytime, one at a time.
-                      Once it's in, it's there for <em>every</em> future TSIC event &mdash; no re-entry.
-                    </span>
-                  </div>
-
-                  <div class="two-step-arrow" aria-hidden="true">
-                    <i class="bi bi-arrow-right"></i>
-                  </div>
-
-                  <div class="step-mini step-mini-event">
-                    <div class="step-mini-head">
-                      <span class="step-mini-num">2</span>
-                      <i class="bi bi-trophy-fill" aria-hidden="true"></i>
-                    </div>
-                    <strong>Register for this event</strong>
-                    <span>
-                      Pick teams from your library to register to play in
-                      <strong>{{ eventName() }}</strong>.
-                    </span>
-                  </div>
-                </div>
-
-                <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-library"
-                        (click)="showAddAndRegisterModal.set(true)">
-                  <i class="bi bi-trophy-fill me-2"></i>
-                  Register Your First Team
-                  <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
-                </button>
-              </div>
-            } @else {
-              <div class="seg-panel-body">
-                <app-library-segment
-                  [clubTeams]="allLibraryTeams()"
-                  [registeredTeams]="enteredTeams()"
-                  [droppedTeams]="droppedTeams()"
-                  [ageGroups]="ageGroups()"
-                  [clubName]="clubName()"
-                  [eventName]="eventName()"
-                  [canRegister]="canRegisterTeam()"
-                  [actionInProgress]="actionInProgress()"
-                  [pendingLibraryOnly]="pendingLibraryOnly()"
-                  [revealPending]="revealPending()"
-                  [listFirst]="enteredTeams().length === 0"
-                  (openRegister)="openRegisterModal()"
-                  (addNew)="onAddNew()"
-                  (edit)="openEditModal($event)"
-                  (archive)="askArchiveTeam($event)"
-                  (delete)="askDeleteTeam($event)"
-                  (restore)="askRestoreTeam($event)" />
-              </div>
-            }
+            <!-- ONE library view for every rep (Todd 2026-09-26, "KEEP IT DRY"): an empty library is the
+                 same segment with its empty head, not a separate hero. -->
+            <div class="seg-panel-body">
+              <app-library-segment
+                [clubTeams]="allLibraryTeams()"
+                [registeredTeams]="enteredTeams()"
+                [droppedTeams]="droppedTeams()"
+                [ageGroups]="ageGroups()"
+                [clubName]="clubName()"
+                [eventName]="eventName()"
+                [canRegister]="canRegisterTeam()"
+                [actionInProgress]="actionInProgress()"
+                [pendingLibraryOnly]="pendingLibraryOnly()"
+                [revealPending]="revealPending()"
+                [listFirst]="enteredTeams().length === 0"
+                (openRegister)="openRegisterModal()"
+                (addNew)="onAddNew()"
+                (edit)="openEditModal($event)"
+                (archive)="askArchiveTeam($event)"
+                (delete)="askDeleteTeam($event)"
+                (restore)="askRestoreTeam($event)" />
+            </div>
           } @else {
             @if (enteredTeams().length === 0) {
               <!-- Nothing registered yet: neutral, no check. Green and a check mean done (Todd 2026-09-24). -->
@@ -525,9 +483,8 @@ type TeamsSegment = 'library' | 'registered';
       /* ── Segmented control — the step's two views (Todd 2026-09-26). It must read as a SWITCH at a
          glance, not as a card header: a recessed track holding two raised pills, the selected pill
          FILLED in its own color with light text, the other flat and muted inside the track.
-         Library = primary, Registered = success: the two-step explainer's colors, so "library,
-         then event" reads the same everywhere. Never color alone: fill vs flat, raised vs sunk,
-         and each pill carries its own icon and words. ── */
+         Library = primary, Registered = success, so "library, then event" reads the same everywhere.
+         Never color alone: fill vs flat, raised vs sunk, and each pill carries its own icon and words. ── */
       .seg-bar {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -852,159 +809,6 @@ type TeamsSegment = 'library' | 'registered';
         letter-spacing: 0;
       }
 
-      /* ── Two-step hero (library=0, registered=0) ────────────────────
-         Library → Event story, told visually as two side-by-side cards
-         with an arrow between. Color-coded: library = primary, event = success
-         (matches the green border of the parent Registered card). */
-      .two-step-hero {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: var(--space-3);
-        padding: var(--space-6) var(--space-4);
-      }
-
-      .two-step-eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-3);
-        font-size: 11px;
-        font-weight: var(--font-weight-bold);
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: var(--brand-text-muted);
-
-        &::before,
-        &::after {
-          content: '';
-          display: block;
-          width: 56px;
-          height: 1px;
-        }
-
-        &::before {
-          background: linear-gradient(to right,
-            transparent,
-            rgba(var(--bs-success-rgb), 0.45));
-        }
-
-        &::after {
-          background: linear-gradient(to left,
-            transparent,
-            rgba(var(--bs-success-rgb), 0.45));
-        }
-
-        > span {
-          display: inline-flex;
-          align-items: center;
-          gap: var(--space-2);
-        }
-
-        > span::before,
-        > span::after {
-          content: '';
-          display: inline-block;
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-          background: rgba(var(--bs-success-rgb), 0.55);
-        }
-      }
-
-      .two-step-headline {
-        margin: 0 0 var(--space-2);
-        font-size: var(--font-size-lg);
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text);
-        line-height: var(--line-height-tight);
-        max-width: 640px;
-
-        .event-name { color: var(--bs-success); white-space: nowrap; }
-      }
-
-      .two-step-cards {
-        display: flex;
-        align-items: stretch;
-        justify-content: center;
-        gap: var(--space-3);
-        width: 100%;
-        max-width: 720px;
-      }
-
-      .step-mini {
-        flex: 1 1 0;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        padding: var(--space-4) var(--space-3);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        background: var(--brand-surface);
-        text-align: center;
-        box-shadow: var(--shadow-xs);
-
-        strong {
-          color: var(--brand-text);
-          font-size: var(--font-size-base);
-          line-height: var(--line-height-tight);
-        }
-
-        > span {
-          font-size: var(--font-size-sm);
-          color: var(--brand-text-muted);
-          line-height: var(--line-height-normal);
-        }
-
-        em { font-style: italic; }
-      }
-
-      .step-mini-library {
-        border-top: 3px solid var(--bs-primary);
-
-        .step-mini-num { background: var(--bs-primary); }
-        .step-mini-head > i { color: var(--bs-primary); }
-      }
-
-      .step-mini-event {
-        border-top: 3px solid var(--bs-success);
-
-        .step-mini-num { background: var(--bs-success); }
-        .step-mini-head > i { color: var(--bs-success); }
-      }
-
-      .step-mini-head {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--space-2);
-      }
-
-      .step-mini-num {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        color: var(--neutral-0);
-        font-weight: var(--font-weight-bold);
-        font-size: var(--font-size-xs);
-        line-height: 1;
-        flex-shrink: 0;
-      }
-
-      .step-mini-head > i { font-size: var(--font-size-xl); }
-
-      .two-step-arrow {
-        display: flex;
-        align-items: center;
-        color: var(--brand-text-muted);
-        opacity: 0.6;
-
-        i { font-size: var(--font-size-2xl); }
-      }
-
       /* ── Empty-state primary CTA ────────────────────────────────────
          Replaces the "tap above" pointer. Lives where the eye is. */
       .cta-empty {
@@ -1032,12 +836,6 @@ type TeamsSegment = 'library' | 'registered';
         .cta-empty,
         .cta-empty-arrow { transition: none !important; }
         .cta-empty:hover { transform: none; }
-      }
-
-      @media (max-width: 575.98px) {
-        .two-step-cards { flex-direction: column; }
-        .two-step-arrow { transform: rotate(90deg); margin: 0 auto; }
-        .two-step-headline { font-size: var(--font-size-base); }
       }
 
       /* ── Mobile ── */
@@ -1192,6 +990,9 @@ export class TeamTeamsStepComponent implements OnInit {
             .filter(t => !t.bArchived && !entered.has(t.clubTeamId) && isTeamOfferedAtEvent(oldest, t.clubTeamGradYear))
             .sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName));
     });
+
+    /** The segment bar shows once there is anything to switch between: a library team or a registration. */
+    readonly showSegments = computed(() => this._clubTeams().length > 0 || this._registeredTeams().length > 0);
 
     /** Active (not archived) library teams. */
     readonly activeLibraryCount = computed(() => this._clubTeams().filter(t => !t.bArchived).length);

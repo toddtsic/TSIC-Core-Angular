@@ -40,36 +40,51 @@ interface SegmentRow {
          Once anything is registered, one quiet line. Either way the head says what an edit here
          touches: the library, i.e. future events — never a registration. ── -->
     @if (listFirst()) {
+      <!-- The same card for an EMPTY library (a brand-new club): its text starts the list instead of
+           checking it, and Add is the one filled action (Todd 2026-09-26, one view — "KEEP IT DRY"). -->
       <div class="list-first">
         <div class="list-first-text">
           <strong class="list-first-title">
             <i class="bi bi-collection-fill" aria-hidden="true"></i>
-            Before you register, make sure your Club Team Library is right.
+            @if (empty()) {
+              Start your Club Team Library.
+            } @else {
+              Before you register, make sure your Club Team Library is right.
+            }
           </strong>
-          <span class="list-first-why">
-            It's the list of teams every event you register for starts from &mdash; this one and every one after.
-          </span>
-          <ul class="list-first-checks">
-            <li><span class="lf-q">New team this season?</span> <b>Add a New Team</b>.</li>
-            <li><span class="lf-q">Graduated or moved on?</span> <b>Archive</b> it &mdash; its history is kept.</li>
-            <li><span class="lf-q">Name, grad year or level out of date?</span> <b>Edit</b> it.</li>
-          </ul>
-          @if (canRegister()) {
-            <span class="list-first-then">When your list is right, register the teams you're bringing to {{ eventName() }}.</span>
+          @if (empty()) {
+            <span class="list-first-why">
+              Add each team once &mdash; it stays here for every event you register for, so you never retype it.
+              @if (canRegister()) { Adding a team here also registers it for {{ eventName() }}. }
+            </span>
           } @else {
+            <span class="list-first-why">
+              It's the list of teams every event you register for starts from &mdash; this one and every one after.
+            </span>
+            <ul class="list-first-checks">
+              <li><span class="lf-q">New team this season?</span> <b>Add a New Team</b>.</li>
+              <li><span class="lf-q">Graduated or moved on?</span> <b>Archive</b> it &mdash; its history is kept.</li>
+              <li><span class="lf-q">Name, grad year or level out of date?</span> <b>Edit</b> it.</li>
+            </ul>
+            @if (canRegister()) {
+              <span class="list-first-then">When your list is right, register the teams you're bringing to {{ eventName() }}.</span>
+            }
+          }
+          @if (!canRegister()) {
             <span class="list-first-then">Team registration for {{ eventName() }} is closed. Your library is still yours to keep right.</span>
           }
         </div>
         <div class="list-first-actions">
-          @if (canRegister()) {
+          @if (canRegister() && !empty()) {
             <button type="button" class="btn-register-teams" [disabled]="actionInProgress()" (click)="openRegister.emit()">
               <i class="bi bi-trophy-fill" aria-hidden="true"></i>
               Register teams for {{ eventName() }}
             </button>
           }
-          <button type="button" class="btn-add-team" [disabled]="actionInProgress()" (click)="addNew.emit()">
+          <button type="button" class="btn-add-team" [class.btn-add-team--primary]="empty()"
+                  [disabled]="actionInProgress()" (click)="addNew.emit()">
             <i class="bi bi-plus-circle" aria-hidden="true"></i>
-            {{ canRegister() ? 'Add a New Team' : 'Add Library Team' }}
+            {{ empty() ? 'Add Your First Team' : canRegister() ? 'Add a New Team' : 'Add Library Team' }}
           </button>
         </div>
       </div>
@@ -86,13 +101,15 @@ interface SegmentRow {
       </div>
     }
 
-    <!-- What Edit means HERE, said once, above every Edit button (Todd 2026-09-26). -->
+    <!-- What Edit means HERE, said once, above every Edit button (Todd 2026-09-26). Not while there is nothing to edit. -->
+    @if (!empty()) {
     <p class="edit-scope">
       <i class="bi bi-pencil" aria-hidden="true"></i>
       <span><b>Edit</b> changes the team in your library, so every future event starts from the new details.
         A team already registered for {{ eventName() }} keeps its registration as it is &mdash; change that on
         <b>{{ eventName() }} Registered Teams</b>.</span>
     </p>
+    }
 
     <!-- One row's cells. Shared by every group so a team looks the same wherever it sits. -->
     <ng-template #rowTpl let-row>
@@ -188,6 +205,10 @@ interface SegmentRow {
         <span>Library team</span>
         <span>At {{ eventName() }}</span>
       </div>
+
+      @if (empty()) {
+        <p class="lib-empty">No teams yet &mdash; add your first one above.</p>
+      }
 
       <!-- Not registered here, and fits an age group -->
       @if (notRegisteredRows().length > 0) {
@@ -371,6 +392,23 @@ interface SegmentRow {
         &:hover:not(:disabled) { background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface)); }
         &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
         &:disabled { opacity: 0.45; cursor: default; }
+
+        /* The empty library's one action: filled, not outlined. */
+        &--primary {
+          background: var(--bs-primary);
+          color: var(--neutral-0);
+          box-shadow: var(--shadow-xs);
+
+          &:hover:not(:disabled) { background: var(--bs-primary); filter: brightness(0.93); }
+        }
+      }
+
+      .lib-empty {
+        margin: 0;
+        padding: var(--space-5) var(--space-3);
+        text-align: center;
+        font-size: var(--font-size-sm);
+        color: var(--brand-text-muted);
       }
 
       .all-archived {
@@ -657,6 +695,8 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
         this.rows().filter(r => !r.team.bArchived && !r.registered && !this.fits(r.team)));
     readonly archivedRows = computed(() => this.rows().filter(r => r.team.bArchived && !r.registered));
     readonly activeCount = computed(() => this.clubTeams().filter(t => !t.bArchived).length);
+    /** No library teams at all — a brand-new club. The same view, its empty variant. */
+    readonly empty = computed(() => this.clubTeams().length === 0);
 
     // ── Locks: the shared rules, so this segment and the library page never disagree ──
     private lockContext(registeredHere: boolean): ClubTeamLockContext {
