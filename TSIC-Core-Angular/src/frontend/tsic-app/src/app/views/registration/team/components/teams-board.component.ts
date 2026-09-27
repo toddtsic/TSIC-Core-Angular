@@ -239,13 +239,12 @@ interface LibRow {
                   </button>
                 </span>
                 <span class="row-meta">
-                  <!-- The age group only when the name doesn't already say it ("2030 Blue" in 2030). -->
-                  @if (showAgeGroup(t)) {
-                    <span class="meta-pair">
-                      @if (t.isWaitlisted) { <i class="bi bi-hourglass-split meta-wl" aria-hidden="true"></i>Waitlist &middot; }
-                      {{ t.ageGroupDisplayName || t.ageGroupName }}
-                    </span>
-                  }
+                  <!-- The registered age group, always (Todd 2026-09-27): a team's name is not its placement. -->
+                  <span class="meta-pair">
+                    <span class="meta-key">AG</span>
+                    @if (t.isWaitlisted) { <i class="bi bi-hourglass-split meta-wl" aria-hidden="true"></i>Waitlist &middot; }
+                    {{ t.ageGroupDisplayName || t.ageGroupName }}
+                  </span>
                   <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(t.levelOfPlay) || '—' }}</span>
                 <span class="fee" [class]="'fee fee--' + s.kind">
                   @switch (s.kind) {
@@ -897,13 +896,6 @@ export class TeamsBoardComponent {
             const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
             row?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
         }, { injector: this.injector });
-    }
-
-    /** The age group, unless the team's name already says it ("2030 Blue" in 2030). A waitlist always shows. */
-    showAgeGroup(t: RegisteredTeamDto): boolean {
-        if (t.isWaitlisted) return true;
-        const label = (t.ageGroupDisplayName || t.ageGroupName || '').trim();
-        return !label || !t.teamName.toLowerCase().includes(label.toLowerCase());
     }
 
     setPick(field: keyof RegPick, value: string): void {
