@@ -49,25 +49,35 @@ interface LibRow {
           </h3>
           <span class="board-sub">Your teams to choose from</span>
         </div>
-        <button type="button" class="btn-add" [class.btn-add--primary]="empty()"
-                [disabled]="actionInProgress()" (click)="addNew.emit()">
-          <i class="bi bi-plus-circle" aria-hidden="true"></i>{{ empty() ? 'Add Your First Team' : 'Add Team' }}
+        <!-- One header for every club, new or established (Todd 2026-09-27): no empty-state variant. -->
+        <button type="button" class="btn-add" [disabled]="actionInProgress()" (click)="addNew.emit()">
+          <i class="bi bi-plus-circle" aria-hidden="true"></i>Add Team
         </button>
       </header>
 
       <section class="panel panel--lib" aria-labelledby="board-lib-title">
         <div class="panel-body">
+          <!-- Nothing to list: a placeholder ROW where the teams go, never a paragraph — the board
+               looks like the board with nothing in it yet. -->
           @if (empty()) {
-            <p class="panel-empty">
-              Add every team you're bringing to {{ eventName() }} &mdash; once, for every event after.
-            </p>
+            <div class="lib-row row-placeholder">
+              <div class="row-main">
+                <div class="row-text">
+                  <span class="row-name">No teams yet</span>
+                </div>
+                <button type="button" class="btn-add" [disabled]="actionInProgress()" (click)="addNew.emit()">
+                  <i class="bi bi-plus-circle" aria-hidden="true"></i>Add your first team
+                </button>
+              </div>
+            </div>
           } @else if (availableRows().length === 0 && activeCount() > 0) {
-            <p class="panel-empty panel-empty--done">
-              <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-              Every library team is registered for {{ eventName() }}.
-            </p>
+            <div class="lib-row row-placeholder">
+              <span class="row-meta"><i class="bi bi-check-circle-fill ph-done" aria-hidden="true"></i>Every library team is registered for {{ eventName() }}.</span>
+            </div>
           } @else if (activeCount() === 0) {
-            <p class="panel-empty">Every library team is archived. Restore one below, or add a team.</p>
+            <div class="lib-row row-placeholder">
+              <span class="row-meta">Every library team is archived. Restore one below, or add a team.</span>
+            </div>
           }
 
           @for (row of availableRows(); track row.team.clubTeamId) {
@@ -300,15 +310,15 @@ interface LibRow {
               }
             </div>
           } @empty {
-            <p class="panel-empty">
-              @if (!canRegister()) {
-                Team registration for {{ eventName() }} is closed.
-              } @else if (empty()) {
-                Once your library has a team, press <b>Register</b> on it to bring it here.
-              } @else {
-                Press <b>Register</b> on a library team to bring it here.
-              }
-            </p>
+            <div class="reg-row row-placeholder">
+              <span class="row-meta">
+                @if (!canRegister()) {
+                  Team registration for {{ eventName() }} is closed.
+                } @else {
+                  Registered teams appear here.
+                }
+              </span>
+            </div>
           }
         </div>
       </section>
@@ -472,15 +482,16 @@ interface LibRow {
         &::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--bs-body-color) 38%, transparent) padding-box; }
       }
 
-      .panel-empty {
-        margin: 0;
-        padding: var(--space-5) var(--space-3);
-        text-align: center;
-        font-size: var(--font-size-sm);
-        color: var(--brand-text-muted);
+      /* A row-shaped stand-in where teams will go: same padding as a team row, dashed edge. */
+      .lib-row.row-placeholder, .reg-row.row-placeholder {
+        margin: var(--space-2);
+        border: 1px dashed color-mix(in srgb, var(--bs-body-color) 25%, transparent);
+        border-radius: var(--radius-sm);
 
-        &--done .bi { color: var(--bs-success); }
+        &:last-child { border-bottom: 1px dashed color-mix(in srgb, var(--bs-body-color) 25%, transparent); }
+        .row-name { color: var(--brand-text-muted); }
       }
+      .ph-done { margin-right: var(--space-1); color: var(--bs-success); }
 
       /* ── Rows ── */
       .lib-row, .reg-row {
@@ -571,12 +582,6 @@ interface LibRow {
         &:hover:not(:disabled) { background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface)); }
         &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
         &:disabled { opacity: 0.45; cursor: default; }
-
-        &--primary {
-          background: var(--bs-primary);
-          color: var(--neutral-0);
-          &:hover:not(:disabled) { background: var(--bs-primary); filter: brightness(0.93); }
-        }
       }
 
       .btn-go {
