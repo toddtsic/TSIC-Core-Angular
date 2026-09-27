@@ -1,28 +1,5 @@
-<!-- ── Page header ─────────────────────────────────────────────────────── -->
-<div class="page-header">
-  <div class="page-header__id">
-    <h2 class="page-title">
-      Club Team Library
-      @if (clubName()) { <span class="title-club-badge">{{ clubName() }}</span> }
-    </h2>
-    <!-- What this page IS (Todd 2026-09-24: "representing it for what it is"). By the time a rep can
-         reach it they have already registered from this list in the wizard, so no sell and no
-         warning: the whole list with its history, kept right between registrations. -->
-    <p class="page-lede">
-      <strong>{{ ledeOwner() }} teams, and every event each one has been registered for.</strong>
-      Keep the list right: fix a name or a grad year, archive a squad that has moved on, restore one,
-      add next season's team early. Team Registration picks from this list.
-    </p>
-  </div>
-  <div class="page-header__actions">
-    <button type="button" class="btn-page-primary" [disabled]="actionInProgress()" (click)="showAddModal.set(true)">
-      <i class="bi bi-plus-circle" aria-hidden="true"></i>Add to Library
-    </button>
-  </div>
-</div>
-
 @if (error()) {
-  <div class="alert alert-danger d-flex align-items-center" role="alert">
+  <div class="alert alert-danger d-flex align-items-center lib-page" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error() }}
   </div>
 }
@@ -35,138 +12,21 @@
 }
 
 @if (!loading() && !error()) {
-  <div class="library-content">
-
-    <!-- ── Empty library ──────────────────────────────────────────────── -->
-    @if (rows().length === 0 && archivedRows().length === 0) {
-      <div class="lib-empty">
-        <i class="bi bi-collection lib-empty-icon" aria-hidden="true"></i>
-        <strong>Your library is empty</strong>
-        <span>Add each team once. It's then ready to pick whenever you register for an event.</span>
-        <button type="button" class="btn-page-primary" (click)="showAddModal.set(true)">
-          <i class="bi bi-plus-circle" aria-hidden="true"></i>Add your first team
-        </button>
-      </div>
-    }
-
-    <!-- The two identity cells, shared by active and archived rows so the page has one idiom:
-         a team and where it has played. -->
-    <ng-template #teamCells let-row>
-      <!-- Team identity -->
-      <div class="col-team" role="cell">
-        <span class="team-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
-        <span class="team-meta">
-          <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
-          @if (row.team.clubTeamLevelOfPlay) {
-            <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) }}</span>
-          }
-        </span>
-      </div>
-
-      <!-- Registered for: every event, this one first and highlighted, no special column -->
-      <div class="col-history" role="cell">
-        @if (row.history.length === 0) {
-          <span class="history-none">Not registered yet</span>
-        } @else {
-          @let expanded = expandedHistory().has(row.team.clubTeamId);
-          @let shown = expanded ? row.history : row.history.slice(0, historyPreviewCount);
-          <ul class="history-list">
-            @for (h of shown; track h.jobId) {
-              <li class="history-chip"
-                  [class.history-chip--here]="isHere(h)"
-                  [class.history-chip--dropped]="h.isDropped"
-                  [class.history-chip--wl]="h.isWaitlisted && !h.isDropped"
-                  [attr.title]="isHere(h) ? 'This event' : null">
-                @if (isHere(h)) { <i class="bi bi-pin-angle-fill history-here-icon" aria-hidden="true"></i> }
-                <span class="history-event">{{ eventLabel(h) }}</span>
-                @if (eventAlias(row, h.eventTeamName); as alias) {
-                  <span class="history-as" [attr.title]="'Registered there as ' + alias">as {{ alias }}</span>
-                }
-                @if (h.isDropped) { <span class="history-tag">dropped</span> }
-                @else if (h.isWaitlisted) { <span class="history-tag">waitlist</span> }
-              </li>
-            }
-          </ul>
-          @if (row.history.length > historyPreviewCount) {
-            <button type="button" class="history-more" (click)="toggleHistory(row.team.clubTeamId)">
-              {{ expanded ? 'Show fewer' : '+' + (row.history.length - historyPreviewCount) + ' more' }}
-            </button>
-          }
-        }
-      </div>
-    </ng-template>
-
-    <!-- ── The table: active rows, then archived rows under a collapsible divider ───── -->
-    @if (rows().length > 0 || archivedRows().length > 0) {
-      <div class="lib-table" role="table" aria-label="Club team library">
-        <div class="lib-head" role="row">
-          <span role="columnheader" class="col-team">Library team</span>
-          <span role="columnheader" class="col-history">Registered for</span>
-          <span role="columnheader" class="col-actions">Actions</span>
-        </div>
-
-        @for (row of rows(); track row.team.clubTeamId) {
-          <div class="lib-row" role="row">
-
-            <ng-container *ngTemplateOutlet="teamCells; context: { $implicit: row }" />
-
-            <!-- Actions — library housekeeping only, on EVERY row, in the open (the page has the
-                 room a drawer lacks). A locked action stays clickable and answers with its reason
-                 as a toast, because a disabled button says nothing on touch. -->
-            <div class="col-actions" role="cell">
-              @let editLock = editLockReason(row);
-              @let removal = removalFor(row);
-              <button type="button" class="btn-action" [class.is-locked]="!!editLock"
-                      [disabled]="actionInProgress()" [attr.title]="editLock" [attr.aria-disabled]="!!editLock"
-                      (click)="editLock ? explainLock(editLock) : openEdit(row)">
-                <i class="bi bi-pencil" aria-hidden="true"></i>Edit
-              </button>
-              <!-- ONE way off the list per row: Delete while nothing references the team, Archive
-                   once anything does (Todd 2026-09-24). Never both. -->
-              @if (removal.kind === 'archive') {
-                <button type="button" class="btn-action" [class.is-locked]="!!removal.lockReason"
-                        [disabled]="actionInProgress()" [attr.title]="removal.lockReason" [attr.aria-disabled]="!!removal.lockReason"
-                        (click)="removal.lockReason ? explainLock(removal.lockReason) : askArchive(row)">
-                  <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Archive
-                </button>
-              } @else {
-                <button type="button" class="btn-action btn-action--danger" [class.is-locked]="!!removal.lockReason"
-                        [disabled]="actionInProgress()" [attr.title]="removal.lockReason" [attr.aria-disabled]="!!removal.lockReason"
-                        (click)="removal.lockReason ? explainLock(removal.lockReason) : askDelete(row)">
-                  <i class="bi bi-trash" aria-hidden="true"></i>Delete
-                </button>
-              }
-            </div>
-          </div>
-        }
-
-        <!-- ── Archived: same columns, same chips, greyed, one action (Todd 2026-09-24). An archived
-             team has usually played the most, and this page is "teams and where they have played". -->
-        @if (archivedRows().length > 0) {
-          <button type="button" class="lib-divider" role="row"
-                  [attr.aria-expanded]="showArchived()" (click)="showArchived.set(!showArchived())">
-            <i class="bi lib-divider-chevron" [class.bi-chevron-down]="showArchived()" [class.bi-chevron-right]="!showArchived()" aria-hidden="true"></i>
-            <i class="bi bi-archive-fill" aria-hidden="true"></i>
-            <span class="lib-divider-title">Archived</span>
-            <span class="lib-divider-count">{{ archivedRows().length }}</span>
-            <span class="lib-divider-hint">hidden from registration · names stay reserved</span>
-          </button>
-          @if (showArchived()) {
-            @for (row of archivedRows(); track row.team.clubTeamId) {
-              <div class="lib-row lib-row--archived" role="row">
-                <ng-container *ngTemplateOutlet="teamCells; context: { $implicit: row }" />
-                <div class="col-actions" role="cell">
-                  <button type="button" class="btn-action" title="Restore to active library"
-                          [disabled]="actionInProgress()" (click)="askRestore(row)">
-                    <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restore
-                  </button>
-                </div>
-              </div>
-            }
-          }
-        }
-      </div>
-    }
+  <!-- The Teams step's library panel, verbatim (Ann/Todd 2026-09-27): same header, same rows, same
+       Archived pile — only Register and the Registered pile are gone. -->
+  <div class="lib-page">
+    <app-library-panel
+      mode="page"
+      [clubTeams]="clubTeams()"
+      [registeredTeams]="registered()"
+      [eventName]="eventName()"
+      [clubName]="clubName()"
+      [actionInProgress]="actionInProgress()"
+      (addNew)="showAddModal.set(true)"
+      (librarySaved)="load(false)"
+      (archive)="pendingArchive.set($event)"
+      (delete)="pendingDelete.set($event)"
+      (restore)="pendingRestore.set($event)" />
   </div>
 }
 
@@ -175,20 +35,9 @@
   <app-team-form-modal
     [clubName]="clubName()"
     [eventName]="eventName()"
-    [existingTeams]="rows().map(r => r.team).concat(archivedRows().map(r => r.team))"
+    [existingTeams]="clubTeams()"
     (saved)="onTeamAdded()"
     (closed)="showAddModal.set(false)" />
-}
-
-@if (editingTeam(); as editing) {
-  <app-team-form-modal
-    [clubName]="clubName()"
-    [eventName]="eventName()"
-    [editingTeam]="editing"
-    [archiveLockReason]="editingArchiveLock()"
-    [existingTeams]="rows().map(r => r.team).concat(archivedRows().map(r => r.team))"
-    (saved)="onTeamEdited()"
-    (closed)="editingTeam.set(null)" />
 }
 
 @if (pendingDelete(); as team) {

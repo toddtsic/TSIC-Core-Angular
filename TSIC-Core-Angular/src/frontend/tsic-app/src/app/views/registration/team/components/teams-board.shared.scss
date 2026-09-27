@@ -1,0 +1,489 @@
+/* The Teams board and the library panel share ONE stylesheet, so the Club Team Library looks
+   identical on the Teams step and on its own page (Ann/Todd 2026-09-27: familiarity). */
+/* Headers in one row, panels in the next: the headers always match height, so the two
+   panels start level whatever each header's text runs to. */
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "lib-head reg-head"
+    "lib-panel reg-panel";
+  column-gap: var(--space-3);
+  row-gap: var(--space-2);
+  align-items: start;
+}
+.board-head--lib { grid-area: lib-head; }
+.board-head--reg { grid-area: reg-head; }
+.panel--lib { grid-area: lib-panel; }
+.panel--reg { grid-area: reg-panel; }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch; /* both panels end on one line above Continue */
+  min-width: 0;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  background: var(--brand-surface);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+/* Each side keeps one color everywhere: library = primary, this event = success. */
+/* A faint wash of each side's color over the surface: mixed from theme variables, so it
+   follows every palette and dark mode, and the two sides read apart at a glance. */
+.panel--lib { border-top: 3px solid var(--bs-primary); background: color-mix(in srgb, var(--bs-primary) 4%, var(--brand-surface)); }
+.panel--reg { border-top: 3px solid var(--bs-success); background: color-mix(in srgb, var(--bs-success) 5%, var(--brand-surface)); }
+
+/* ── Header above each panel ── */
+.board-head {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  align-self: stretch;
+  min-width: 0;
+  padding: 0 var(--space-1);
+}
+
+.board-head-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.board-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--brand-text);
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.board-head--lib .board-title .bi { color: var(--bs-primary); }
+.board-head--reg .board-title .bi { color: var(--bs-success); }
+
+.board-sub {
+  font-size: var(--font-size-2xs);
+  color: var(--brand-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Each list scrolls on its own under a fixed header, so both sides stay in view together and
+   Continue stays in reach for a big club (Todd 2026-09-27). Uncapped once stacked on a phone. */
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  /* A slim scrollbar in the side's own color, not the OS's 17px gutter. */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--bs-body-color) 22%, transparent) transparent;
+
+  &::-webkit-scrollbar { width: 8px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--bs-body-color) 22%, transparent) padding-box;
+  }
+  &::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--bs-body-color) 38%, transparent) padding-box; }
+}
+
+/* A row-shaped stand-in where teams will go: same padding as a team row, dashed edge. */
+.lib-row.row-placeholder, .reg-row.row-placeholder {
+  margin: var(--space-2);
+  border: 1px dashed color-mix(in srgb, var(--bs-body-color) 25%, transparent);
+  border-radius: var(--radius-sm);
+
+  &:last-child { border-bottom: 1px dashed color-mix(in srgb, var(--bs-body-color) 25%, transparent); }
+  .row-name { color: var(--brand-text-muted); }
+}
+
+/* ── Rows ── */
+.lib-row, .reg-row {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color) 6%, transparent);
+
+  &:last-child { border-bottom: none; }
+}
+
+.lib-row {
+  &.is-open { background: color-mix(in srgb, var(--bs-primary) 10%, transparent); }
+  &.is-pending { box-shadow: inset 3px 0 0 var(--bs-warning); }
+  &.is-quiet .row-name { font-weight: var(--font-weight-medium); }
+  &.is-archived .row-name { font-style: italic; color: var(--brand-text-muted); }
+}
+
+.row-main { display: flex; align-items: center; gap: var(--space-2); }
+
+.reg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+
+  &.is-open { background: color-mix(in srgb, var(--bs-success) 10%, transparent); }
+}
+
+.reg-editor-host { flex: 1; min-width: 0; }
+
+.row-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+/* Registered row, line 2: facts wrap on the left, actions pinned flush right. */
+.row-line2 { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.row-line2 .row-meta { flex: 1; min-width: 0; }
+.row-actions { display: flex; align-items: center; gap: var(--space-1); flex-shrink: 0; margin-left: auto; }
+
+.row-name-line { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+/* The name gives way first; the age group never truncates. */
+.ag-badge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.reg-in {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  color: var(--brand-text-muted);
+  white-space: nowrap;
+
+  b { color: var(--brand-text); font-weight: var(--font-weight-semibold); }
+}
+
+.row-name {
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-2xs);
+  color: var(--brand-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-pair { display: inline-flex; align-items: baseline; gap: var(--space-1); }
+.meta-key { text-transform: uppercase; letter-spacing: 0.06em; font-weight: var(--font-weight-semibold); opacity: 0.7; }
+
+.fee {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--brand-text);
+  font-variant-numeric: tabular-nums;
+
+  .bi { color: var(--brand-text-muted); }
+}
+.fee--depositDue .bi, .fee--balanceDue .bi { color: var(--bs-warning); }
+.fee--paid .bi, .fee--depositPaid .bi { color: var(--bs-success); }
+.fee--scheduled .bi { color: var(--bs-info); }
+.fee--free .bi, .fee--waitlist .bi { color: var(--brand-text-muted); }
+
+/* Fold icons repeat the mark of what they stand for: Registered → the right panel's clipboard,
+   Available → the library's list, Archived → the row's Archive action. */
+.fold-icon { font-size: var(--font-size-xs); }
+.fold-icon--reg { color: var(--bs-success); }
+.fold-icon--lib { color: var(--bs-primary); }
+
+/* The event, accented in the empty Registered panel — this side's color, darkened toward the
+   text color so it holds AA on the tinted panel in every palette. */
+/* Header stat strip: small-caps key, bold value — the rows' "AG 2030" idiom, one size up. */
+.board-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-3);
+  row-gap: 2px;
+  white-space: normal;
+  overflow: visible;
+}
+.stat { display: inline-flex; align-items: baseline; gap: var(--space-1); white-space: nowrap; }
+.stat-key { text-transform: uppercase; letter-spacing: 0.06em; font-weight: var(--font-weight-semibold); }
+.stat-val { font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); color: var(--brand-text); }
+/* Owed: a warning pill — shape and weight as well as color, never color alone. */
+.stat.is-owed .stat-val {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--bs-warning);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--bs-warning) 18%, var(--brand-surface));
+}
+.ev-name { color: color-mix(in srgb, var(--bs-success) 65%, var(--brand-text)); font-weight: var(--font-weight-bold); }
+
+/* ── Buttons ── */
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  padding: 3px var(--space-2);
+  border: 1px solid var(--bs-primary);
+  border-radius: var(--radius-sm);
+  background: var(--brand-surface);
+  color: var(--bs-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface)); }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  &:disabled { opacity: 0.45; cursor: default; }
+}
+
+.btn-go {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  padding: 3px var(--space-2);
+  /* Quiet at rest so a column of them doesn't outshout the team names; solid on hover/focus. */
+  border: 1px solid color-mix(in srgb, var(--bs-success) 35%, transparent);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--bs-success);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+
+  &:hover:not(:disabled), &:focus-visible {
+    border-color: var(--bs-success);
+    background: var(--bs-success);
+    color: var(--neutral-0);
+  }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  &:disabled { opacity: 0.45; cursor: default; }
+}
+
+/* Library housekeeping, right of the team and left of Register. */
+.lib-actions { display: inline-flex; flex-shrink: 0; gap: 2px; }
+
+.btn-lib {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 var(--space-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--brand-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+
+  &:hover:not(:disabled):not(.is-locked) {
+    background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
+    color: var(--bs-primary);
+  }
+  &--danger:hover:not(:disabled):not(.is-locked) {
+    background: color-mix(in srgb, var(--bs-danger) 10%, transparent);
+    color: var(--bs-danger);
+  }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  &:disabled { opacity: 0.3; cursor: default; }
+  &.is-locked { opacity: 0.5; cursor: help; font-style: italic; text-decoration: line-through; }
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--brand-text-muted);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+
+  &:hover:not(:disabled):not(.is-locked) { background: color-mix(in srgb, var(--bs-success) 10%, transparent); color: var(--bs-success); }
+  &--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--bs-danger) 10%, transparent); color: var(--bs-danger); }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  &:disabled { opacity: 0.3; cursor: default; }
+  &.is-locked { opacity: 0.4; cursor: help; }
+}
+
+.btn-undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-sm);
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { border-color: var(--bs-danger); color: var(--bs-danger); }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  &:disabled { opacity: 0.45; cursor: default; }
+}
+
+/* ── The register editor on a library row ── */
+.reg-editor {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-areas:
+    "lop ag"
+    "note note"
+    "actions actions";
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.reg-editor .field:first-child { grid-area: lop; }
+.field--ag { grid-area: ag; }
+.reg-note { grid-area: note; }
+.reg-actions { grid-area: actions; display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+.field { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin: 0; }
+
+.field-label {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-text-muted);
+}
+
+.field-select {
+  width: 100%;
+  min-width: 0;
+  padding: 3px var(--space-1);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-sm);
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+
+  &:focus-visible { outline: none; border-color: var(--bs-primary); box-shadow: var(--shadow-focus); }
+  &.is-blank { border-style: dashed; border-color: var(--bs-warning); color: var(--brand-text-muted); }
+}
+
+.reg-note {
+  font-size: var(--font-size-2xs);
+  color: var(--brand-text-muted);
+  font-variant-numeric: tabular-nums;
+
+  .bi { color: var(--bs-warning); }
+}
+
+.btn-cancel {
+  padding: 3px var(--space-2);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-sm);
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+}
+
+.btn-reg {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-3);
+  border: 1px solid var(--bs-success);
+  border-radius: var(--radius-sm);
+  background: var(--bs-success);
+  color: var(--neutral-0);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { filter: brightness(0.93); }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  &:disabled { opacity: 0.4; cursor: default; }
+
+  &--wl { border-color: var(--bs-warning); background: var(--bs-warning); color: var(--bs-dark); }
+}
+
+/* ── Folds ── */
+.fold {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-top: 1px solid var(--bs-border-color);
+  background: color-mix(in srgb, var(--bs-body-color) 3%, transparent);
+  color: var(--brand-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+  cursor: pointer;
+
+  &:first-child { border-top: none; }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+}
+
+.fold-count {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
+  color: var(--brand-text);
+}
+
+/* Narrow: stack, library on top — the order the work goes in. */
+@media (max-width: 767.98px) {
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "lib-head" "lib-panel" "reg-head" "reg-panel";
+  }
+  .board-head--reg { margin-top: var(--space-3); }
+  .panel { align-self: start; }
+  /* Capped short on a phone so Registered Teams is one flick away, not 20 rows down
+     (Todd 2026-09-27). Scroll CHAINS at the ends: a swipe past a list's end moves the page,
+     so the thumb is never trapped in a box. */
+  .panel-body {
+    max-height: 45vh;
+    max-height: 45svh;
+    overscroll-behavior: auto;
+  }
+  .panel-body.is-short { max-height: none; }
+  /* The library shorter still: Registered Teams' header lands on the first screen. */
+  .panel--lib .panel-body {
+    max-height: 32vh;
+    max-height: 32svh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-go { transition: none !important; }
+}
