@@ -55,8 +55,11 @@ interface SegmentRow {
           @if (empty()) {
             <span class="list-first-why">
               Add each team once &mdash; it stays here for every event you register for, so you never retype it.
-              @if (canRegister()) { Adding a team here also registers it for {{ eventName() }}. }
             </span>
+            @if (canRegister()) {
+              <span class="list-first-then">Add every team you're bringing to {{ eventName() }}. Once your first team is in,
+                a <b>{{ eventName() }} Registered Teams</b> tab appears above &mdash; when your list is done, register them there.</span>
+            }
           } @else {
             <span class="list-first-why">
               It's the list of teams every event you register for starts from &mdash; this one and every one after.
@@ -67,7 +70,7 @@ interface SegmentRow {
               <li><span class="lf-q">Name, grad year or level out of date?</span> <b>Edit</b> it.</li>
             </ul>
             @if (canRegister()) {
-              <span class="list-first-then">When your list is right, register the teams you're bringing to {{ eventName() }}.</span>
+              <span class="list-first-then">When your list is right, go to <b>{{ eventName() }} Registered Teams</b> to register the teams you're bringing.</span>
             }
           }
           @if (!canRegister()) {
@@ -76,15 +79,18 @@ interface SegmentRow {
         </div>
         <div class="list-first-actions">
           @if (canRegister() && !empty()) {
-            <button type="button" class="btn-register-teams" [disabled]="actionInProgress()" (click)="openRegister.emit()">
+            <!-- The signpost, not the act (Todd 2026-09-26): build the list here, register on the
+                 Registered Teams tab — the tab lights up and teaches where registering lives. -->
+            <button type="button" class="btn-register-teams" [disabled]="actionInProgress()" (click)="goRegistered.emit()">
               <i class="bi bi-trophy-fill" aria-hidden="true"></i>
-              Register teams for {{ eventName() }}
+              List done? Go to Registered Teams
+              <i class="bi bi-arrow-right" aria-hidden="true"></i>
             </button>
           }
           <button type="button" class="btn-add-team" [class.btn-add-team--primary]="empty()"
                   [disabled]="actionInProgress()" (click)="addNew.emit()">
             <i class="bi bi-plus-circle" aria-hidden="true"></i>
-            {{ empty() ? 'Add Your First Team' : canRegister() ? 'Add a New Team' : 'Add Library Team' }}
+            {{ empty() ? 'Add Your First Team' : 'Add a New Team' }}
           </button>
         </div>
       </div>
@@ -96,7 +102,7 @@ interface SegmentRow {
         </p>
         <button type="button" class="btn-add-team" [disabled]="actionInProgress()" (click)="addNew.emit()">
           <i class="bi bi-plus-circle" aria-hidden="true"></i>
-          {{ canRegister() ? 'Add a New Team' : 'Add Library Team' }}
+          Add a New Team
         </button>
       </div>
     }
@@ -638,8 +644,8 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
     /** Bumped by the step to bring the first pending row into view again. */
     readonly revealPending = input(0);
 
-    /** "Register teams for {event}": the step opens the Register-a-team modal. */
-    readonly openRegister = output<void>();
+    /** "List done? Go to Registered Teams": the step switches to that segment, where registering lives. */
+    readonly goRegistered = output<void>();
     readonly addNew = output<void>();
     readonly edit = output<ClubTeamDto>();
     readonly archive = output<ClubTeamDto>();

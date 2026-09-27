@@ -139,8 +139,8 @@ type TeamsSegment = 'library' | 'registered';
                 [pendingLibraryOnly]="pendingLibraryOnly()"
                 [revealPending]="revealPending()"
                 [listFirst]="enteredTeams().length === 0"
-                (openRegister)="openRegisterModal()"
-                (addNew)="onAddNew()"
+                (goRegistered)="selectSegment('registered')"
+                (addNew)="onAddLibraryTeam()"
                 (edit)="openEditModal($event)"
                 (archive)="askArchiveTeam($event)"
                 (delete)="askDeleteTeam($event)"
@@ -159,12 +159,12 @@ type TeamsSegment = 'library' | 'registered';
                     Pick the teams you're bringing from your Club Team Library &mdash;
                     {{ activeLibraryCount() }} {{ activeLibraryCount() === 1 ? 'team' : 'teams' }} in it.
                   } @else {
-                    Add a team and register it in one step.
+                    Your Club Team Library has no active teams. Add or restore one there first.
                   }
                 </span>
                 @if (canRegisterTeam()) {
                   <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
-                          (click)="activeLibraryCount() > 0 ? openRegisterModal() : showAddAndRegisterModal.set(true)">
+                          (click)="openRegisterModal()">
                     <i class="bi bi-trophy-fill me-2"></i>
                     Register Your First Team
                     <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
@@ -900,9 +900,9 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly clubName = signal('your club');
     readonly ageGroups = signal<AgeGroupDto[]>([]);
     readonly actionInProgress = signal(false);
-    /** Plain library add — only while registration is closed (nothing to register into). */
+    /** Plain library add — the Club Team Library tab's Add, open or closed (the tab is list-only: it never registers). */
     readonly showAddModal = signal(false);
-    /** Combined add+register modal — every add while registration is open, first team or not. */
+    /** Combined add+register modal — the register modal's "Not in your library? Add a New Team" (a register context). */
     readonly showAddAndRegisterModal = signal(false);
     /** The Register-a-team modal — every registration of a library team goes through it. */
     readonly showRegisterModal = signal(false);
@@ -1272,13 +1272,22 @@ export class TeamTeamsStepComponent implements OnInit {
     }
 
     /**
-     * Flyin "Add" → the combined modal whenever there is an event to register into.
-     * The plain library form only when registration is closed, where "added to
-     * library" is the complete truth and there is no second step to miss.
+     * The register modal's "Not in your library? Add a New Team" → the combined modal whenever there
+     * is an event to register into (the rep is registering). The plain library form only when
+     * registration is closed. The Library tab's own Add is onAddLibraryTeam, never this.
      */
     onAddNew(): void {
         if (this.canRegisterTeam()) this.showAddAndRegisterModal.set(true);
         else this.showAddModal.set(true);
+    }
+
+    /**
+     * The Club Team Library tab's "Add a New Team" / "Add Your First Team": a LIBRARY add, never a
+     * registration (Todd 2026-09-26). A new club builds its list first, then registers from the
+     * Register-a-team modal — the same order as every other rep.
+     */
+    onAddLibraryTeam(): void {
+        this.showAddModal.set(true);
     }
 
     onTeamAdded(): void {
