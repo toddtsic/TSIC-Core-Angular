@@ -7,7 +7,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { resolveRecommendedAgeGroupId, type SlotPricing } from './event-age-group.util';
 import { ageGroupLabel, type LibraryRegisterRequest } from './library-segment.types';
 import { ageGroupWaitlists, byGradYearThenName, pricingOfAgeGroup } from './library-register-plan';
-import { boardFeeStatusOf, type BoardFeeStatus } from './board-money';
+import { boardFeeStatusOf, sumPaidOf, type BoardFeeStatus } from './board-money';
 import { LibraryTeamInlineEditorComponent } from './library-team-inline-editor.component';
 import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-editor.component';
 
@@ -238,7 +238,12 @@ interface LibRow {
                names a later stage and read as owed-now beside "nothing due now". Due now lives on
                the Continue card; each team's state lives on its row. -->
           <span class="board-sub">
-            @if (registeredRows().length === 0) { None yet for this event } @else { {{ registeredRows().length }} for this event }
+            @if (registeredRows().length === 0) { None yet for this event } @else {
+              {{ registeredRows().length }} for this event
+              <!-- Money RECEIVED, honestly (Todd 2026-09-27): what left the club's account, card fees
+                   included — the treasurer's number. Rows show the fee; this says "paid", not "fees". -->
+              @if (paidTotal() > 0) { &middot; {{ paidTotal() | currency }} paid }
+            }
           </span>
         </div>
       </header>
@@ -907,6 +912,8 @@ export class TeamsBoardComponent {
     /** This event's teams, by age group then name — the shape a director reads them in. */
     readonly registeredRows = computed(() => [...this.registeredTeams()].sort((a, b) =>
         (a.ageGroupName ?? '').localeCompare(b.ageGroupName ?? '') || a.teamName.localeCompare(b.teamName)));
+
+    readonly paidTotal = computed(() => sumPaidOf(this.registeredTeams()));
 
     readonly ageGroupOptions = computed(() => this.ageGroups().map(ag => {
         const label = ageGroupLabel(ag);

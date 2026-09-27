@@ -51,6 +51,14 @@ export function sumFeeDueNowOf(teams: readonly RegisteredTeamDto[]): number {
     return teams.filter(dueNowCounts).reduce((s, t) => s + feeOwed(t), 0);
 }
 
+/**
+ * Money RECEIVED for these teams — `tenderPaid`: card payments gross (card fee included),
+ * corrections excluded. What left the club's account; labelled "paid", never "fees".
+ */
+export function sumPaidOf(teams: readonly RegisteredTeamDto[]): number {
+    return teams.reduce((s, t) => s + Math.max(0, t.tenderPaid ?? 0), 0);
+}
+
 /** What paying the same teams by card adds on top — only to say that a card fee exists. */
 export function sumCardFeeDueNowOf(teams: readonly RegisteredTeamDto[]): number {
     return teams.filter(dueNowCounts).reduce((s, t) => s + Math.max(0, cardOwed(t) - feeOwed(t)), 0);
