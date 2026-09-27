@@ -78,9 +78,10 @@ interface LibRow {
                   <span class="row-meta">
                     <span class="meta-pair"><span class="meta-key">Grad</span>{{ team.clubTeamGradYear || '—' }}</span>
                     <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(team.clubTeamLevelOfPlay) || '—' }}</span>
-                    <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                   </span>
                 </div>
+                <!-- Library housekeeping at the right, apart from the level it isn't about. -->
+                <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                 @if (canRegister() && !isOpen) {
                   <button type="button" class="btn-go" [disabled]="actionInProgress()"
                           [attr.aria-label]="'Register ' + team.clubTeamName + ' for ' + eventName()"
@@ -156,13 +157,15 @@ interface LibRow {
             @if (showRegisteredLib()) {
               @for (row of registeredLibRows(); track row.team.clubTeamId) {
                 <div class="lib-row is-quiet">
-                  <div class="row-text">
-                    <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
-                    <span class="row-meta">
-                      <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
-                      <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) || '—' }}</span>
-                      <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
-                    </span>
+                  <div class="row-main">
+                    <div class="row-text">
+                      <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+                      <span class="row-meta">
+                        <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
+                        <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) || '—' }}</span>
+                      </span>
+                    </div>
+                    <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                   </div>
                 </div>
               }
@@ -179,12 +182,14 @@ interface LibRow {
             @if (showArchived()) {
               @for (row of archivedRows(); track row.team.clubTeamId) {
                 <div class="lib-row is-quiet is-archived">
-                  <div class="row-text">
-                    <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
-                    <span class="row-meta">
-                      <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
-                      <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
-                    </span>
+                  <div class="row-main">
+                    <div class="row-text">
+                      <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+                      <span class="row-meta">
+                        <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
+                      </span>
+                    </div>
+                    <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                   </div>
                 </div>
               }
@@ -215,7 +220,7 @@ interface LibRow {
       </header>
 
       <section class="panel panel--reg" aria-labelledby="board-reg-title">
-        <div class="panel-body">
+        <div class="panel-body" [class.is-short]="registeredRows().length <= 3">
           @for (t of registeredRows(); track t.teamId) {
             @let s = feeStatus(t);
             @let undoMin = undoMinutesLeft(t.teamId);
@@ -348,6 +353,7 @@ interface LibRow {
       .panel {
         display: flex;
         flex-direction: column;
+        align-self: stretch; /* both panels end on one line above Continue */
         min-width: 0;
         border: 1px solid var(--bs-border-color);
         border-radius: var(--radius-md);
@@ -412,6 +418,7 @@ interface LibRow {
       .panel-body {
         display: flex;
         flex-direction: column;
+        flex: 1 1 auto;
         max-height: 60vh;
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -540,34 +547,42 @@ interface LibRow {
         gap: var(--space-1);
         flex-shrink: 0;
         padding: 3px var(--space-2);
-        border: 1px solid var(--bs-success);
+        /* Quiet at rest so a column of them doesn't outshout the team names; solid on hover/focus. */
+        border: 1px solid color-mix(in srgb, var(--bs-success) 35%, transparent);
         border-radius: var(--radius-sm);
-        background: var(--brand-surface);
+        background: transparent;
         color: var(--bs-success);
         font-size: var(--font-size-xs);
         font-weight: var(--font-weight-semibold);
         white-space: nowrap;
         cursor: pointer;
-        transition: background-color 0.12s ease;
+        transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 
-        &:hover:not(:disabled) { background: color-mix(in srgb, var(--bs-success) 10%, var(--brand-surface)); }
+        &:hover:not(:disabled), &:focus-visible {
+          border-color: var(--bs-success);
+          background: var(--bs-success);
+          color: var(--neutral-0);
+        }
         &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
         &:disabled { opacity: 0.45; cursor: default; }
       }
 
-      /* Rides the meta line (name, then one line): no third line per row. */
-      .lib-actions { display: inline-flex; flex-wrap: wrap; gap: 2px; margin-left: calc(-1 * var(--space-2)); }
+      /* Library housekeeping, right of the team and left of Register. */
+      .lib-actions { display: inline-flex; flex-shrink: 0; gap: 2px; }
 
       .btn-lib {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 3px;
-        padding: 1px var(--space-1);
+        min-width: 28px;
+        height: 28px;
+        padding: 0 var(--space-1);
         border: 1px solid transparent;
         border-radius: var(--radius-sm);
         background: transparent;
         color: var(--brand-text-muted);
-        font-size: var(--font-size-xs);
+        font-size: var(--font-size-sm);
         font-weight: var(--font-weight-medium);
         cursor: pointer;
 
@@ -744,7 +759,21 @@ interface LibRow {
           grid-template-areas: "lib-head" "lib-panel" "reg-head" "reg-panel";
         }
         .board-head--reg { margin-top: var(--space-3); }
-        .panel-body { max-height: none; overflow-y: visible; }
+        .panel { align-self: start; }
+        /* Capped short on a phone so Registered Teams is one flick away, not 20 rows down
+           (Todd 2026-09-27). Scroll CHAINS at the ends: a swipe past a list's end moves the page,
+           so the thumb is never trapped in a box. */
+        .panel-body {
+          max-height: 45vh;
+          max-height: 45svh;
+          overscroll-behavior: auto;
+        }
+        .panel-body.is-short { max-height: none; }
+        /* The library shorter still: Registered Teams' header lands on the first screen. */
+        .panel--lib .panel-body {
+          max-height: 32vh;
+          max-height: 32svh;
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
