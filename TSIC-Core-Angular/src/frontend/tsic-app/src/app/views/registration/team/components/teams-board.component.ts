@@ -239,7 +239,7 @@ interface LibRow {
                the Continue card; each team's state lives on its row. -->
           <span class="board-sub">
             @if (registeredRows().length === 0) { None yet for this event } @else {
-              {{ registeredRows().length }} for this event
+              {{ registeredRows().length }} {{ registeredRows().length === 1 ? 'team' : 'teams' }}
               <!-- Money RECEIVED, honestly (Todd 2026-09-27): what left the club's account, card fees
                    included — the treasurer's number. Rows show the fee; this says "paid", not "fees". -->
               @if (paidTotal() > 0) { &middot; {{ paidTotal() | currency }} paid }
