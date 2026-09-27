@@ -8,6 +8,7 @@ import { resolveRecommendedAgeGroupId, type SlotPricing } from './event-age-grou
 import { ageGroupLabel, type LibraryRegisterRequest } from './library-segment.types';
 import { ageGroupWaitlists, byGradYearThenName, pricingOfAgeGroup } from './library-register-plan';
 import { boardFeeStatusOf, sumFeeDueNowOf, sumPaidOf, type BoardFeeStatus } from './board-money';
+import { contrastText } from '../../../scheduling/shared/utils/scheduling-helpers';
 import { LibraryTeamInlineEditorComponent } from './library-team-inline-editor.component';
 import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-editor.component';
 
@@ -80,8 +81,8 @@ interface LibRow {
                       <!-- Where it went, in words (Todd 2026-09-27): "{name} registered in {age group}". -->
                       <span class="row-name-line">
                         <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
-                        <span class="reg-in">{{ r.isWaitlisted ? 'waitlisted in' : 'registered in' }}
-                          <b>{{ r.ageGroupDisplayName || r.ageGroupName }}</b></span>
+                        <span class="reg-in">registered in
+                          <span class="ag-badge" [style.background]="agBg(r.ageGroupColor)" [style.color]="agText(r.ageGroupColor)">{{ r.ageGroupName }}</span></span>
                       </span>
                       <span class="row-meta">
                         <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
@@ -276,9 +277,11 @@ interface LibRow {
                      its placement, so they are never read apart. Same words as the library side. -->
                 <span class="row-name-line">
                   <span class="row-name" [attr.title]="t.teamName">{{ t.teamName }}</span>
-                  <span class="reg-in">
-                    @if (t.isWaitlisted) { <i class="bi bi-pause-circle-fill meta-wl" aria-hidden="true"></i>waitlisted in } @else { registered in }
-                    <b>{{ t.ageGroupDisplayName || t.ageGroupName }}</b>
+                  <!-- The age group as a badge in ITS color (Todd 2026-09-27) — the same chip the director's
+                       screens use. A WAITLIST age group is an age group like any other: its own name, its
+                       own color, no special casing. -->
+                  <span class="reg-in">registered in
+                    <span class="ag-badge" [style.background]="agBg(t.ageGroupColor)" [style.color]="agText(t.ageGroupColor)">{{ t.ageGroupName }}</span>
                   </span>
                   <button type="button" class="btn-icon" [class.is-locked]="!!renameLockReason()"
                           [disabled]="actionInProgress()"
@@ -533,6 +536,15 @@ interface LibRow {
 
       .row-name-line { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
       /* The name gives way first; the age group never truncates. */
+      .ag-badge {
+        display: inline-block;
+        padding: 0 var(--space-2);
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-bold);
+        line-height: 1.6;
+        white-space: nowrap;
+      }
       .reg-in {
         flex-shrink: 0;
         font-size: var(--font-size-xs);
@@ -943,6 +955,10 @@ export class TeamsBoardComponent {
     /** This event's teams, by age group then name — the shape a director reads them in. */
     readonly registeredRows = computed(() => [...this.registeredTeams()].sort((a, b) =>
         (a.ageGroupName ?? '').localeCompare(b.ageGroupName ?? '') || a.teamName.localeCompare(b.teamName)));
+
+    /** Age-group badge: the age group's own color, text picked for contrast (the scheduling helper). */
+    agBg(color: string | null | undefined): string { return color || 'var(--bs-secondary-bg)'; }
+    agText(color: string | null | undefined): string { return contrastText(color); }
 
     readonly paidTotal = computed(() => sumPaidOf(this.registeredTeams()));
     readonly dueNow = computed(() => sumFeeDueNowOf(this.registeredTeams()));

@@ -153,6 +153,7 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
                 TeamName = t.TeamName,
                 AgeGroupId = t.AgeGroupId,
                 AgeGroupName = t.AgeGroupName,
+                AgeGroupColor = t.AgeGroupColor,
                 LevelOfPlay = t.LevelOfPlay,
                 FeeBase = t.FeeBase,
                 FeeProcessing = t.FeeProcessing,           // raw statement-of-fact

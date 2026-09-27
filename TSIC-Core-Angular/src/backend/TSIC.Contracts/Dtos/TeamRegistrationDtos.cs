@@ -274,6 +274,8 @@ public sealed record RegisteredTeamDto
     // drift between views or vanish when a screen hides the age-group column (PL-037).
     public bool IsWaitlisted => AgegroupConstants.IsWaitlist(AgeGroupName);
     public string AgeGroupDisplayName => AgegroupConstants.StripWaitlistPrefix(AgeGroupName);
+    /// <summary>The age group's color ("#rrggbb"), null when none is set. WAITLIST age groups carry their own.</summary>
+    public required string? AgeGroupColor { get; init; }
     public required string? LevelOfPlay { get; init; }
     public int? ClubTeamId { get; init; }
     // Mirrors ClubTeamDto.BHasBeenScheduled — true if the team's ClubTeamId has ever

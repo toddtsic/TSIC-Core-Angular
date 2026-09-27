@@ -4,7 +4,8 @@ import type { RegisteredTeamDto } from '@core/api';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
-import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
+import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
+import { contrastText } from '../../../scheduling/shared/utils/scheduling-helpers';
 
 /**
  * Edit a REGISTERED team in its row on the teams board — this event's name and level of play
@@ -40,7 +41,7 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
       <!-- The row's "AG" line is hidden while the row is open — the one moment it matters most. -->
       <p class="ie-ag">
         <span class="ie-label">Registered age group</span>
-        <span class="ie-ag-chip">{{ ageGroup() }}</span>
+        <span class="ie-ag-chip" [style.background]="team().ageGroupColor || 'var(--bs-secondary-bg)'" [style.color]="agText()">{{ ageGroup() }}</span>
       </p>
 
       <!-- Reps try to MOVE a team by renaming it (Todd 2026-09-27). Always a warning; red, with the
@@ -109,9 +110,7 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
       .ie-ag { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
       .ie-ag-chip {
         padding: 1px var(--space-2);
-        border-radius: var(--radius-sm);
-        background: var(--bs-success);
-        color: var(--neutral-0);
+        border-radius: var(--radius-full);
         font-size: var(--font-size-xs);
         font-weight: var(--font-weight-bold);
       }
@@ -251,7 +250,9 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
     private readonly nameChanged = computed(() => this.name().trim() !== this.team().teamName.trim());
 
     /** The age group as the rep reads it. */
-    readonly ageGroup = computed(() => this.team().ageGroupDisplayName || this.team().ageGroupName);
+    /** The registered age group by its own name — a WAITLIST age group is no different (Todd 2026-09-27). */
+    readonly ageGroup = computed(() => this.team().ageGroupName);
+    readonly agText = computed(() => contrastText(this.team().ageGroupColor));
 
     /**
      * The name's year, whenever it differs from the age group's year — the rename-to-move mistake.

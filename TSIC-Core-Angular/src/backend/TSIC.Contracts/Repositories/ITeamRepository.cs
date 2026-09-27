@@ -16,6 +16,8 @@ public record RegisteredTeamInfo : TSIC.Contracts.Payments.IFeeDiscountBuckets
     public required Guid AgeGroupId { get; init; }
     public required string AgeGroupName { get; init; }
     public string? LevelOfPlay { get; init; }
+    // The age group's display color (Agegroups.Color, "#rrggbb" or null) — the rep's board badges it.
+    public string? AgeGroupColor { get; init; }
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
     public required decimal FeeDiscount { get; init; }
