@@ -8,6 +8,7 @@ import type { ClubTeamDto } from '@core/api';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
 import { clubNameInTeamName, isBareYearName } from '@shared/teams/team-name-hints';
 import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedule-preview.component';
+import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam } from '@shared/teams/library-team-form';
 
 /**
  * Modal for editing an existing library team (when `editingTeam` is supplied), or
@@ -407,13 +408,7 @@ export class TeamFormModalComponent implements OnInit {
     private readonly destroyRef = inject(DestroyRef);
 
     /** Grad year options: current year through +12, plus Adult. */
-    readonly gradYearOptions: string[] = (() => {
-        const now = new Date().getFullYear();
-        const years: string[] = [];
-        for (let y = now; y <= now + 12; y++) years.push(String(y));
-        years.push('Adult');
-        return years;
-    })();
+    readonly gradYearOptions: string[] = libraryGradYearOptions();
 
     readonly teamName = signal('');
     readonly gradYear = signal('');
@@ -429,15 +424,8 @@ export class TeamFormModalComponent implements OnInit {
 
     /** True when the team name matches an existing library team (case-insensitive),
      *  excluding the team being edited. */
-    readonly nameIsDuplicate = computed(() => {
-        const name = this.teamName().trim().toLowerCase();
-        if (!name) return false;
-        const editingId = this.editingTeam?.clubTeamId;
-        return this.existingTeams().some(t =>
-            t.clubTeamId !== editingId &&
-            (t.clubTeamName ?? '').trim().toLowerCase() === name,
-        );
-    });
+    readonly nameIsDuplicate = computed(() =>
+        isDuplicateLibraryName(this.existingTeams(), this.teamName(), this.editingTeam?.clubTeamId));
 
     /** Advisory only — see team-name-hints. Does not feed step1Done. */
     readonly nameIsBareYear = computed(() => isBareYearName(this.teamName()));
@@ -480,17 +468,9 @@ export class TeamFormModalComponent implements OnInit {
      */
     readonly looksLikeDifferentTeam = computed(() => {
         const t = this.editingTeam;
-        if (!t || !t.bHasEventRegistrations || this.nudgeDismissed() || this.phase() !== 'form') return false;
-        const gradMoved = !!t.clubTeamGradYear && !!this.gradYear() && t.clubTeamGradYear !== this.gradYear();
-        const was = TeamFormModalComponent.yearToken(t.clubTeamName);
-        const now = TeamFormModalComponent.yearToken(this.teamName());
-        const nameYearMoved = !!was && !!now && was !== now;
-        return gradMoved || nameYearMoved;
+        if (!t || this.nudgeDismissed() || this.phase() !== 'form') return false;
+        return looksLikeDifferentTeam(t, this.teamName(), this.gradYear());
     });
-
-    private static yearToken(name: string): string | null {
-        return /\b\d{4}\b/.exec(name)?.[0] ?? null;
-    }
 
     /** Create the typed team as a NEW library row and leave the old one untouched, then offer to archive it. */
     addInstead(): void {

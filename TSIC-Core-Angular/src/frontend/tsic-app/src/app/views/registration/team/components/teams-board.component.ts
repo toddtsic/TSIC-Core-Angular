@@ -2,12 +2,13 @@ import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRend
 import { CurrencyPipe, DatePipe, NgTemplateOutlet } from '@angular/common';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { LOP_CHOICES, formatLop, normalizeLop } from '@shared/teams/lop-choices';
-import { clubTeamEditLockReason, clubTeamRemoval, type ClubTeamRemoval } from '@shared/teams/club-team-locks';
+import { clubTeamArchiveLockReason, clubTeamEditLockReason, clubTeamRemoval, type ClubTeamRemoval } from '@shared/teams/club-team-locks';
 import { ToastService } from '@shared-ui/toast.service';
 import { resolveRecommendedAgeGroupId, type SlotPricing } from './event-age-group.util';
 import { ageGroupLabel, type LibraryRegisterRequest } from './library-segment.types';
 import { ageGroupWaitlists, byGradYearThenName, pricingOfAgeGroup } from './library-register-plan';
 import { sumDueNowOf, teamFeeStatusOf, type TeamFeeStatus } from './registered-teams-grid.component';
+import { LibraryTeamInlineEditorComponent } from './library-team-inline-editor.component';
 
 /** The open register editor's two picks. '' = no pick. */
 interface RegPick { lop: string; ag: string; }
@@ -33,7 +34,7 @@ interface LibRow {
 @Component({
     selector: 'app-teams-board',
     standalone: true,
-    imports: [CurrencyPipe, DatePipe, NgTemplateOutlet],
+    imports: [CurrencyPipe, DatePipe, NgTemplateOutlet, LibraryTeamInlineEditorComponent],
     template: `
     <div class="board">
 
@@ -71,7 +72,10 @@ interface LibRow {
           @for (row of availableRows(); track row.team.clubTeamId) {
             @let team = row.team;
             @let isOpen = openId() === team.clubTeamId;
-            <div class="lib-row" [class.is-open]="isOpen" [class.is-pending]="isPending(team.clubTeamId)">
+            <div class="lib-row" [class.is-open]="isOpen || editId() === team.clubTeamId" [class.is-pending]="isPending(team.clubTeamId)">
+              @if (editId() === team.clubTeamId) {
+                <ng-container *ngTemplateOutlet="libEditor; context: { $implicit: row }" />
+              } @else {
               <div class="row-main">
                 <div class="row-text">
                   <span class="row-name" [attr.title]="team.clubTeamName">{{ team.clubTeamName }}</span>
@@ -142,6 +146,7 @@ interface LibRow {
                   </div>
                 </div>
               }
+              }
             </div>
           }
 
@@ -156,7 +161,10 @@ interface LibRow {
             </button>
             @if (showRegisteredLib()) {
               @for (row of registeredLibRows(); track row.team.clubTeamId) {
-                <div class="lib-row is-quiet">
+                <div class="lib-row is-quiet" [class.is-open]="editId() === row.team.clubTeamId">
+                  @if (editId() === row.team.clubTeamId) {
+                    <ng-container *ngTemplateOutlet="libEditor; context: { $implicit: row }" />
+                  } @else {
                   <div class="row-main">
                     <div class="row-text">
                       <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
@@ -167,6 +175,7 @@ interface LibRow {
                     </div>
                     <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                   </div>
+                  }
                 </div>
               }
             }
@@ -291,6 +300,17 @@ interface LibRow {
       </section>
     </div>
 
+    <!-- A library row in edit: the fields in place of the row (Todd 2026-09-27, inline, no modal). -->
+    <ng-template #libEditor let-row>
+      <app-library-team-inline-editor
+        [team]="row.team"
+        [clubName]="clubName()"
+        [existingTeams]="clubTeams()"
+        [archiveLockReason]="archiveLockReasonFor(row)"
+        (saved)="onLibrarySaved()"
+        (cancelled)="editId.set(null)" />
+    </ng-template>
+
     <!-- Library housekeeping on a row: Edit / Archive-or-Delete, or Restore. -->
     <ng-template #libActions let-row>
       @let team = row.team;
@@ -307,7 +327,7 @@ interface LibRow {
                   [disabled]="actionInProgress()"
                   [attr.title]="editLock ?? 'Edit this team in your Club Team Library — what future events start from. Nothing registered is changed.'"
                   [attr.aria-disabled]="!!editLock"
-                  (click)="editLock ? explainLock(editLock) : edit.emit(team)">
+                  (click)="editLock ? explainLock(editLock) : startEdit(team)">
             <i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Edit</span>
           </button>
           @if (removal.kind === 'archive') {
@@ -792,6 +812,7 @@ export class TeamsBoardComponent {
     readonly registeredTeams = input<readonly RegisteredTeamDto[]>([]);
     readonly ageGroups = input<readonly AgeGroupDto[]>([]);
     readonly eventName = input('this event');
+    readonly clubName = input('');
     /** Team registration open AND the director allows adds. */
     readonly canRegister = input(false);
     /** The director's own remove toggle (unpaid rows); the mistake-undo is separate. */
@@ -808,7 +829,8 @@ export class TeamsBoardComponent {
     readonly remove = output<RegisteredTeamDto>();
     readonly rename = output<RegisteredTeamDto>();
     readonly addNew = output<void>();
-    readonly edit = output<ClubTeamDto>();
+    /** A library edit saved (inline) — the step reloads. */
+    readonly librarySaved = output<void>();
     readonly archive = output<ClubTeamDto>();
     readonly delete = output<ClubTeamDto>();
     readonly restore = output<ClubTeamDto>();
@@ -820,6 +842,8 @@ export class TeamsBoardComponent {
     readonly showArchived = signal(false);
     /** The library row whose register editor is open — one at a time. */
     readonly openId = signal<number | null>(null);
+    /** The library row being edited inline. One open row at a time: register and edit close each other. */
+    readonly editId = signal<number | null>(null);
     private readonly pick = signal<RegPick>({ lop: '', ag: '' });
     readonly currentPick = this.pick.asReadonly();
 
@@ -882,6 +906,22 @@ export class TeamsBoardComponent {
     }
     explainLock(reason: string): void { this.toast.show(reason, 'warning', 3500); }
 
+    // ── Inline library edit ──
+    startEdit(team: ClubTeamDto): void {
+        this.openId.set(null);
+        this.editId.set(team.clubTeamId);
+    }
+
+    onLibrarySaved(): void {
+        this.editId.set(null);
+        this.librarySaved.emit();
+    }
+
+    /** For the editor's add-as-new follow-up: may the OLD row be archived? */
+    archiveLockReasonFor(row: LibRow): string | null {
+        return clubTeamArchiveLockReason({ registeredHere: !!row.registered, eventLabel: 'this event' });
+    }
+
     // ── Register editor ──
     /** Opens seeded with the best guess: the library's level, and the age group the grad year names. */
     open(team: ClubTeamDto): void {
@@ -889,6 +929,7 @@ export class TeamsBoardComponent {
             lop: normalizeLop(team.clubTeamLevelOfPlay),
             ag: resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear),
         });
+        this.editId.set(null);
         this.openId.set(team.clubTeamId);
         // A row near the bottom of the scrolled list opens its editor out of sight — bring it in.
         afterNextRender(() => {
