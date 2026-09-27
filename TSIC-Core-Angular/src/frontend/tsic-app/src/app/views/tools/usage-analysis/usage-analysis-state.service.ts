@@ -77,7 +77,8 @@ export class UsageAnalysisStateService {
 			.map(g => ({ ...g, reports: this.reports().filter(r => r.group === g.group) }))
 			.filter(g => g.reports.length > 0));
 
-	private readonly requestedReport = signal<UsageReportKey>('report-01');
+	/** Opens on Registrations over Time (Todd, 2026-09-26). */
+	private readonly requestedReport = signal<UsageReportKey>('report-05');
 
 	/** The requested report if this role has it, else the first slot — never an empty pane. */
 	readonly activeReport = computed<UsageReportDef>(() => {
