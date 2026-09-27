@@ -45,7 +45,7 @@ interface LibRow {
           <h3 class="board-title" id="board-lib-title">
             <i class="bi bi-collection-fill" aria-hidden="true"></i>Club Team Library
           </h3>
-          <span class="board-sub">Edits here change future events</span>
+          <span class="board-sub">Your teams to choose from</span>
         </div>
         <button type="button" class="btn-add" [class.btn-add--primary]="empty()"
                 [disabled]="actionInProgress()" (click)="addNew.emit()">
