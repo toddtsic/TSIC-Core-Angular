@@ -280,7 +280,9 @@ interface ModalRow {
       /* One row: team | level | age group | Register, the note under the pickers */
       .rtm-row {
         display: grid;
-        grid-template-columns: minmax(0, 1.2fr) 88px minmax(0, 1.5fr) auto;
+        /* Every track fixed or fr, never auto: each row is its own grid, so a content-sized
+           track ("Join waitlist" vs "Register") shifted the dropdowns row to row. */
+        grid-template-columns: minmax(0, 1.2fr) 88px minmax(0, 1.5fr) 136px;
         grid-template-areas:
           "team lop ag go"
           "team note note note";
@@ -300,7 +302,7 @@ interface ModalRow {
       .rtm-team { grid-area: team; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
       .rtm-field--lop { grid-area: lop; }
       .rtm-field--ag { grid-area: ag; }
-      .rtm-go { grid-area: go; }
+      .rtm-go { grid-area: go; .btn-reg { width: 100%; justify-content: center; } }
       .rtm-note { grid-area: note; }
       .rtm-done-cell {
         grid-area: done;
