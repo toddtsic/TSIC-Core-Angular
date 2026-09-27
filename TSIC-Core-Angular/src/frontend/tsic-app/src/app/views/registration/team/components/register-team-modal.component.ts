@@ -3,9 +3,9 @@ import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { LOP_CHOICES, formatLop, normalizeLop } from '@shared/teams/lop-choices';
-import { resolveOldestOfferedGradYear, resolveRecommendedAgeGroupId, type SlotPricing } from './event-age-group.util';
+import { resolveRecommendedAgeGroupId, type SlotPricing } from './event-age-group.util';
 import { ageGroupLabel, type LibraryRegisterRequest } from './library-segment.types';
-import { ageGroupWaitlists, byGradYearThenName, fitsEvent, pricingOfAgeGroup } from './library-register-plan';
+import { ageGroupWaitlists, byGradYearThenName, pricingOfAgeGroup } from './library-register-plan';
 
 /** A row's two picks. '' = no pick (no confident guess, or the rep cleared it). */
 interface RowPick { lop: string; ag: string; }
@@ -13,7 +13,6 @@ interface RowPick { lop: string; ag: string; }
 interface ModalRow {
     team: ClubTeamDto;
     registered: RegisteredTeamDto | null;
-    fits: boolean;
     pick: RowPick;
 }
 
@@ -144,11 +143,7 @@ interface ModalRow {
                   }
                   @if (!pick.ag) {
                     <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
-                    @if (row.fits) {
-                      No {{ team.clubTeamGradYear || 'matching' }} age group here &middot; pick one to play up in.
-                    } @else {
-                      Older than every age group here &middot; pick one, or archive it in your library.
-                    }
+                    No {{ team.clubTeamGradYear || 'matching' }} age group here &middot; pick the one this team plays in.
                   } @else {
                     @let price = pricingOf(pick.ag);
                     @switch (price.kind) {
@@ -171,22 +166,9 @@ interface ModalRow {
                 @if (query().trim()) {
                   No team in your Club Team Library matches &ldquo;{{ query().trim() }}&rdquo;.
                 } @else {
-                  Every team in your Club Team Library that fits {{ eventName() }} is registered.
+                  Every team in your Club Team Library is registered for {{ eventName() }}.
                 }
               </p>
-            }
-
-            @if (outsideRows().length > 0) {
-              <button type="button" class="rtm-fold" [attr.aria-expanded]="showOutside()" (click)="showOutside.set(!showOutside())">
-                <i class="bi" [class.bi-chevron-down]="showOutside()" [class.bi-chevron-right]="!showOutside()" aria-hidden="true"></i>
-                Older than every age group here
-                <span class="rtm-fold-count">{{ outsideRows().length }}</span>
-              </button>
-              @if (showOutside()) {
-                @for (row of outsideRows(); track row.team.clubTeamId) {
-                  <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row }" />
-                }
-              }
             }
 
             @if (alreadyRows().length > 0) {
@@ -553,7 +535,6 @@ export class RegisterTeamModalComponent {
     readonly lopChoices = LOP_CHOICES;
 
     readonly query = signal('');
-    readonly showOutside = signal(false);
     readonly showAlready = signal(false);
 
     /** Teams registered while THIS modal is open — they stay in place, locked, instead of jumping to the fold. */
@@ -565,8 +546,6 @@ export class RegisterTeamModalComponent {
         const club = this.clubName().trim();
         return club && club !== 'your club' ? `${club}'s` : "your club's";
     });
-
-    private readonly oldestOffered = computed(() => resolveOldestOfferedGradYear(this.ageGroups()));
 
     /**
      * The age-group dropdown's options, each carrying what choosing it means: price, or that it is
@@ -588,31 +567,26 @@ export class RegisterTeamModalComponent {
     }));
 
     /** The best guess: the library's level (on the 1–5 scale) and the age group the grad year names. */
-    private seedFor(team: ClubTeamDto, fits: boolean): RowPick {
+    private seedFor(team: ClubTeamDto): RowPick {
         return {
             lop: normalizeLop(team.clubTeamLevelOfPlay),
-            ag: fits ? resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear) : '',
+            ag: resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear),
         };
     }
 
     private readonly rows = computed<ModalRow[]>(() => {
         const byClubTeam = new Map<number, RegisteredTeamDto>();
         for (const r of this.registeredTeams()) if (r.clubTeamId != null) byClubTeam.set(r.clubTeamId, r);
-        const oldest = this.oldestOffered();
         const picks = this.picks();
         return this.clubTeams()
             .filter(t => !t.bArchived)
             .slice()
             .sort(byGradYearThenName)
-            .map(team => {
-                const fits = fitsEvent(team, { oldestOffered: oldest });
-                return {
-                    team,
-                    registered: byClubTeam.get(team.clubTeamId) ?? null,
-                    fits,
-                    pick: picks.get(team.clubTeamId) ?? this.seedFor(team, fits),
-                };
-            });
+            .map(team => ({
+                team,
+                registered: byClubTeam.get(team.clubTeamId) ?? null,
+                pick: picks.get(team.clubTeamId) ?? this.seedFor(team),
+            }));
     });
 
     /** The search only earns its place on a list long enough to need it. */
@@ -626,15 +600,10 @@ export class RegisterTeamModalComponent {
 
     private readonly visibleRows = computed(() => this.rows().filter(r => this.matches(r)));
 
-    /** Not registered and fits here — plus anything registered during this visit, kept in place. */
+    /** Not registered — plus anything registered during this visit, kept in place. */
     readonly availableRows = computed(() => {
         const justDone = this.registeredThisVisit();
-        return this.visibleRows().filter(r => justDone.has(r.team.clubTeamId) || (!r.registered && r.fits));
-    });
-
-    readonly outsideRows = computed(() => {
-        const justDone = this.registeredThisVisit();
-        return this.visibleRows().filter(r => !justDone.has(r.team.clubTeamId) && !r.registered && !r.fits);
+        return this.visibleRows().filter(r => justDone.has(r.team.clubTeamId) || !r.registered);
     });
 
     readonly alreadyRows = computed(() => {

@@ -24,7 +24,6 @@ import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared
 import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
-import { isTeamOfferedAtEvent, resolveOldestOfferedGradYear } from '../components/event-age-group.util';
 
 /**
  * The registered team whose EVENT copy is being renamed. Event origin only: the library has no
@@ -154,21 +153,15 @@ type TeamsSegment = 'library' | 'registered';
                 <span>
                   @if (!canRegisterTeam()) {
                     Team registration for {{ eventName() }} is closed.
-                  } @else if (unregisteredEligible().length > 0) {
-                    <!-- Counts only teams that CAN play here — "1 team in it" for a too-old team promised a
-                         modal with nothing to register (Todd 2026-09-27). -->
+                  } @else if (unregisteredTeams().length > 0) {
                     Pick the teams you're bringing from your Club Team Library &mdash;
-                    {{ unregisteredEligible().length }} {{ unregisteredEligible().length === 1 ? 'team fits' : 'teams fit' }} an age group here.
-                  } @else if (activeLibraryCount() > 0) {
-                    None of your library teams fits an age group at {{ eventName() }}
-                    @if (oldestOfferedGradYear() !== null) { (the oldest here is {{ oldestOfferedGradYear() }}) }.
-                    Check their grad years, or add the teams you're bringing.
+                    {{ unregisteredTeams().length }} not registered yet.
                   } @else {
                     Your Club Team Library has no active teams. Add or restore one there first.
                   }
                 </span>
                 @if (canRegisterTeam()) {
-                  @if (unregisteredEligible().length > 0) {
+                  @if (unregisteredTeams().length > 0) {
                     <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
                             (click)="openRegisterModal()">
                       <i class="bi bi-trophy-fill me-2"></i>
@@ -285,8 +278,8 @@ type TeamsSegment = 'library' | 'registered';
                   <span class="action-segment-content">
                     <span class="action-segment-title">Register Another Team</span>
                     <span class="action-segment-sub">
-                      @if (unregisteredEligible().length > 0) {
-                        {{ unregisteredEligible().length }} library {{ unregisteredEligible().length === 1 ? 'team fits' : 'teams fit' }} an age group here
+                      @if (unregisteredTeams().length > 0) {
+                        {{ unregisteredTeams().length }} library {{ unregisteredTeams().length === 1 ? 'team' : 'teams' }} not registered yet
                       } @else {
                         From your Club Team Library
                       }
@@ -351,7 +344,6 @@ type TeamsSegment = 'library' | 'registered';
     @if (showAddModal()) {
       <app-team-form-modal
         [clubName]="clubName()"
-        [oldestOfferedGradYear]="oldestOfferedGradYear()"
         [existingTeams]="allLibraryTeams()"
         (saved)="onTeamAdded()"
         (closed)="showAddModal.set(false)" />
@@ -393,7 +385,6 @@ type TeamsSegment = 'library' | 'registered';
     @if (editingTeam(); as editing) {
       <app-team-form-modal
         [clubName]="clubName()"
-        [oldestOfferedGradYear]="oldestOfferedGradYear()"
         [editingTeam]="editing"
         [archiveLockReason]="archiveLockReasonFor(editing)"
         [existingTeams]="allLibraryTeams()"
@@ -995,15 +986,13 @@ export class TeamTeamsStepComponent implements OnInit {
     });
 
     /**
-     * Active library teams with no registration here that this event has an age group
-     * for — the same eligibility rule the flyin uses to build "Available for This Event",
-     * so the strip's count always matches that group's count.
+     * Active library teams not registered here. No age-group eligibility test: which age group a team
+     * plays in is the rep's call (Todd 2026-09-27, "let the club reps decide").
      */
-    readonly unregisteredEligible = computed<ClubTeamDto[]>(() => {
+    readonly unregisteredTeams = computed<ClubTeamDto[]>(() => {
         const entered = this.enteredTeamsMap();
-        const oldest = resolveOldestOfferedGradYear(this.ageGroups());
         return this._clubTeams()
-            .filter(t => !t.bArchived && !entered.has(t.clubTeamId) && isTeamOfferedAtEvent(oldest, t.clubTeamGradYear))
+            .filter(t => !t.bArchived && !entered.has(t.clubTeamId))
             .sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName));
     });
 
@@ -1013,9 +1002,6 @@ export class TeamTeamsStepComponent implements OnInit {
     /** Active (not archived) library teams. */
     readonly activeLibraryCount = computed(() => this._clubTeams().filter(t => !t.bArchived).length);
 
-    /** The event's oldest age group — the add/edit dialog warns on a grad year older than it. */
-    readonly oldestOfferedGradYear = computed(() => resolveOldestOfferedGradYear(this.ageGroups()));
-
     /** What the rep owes today — the grid footer's own rule (sumDueNowOf), never a second copy. */
     readonly dueNow = computed(() => sumDueNowOf(this._registeredTeams()));
 
@@ -1024,7 +1010,7 @@ export class TeamTeamsStepComponent implements OnInit {
         const active = this.activeLibraryCount();
         if (active === 0) return 'Start here: add your first team';
         const teams = `${active} ${active === 1 ? 'team' : 'teams'}`;
-        const ready = this.unregisteredEligible().length;
+        const ready = this.unregisteredTeams().length;
         return this.canRegisterTeam() && ready > 0 ? `${teams} · ${ready} ready to register` : teams;
     });
 
