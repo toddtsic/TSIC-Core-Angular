@@ -11,12 +11,13 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
  * (Todd 2026-09-27, inline, no modal). The Registered Teams pencil's dialog (team-rename-confirm,
  * rep / event origin / LOP on), in a row:
  *
- *   • Save only when something moves: the name, a real level pick, or the library tick.
+ *   • Save only when something moves: the name or a real level pick.
  *   • A level stored off the 1–5 scale starts BLANK and blank is never a change — nothing gets
  *     erased that nobody asked to erase.
- *   • "Rename it in my Club Team Library too" only when there is a library entry whose name
- *     differs from the new one; ALWAYS unticked to start (writing the library is the weightier act).
- *   • Teams.TeamName 100 chars; 80 when the tick also writes ClubTeams.ClubTeamName.
+ *   • THIS EVENT ONLY — no "rename it in my library too" (Todd 2026-09-27). The one right-side
+ *     control that wrote the left side is gone; the library is renamed by its own editor, which
+ *     carries the grad-year and different-team guards this row does not.
+ *   • Teams.TeamName is varchar(100).
  *   • A server refusal stays in the row, the row stays open.
  *
  * Owns its save; `saved` carries the toast text so the board's host can reload and then say it.
@@ -30,7 +31,7 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
       <label class="ie-field">
         <span class="ie-label">Name at {{ eventName() }}</span>
         <input class="ie-input ie-name" type="text" autocomplete="off"
-               [attr.maxlength]="maxLength()"
+               maxlength="100"
                [value]="name()" (input)="name.set($any($event.target).value)"
                (keydown.enter)="save()"
                [class.is-invalid]="!name().trim() || duplicate()" />
@@ -80,20 +81,10 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
         </div>
       </div>
 
-      @if (showPropagate()) {
-        <label class="ie-check">
-          <input type="checkbox" [checked]="propagate()" (change)="propagate.set($any($event.target).checked)" />
-          <span>Rename it in my Club Team Library too
-            @if (propagate()) {
-              <span class="ie-was">({{ libraryName() }} &rarr; {{ name().trim() }})</span>
-            }
-          </span>
-        </label>
-      }
-
       @if (error()) { <p class="ie-msg ie-msg--err" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>{{ error() }}</p> }
       <p class="ie-scope">
-        {{ eventName() }} only{{ propagateEffective() ? ', plus the name in your library' : ' — your Club Team Library stays as it is' }}.
+        {{ eventName() }} only &mdash; your Club Team Library stays as it is.
+        To rename it there, use Edit under Registered &rarr; in your Club Team Library.
       </p>
     </div>
     `,
@@ -189,20 +180,6 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
       /* This side's color: success = this event. */
       .btn-save { border: 1px solid var(--bs-success); background: var(--bs-success); color: var(--neutral-0); }
 
-      .ie-check {
-        display: flex;
-        align-items: baseline;
-        gap: var(--space-2);
-        margin: 0;
-        font-size: var(--font-size-xs);
-        color: var(--brand-text);
-        cursor: pointer;
-
-        input { flex-shrink: 0; cursor: pointer; }
-        input:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-      }
-      .ie-was { color: var(--brand-text-muted); }
-
       .ie-msg {
         display: flex;
         align-items: baseline;
@@ -224,8 +201,6 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
     private readonly injector = inject(Injector);
 
     readonly team = input.required<RegisteredTeamDto>();
-    /** The linked library entry's name; null for an orphan (no library entry → no tick). */
-    readonly libraryName = input<string | null>(null);
     readonly eventName = input('this event');
     /** This event's registered teams — for the same-name-in-this-age-group check (the server enforces it too). */
     readonly registeredTeams = input<readonly RegisteredTeamDto[]>([]);
@@ -242,7 +217,6 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
 
     readonly name = signal('');
     readonly lop = signal('');
-    readonly propagate = signal(false);
     readonly saving = signal(false);
     readonly error = signal<string | null>(null);
 
@@ -250,15 +224,6 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
     private readonly lopBaseline = computed(() => normalizeLop(this.team().levelOfPlay));
     private readonly lopChanged = computed(() => this.lop().length > 0 && this.lop() !== this.lopBaseline());
     private readonly nameChanged = computed(() => this.name().trim() !== this.team().teamName.trim());
-
-    readonly showPropagate = computed(() => {
-        const lib = (this.libraryName() ?? '').trim();
-        return !!lib && lib !== this.name().trim();
-    });
-    readonly propagateEffective = computed(() => this.showPropagate() && this.propagate());
-
-    /** Teams.TeamName is varchar(100); Clubs.ClubTeams.ClubTeamName is varchar(80). */
-    readonly maxLength = computed(() => (this.propagate() ? 80 : 100));
 
     /** The age group as the rep reads it. */
     readonly ageGroup = computed(() => this.team().ageGroupDisplayName || this.team().ageGroupName);
@@ -286,7 +251,7 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
 
     readonly canSave = computed(() =>
         this.name().trim().length > 0 && !this.duplicate()
-        && (this.nameChanged() || this.lopChanged() || this.propagateEffective()));
+        && (this.nameChanged() || this.lopChanged()));
 
     ngOnInit(): void {
         this.name.set(this.team().teamName);
@@ -306,7 +271,8 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
         if (this.saving() || !this.canSave()) return;
         const c: TeamRenameConfirmation = {
             name: this.name().trim(),
-            alsoPropagate: this.propagateEffective(),
+            // Never from the board: the library is renamed in the library (Todd 2026-09-27).
+            alsoPropagate: false,
             // NULL = unchanged: the server leaves the level alone.
             levelOfPlay: this.lopChanged() ? this.lop() : null,
         };

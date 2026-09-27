@@ -250,7 +250,6 @@ interface LibRow {
                 <!-- This event's name + level, edited in the row (Todd 2026-09-27, inline, no modal). -->
                 <app-registered-team-inline-editor class="reg-editor-host"
                   [team]="t"
-                  [libraryName]="libraryNameOf(t)"
                   [eventName]="eventName()"
                   [registeredTeams]="registeredTeams()"
                   [undoMinutes]="undoMinutesLeft(t.teamId)"
@@ -952,12 +951,6 @@ export class TeamsBoardComponent {
     onRenameSaved(message: string): void {
         this.renameId.set(null);
         this.renameSaved.emit(message);
-    }
-
-    /** The linked library entry's name; null for an orphan or an entry no longer in the list. */
-    libraryNameOf(t: RegisteredTeamDto): string | null {
-        if (t.clubTeamId == null) return null;
-        return this.clubTeams().find(c => c.clubTeamId === t.clubTeamId)?.clubTeamName ?? null;
     }
 
     onLibrarySaved(): void {
