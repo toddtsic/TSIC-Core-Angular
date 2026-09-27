@@ -362,8 +362,10 @@ interface LibRow {
         overflow: hidden;
       }
       /* Each side keeps one color everywhere: library = primary, this event = success. */
-      .panel--lib { border-top: 3px solid var(--bs-primary); }
-      .panel--reg { border-top: 3px solid var(--bs-success); }
+      /* A faint wash of each side's color over the surface: mixed from theme variables, so it
+         follows every palette and dark mode, and the two sides read apart at a glance. */
+      .panel--lib { border-top: 3px solid var(--bs-primary); background: color-mix(in srgb, var(--bs-primary) 4%, var(--brand-surface)); }
+      .panel--reg { border-top: 3px solid var(--bs-success); background: color-mix(in srgb, var(--bs-success) 5%, var(--brand-surface)); }
 
       /* ── Header above each panel ── */
       .board-head {
@@ -456,7 +458,7 @@ interface LibRow {
       }
 
       .lib-row {
-        &.is-open { background: color-mix(in srgb, var(--bs-primary) 5%, transparent); }
+        &.is-open { background: color-mix(in srgb, var(--bs-primary) 10%, transparent); }
         &.is-pending { box-shadow: inset 3px 0 0 var(--bs-warning); }
         &.is-quiet .row-name { font-weight: var(--font-weight-medium); }
         &.is-archived .row-name { font-style: italic; color: var(--brand-text-muted); }
