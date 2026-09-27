@@ -45,7 +45,7 @@ interface LibRow {
       <header class="board-head board-head--lib">
         <div class="board-head-text">
           <h3 class="board-title" id="board-lib-title">
-            <i class="bi bi-collection-fill" aria-hidden="true"></i>Club Team Library
+            <i class="bi bi-card-list" aria-hidden="true"></i>Club Team Library
           </h3>
           <!-- CRITICAL (Todd 2026-09-27): says what this list IS — never drop it for the group labels. -->
           <span class="board-sub">Your teams to choose from</span>
@@ -65,7 +65,7 @@ interface LibRow {
             <button type="button" class="fold" [attr.aria-expanded]="showRegisteredLib()"
                     (click)="showRegisteredLib.set(!showRegisteredLib())">
               <i class="bi" [class.bi-chevron-down]="showRegisteredLib()" [class.bi-chevron-right]="!showRegisteredLib()" aria-hidden="true"></i>
-              Registered <i class="bi bi-arrow-right" aria-hidden="true"></i>
+              <i class="bi bi-clipboard-check fold-icon fold-icon--reg" aria-hidden="true"></i>Registered <i class="bi bi-arrow-right" aria-hidden="true"></i>
               <span class="fold-count">{{ registeredLibRows().length }}</span>
             </button>
             @if (showRegisteredLib()) {
@@ -98,7 +98,7 @@ interface LibRow {
           <button type="button" class="fold" [attr.aria-expanded]="showAvailable()"
                   (click)="showAvailable.set(!showAvailable())">
             <i class="bi" [class.bi-chevron-down]="showAvailable()" [class.bi-chevron-right]="!showAvailable()" aria-hidden="true"></i>
-            Available Teams
+            <i class="bi bi-card-list fold-icon fold-icon--lib" aria-hidden="true"></i>Available Teams
             <span class="fold-count">{{ availableRows().length }}</span>
           </button>
           @if (showAvailable()) {
@@ -189,7 +189,7 @@ interface LibRow {
                     <button type="button" class="btn-reg" [class.btn-reg--wl]="wl"
                             [disabled]="actionInProgress() || !pick.lop || !pick.ag"
                             (click)="confirm(team, pick)">
-                      <i class="bi" [class.bi-trophy-fill]="!wl" [class.bi-hourglass-split]="wl" aria-hidden="true"></i>
+                      <i class="bi" [class.bi-clipboard-check-fill]="!wl" [class.bi-hourglass-split]="wl" aria-hidden="true"></i>
                       {{ wl ? 'Join waitlist' : 'Register' }}
                     </button>
                   </div>
@@ -205,7 +205,7 @@ interface LibRow {
             <button type="button" class="fold" [attr.aria-expanded]="showArchived()"
                     (click)="showArchived.set(!showArchived())">
               <i class="bi" [class.bi-chevron-down]="showArchived()" [class.bi-chevron-right]="!showArchived()" aria-hidden="true"></i>
-              Archived
+              <i class="bi bi-archive fold-icon" aria-hidden="true"></i>Archived
               <span class="fold-count">{{ archivedRows().length }}</span>
             </button>
             @if (showArchived()) {
@@ -232,7 +232,7 @@ interface LibRow {
       <header class="board-head board-head--reg">
         <div class="board-head-text">
           <h3 class="board-title" id="board-reg-title" [attr.title]="'Registered for ' + eventName()">
-            <i class="bi bi-trophy-fill" aria-hidden="true"></i>Registered Teams
+            <i class="bi bi-clipboard-check-fill" aria-hidden="true"></i>Registered Teams
           </h3>
           <!-- A stat strip (Todd 2026-09-27): Teams · Paid · Due now, read at a glance. No phase chip —
                "Final Balance Due" names a later stage and read as owed-now. -->
@@ -293,7 +293,7 @@ interface LibRow {
                   <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(t.levelOfPlay) || '—' }}</span>
                 <span class="fee" [class]="'fee fee--' + s.kind">
                   @switch (s.kind) {
-                    @case ('waitlist') { <i class="bi bi-hourglass-split" aria-hidden="true"></i>No fees while on waitlist }
+                    @case ('waitlist') { <i class="bi bi-dash-circle" aria-hidden="true"></i>No fees while on waitlist }
                     @case ('scheduled') {
                       <i class="bi bi-calendar-event" aria-hidden="true"></i>Auto-pay {{ $any(s).owed | currency }}
                       @if ($any(s).nextChargeDate) { &middot; {{ $any(s).nextChargeDate | date:'mediumDate' }} }
@@ -579,7 +579,13 @@ interface LibRow {
       .fee--depositDue .bi, .fee--balanceDue .bi { color: var(--bs-warning); }
       .fee--paid .bi, .fee--depositPaid .bi { color: var(--bs-success); }
       .fee--scheduled .bi { color: var(--bs-info); }
-      .fee--free .bi { color: var(--brand-text-muted); }
+      .fee--free .bi, .fee--waitlist .bi { color: var(--brand-text-muted); }
+
+      /* Fold icons repeat the mark of what they stand for: Registered → the right panel's clipboard,
+         Available → the library's list, Archived → the row's Archive action. */
+      .fold-icon { font-size: var(--font-size-xs); }
+      .fold-icon--reg { color: var(--bs-success); }
+      .fold-icon--lib { color: var(--bs-primary); }
 
       /* The event, accented in the empty Registered panel — this side's color, darkened toward the
          text color so it holds AA on the tinted panel in every palette. */
