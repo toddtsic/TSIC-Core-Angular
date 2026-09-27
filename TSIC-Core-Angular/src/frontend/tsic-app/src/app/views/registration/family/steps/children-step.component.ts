@@ -3,6 +3,8 @@ import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractCont
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
 import { FamilyService } from '@infrastructure/services/family.service';
 import { FamilyStateService } from '../state/family-state.service';
+import { HeadshotUploadComponent } from '@views/registration/shared/components/headshot-upload.component';
+import { environment } from '@environments/environment';
 
 /**
  * Family wizard v2 — Children step.
@@ -12,7 +14,7 @@ import { FamilyStateService } from '../state/family-state.service';
 @Component({
     selector: 'app-fam-children-step',
     standalone: true,
-    imports: [ReactiveFormsModule],
+    imports: [ReactiveFormsModule, HeadshotUploadComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
@@ -28,13 +30,34 @@ import { FamilyStateService } from '../state/family-state.service';
               <h6 class="fw-semibold mb-3">{{ state.children().length === 1 ? 'Player 1 added' : state.children().length + ' players added' }}</h6>
               <ul class="list-group mb-0">
                 @for (c of state.children(); track $index) {
-                  <li class="list-group-item d-flex justify-content-between align-items-center"
+                  <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center"
                       [class.editing-row]="editingIndex() === $index">
-                    <div>
-                      <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
-                      @if (c.dob) { <div class="text-muted small">DOB: {{ formatDob(c.dob) }}</div> }
-                      @if (c.email) { <div class="text-muted small">Email: {{ c.email }}</div> }
-                      @if (c.phone) { <div class="text-muted small">Cell: {{ formatPhone(c.phone) }}</div> }
+                    <div class="d-flex align-items-center gap-3">
+                      <!-- Headshot: saved players only (a draft child has no userId to key the file on) -->
+                      @if (c.userId; as uid) {
+                        <button type="button" class="photo-thumb"
+                                (click)="togglePhoto(uid)"
+                                [attr.aria-expanded]="photoOpenFor() === uid"
+                                [attr.aria-label]="'Photo for ' + c.firstName"
+                                title="Add or change photo">
+                          @if (thumbUrl(uid); as url) {
+                            <img [src]="url" alt="" (error)="onThumbError(uid)" />
+                          } @else {
+                            <i class="bi bi-person-circle"></i>
+                          }
+                          <span class="photo-thumb-badge"><i class="bi bi-camera-fill"></i></span>
+                        </button>
+                      } @else {
+                        <span class="photo-thumb is-static" aria-hidden="true">
+                          <i class="bi bi-person-circle"></i>
+                        </span>
+                      }
+                      <div>
+                        <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
+                        @if (c.dob) { <div class="text-muted small">DOB: {{ formatDob(c.dob) }}</div> }
+                        @if (c.email) { <div class="text-muted small">Email: {{ c.email }}</div> }
+                        @if (c.phone) { <div class="text-muted small">Cell: {{ formatPhone(c.phone) }}</div> }
+                      </div>
                     </div>
                     <div class="d-flex gap-1 align-items-center">
                       <button type="button" class="icon-action" (click)="edit($index)"
@@ -56,6 +79,12 @@ import { FamilyStateService } from '../state/family-state.service';
                         </button>
                       }
                     </div>
+                    @if (c.userId && photoOpenFor() === c.userId) {
+                      <div class="photo-panel">
+                        <app-headshot-upload [userId]="c.userId" />
+                        <button type="button" class="btn btn-sm btn-link" (click)="closePhoto()">Done</button>
+                      </div>
+                    }
                   </li>
                 }
               </ul>
@@ -165,6 +194,67 @@ import { FamilyStateService } from '../state/family-state.service';
         color: var(--neutral-400);
       }
 
+      .photo-thumb {
+        position: relative;
+        flex: 0 0 auto;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border-color);
+        border-radius: 50%;
+        background: var(--neutral-0);
+        color: var(--neutral-400);
+        font-size: 1.75rem;
+        cursor: pointer;
+
+        img {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+
+        &:hover { border-color: var(--bs-primary); }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+
+        &.is-static { cursor: default; }
+        &.is-static:hover { border-color: var(--border-color); }
+      }
+
+      .photo-thumb-badge {
+        position: absolute;
+        right: -4px;
+        bottom: -4px;
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--bs-primary);
+        color: var(--bs-white);
+        font-size: var(--font-size-xs);
+      }
+
+      .photo-panel {
+        flex-basis: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        margin-top: var(--space-3);
+        padding-top: var(--space-3);
+        border-top: 1px solid var(--border-color);
+      }
+
       .editing-row {
         border-color: var(--bs-primary) !important;
         background: rgba(var(--bs-primary-rgb), 0.04);
@@ -193,6 +283,47 @@ export class ChildrenStepComponent {
     readonly submitted = signal(false);
     readonly editingIndex = signal<number | null>(null);
     readonly genderOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('genders');
+
+    // ── Headshot (AR-112) ──
+    // The row thumbnail reads the public statics file directly; the upload panel is the shared
+    // HeadshotUploadComponent in immediate mode (saves on pick, independent of the form's Save/Cancel).
+    /** userId whose upload panel is open (keyed by id, not index, so list edits can't misattach it). */
+    readonly photoOpenFor = signal<string | null>(null);
+    /** Per-player cache-buster, bumped when a panel closes so a new/removed photo re-reads. */
+    private readonly thumbVersion = signal<Readonly<Record<string, number>>>({});
+    /** Players whose thumbnail 404'd (no photo on file) — show the placeholder instead. */
+    private readonly thumbMissing = signal<ReadonlySet<string>>(new Set());
+
+    thumbUrl(userId: string): string | null {
+        if (this.thumbMissing().has(userId)) return null;
+        const v = this.thumbVersion()[userId] ?? 0;
+        return `${environment.staticsUrl}/Headshots-AllRegistrants/${encodeURIComponent(userId)}.jpg?v=${v}`;
+    }
+
+    onThumbError(userId: string): void {
+        const next = new Set(this.thumbMissing());
+        next.add(userId);
+        this.thumbMissing.set(next);
+    }
+
+    togglePhoto(userId: string): void {
+        if (this.photoOpenFor() === userId) this.closePhoto();
+        else {
+            this.closePhoto();
+            this.photoOpenFor.set(userId);
+        }
+    }
+
+    closePhoto(): void {
+        const userId = this.photoOpenFor();
+        if (!userId) return;
+        this.photoOpenFor.set(null);
+        // Re-read the stored file: clear the 404 mark and bust the cache.
+        const missing = new Set(this.thumbMissing());
+        missing.delete(userId);
+        this.thumbMissing.set(missing);
+        this.thumbVersion.set({ ...this.thumbVersion(), [userId]: Date.now() });
+    }
 
     readonly form = this.fb.group({
         firstName: ['', [Validators.required]],
