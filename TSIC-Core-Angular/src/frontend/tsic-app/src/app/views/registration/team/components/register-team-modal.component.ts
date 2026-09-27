@@ -154,7 +154,7 @@ interface ModalRow {
                     @switch (price.kind) {
                       @case ('waitlist') { Full &middot; joins the waitlist, no fee until placed. }
                       @case ('free') { No fee. }
-                      @case ('deposit') { Deposit {{ $any(price).now | currency }} now &middot; {{ $any(price).total | currency }} total. }
+                      @case ('deposit') { {{ $any(price).total | currency }} &middot; {{ $any(price).now | currency }} due now (deposit). }
                       @case ('full') { {{ $any(price).total | currency }}. }
                     }
                   }
@@ -561,7 +561,9 @@ export class RegisterTeamModalComponent {
         const text = ageGroupWaitlists(ag)
             ? `${label} waitlist · no fee until placed`
             : price.kind === 'free' ? `${label} · no fee`
-            : price.kind === 'deposit' ? `${label} · ${money(price.now)} deposit`
+            // Two figures ONLY when the age group splits deposit + balance and is still in the
+            // deposit stage (Todd 2026-09-26): full amount, then what is due now. Otherwise one.
+            : price.kind === 'deposit' ? `${label} · ${money(price.total)} · ${money(price.now)} due now`
             : price.kind === 'full' ? `${label} · ${money(price.total)}`
             : label;
         return { id: ag.ageGroupId, text };
