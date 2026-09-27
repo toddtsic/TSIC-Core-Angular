@@ -3674,11 +3674,19 @@ public partial class RegistrationRepository : IRegistrationRepository
 
         // 5. Prior Staff history in OTHER jobs/seasons — the lead recognition signal. Excludes
         //    THIS job: a placement here is the coach's current assignment (shown in the
-        //    dropdown), not "coached before".
+        //    dropdown), not "coached before". Scoped to THIS job's customer: another customer's
+        //    job names must never reach this director (AR-109).
+        var customerId = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.CustomerId)
+            .SingleAsync(ct);
+
         var priorStaff = (await _context.Registrations
             .AsNoTracking()
             .Where(r => r.Role!.Name == RoleConstants.Names.StaffName
                 && r.JobId != jobId
+                && r.Job.CustomerId == customerId
                 && r.AssignedTeamId != null
                 && r.UserId != null
                 && coachUserIds.Contains(r.UserId))
