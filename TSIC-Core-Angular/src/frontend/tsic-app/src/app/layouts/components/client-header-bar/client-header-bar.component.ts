@@ -173,6 +173,9 @@ export class ClientHeaderBarComponent {
             if (pulse.playerRegistrationOpen) {
                 items.push({ icon: 'bi-person-badge', label: 'My Registration', route: 'registration/player?step=players' });
             }
+            // Same destination as the wizard's "Edit Family Account/Players" link. Ungated: the family's
+            // own contacts/players/headshots stay editable when registration is closed (AR-112).
+            items.push({ icon: 'bi-person-gear', label: 'Edit Family Account', route: 'registration/family?step=contacts' });
             // Never nudge a LIVE ARB registrant: their balance is auto-drafted on a schedule,
             // so myRegistrationOwedTotal stays > 0 by design and this row (which floats to
             // the top as `primary` and lights the avatar badge) would invite a double payment.
