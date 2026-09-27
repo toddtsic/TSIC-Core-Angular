@@ -565,9 +565,13 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Update a ClubTeam in the caller's club library — pre-registration housekeeping (name, grad
-    /// year, level of play). Rejected with 400 once the team has ever appeared on a schedule; a
-    /// registered team is renamed for the event from Registered Teams (<see cref="RenameRegisteredTeam"/>).
+    /// Update a ClubTeam in the caller's club library (name, grad year, level of play). Library row
+    /// only: no event copy is touched; a registered team is renamed for the event from Registered
+    /// Teams (<see cref="RenameRegisteredTeam"/>).
+    ///
+    /// Deliberately NOT gated by the director's BClubRepAllowEdit toggle (Todd 2026-09-24, restated
+    /// 2026-09-27): the library is the rep's own cross-event list, so one director switching Allow
+    /// Edit off must not lock a rep out of it. The toggle governs the EVENT copy only.
     /// </summary>
     [HttpPut("club-team/{clubTeamId:int}")]
     [ProducesResponseType(typeof(ClubTeamDto), 200)]
@@ -580,19 +584,6 @@ public class TeamRegistrationController : ControllerBase
             return StatusCode(403, new { Message = NotClubRepMessage });
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
-
-        // BClubRepAllowEdit gate. Editing a team in the wizard is governed by the director's
-        // per-event "Allow Edit" toggle for the job the rep authenticated under (their jobPath
-        // claim), composed through the one capability authority so the disabled pencil and the
-        // refused write agree. The eventConcluded door is the higher-level gate inside CanEditTeam:
-        // a concluded event removes editing regardless of the toggle (mirrors Add/Delete).
-        var jobPath = User.GetJobPath();
-        var jobId = string.IsNullOrEmpty(jobPath) ? null : await _jobLookupService.GetJobIdByPathAsync(jobPath);
-        if (jobId is null)
-            return StatusCode(403, new { Message = "Team editing is not available in this session." });
-        var caps = await _capabilities.ResolveAsync(jobId.Value, User.ToCapabilityActor());
-        if (!caps.CanEditTeam)
-            return StatusCode(403, new { Message = "Team editing is not enabled for this event." });
 
         try
         {
