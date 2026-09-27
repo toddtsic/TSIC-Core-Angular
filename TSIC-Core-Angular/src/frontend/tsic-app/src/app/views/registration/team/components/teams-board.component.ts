@@ -47,7 +47,6 @@ interface LibRow {
           <h3 class="board-title" id="board-lib-title">
             <i class="bi bi-collection-fill" aria-hidden="true"></i>Club Team Library
           </h3>
-          <span class="board-sub">Your teams to choose from</span>
         </div>
         <!-- One header for every club, new or established (Todd 2026-09-27): no empty-state variant. -->
         <button type="button" class="btn-add" [disabled]="actionInProgress()" (click)="addNew.emit()">
@@ -57,6 +56,47 @@ interface LibRow {
 
       <section class="panel panel--lib" aria-labelledby="board-lib-title">
         <div class="panel-body">
+          <!-- Three labelled piles (Todd 2026-09-27): Registered (collapsed, TOP — says where a team
+               went before anyone scrolls to look), Available Teams (open), Archived (collapsed, bottom).
+               Registered and Archived hide when empty; Available always shows. -->
+          @if (registeredLibRows().length > 0) {
+            <button type="button" class="fold" [attr.aria-expanded]="showRegisteredLib()"
+                    (click)="showRegisteredLib.set(!showRegisteredLib())">
+              <i class="bi" [class.bi-chevron-down]="showRegisteredLib()" [class.bi-chevron-right]="!showRegisteredLib()" aria-hidden="true"></i>
+              Registered <i class="bi bi-arrow-right" aria-hidden="true"></i>
+              <span class="fold-count">{{ registeredLibRows().length }}</span>
+            </button>
+            @if (showRegisteredLib()) {
+              <!-- Library Edit only; the registration itself is on the right. -->
+              @for (row of registeredLibRows(); track row.team.clubTeamId) {
+                <div class="lib-row is-quiet" [class.is-open]="editId() === row.team.clubTeamId">
+                  @if (editId() === row.team.clubTeamId) {
+                    <ng-container *ngTemplateOutlet="libEditor; context: { $implicit: row }" />
+                  } @else {
+                  <div class="row-main">
+                    <div class="row-text">
+                      <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
+                      <span class="row-meta">
+                        <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
+                        <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) || '—' }}</span>
+                      </span>
+                    </div>
+                    <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
+                  </div>
+                  }
+                </div>
+              }
+            }
+          }
+
+          <!-- Opens on every load; a collapse lasts only while the rep is on this step. -->
+          <button type="button" class="fold" [attr.aria-expanded]="showAvailable()"
+                  (click)="showAvailable.set(!showAvailable())">
+            <i class="bi" [class.bi-chevron-down]="showAvailable()" [class.bi-chevron-right]="!showAvailable()" aria-hidden="true"></i>
+            Available Teams
+            <span class="fold-count">{{ availableRows().length }}</span>
+          </button>
+          @if (showAvailable()) {
           <!-- Nothing to list: a placeholder ROW where the teams go, never a paragraph — the board
                looks like the board with nothing in it yet. -->
           @if (empty()) {
@@ -161,36 +201,7 @@ interface LibRow {
             </div>
           }
 
-          <!-- Library teams already registered here: folded, library Edit only. The registration
-               itself is on the right. -->
-          @if (registeredLibRows().length > 0) {
-            <button type="button" class="fold" [attr.aria-expanded]="showRegisteredLib()"
-                    (click)="showRegisteredLib.set(!showRegisteredLib())">
-              <i class="bi" [class.bi-chevron-down]="showRegisteredLib()" [class.bi-chevron-right]="!showRegisteredLib()" aria-hidden="true"></i>
-              Registered <i class="bi bi-arrow-right" aria-hidden="true"></i>
-              <span class="fold-count">{{ registeredLibRows().length }}</span>
-            </button>
-            @if (showRegisteredLib()) {
-              @for (row of registeredLibRows(); track row.team.clubTeamId) {
-                <div class="lib-row is-quiet" [class.is-open]="editId() === row.team.clubTeamId">
-                  @if (editId() === row.team.clubTeamId) {
-                    <ng-container *ngTemplateOutlet="libEditor; context: { $implicit: row }" />
-                  } @else {
-                  <div class="row-main">
-                    <div class="row-text">
-                      <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
-                      <span class="row-meta">
-                        <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
-                        <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) || '—' }}</span>
-                      </span>
-                    </div>
-                    <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
-                  </div>
-                  }
-                </div>
-              }
-            }
-          }
+          } <!-- /Available Teams -->
 
           @if (archivedRows().length > 0) {
             <button type="button" class="fold" [attr.aria-expanded]="showArchived()"
@@ -788,6 +799,7 @@ interface LibRow {
         text-align: left;
         cursor: pointer;
 
+        &:first-child { border-top: none; }
         &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
       }
 
@@ -865,6 +877,7 @@ export class TeamsBoardComponent {
     readonly lopChoices = LOP_CHOICES;
 
     readonly showRegisteredLib = signal(false);
+    readonly showAvailable = signal(true);
     readonly showArchived = signal(false);
     /** The library row whose register editor is open — one at a time. */
     readonly openId = signal<number | null>(null);

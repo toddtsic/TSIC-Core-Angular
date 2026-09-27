@@ -29,7 +29,7 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
     <div class="ie" role="group" [attr.aria-label]="'Edit ' + team().teamName + ' for ' + eventName()"
          (keydown.escape)="cancel()">
       <label class="ie-field">
-        <span class="ie-label">Name at {{ eventName() }}</span>
+        <span class="ie-label">Team Name</span>
         <input class="ie-input ie-name" type="text" autocomplete="off"
                maxlength="100"
                [value]="name()" (input)="name.set($any($event.target).value)"
@@ -37,13 +37,19 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
                [class.is-invalid]="!name().trim() || duplicate()" />
       </label>
 
-      <!-- Reps try to MOVE a team by renaming it (Todd 2026-09-27). Always said, calmly; said in red,
-           with the real way to move, the moment the name's year leaves the age group. -->
+      <!-- The row's "AG" line is hidden while the row is open — the one moment it matters most. -->
+      <p class="ie-ag">
+        <span class="ie-label">Registered age group</span>
+        <span class="ie-ag-chip">{{ ageGroup() }}</span>
+      </p>
+
+      <!-- Reps try to MOVE a team by renaming it (Todd 2026-09-27). Always a warning; red, with the
+           real way to move, the moment the name's year leaves the REGISTERED age group. -->
       @if (yearMoved(); as yr) {
         <div class="ie-move ie-move--alarm" role="alert">
           <p class="ie-move-line">
             <i class="bi bi-x-octagon-fill" aria-hidden="true"></i>
-            <span><b>Renaming does not move this team.</b> {{ name().trim() }} will still play in <b>{{ ageGroup() }}</b>.</span>
+            <span><b>Renaming does not move this team.</b> {{ name().trim() }} is still registered in <b>{{ ageGroup() }}</b>.</span>
           </p>
           <p class="ie-move-how">
             @if (undoMinutes() > 0) {
@@ -56,7 +62,12 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
           </p>
         </div>
       } @else {
-        <p class="ie-move-calm"><b>Renaming does not change the age group</b> &mdash; this team plays in {{ ageGroup() }}.</p>
+        <div class="ie-move ie-move--warn">
+          <p class="ie-move-line">
+            <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+            <span><b>Renaming does not change the registered age group.</b> This team stays registered in <b>{{ ageGroup() }}</b>.</span>
+          </p>
+        </div>
       }
       @if (duplicate()) {
         <p class="ie-msg ie-msg--err" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
@@ -84,7 +95,6 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
       @if (error()) { <p class="ie-msg ie-msg--err" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>{{ error() }}</p> }
       <p class="ie-scope">
         {{ eventName() }} only &mdash; your Club Team Library stays as it is.
-        To rename it there, use Edit under Registered &rarr; in your Club Team Library.
       </p>
     </div>
     `,
@@ -96,7 +106,15 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
       /* Wide enough for "5 (strongest)". */
       .ie-field--lop { width: 116px; flex-shrink: 0; }
 
-      .ie-move-calm { margin: 0; font-size: var(--font-size-xs); color: var(--brand-text); }
+      .ie-ag { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
+      .ie-ag-chip {
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-sm);
+        background: var(--bs-success);
+        color: var(--neutral-0);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-bold);
+      }
 
       .ie-move {
         display: flex;
@@ -110,6 +128,13 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
           border: 1px solid var(--bs-danger);
           background: color-mix(in srgb, var(--bs-danger) 10%, var(--brand-surface));
           color: var(--brand-text);
+          .ie-move-line .bi { color: var(--bs-danger); }
+        }
+        &--warn {
+          border: 1px solid var(--bs-warning);
+          background: color-mix(in srgb, var(--bs-warning) 14%, var(--brand-surface));
+          color: var(--brand-text);
+          .ie-move-line .bi { color: color-mix(in srgb, var(--bs-warning) 70%, var(--brand-text)); }
         }
       }
       .ie-move-line {
@@ -118,7 +143,7 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
         gap: var(--space-1);
         margin: 0;
 
-        .bi { flex-shrink: 0; color: var(--bs-danger); }
+        .bi { flex-shrink: 0; }
       }
       .ie-move-how { margin: 0; }
 
