@@ -260,7 +260,7 @@ interface LibRow {
             @let s = feeStatus(t);
             @let undoMin = undoMinutesLeft(t.teamId);
             @let removable = canRemove() && t.paidTotal === 0;
-            <div class="reg-row" [class.is-wl]="t.isWaitlisted" [class.is-open]="renameId() === t.teamId">
+            <div class="reg-row" [class.is-open]="renameId() === t.teamId">
               @if (renameId() === t.teamId) {
                 <!-- This event's name + level, edited in the row (Todd 2026-09-27, inline, no modal). -->
                 <app-registered-team-inline-editor class="reg-editor-host"
@@ -532,7 +532,6 @@ interface LibRow {
         align-items: flex-start;
         gap: var(--space-2);
 
-        &.is-wl { background: color-mix(in srgb, var(--bs-warning) 6%, transparent); }
         &.is-open { background: color-mix(in srgb, var(--bs-success) 10%, transparent); }
       }
 
@@ -587,7 +586,6 @@ interface LibRow {
 
       .meta-pair { display: inline-flex; align-items: baseline; gap: var(--space-1); }
       .meta-key { text-transform: uppercase; letter-spacing: 0.06em; font-weight: var(--font-weight-semibold); opacity: 0.7; }
-      .meta-wl { color: var(--bs-warning); }
 
       .fee {
         display: inline-flex;
