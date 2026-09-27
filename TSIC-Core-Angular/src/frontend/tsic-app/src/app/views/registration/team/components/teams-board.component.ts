@@ -97,8 +97,9 @@ interface LibRow {
             <span class="fold-count">{{ availableRows().length }}</span>
           </button>
           @if (showAvailable()) {
-          <!-- Nothing to list: a placeholder ROW where the teams go, never a paragraph — the board
-               looks like the board with nothing in it yet. -->
+          <!-- A brand-new library only: a placeholder ROW with the one action, never a paragraph.
+               "All registered" / "all archived" get no row — the group counts already say it
+               (Todd 2026-09-27). -->
           @if (empty()) {
             <div class="lib-row row-placeholder">
               <div class="row-main">
@@ -109,14 +110,6 @@ interface LibRow {
                   <i class="bi bi-plus-circle" aria-hidden="true"></i>Add your first team
                 </button>
               </div>
-            </div>
-          } @else if (availableRows().length === 0 && activeCount() > 0) {
-            <div class="lib-row row-placeholder">
-              <span class="row-meta"><span><i class="bi bi-check-circle-fill ph-done" aria-hidden="true"></i>Every library team is registered for {{ eventName() }}.</span></span>
-            </div>
-          } @else if (activeCount() === 0) {
-            <div class="lib-row row-placeholder">
-              <span class="row-meta">Every library team is archived. Restore one below, or add a team.</span>
             </div>
           }
 
@@ -505,7 +498,6 @@ interface LibRow {
         &:last-child { border-bottom: 1px dashed color-mix(in srgb, var(--bs-body-color) 25%, transparent); }
         .row-name { color: var(--brand-text-muted); }
       }
-      .ph-done { margin-right: var(--space-1); color: var(--bs-success); }
 
       /* ── Rows ── */
       .lib-row, .reg-row {
