@@ -68,7 +68,7 @@ interface RegisterAllLine {
                   </span>
                   <span class="ra-fee">
                     @switch (line.pricing.kind) {
-                      @case ('waitlist') { No fee until placed }
+                      @case ('waitlist') { No fees while on waitlist }
                       @case ('free') { No fee }
                       @case ('deposit') { Deposit {{ $any(line.pricing).now | currency }} <small>of {{ $any(line.pricing).total | currency }}</small> }
                       @case ('full') { {{ $any(line.pricing).total | currency }} }

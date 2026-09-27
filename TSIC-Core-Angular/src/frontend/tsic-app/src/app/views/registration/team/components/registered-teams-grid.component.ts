@@ -157,7 +157,7 @@ export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
                 @switch (s.kind) {
                   @case ('waitlist') {
                     <span class="fee-status-main"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Waitlisted</span>
-                    <span class="fee-status-detail">no fee until placed</span>
+                    <span class="fee-status-detail">no fees while on waitlist</span>
                   }
                   @case ('scheduled') {
                     <span class="fee-status-main"><i class="bi bi-calendar-event" aria-hidden="true"></i>Auto-pay · {{ s.owed | currency }}</span>

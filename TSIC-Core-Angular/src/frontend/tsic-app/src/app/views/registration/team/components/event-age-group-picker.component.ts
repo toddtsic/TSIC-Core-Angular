@@ -47,7 +47,7 @@ import { buildAgeGroupSlots, describeSlotPricing, type SlotPricing } from './eve
             @let pr = pricing(slot);
             <span class="age-pill-fee" [class.age-pill-fee--muted]="pr.kind === 'waitlist' || pr.kind === 'free'">
               @switch (pr.kind) {
-                @case ('waitlist') { No fee until placed }
+                @case ('waitlist') { No fees while on waitlist }
                 @case ('free') { No fee }
                 @case ('deposit') { Deposit {{ pr.now | currency }} <small>· {{ pr.total | currency }} total</small> }
                 @case ('full') { {{ pr.total | currency }} }
@@ -87,7 +87,7 @@ import { buildAgeGroupSlots, describeSlotPricing, type SlotPricing } from './eve
       @if (showSelectedFee() && selectedPricing(); as pr) {
         <p class="eagp-fee-line" [class.eagp-fee-line--muted]="pr.kind === 'free'" [class.eagp-fee-line--waitlist]="pr.kind === 'waitlist'">
           @switch (pr.kind) {
-            @case ('waitlist') { <i class="bi bi-hourglass-split" aria-hidden="true"></i>Waitlisted &mdash; no fee until placed }
+            @case ('waitlist') { <i class="bi bi-hourglass-split" aria-hidden="true"></i>Waitlisted &mdash; no fees while on waitlist }
             @case ('free') { <i class="bi bi-check-circle" aria-hidden="true"></i>No fee }
             @case ('deposit') { <i class="bi bi-cash-stack" aria-hidden="true"></i><strong>Deposit {{ pr.now | currency }} now</strong> &middot; {{ pr.total | currency }} total }
             @case ('full') { <i class="bi bi-cash-stack" aria-hidden="true"></i><strong>{{ pr.total | currency }}</strong> due on registration }

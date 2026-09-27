@@ -112,7 +112,7 @@ interface LibRow {
             </div>
           } @else if (availableRows().length === 0 && activeCount() > 0) {
             <div class="lib-row row-placeholder">
-              <span class="row-meta"><i class="bi bi-check-circle-fill ph-done" aria-hidden="true"></i>Every library team is registered for {{ eventName() }}.</span>
+              <span class="row-meta"><span><i class="bi bi-check-circle-fill ph-done" aria-hidden="true"></i>Every library team is registered for {{ eventName() }}.</span></span>
             </div>
           } @else if (activeCount() === 0) {
             <div class="lib-row row-placeholder">
@@ -178,7 +178,7 @@ interface LibRow {
                     } @else {
                       @let price = pricingOf(pick.ag);
                       @switch (price.kind) {
-                        @case ('waitlist') { Full &middot; joins the waitlist, no fee until placed. }
+                        @case ('waitlist') { Full &middot; joins the waitlist. No fees while on waitlist. }
                         @case ('free') { No fee. }
                         @case ('deposit') { {{ $any(price).total | currency }} &middot; {{ $any(price).now | currency }} due now (deposit). }
                         @case ('full') { {{ $any(price).total | currency }}. }
@@ -290,7 +290,7 @@ interface LibRow {
                   <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(t.levelOfPlay) || '—' }}</span>
                 <span class="fee" [class]="'fee fee--' + s.kind">
                   @switch (s.kind) {
-                    @case ('waitlist') { <i class="bi bi-hourglass-split" aria-hidden="true"></i>No fee until placed }
+                    @case ('waitlist') { <i class="bi bi-hourglass-split" aria-hidden="true"></i>No fees while on waitlist }
                     @case ('scheduled') {
                       <i class="bi bi-calendar-event" aria-hidden="true"></i>Auto-pay {{ $any(s).owed | currency }}
                       @if ($any(s).nextChargeDate) { &middot; {{ $any(s).nextChargeDate | date:'mediumDate' }} }
@@ -918,7 +918,7 @@ export class TeamsBoardComponent {
         const price = pricingOfAgeGroup(ag);
         const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         const text = ageGroupWaitlists(ag)
-            ? `${label} waitlist · no fee until placed`
+            ? `${label} waitlist · no fees while on waitlist`
             : price.kind === 'free' ? `${label} · no fee`
             // Two figures ONLY in the deposit stage of a deposit + balance group (Todd 2026-09-26).
             : price.kind === 'deposit' ? `${label} · ${money(price.total)} · ${money(price.now)} due now`
