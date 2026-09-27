@@ -287,10 +287,8 @@ export class TeamWizardV2Component implements OnInit {
 
     readonly detailsBadge = computed<string | null>(() => {
         switch (this.currentStepId()) {
-            case 'teams': {
-                const bal = this.state.teamPayment.balanceDue();
-                return bal > 0 ? formatCurrency(bal) + ' due' : null;
-            }
+            // None on Teams: the board's own Continue card says what is due (the fee, card fee added
+            // at payment). This badge showed the card-inclusive total beside it — two figures, one step.
             case 'payment': {
                 const bal = this.state.teamPayment.balanceDue();
                 return bal > 0 ? 'Payment Due: ' + formatCurrency(bal) : null;

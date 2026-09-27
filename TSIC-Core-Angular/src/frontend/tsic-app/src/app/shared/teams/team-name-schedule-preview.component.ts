@@ -114,9 +114,9 @@ export class TeamNameSchedulePreviewComponent {
     /** Full club name in the team name, a word of it, or clean. */
     readonly hit = computed(() => clubNameInTeamName(this.clubName(), this.teamName()));
 
-    /** The label ScheduleRepository would print — with "2028 Blue" standing in while the name is empty. */
+    /** The label ScheduleRepository would print — with "2032 Blue" (the placeholder's example) standing in while the name is empty. */
     readonly label = computed(() =>
-        scheduleTeamLabel(this.clubName(), this.teamName().trim() || '2028 Blue'));
+        scheduleTeamLabel(this.clubName(), this.teamName().trim() || '2032 Blue'));
 
     /** The typed name with the club name cut out, as the thing to enter instead. */
     readonly suggestion = computed(() => {
@@ -126,7 +126,7 @@ export class TeamNameSchedulePreviewComponent {
         const stripped = this.teamName().replace(new RegExp(escapeRegExp(club), 'ig'), ' ')
             .replace(/\s+/g, ' ').trim()
             .replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '').trim();
-        return stripped || '2028 Blue';
+        return stripped || '2032 Blue';
     });
 }
 
