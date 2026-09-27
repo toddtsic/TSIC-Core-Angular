@@ -131,7 +131,6 @@ type TeamsSegment = 'library' | 'registered';
                 [clubTeams]="allLibraryTeams()"
                 [registeredTeams]="enteredTeams()"
                 [droppedTeams]="droppedTeams()"
-                [ageGroups]="ageGroups()"
                 [clubName]="clubName()"
                 [eventName]="eventName()"
                 [canRegister]="canRegisterTeam()"
@@ -337,6 +336,7 @@ type TeamsSegment = 'library' | 'registered';
     @if (showAddModal()) {
       <app-team-form-modal
         [clubName]="clubName()"
+        [oldestOfferedGradYear]="oldestOfferedGradYear()"
         [existingTeams]="allLibraryTeams()"
         (saved)="onTeamAdded()"
         (closed)="showAddModal.set(false)" />
@@ -378,6 +378,7 @@ type TeamsSegment = 'library' | 'registered';
     @if (editingTeam(); as editing) {
       <app-team-form-modal
         [clubName]="clubName()"
+        [oldestOfferedGradYear]="oldestOfferedGradYear()"
         [editingTeam]="editing"
         [archiveLockReason]="archiveLockReasonFor(editing)"
         [existingTeams]="allLibraryTeams()"
@@ -996,6 +997,9 @@ export class TeamTeamsStepComponent implements OnInit {
 
     /** Active (not archived) library teams. */
     readonly activeLibraryCount = computed(() => this._clubTeams().filter(t => !t.bArchived).length);
+
+    /** The event's oldest age group — the add/edit dialog warns on a grad year older than it. */
+    readonly oldestOfferedGradYear = computed(() => resolveOldestOfferedGradYear(this.ageGroups()));
 
     /** What the rep owes today — the grid footer's own rule (sumDueNowOf), never a second copy. */
     readonly dueNow = computed(() => sumDueNowOf(this._registeredTeams()));

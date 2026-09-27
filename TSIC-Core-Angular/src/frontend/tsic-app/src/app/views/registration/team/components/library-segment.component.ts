@@ -1,11 +1,10 @@
 import { AfterViewChecked, ChangeDetectionStrategy, Component, ElementRef, OnChanges, SimpleChanges, computed, inject, input, output, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
+import type { ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { formatLop } from '@shared/teams/lop-choices';
 import { clubTeamEditLockReason, clubTeamRemoval, type ClubTeamLockContext, type ClubTeamRemoval } from '@shared/teams/club-team-locks';
 import { ToastService } from '@shared-ui/toast.service';
-import { resolveOldestOfferedGradYear } from './event-age-group.util';
-import { byGradYearThenName, fitsEvent } from './library-register-plan';
+import { byGradYearThenName } from './library-register-plan';
 
 interface SegmentRow {
     team: ClubTeamDto;
@@ -40,42 +39,24 @@ interface SegmentRow {
          Once anything is registered, one quiet line. Either way the head says what an edit here
          touches: the library, i.e. future events — never a registration. ── -->
     @if (listFirst()) {
-      <!-- The same card for an EMPTY library (a brand-new club): its text starts the list instead of
-           checking it, and Add is the one filled action (Todd 2026-09-26, one view — "KEEP IT DRY"). -->
+      <!-- One card for the empty library (a brand-new club) and the pre-filled one (Todd 2026-09-26,
+           "KEEP IT DRY"; "too many instructions" — a title and one line). -->
       <div class="list-first">
         <div class="list-first-text">
           <strong class="list-first-title">
             <i class="bi bi-collection-fill" aria-hidden="true"></i>
-            @if (empty()) {
-              Start your Club Team Library.
-            } @else {
-              Before you register, make sure your Club Team Library is right.
-            }
+            {{ empty() ? 'Start your Club Team Library.' : 'Make sure your Club Team Library is right.' }}
           </strong>
-          @if (empty()) {
-            <span class="list-first-why">
-              Add each team once &mdash; it stays here for every event you register for, so you never retype it.
-            </span>
-            @if (canRegister()) {
-              <span class="list-first-then">Add every team you're bringing to {{ eventName() }}. Once your first team is in,
-                a <b>{{ eventName() }} Registered Teams</b> tab appears above &mdash; when your list is done, register them there.</span>
+          <span class="list-first-why">
+            @if (!canRegister()) {
+              Team registration for {{ eventName() }} is closed. Your library is still yours to keep right.
+            } @else if (empty()) {
+              Add every team you're bringing to {{ eventName() }} &mdash; once, for every event after.
+              A <b>Registered Teams</b> tab appears with your first team.
+            } @else {
+              Add, edit or archive until it holds every team you want to register for {{ eventName() }}.
             }
-          } @else {
-            <span class="list-first-why">
-              It's the list of teams every event you register for starts from &mdash; this one and every one after.
-            </span>
-            <ul class="list-first-checks">
-              <li><span class="lf-q">New team this season?</span> <b>Add a New Team</b>.</li>
-              <li><span class="lf-q">Graduated or moved on?</span> <b>Archive</b> it &mdash; its history is kept.</li>
-              <li><span class="lf-q">Name, grad year or level out of date?</span> <b>Edit</b> it.</li>
-            </ul>
-            @if (canRegister()) {
-              <span class="list-first-then">When your list is right, go to <b>{{ eventName() }} Registered Teams</b> to register the teams you're bringing.</span>
-            }
-          }
-          @if (!canRegister()) {
-            <span class="list-first-then">Team registration for {{ eventName() }} is closed. Your library is still yours to keep right.</span>
-          }
+          </span>
         </div>
         <div class="list-first-actions">
           @if (canRegister() && !empty()) {
@@ -86,6 +67,10 @@ interface SegmentRow {
               List done? Go to Registered Teams
               <i class="bi bi-arrow-right" aria-hidden="true"></i>
             </button>
+            <span class="list-first-caution">
+              <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+              Only when your library has every team you want to register.
+            </span>
           }
           <button type="button" class="btn-add-team" [class.btn-add-team--primary]="empty()"
                   [disabled]="actionInProgress()" (click)="addNew.emit()">
@@ -98,7 +83,6 @@ interface SegmentRow {
       <div class="seg-lib-head">
         <p class="lib-lede">
           {{ clubPossessive() }} Club Team Library &mdash; the teams every event you register for starts from.
-          Add, edit or archive here to keep it right for the next one.
         </p>
         <button type="button" class="btn-add-team" [disabled]="actionInProgress()" (click)="addNew.emit()">
           <i class="bi bi-plus-circle" aria-hidden="true"></i>
@@ -107,14 +91,12 @@ interface SegmentRow {
       </div>
     }
 
-    <!-- What Edit means HERE, said once, above every Edit button (Todd 2026-09-26). Not while there is nothing to edit. -->
+    <!-- What Edit means HERE, one line (Todd 2026-09-26). Not while there is nothing to edit. -->
     @if (!empty()) {
-    <p class="edit-scope">
-      <i class="bi bi-pencil" aria-hidden="true"></i>
-      <span><b>Edit</b> changes the team in your library, so every future event starts from the new details.
-        A team already registered for {{ eventName() }} keeps its registration as it is &mdash; change that on
-        <b>{{ eventName() }} Registered Teams</b>.</span>
-    </p>
+      <p class="edit-scope">
+        <i class="bi bi-pencil" aria-hidden="true"></i>
+        <span><b>Edit</b> changes your library team for future events &mdash; never a team already registered.</span>
+      </p>
     }
 
     <!-- One row's cells. Shared by every group so a team looks the same wherever it sits. -->
@@ -216,12 +198,13 @@ interface SegmentRow {
         <p class="lib-empty">No teams yet &mdash; add your first one above.</p>
       }
 
-      <!-- Not registered here, and fits an age group -->
+      <!-- Not registered here. One list, club order: the "older than every age group" split is gone
+           (Todd 2026-09-26) — the add dialog warns on the grad year instead, and the register modal
+           keeps its own fold, where the play-up choice is made. -->
       @if (notRegisteredRows().length > 0) {
         <div class="lib-group">
           <span class="lib-group-title">Not registered</span>
           <span class="lib-group-count">{{ notRegisteredRows().length }}</span>
-          <span class="lib-group-hint">fit an age group at {{ eventName() }}</span>
         </div>
         @for (row of notRegisteredRows(); track row.team.clubTeamId) {
           <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row }" />
@@ -237,27 +220,6 @@ interface SegmentRow {
         </div>
         @for (row of registeredRows(); track row.team.clubTeamId) {
           <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row }" />
-        }
-      }
-
-      <!-- Older than every age group here. While the rep is getting the list right these are exactly
-           the graduated teams they came to archive, so they show, open, with the hint that says so.
-           Afterwards they fold away. -->
-      @if (outsideRows().length > 0) {
-        <button type="button" class="lib-group lib-group--toggle"
-                [attr.aria-expanded]="outsideOpen()" (click)="toggleOutside()">
-          <i class="bi" [class.bi-chevron-down]="outsideOpen()" [class.bi-chevron-right]="!outsideOpen()" aria-hidden="true"></i>
-          <span class="lib-group-title">Older than every age group at {{ eventName() }}</span>
-          <span class="lib-group-count">{{ outsideRows().length }}</span>
-          <span class="lib-group-hint">
-            @if (oldestOffered() !== null) { oldest here is {{ oldestOffered() }} &middot; }
-            graduated or moved on? Archive them
-          </span>
-        </button>
-        @if (outsideOpen()) {
-          @for (row of outsideRows(); track row.team.clubTeamId) {
-            <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row }" />
-          }
         }
       }
 
@@ -328,20 +290,21 @@ interface SegmentRow {
         .bi { color: var(--bs-primary); }
       }
 
-      .list-first-checks {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        margin: 0;
-        padding-left: var(--space-5);
-      }
-
-      .lf-q { font-weight: var(--font-weight-semibold); }
-
-      .list-first-then { color: var(--brand-text-muted); }
       .list-first-why { color: var(--brand-text-muted); }
 
-      .list-first-actions { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); flex-shrink: 0; }
+      .list-first-actions { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); flex-shrink: 0; max-width: 300px; }
+
+      /* Under "List done?": say when to press it (Todd 2026-09-26). */
+      .list-first-caution {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-1);
+        margin-top: calc(-1 * var(--space-1));
+        font-size: var(--font-size-2xs);
+        color: var(--brand-text-muted);
+
+        .bi { color: var(--bs-warning); flex-shrink: 0; }
+      }
 
       .btn-register-teams {
         display: inline-flex;
@@ -631,7 +594,6 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
     readonly clubTeams = input.required<readonly ClubTeamDto[]>();
     readonly registeredTeams = input<readonly RegisteredTeamDto[]>([]);
     readonly droppedTeams = input<readonly RegisteredTeamDto[]>([]);
-    readonly ageGroups = input<readonly AgeGroupDto[]>([]);
     readonly clubName = input('');
     readonly eventName = input('this event');
     /** Team registration open AND the director allows adds. */
@@ -654,13 +616,6 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
 
     readonly formatLop = formatLop;
 
-    /**
-     * The "older than every age group" fold: OPEN while the rep is getting the list right (those are
-     * the graduated teams to archive), folded afterwards. The rep's own toggle wins either way.
-     */
-    private readonly outsideToggled = signal<boolean | null>(null);
-    readonly outsideOpen = computed(() => this.outsideToggled() ?? this.listFirst());
-    toggleOutside(): void { this.outsideToggled.set(!this.outsideOpen()); }
     readonly showArchived = signal(false);
 
     /** "STEPS Elite NJ's" / "Your club's". */
@@ -668,8 +623,6 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
         const club = this.clubName().trim();
         return club && club !== 'your club' ? `${club}'s` : "Your club's";
     });
-
-    readonly oldestOffered = computed(() => resolveOldestOfferedGradYear(this.ageGroups()));
 
     private readonly registeredByClubTeam = computed(() => {
         const map = new Map<number, RegisteredTeamDto>();
@@ -689,16 +642,10 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
             .map(team => ({ team, registered: registered.get(team.clubTeamId) ?? null, dropped: dropped.has(team.clubTeamId) }));
     });
 
-    private fits(team: ClubTeamDto): boolean {
-        return fitsEvent(team, { oldestOffered: this.oldestOffered() });
-    }
-
     readonly notRegisteredRows = computed(() =>
-        this.rows().filter(r => !r.team.bArchived && !r.registered && this.fits(r.team)));
+        this.rows().filter(r => !r.team.bArchived && !r.registered));
     /** Registered here — including a team whose library row was archived since, so no registration ever drops out of sight. */
     readonly registeredRows = computed(() => this.rows().filter(r => !!r.registered));
-    readonly outsideRows = computed(() =>
-        this.rows().filter(r => !r.team.bArchived && !r.registered && !this.fits(r.team)));
     readonly archivedRows = computed(() => this.rows().filter(r => r.team.bArchived && !r.registered));
     readonly activeCount = computed(() => this.clubTeams().filter(t => !t.bArchived).length);
     /** No library teams at all — a brand-new club. The same view, its empty variant. */
@@ -735,9 +682,6 @@ export class LibrarySegmentComponent implements OnChanges, AfterViewChecked {
             const target = added.length ? added[added.length - 1] : (changes['pendingLibraryOnly'].firstChange ? current[0] : undefined);
             if (target !== undefined) {
                 this.scrollToTeamId = target;
-                // An outside-the-age-groups team is folded away by default; unfold it so it can be seen.
-                const team = this.clubTeams().find(t => t.clubTeamId === target);
-                if (team && !team.bArchived && !this.fits(team)) this.outsideToggled.set(true);
             }
         }
     }

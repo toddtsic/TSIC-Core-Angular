@@ -8,6 +8,7 @@ import type { ClubTeamDto } from '@core/api';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
 import { clubNameInTeamName, isBareYearName } from '@shared/teams/team-name-hints';
 import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedule-preview.component';
+import { isTeamOfferedAtEvent } from '../components/event-age-group.util';
 
 /**
  * Modal for editing an existing library team (when `editingTeam` is supplied), or
@@ -158,6 +159,15 @@ import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedu
               @if (submitted() && !gradYear()) {
                 <div class="field-error">Required</div>
               }
+              <!-- Caught HERE, while the rep can still fix a typo — not later in a list hint. Advisory:
+                   the team may be real, just not for this event. Wizard only (it passes the year). -->
+              @if (olderThanEvent()) {
+                <div class="grad-year-warn" role="status">
+                  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                  <span>The oldest age group at this event is <strong>{{ oldestOfferedGradYear() }}</strong>, so a
+                    {{ gradYear() }} team can't be registered here. Check the grad year &mdash; it can still go in your library.</span>
+                </div>
+              }
             </div>
 
             <div class="form-row">
@@ -307,6 +317,20 @@ import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedu
         color: var(--brand-text-muted);
       }
       .grad-year-tip strong { color: var(--brand-text); }
+      .grad-year-warn {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin-top: var(--space-2);
+        padding: var(--space-2);
+        border-left: 3px solid var(--bs-warning);
+        border-radius: var(--radius-sm);
+        background: color-mix(in srgb, var(--bs-warning) 10%, transparent);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text);
+
+        .bi { color: var(--bs-warning); flex-shrink: 0; }
+      }
       .grad-year-tip em { color: var(--bs-danger); font-style: normal; font-weight: var(--font-weight-semibold); }
 
       /* LOP pills render via <app-level-of-play-picker [fill]="true" labels="full">,
@@ -398,6 +422,8 @@ export class TeamFormModalComponent implements OnInit {
      * "add as a new team instead" follow-up, which offers to archive the old row.
      */
     readonly archiveLockReason = input<string | null>(null);
+    /** The event's oldest offered grad year (wizard only; null elsewhere = no check). */
+    readonly oldestOfferedGradYear = input<number | null>(null);
 
     readonly saved = output<void>();
     readonly closed = output<void>();
@@ -417,6 +443,9 @@ export class TeamFormModalComponent implements OnInit {
 
     readonly teamName = signal('');
     readonly gradYear = signal('');
+    /** The picked grad year is older than every age group at this event (same rule the lists use). */
+    readonly olderThanEvent = computed(() =>
+        !!this.gradYear() && !isTeamOfferedAtEvent(this.oldestOfferedGradYear(), this.gradYear()));
     readonly levelOfPlay = signal('');
     readonly submitted = signal(false);
     readonly saving = signal(false);
