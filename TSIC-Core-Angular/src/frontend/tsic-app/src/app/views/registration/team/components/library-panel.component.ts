@@ -45,7 +45,8 @@ interface LibRow {
             <i class="bi bi-card-list" aria-hidden="true"></i>Club Team Library
           </h3>
           <!-- CRITICAL (Todd 2026-09-27): says what this list IS — never drop it for the group labels. -->
-          <span class="board-sub">Your teams to choose from</span>
+          <!-- The page says WHEN they are chosen (Todd 2026-09-27): no Register button there to show it. -->
+          <span class="board-sub">Your teams to choose from@if (isPage()) { when registering for an event}</span>
         </div>
         <!-- One header for every club, new or established (Todd 2026-09-27): no empty-state variant. -->
         <button type="button" class="btn-add" [disabled]="actionInProgress()" (click)="addNew.emit()">
