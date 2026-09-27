@@ -66,7 +66,7 @@ interface LibRow {
             <button type="button" class="fold" [attr.aria-expanded]="showRegisteredLib()"
                     (click)="showRegisteredLib.set(!showRegisteredLib())">
               <i class="bi" [class.bi-chevron-down]="showRegisteredLib()" [class.bi-chevron-right]="!showRegisteredLib()" aria-hidden="true"></i>
-              <i class="bi bi-clipboard-check fold-icon fold-icon--reg" aria-hidden="true"></i>Registered <i class="bi bi-arrow-right" aria-hidden="true"></i>
+              <i class="bi bi-clipboard-check fold-icon fold-icon--reg" aria-hidden="true"></i>Registered
               <span class="fold-count">{{ registeredLibRows().length }}</span>
             </button>
             @if (showRegisteredLib()) {
