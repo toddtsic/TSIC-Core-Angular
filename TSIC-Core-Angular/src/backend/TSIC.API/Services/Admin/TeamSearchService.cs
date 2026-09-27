@@ -156,15 +156,11 @@ public sealed class TeamSearchService : ITeamSearchService
         // for an orphan team.
         ClubTeams? libTeam = null;
         var hasScheduleRows = false;
-        var otherEvents = new List<ClubTeamEventHistoryDto>();
+        // No other-events history (Todd 2026-09-27): the panel no longer shows it, so it isn't read.
         if (detail.ClubTeamId is int libId)
         {
             libTeam = await _clubTeamRepo.GetByIdReadOnlyAsync(libId, ct);
             hasScheduleRows = await _scheduleRepo.TeamHasScheduleRowsAsync(jobId, teamId, ct);
-            // The library row's other events - read-only context ("played 3 of our events as ...").
-            otherEvents = (await _clubTeamRepo.GetEventHistoryForClubTeamIdsAsync(new[] { libId }, ct))
-                .Where(h => h.JobId != jobId)
-                .ToList();
         }
 
         return new TeamSearchDetailDto
@@ -204,8 +200,7 @@ public sealed class TeamSearchService : ITeamSearchService
             ClubTeamName = libTeam?.ClubTeamName,
             ClubTeamGradYear = libTeam?.ClubTeamGradYear,
             ClubTeamLevelOfPlay = libTeam?.ClubTeamLevelOfPlay,
-            HasScheduleRows = hasScheduleRows,
-            ClubTeamOtherEvents = otherEvents
+            HasScheduleRows = hasScheduleRows
         };
     }
 

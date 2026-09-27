@@ -3,7 +3,6 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AccountingRecordDto } from './AccountingRecordDto';
-import type { ClubTeamEventHistoryDto } from './ClubTeamEventHistoryDto';
 import type { ClubTeamSummaryDto } from './ClubTeamSummaryDto';
 import type { SubscriptionDetailDto } from './SubscriptionDetailDto';
 export type TeamSearchDetailDto = {
@@ -38,7 +37,6 @@ export type TeamSearchDetailDto = {
     clubRepPostalCode?: string | null;
     accountingRecords: Array<AccountingRecordDto>;
     clubTeamSummaries: Array<ClubTeamSummaryDto>;
-    clubTeamOtherEvents?: Array<ClubTeamEventHistoryDto>;
     paymentScheduled?: boolean;
     nextChargeDate?: string | null;
     paymentFlagged?: boolean;
