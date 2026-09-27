@@ -196,6 +196,11 @@ interface ModalRow {
                 <span class="rtm-fold-count">{{ alreadyRows().length }}</span>
               </button>
               @if (showAlready()) {
+                <!-- Read-only here by design (Todd 2026-09-26): the event record is edited in ONE place. -->
+                <p class="rtm-fold-note">
+                  <i class="bi bi-pencil" aria-hidden="true"></i>
+                  To change a registered team's name or level, use the pencil on <b>{{ eventName() }} Registered Teams</b>.
+                </p>
                 @for (row of alreadyRows(); track row.team.clubTeamId) {
                   <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row }" />
                 }
@@ -450,6 +455,19 @@ interface ModalRow {
         cursor: pointer;
 
         &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+      }
+
+      .rtm-fold-note {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-2) var(--space-3);
+        border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color) 6%, transparent);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text);
+
+        .bi { color: var(--bs-success); flex-shrink: 0; }
       }
 
       .rtm-fold-count {
