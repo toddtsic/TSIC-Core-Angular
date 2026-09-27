@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, com
 import { CurrencyPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { EMPTY, catchError, concatMap, defer, from, map, of } from 'rxjs';
+import { EMPTY, catchError, concatMap, defer, from, interval, map, of } from 'rxjs';
 import { RegisteredTeamsGridComponent, sumDueNowOf } from '../components/registered-teams-grid.component';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
@@ -261,6 +261,8 @@ type TeamsSegment = 'library' | 'registered';
                   [frozenTeamCol]="false"
                   [teamColWidth]="120"
                   [gridHeight]="'auto'"
+                  [undoDeadlines]="gridUndoDeadlines()"
+                  [now]="clock()"
                   (removeTeam)="onRemoveTeam($event)"
                   (renameTeam)="onRenameTeam($event)" />
               </div>
@@ -446,7 +448,7 @@ type TeamsSegment = 'library' | 'registered';
 @if (pendingRemove()) {
       <confirm-dialog
         title="Remove Team"
-        [message]="'Remove <strong>' + pendingRemove()!.teamName + '</strong> from this event?'"
+        [message]="removeMessage(pendingRemove()!)"
         confirmLabel="Remove"
         confirmVariant="danger"
         (confirmed)="confirmRemove()"
@@ -1214,6 +1216,29 @@ export class TeamTeamsStepComponent implements OnInit {
 
     ngOnInit(): void {
         this.loadTeamsMetadata(true);
+        // The undo clock: re-read every 15s so "undo · N min" counts down and the trash can
+        // disappears when the window closes. Only ticks while there is a window to watch.
+        interval(15000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+            if (this.undoDeadlines().size > 0) this.clock.set(Date.now());
+        });
+    }
+
+    // ── Mistake-undo (TeamRegistrationUndo, 2026-09-26) ─────────────────
+
+    /** teamId → deadline (epoch ms). Server seconds-left + the local receipt time: never the rep's clock alone. */
+    readonly undoDeadlines = signal<ReadonlyMap<string, number>>(new Map());
+    readonly clock = signal(Date.now());
+
+    /** Undo is registration's own undo: only while the event takes team registrations (server: CanAddTeam). */
+    readonly gridUndoDeadlines = computed<ReadonlyMap<string, number>>(() =>
+        this.canRegisterTeam() ? this.undoDeadlines() : new Map());
+
+    private stampUndoDeadlines(teams: readonly RegisteredTeamDto[]): void {
+        const received = Date.now();
+        const map = new Map<string, number>();
+        for (const t of teams) if (t.undoSecondsLeft > 0) map.set(t.teamId, received + t.undoSecondsLeft * 1000);
+        this.undoDeadlines.set(map);
+        this.clock.set(received);
     }
 
     // ── Segments ───────────────────────────────────────────────────────
@@ -1698,6 +1723,15 @@ export class TeamTeamsStepComponent implements OnInit {
         this.pendingRemove.set(null);
     }
 
+    /** Names what the removal gives back: the age-group place, or the waitlist spot. */
+    removeMessage(team: RegisteredTeamDto): string {
+        const ag = this.stripWaitlistPrefix(team.ageGroupDisplayName || team.ageGroupName);
+        const frees = team.isWaitlisted
+            ? `It comes off the ${ag} waitlist.`
+            : `Its place in ${ag} opens up for another team.`;
+        return `Remove <strong>${team.teamName}</strong> from ${this.eventName()}? ${frees}`;
+    }
+
     // ── Private ─────────────────────────────────────────────────────
 
     /**
@@ -1729,7 +1763,8 @@ export class TeamTeamsStepComponent implements OnInit {
                         this.toast.show(`${teamName} removed from event.`, 'success', 3000));
                 },
                 error: () => {
-                    this.toast.show('Failed to remove team.', 'danger', 4000);
+                    // The global interceptor has already toasted the server's reason (e.g. the undo
+                    // window closed); a generic second toast here would bury it.
                     this.loadTeamsMetadata();
                 },
             });
@@ -1765,6 +1800,7 @@ export class TeamTeamsStepComponent implements OnInit {
                     this.actionInProgress.set(false);
                     this.clubName.set(meta.clubName || 'your club');
                     this._registeredTeams.set(meta.registeredTeams || []);
+                    this.stampUndoDeadlines(meta.registeredTeams || []);
                     this._droppedTeams.set(meta.droppedTeams || []);
                     this._clubTeams.set(meta.clubTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);

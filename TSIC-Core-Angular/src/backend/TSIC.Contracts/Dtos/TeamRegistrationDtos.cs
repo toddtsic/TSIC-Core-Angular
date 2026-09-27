@@ -336,6 +336,11 @@ public sealed record RegisteredTeamDto
     public required bool PaymentScheduled { get; init; }
     // Next scheduled ARB charge date (informational — badge tooltip). Null when not scheduled.
     public DateTime? NextChargeDate { get; init; }
+    // The rep's mistake-undo (TeamRegistrationUndo): seconds left, on the SERVER clock, in which
+    // this team may be removed regardless of the director's delete toggle. 0 = not undoable
+    // (paid / ledger rows / ARB / placed by the director / window closed). The client counts down
+    // from this, never from its own clock; unregister-team re-checks.
+    public required int UndoSecondsLeft { get; init; }
 }
 
 public sealed record AgeGroupDto

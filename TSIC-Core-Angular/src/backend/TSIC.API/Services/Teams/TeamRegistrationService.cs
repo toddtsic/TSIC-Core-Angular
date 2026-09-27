@@ -903,8 +903,31 @@ public class TeamRegistrationService : ITeamRegistrationService
         var caps = await _capabilities.ResolveAsync(team.JobId, CapabilityActor.User);
         if (!caps.CanRemoveTeam)
         {
-            _logger.LogWarning("Unregister-team blocked for team {TeamId} (job {JobId}): CanRemoveTeam=false (event concluded/superseded or toggle off).", teamId, team.JobId);
-            throw new InvalidOperationException("This event is closed and is no longer accepting roster changes.");
+            // The rep's mistake-undo (TeamRegistrationUndo) — REGARDLESS of BClubRepAllowDelete, but
+            // only while the event still takes team registrations (CanAddTeam: the same door the rep
+            // registered through). Evaluated over the SAME projection the grid's trash can was drawn
+            // from, by the same TeamUndoEligibility, so what the rep sees is what the server allows.
+            var undoSecondsLeft = 0;
+            if (caps.CanAddTeam)
+            {
+                var rows = await _teams.GetRegisteredTeamsForUserAndJobAsync(team.JobId, userId);
+                var row = rows?.FirstOrDefault(r => r.TeamId == teamId);
+                if (row != null)
+                {
+                    var states = await _paymentState.ForTeamsAsync([teamId], team.JobId);
+                    undoSecondsLeft = TeamUndoEligibility.SecondsLeft(row, states.GetValueOrDefault(teamId), DateTime.Now);
+                }
+            }
+
+            if (undoSecondsLeft <= 0)
+            {
+                _logger.LogWarning("Unregister-team blocked for team {TeamId} (job {JobId}): CanRemoveTeam=false (event concluded/superseded or toggle off) and not undoable.", teamId, team.JobId);
+                throw new InvalidOperationException(caps.CanAddTeam
+                    ? $"This team can no longer be removed. A team can be removed within {(int)TeamRegistrationUndo.Window.TotalMinutes} minutes of registering it, while unpaid and before the director places it. Contact the director for changes."
+                    : "This event is closed and is no longer accepting roster changes.");
+            }
+
+            _logger.LogInformation("Club rep {UserId} undoing team {TeamId} registration ({Seconds}s left in the undo window)", userId, teamId, undoSecondsLeft);
         }
 
         // Check if team has made payments

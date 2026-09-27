@@ -439,7 +439,9 @@ public class TeamRepository : ITeamRepository
                                   RegistrationTs = t.Createdate,
                                   BWaiverSigned3 = reg.BWaiverSigned3,
                                   ClubTeamId = t.ClubTeamId,
-                                  Active = t.Active ?? false
+                                  Active = t.Active ?? false,
+                                  DivisionName = t.Div != null ? t.Div.DivName : null,
+                                  HasArbSubscription = t.AdnSubscriptionId != null
                               },
                               AdnSubId = t.AdnSubscriptionId,
                               AdnStatus = t.AdnSubscriptionStatus,

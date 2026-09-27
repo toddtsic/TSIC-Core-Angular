@@ -35,6 +35,11 @@ public record RegisteredTeamInfo : TSIC.Contracts.Payments.IFeeDiscountBuckets
     // ClubTeamSummaryDto). Drives the Owed-column auto-pay badge downstream.
     public bool PaymentScheduled { get; init; }
     public DateTime? NextChargeDate { get; init; }
+    // The team's division name (null = none). "Unassigned" = not yet placed by the director —
+    // one half of the rep's mistake-undo test (TeamRegistrationUndo.IsInHolding).
+    public string? DivisionName { get; init; }
+    // Has an ARB subscription at all (active or not). A rep's undo never removes a team with one.
+    public bool HasArbSubscription { get; init; }
 }
 
 public record AvailableTeamQueryResult

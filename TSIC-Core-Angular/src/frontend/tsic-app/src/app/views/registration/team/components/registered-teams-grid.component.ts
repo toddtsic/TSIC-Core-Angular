@@ -65,15 +65,23 @@ export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
                     [customAttributes]="{ class: 'team-name-wrap-cell' }">
             <ng-template #template let-data>
               <span class="team-name-cell">
-                @if (showRemove() && data.paidTotal === 0) {
+                @let undoMin = undoMinutesLeft(data.teamId);
+                @let directorRemovable = showRemove() && data.paidTotal === 0;
+                @if (directorRemovable || undoMin > 0) {
                   <button type="button" class="btn-inline-remove"
                           [disabled]="actionInProgress()"
                           (click)="removeTeam.emit(data)"
-                          title="Remove {{ data.teamName }} from event">
+                          [title]="directorRemovable
+                            ? 'Remove ' + data.teamName + ' from event'
+                            : 'Registered by mistake? Remove ' + data.teamName + ' — ' + undoMin + ' min left'">
                     <i class="bi bi-trash3"></i>
                   </button>
                 }
                 <span class="fw-semibold">{{ data.teamName }}</span>
+                <!-- The mistake-undo's clock, in words: touch has no tooltip (TeamRegistrationUndo). -->
+                @if (!directorRemovable && undoMin > 0) {
+                  <span class="undo-tag">undo &middot; {{ undoMin }} min</span>
+                }
                 @if (showRename()) {
                   <button type="button" class="btn-inline-rename"
                           [disabled]="actionInProgress() || !!renameLockReason()"
@@ -478,6 +486,18 @@ export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
         &:hover { color: var(--bs-primary); background: rgba(var(--bs-primary-rgb), 0.08); }
         &:disabled { opacity: 0.4; cursor: default; }
       }
+      .undo-tag {
+        flex-shrink: 0;
+        padding: 0 var(--space-1);
+        border-radius: var(--radius-sm);
+        background: color-mix(in srgb, var(--bs-warning) 16%, transparent);
+        color: var(--brand-text);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-semibold);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
       .btn-inline-remove:focus-visible,
       .btn-inline-rename:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
     `],
@@ -516,6 +536,14 @@ export class RegisteredTeamsGridComponent {
     // button. Null (search ledgers, teams step) keeps the static field-bound render unchanged.
     readonly paymentMethod = input<'CC' | 'Echeck' | 'Check' | null>(null);
     readonly showRemove = input(false);
+    /**
+     * The rep's mistake-undo (teams step only): teamId → deadline (epoch ms), from the server's
+     * undoSecondsLeft at load. A team here shows its trash can even when the director's delete
+     * toggle is off, until `now` passes the deadline. The server re-checks on delete.
+     */
+    readonly undoDeadlines = input<ReadonlyMap<string, number>>(new Map());
+    /** The parent's ticking clock (epoch ms) the deadlines are read against. */
+    readonly now = input(0);
     // Rep's this-event rename pencil (teams step only). Shown whenever the step shows it; when the
     // director's Allow Edit is off the pencil stays VISIBLE but disabled, carrying the reason as
     // its tooltip — a hidden control reads as "there is no such feature", a locked one as "closed".
@@ -526,6 +554,14 @@ export class RegisteredTeamsGridComponent {
     readonly teamColWidth = input(160);
     readonly pageSize = input(0);
     readonly gridHeight = input<string | number>('auto');
+
+    /** Whole minutes left to undo this team (rounded up); 0 = not undoable now. */
+    undoMinutesLeft(teamId: string): number {
+        const deadline = this.undoDeadlines().get(teamId);
+        if (deadline === undefined) return 0;
+        const ms = deadline - this.now();
+        return ms > 0 ? Math.ceil(ms / 60000) : 0;
+    }
 
     // Events
     readonly removeTeam = output<RegisteredTeamDto>();

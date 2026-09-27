@@ -35,5 +35,6 @@ export type RegisteredTeamDto = {
     active: boolean;
     paymentScheduled: boolean;
     nextChargeDate?: string | null;
+    undoSecondsLeft: number;
 };
 

@@ -92,6 +92,7 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
         decimal echeckRate)
     {
         var emptyState = PaymentState.Empty(bAddProcessingFees, ccRate, echeckRate);
+        var now = DateTime.Now; // Createdate is server-local DateTime.Now — same clock
         return rawRegistered.Select(t =>
         {
             var resolved = feesByTeamId.GetValueOrDefault(t.TeamId);
@@ -178,6 +179,7 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
                 Active = t.Active,
                 PaymentScheduled = t.PaymentScheduled,
                 NextChargeDate = t.NextChargeDate,
+                UndoSecondsLeft = TeamUndoEligibility.SecondsLeft(t, paymentStates.GetValueOrDefault(t.TeamId), now),
             };
         }).ToList();
     }
