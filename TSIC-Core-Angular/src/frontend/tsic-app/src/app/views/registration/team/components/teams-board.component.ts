@@ -242,9 +242,9 @@ interface LibRow {
               {{ registeredRows().length }} {{ registeredRows().length === 1 ? 'team' : 'teams' }}
               <!-- Money RECEIVED, honestly (Todd 2026-09-27): what left the club's account, card fees
                    included — the treasurer's number. Rows show the fee; this says "paid", not "fees". -->
-              @if (paidTotal() > 0) { &middot; {{ paidTotal() | currency }} paid }
-              <!-- Due now: the SAME sum as the Continue card (fee only); only when something is owed. -->
-              @if (dueNow() > 0) { &middot; <b class="due-now">{{ dueNow() | currency }} due now</b> }
+              &middot; {{ paidTotal() | currency }} paid
+              <!-- Due now: the SAME sum as the Continue card (fee only). Always shown — $0.00 is an answer. -->
+              &middot; <span class="due-now" [class.is-owed]="dueNow() > 0">{{ dueNow() | currency }} due now</span>
             }
           </span>
         </div>
@@ -580,7 +580,8 @@ interface LibRow {
 
       /* The event, accented in the empty Registered panel — this side's color, darkened toward the
          text color so it holds AA on the tinted panel in every palette. */
-      .due-now { color: var(--brand-text); font-weight: var(--font-weight-semibold); }
+      /* Owed = weight, not just color (never color alone). */
+      .due-now.is-owed { color: var(--brand-text); font-weight: var(--font-weight-bold); }
       .ev-name { color: color-mix(in srgb, var(--bs-success) 65%, var(--brand-text)); font-weight: var(--font-weight-bold); }
 
       /* ── Buttons ── */
