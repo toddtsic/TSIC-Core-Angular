@@ -67,12 +67,11 @@ interface LibRow {
               <span class="fold-count">{{ registeredLibRows().length }}</span>
             </button>
             @if (showRegisteredLib()) {
-              <!-- Library Edit only; the registration itself is on the right. -->
+              <!-- READ-ONLY (Todd 2026-09-27): no icons. A second pencil beside the registered team's
+                   pencil invited the wrong one, and a library edit here changes nothing on the right.
+                   The library entry is editable again under Available Teams in the next event. -->
               @for (row of registeredLibRows(); track row.team.clubTeamId) {
-                <div class="lib-row is-quiet" [class.is-open]="editId() === row.team.clubTeamId">
-                  @if (editId() === row.team.clubTeamId) {
-                    <ng-container *ngTemplateOutlet="libEditor; context: { $implicit: row }" />
-                  } @else {
+                <div class="lib-row is-quiet">
                   <div class="row-main">
                     <div class="row-text">
                       <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
@@ -81,9 +80,7 @@ interface LibRow {
                         <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) || '—' }}</span>
                       </span>
                     </div>
-                    <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                   </div>
-                  }
                 </div>
               }
             }
