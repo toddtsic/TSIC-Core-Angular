@@ -197,6 +197,9 @@ $adminManifest = @(
     # director's call, so the review screen sits with them — same split as Push
     # Notification. SuperUser keeps it for support.
     (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Stay-to-Play Club Reps' 'buildings'       'stp/club-reps'        8 1 0 1 $rulesStayToPlay)
+    # Rankings are scraped from US Club Lacrosse (usclublax.com), NOT USA Lacrosse — they inform
+    # directors placing teams into pools, so they sit beside Pool Assignment (Todd 2026-09-27).
+    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'National Rankings'      'trophy'          'tools/uslax-rankings' 9 1 1 1 $rulesLacrosse)
 
     # -- 4. Scheduling — ONE front door (2026-08-04) -----------------------
     # The Scheduling Checklist (shell index route) is the single entry point:
@@ -256,8 +259,7 @@ $adminManifest = @(
 
     # -- 8. USA Lacrosse (sport-gated to Lacrosse via $sectionRules) --------
     (New-AdminItem 'USA Lacrosse' 'award' 8 'USA Lacrosse Test'       'check-circle' 'tools/uslax-test'       1 1 1 1 $rulesLacrosse)
-    (New-AdminItem 'USA Lacrosse' 'award' 8 'USA Lacrosse Rankings'   'trophy'       'tools/uslax-rankings'   2 1 1 1 $rulesLacrosse)
-    (New-AdminItem 'USA Lacrosse' 'award' 8 'USA Lacrosse Membership' 'people'       'tools/uslax-membership' 3 1 1 1 $rulesLacrosse)
+    (New-AdminItem 'USA Lacrosse' 'award' 8 'USA Lacrosse Membership' 'people'       'tools/uslax-membership' 2 1 1 1 $rulesLacrosse)
 
     # -- 9. Store — single-purpose → direct top-level link (storeEnabled) --
     (New-AdminItem 'Store' 'shop' 9 'Store' 'shop' 'store/admin' 1 1 1 1 $rulesStoreEnabled -Standalone)

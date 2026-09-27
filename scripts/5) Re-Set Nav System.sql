@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-09-06 07:25:34 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-09-27 15:30:37 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -145,6 +145,7 @@ INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Unifor
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Camp Day/Night Groups', N'sun', N'tools/camp-groups', 6, 1, 1, 1, N'{"jobTypes":["Camp Registration","Sales Venue"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Check-In', N'clipboard-check', N'tools/checkin', 7, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}', N'NEW');
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Stay-to-Play Club Reps', N'buildings', N'stp/club-reps', 8, 1, 0, 1, N'{"requiresFlags":["stayToPlayEnabled"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'National Rankings', N'trophy', N'tools/uslax-rankings', 9, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Officials', N'person-check', 5, N'Referee Assignment', N'clipboard-check', N'scheduling/referee-assignment', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Officials', N'person-check', 5, N'Referee Calendar', N'calendar-week', N'scheduling/referee-calendar', 2, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1, NULL, NULL);
@@ -156,8 +157,7 @@ INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Team Li
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 7, N'Job Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 7, N'X-Job Report Library', N'globe', N'x-job-reports-library', 2, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'USA Lacrosse', N'award', 8, N'USA Lacrosse Test', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
-INSERT INTO #AdminManifest VALUES (N'USA Lacrosse', N'award', 8, N'USA Lacrosse Rankings', N'trophy', N'tools/uslax-rankings', 2, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
-INSERT INTO #AdminManifest VALUES (N'USA Lacrosse', N'award', 8, N'USA Lacrosse Membership', N'people', N'tools/uslax-membership', 3, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'USA Lacrosse', N'award', 8, N'USA Lacrosse Membership', N'people', N'tools/uslax-membership', 2, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Customer Job Revenue', N'graph-up-arrow', N'tools/customer-job-revenue', 0, 0, 1, 1, N'{"dividerAfter":true}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'1) New Jobs Last Month (with txs)', N'plus-square', N'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false', 1, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'2) Gen: ADN EndOfMonth/IIF', N'arrow-left-right', N'accounting/get-reconciliation-records', 2, 0, 0, 1, NULL, NULL);
