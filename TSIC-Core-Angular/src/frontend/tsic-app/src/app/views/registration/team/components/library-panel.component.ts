@@ -230,7 +230,9 @@ interface LibRow {
       @let r = row.registered;
       <span class="row-name-line">
         <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
-        <span class="reg-in" [attr.title]="'Registered for ' + eventName() + ' in ' + r.ageGroupName">registered in
+        <!-- Page: "Currently in" (Todd 2026-09-27) — the page is about no one event, so "registered"
+             begs "for what?"; the hover and the Archive lock name the event. -->
+        <span class="reg-in" [attr.title]="'Registered for ' + eventName() + ' in ' + r.ageGroupName">{{ isPage() ? 'Currently in' : 'registered in' }}
           <span class="ag-badge" [style.background]="agBg(r.ageGroupColor)" [style.color]="agText(r.ageGroupColor)">{{ r.ageGroupName }}</span></span>
       </span>
     </ng-template>
