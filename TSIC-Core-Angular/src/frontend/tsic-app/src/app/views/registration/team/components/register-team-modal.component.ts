@@ -2,39 +2,44 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
 import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
-import { formatLop, normalizeLop } from '@shared/teams/lop-choices';
-import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
-import { EventAgeGroupPickerComponent } from './event-age-group-picker.component';
-import { resolveOldestOfferedGradYear, resolveRecommendedAgeGroupId } from './event-age-group.util';
+import { LOP_CHOICES, formatLop, normalizeLop } from '@shared/teams/lop-choices';
+import { resolveOldestOfferedGradYear, resolveRecommendedAgeGroupId, type SlotPricing } from './event-age-group.util';
 import { ageGroupLabel, type LibraryRegisterRequest } from './library-segment.types';
-import { ageGroupWaitlists, byGradYearThenName, fitsEvent, planRegistration, type RegisterPlan } from './library-register-plan';
+import { ageGroupWaitlists, byGradYearThenName, fitsEvent, pricingOfAgeGroup } from './library-register-plan';
+
+/** A row's two picks. '' = no pick (no confident guess, or the rep cleared it). */
+interface RowPick { lop: string; ag: string; }
 
 interface ModalRow {
     team: ClubTeamDto;
     registered: RegisteredTeamDto | null;
-    plan: RegisterPlan;
+    fits: boolean;
+    pick: RowPick;
 }
 
 /**
  * Register a team — THE one place a club rep registers a team for this event (Todd 2026-09-26:
- * registering FROM the Club Team Library blurred the line between the club's list and an event
- * act; "restrict to our canonical add team modal"). The library tab is list-only; every Register
- * lives here.
+ * "restrict to our canonical add team modal"). The Club Team Library tab is list-only.
  *
- * Covers the bases:
- *   - pick from the Club Team Library — one press when the answer is obvious ("Register in 2030"),
- *     an inline level-of-play + age-group choice when it is not;
- *   - the library doesn't cover it — "Add a New Team" (the add-and-register modal), or "Open Club
- *     Team Library" to fix a name / grad year / archive, then come back.
+ * A form, one row per library team (Todd 2026-09-26): level of play and age group are DROPDOWNS
+ * preselected to the best guess — the library team's level, and the age group its grad year names
+ * (the WAITLIST twin when that group is full) — with a Register button per row. The rep sees both
+ * answers before pressing and changes either in place.
  *
- * Stays open across registrations: a registered row turns "Registered in 2030" IN PLACE (it does
- * not jump to the Already-registered fold until the modal is reopened), so a rep can bring three
- * teams in one sitting. Owns no domain state; the Teams step runs every registration.
+ * Guide, don't intrude: nothing is pre-ticked and there is no "Register all" — which teams are
+ * coming is the rep's call, one press each. A dropdown with no confident guess starts BLANK and
+ * that row's Register stays off until the rep picks: a wrong preselection is worse than an empty
+ * one.
+ *
+ * Stays open across registrations: a registered row locks to "Registered in 2030" IN PLACE, so a
+ * rep can bring several teams in one sitting, and carries the mistake-undo while it applies
+ * (TeamRegistrationUndo — same deadlines the Registered Teams grid reads). Owns no domain state;
+ * the Teams step registers and removes.
  */
 @Component({
     selector: 'app-register-team-modal',
     standalone: true,
-    imports: [TsicDialogComponent, CurrencyPipe, NgTemplateOutlet, LevelOfPlayPickerComponent, EventAgeGroupPickerComponent],
+    imports: [TsicDialogComponent, CurrencyPipe, NgTemplateOutlet],
     template: `
     <tsic-dialog [open]="true" size="lg" (requestClose)="closed.emit()">
       <div class="modal-content">
@@ -47,8 +52,9 @@ interface ModalRow {
 
         <div class="modal-body rtm-body">
           <p class="rtm-lede">
-            Pick from {{ clubPossessive() }} Club Team Library. Press <b>Register</b> on each team you're bringing;
-            this stays open so you can register several.
+            Each team from {{ clubPossessive() }} Club Team Library has its level and age group filled in from the
+            library. Check them, then press <b>Register</b> on each team you're bringing. This stays open so you
+            can register several.
           </p>
 
           @if (searchable()) {
@@ -62,102 +68,97 @@ interface ModalRow {
 
           <ng-template #rowTpl let-row>
             @let team = row.team;
-            @let plan = row.plan;
-            @let editing = editingId() === team.clubTeamId;
-            <div class="rtm-row" [class.is-done]="plan.kind === 'registered'" [class.is-editing]="editing">
+            @let reg = row.registered;
+            @let pick = row.pick;
+            <div class="rtm-row" [class.is-done]="!!reg">
               <div class="rtm-team">
                 <span class="rtm-name" [attr.title]="team.clubTeamName">{{ team.clubTeamName }}</span>
                 <span class="rtm-meta">
                   <span class="meta-pair"><span class="meta-key">Grad</span>{{ team.clubTeamGradYear || '—' }}</span>
-                  <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(team.clubTeamLevelOfPlay) || '—' }}</span>
+                  @if (reg) {
+                    <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(reg.levelOfPlay) || '—' }}</span>
+                  }
                 </span>
               </div>
 
-              <div class="rtm-action">
-                @switch (plan.kind) {
-                  @case ('registered') {
-                    @let reg = row.registered!;
-                    <span class="rtm-done" [class.rtm-done--wl]="reg?.isWaitlisted">
-                      @if (reg?.isWaitlisted) {
-                        <i class="bi bi-hourglass-split" aria-hidden="true"></i>On the {{ reg.ageGroupDisplayName || reg.ageGroupName }} waitlist
-                      } @else {
-                        <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Registered in {{ reg?.ageGroupDisplayName || reg?.ageGroupName }}
-                      }
-                    </span>
-                  }
-                  @case ('ready') {
-                    @let ready = $any(plan);
-                    <button type="button" class="btn-reg" [class.btn-reg--wl]="ready.waitlist"
-                            [disabled]="actionInProgress() || (editingId() !== null && !editing)"
-                            (click)="registerNow(ready.req)">
-                      <i class="bi" [class.bi-trophy-fill]="!ready.waitlist" [class.bi-hourglass-split]="ready.waitlist" aria-hidden="true"></i>
-                      {{ ready.waitlist ? 'Join the ' + ready.ageGroupLabel + ' waitlist' : 'Register in ' + ready.ageGroupLabel }}
-                    </button>
-                    <span class="rtm-sub">
-                      @switch (ready.pricing.kind) {
-                        @case ('waitlist') { {{ ready.ageGroupLabel }} is full &middot; no fee until placed }
-                        @case ('free') { No fee }
-                        @case ('deposit') { Deposit {{ ready.pricing.now | currency }} now &middot; {{ ready.pricing.total | currency }} total }
-                        @case ('full') { {{ ready.pricing.total | currency }} }
-                      }
-                      &middot;
-                      <button type="button" class="btn-change"
-                              [disabled]="actionInProgress() || (editingId() !== null && !editing)"
-                              (click)="openEditor(team)">change</button>
-                    </span>
-                  }
-                  @case ('choose') {
-                    <button type="button" class="btn-reg btn-reg--choose"
-                            [disabled]="actionInProgress() || (editingId() !== null && !editing)"
-                            (click)="openEditor(team)">
-                      <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
-                      {{ $any(plan).why === 'lop' ? 'Choose level & age group' : 'Choose age group' }}
-                    </button>
-                    <span class="rtm-sub">
-                      @switch ($any(plan).why) {
-                        @case ('lop') { No level of play saved on this team }
-                        @case ('playUp') { No {{ team.clubTeamGradYear || 'matching' }} age group here &middot; pick one to play up in }
-                        @case ('outside') { Older than every age group here }
-                      }
-                    </span>
-                  }
-                  @case ('closed') {
-                    <span class="rtm-sub"><i class="bi bi-lock-fill" aria-hidden="true"></i> Registration closed</span>
-                  }
-                }
-              </div>
-
-              @if (editing) {
-                <div class="reg-editor" role="group" [attr.aria-label]="'Register ' + team.clubTeamName">
-                  <div class="reg-editor-step">
-                    <span class="step-label"><span class="step-num">1</span>Level of play for {{ eventName() }}</span>
-                    <app-level-of-play-picker [selected]="pickLop()" (selectedChange)="onLopPicked($event)" />
-                    <span class="step-hint">Your library team keeps its own level of play.</span>
-                  </div>
-                  <div class="reg-editor-step">
-                    <span class="step-label"><span class="step-num">2</span>Age group</span>
-                    @if (!pickLop()) {
-                      <span class="step-gate"><i class="bi bi-arrow-up-circle-fill" aria-hidden="true"></i>Choose a level of play above, then the age groups unlock.</span>
+              @if (reg) {
+                @let undoMin = undoMinutesLeft(reg.teamId);
+                <div class="rtm-done-cell">
+                  <span class="rtm-done" [class.rtm-done--wl]="reg.isWaitlisted">
+                    @if (reg.isWaitlisted) {
+                      <i class="bi bi-hourglass-split" aria-hidden="true"></i>On the {{ reg.ageGroupDisplayName || reg.ageGroupName }} waitlist
+                    } @else {
+                      <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Registered in {{ reg.ageGroupDisplayName || reg.ageGroupName }}
                     }
-                    <app-event-age-group-picker
-                      variant="chip"
-                      [ageGroups]="ageGroups()"
-                      [gradYear]="team.clubTeamGradYear"
-                      [disabled]="actionInProgress() || !pickLop()"
-                      [showSelectedFee]="true"
-                      [selected]="pickAg()"
-                      (selectedChange)="pickAg.set($event)" />
-                  </div>
-                  <div class="reg-editor-actions">
-                    <button type="button" class="btn-editor-cancel" (click)="closeEditor()">Cancel</button>
-                    <button type="button" class="btn-reg" [class.btn-reg--wl]="pickWaitlists()"
-                            [disabled]="actionInProgress() || !pickLop() || !pickAg()"
-                            (click)="commitEditor(team)">
-                      <i class="bi" [class.bi-trophy-fill]="!pickWaitlists()" [class.bi-hourglass-split]="pickWaitlists()" aria-hidden="true"></i>
-                      {{ editorSubmitLabel() }}
+                  </span>
+                  @if (undoMin > 0) {
+                    <button type="button" class="btn-undo" [disabled]="actionInProgress()"
+                            [attr.aria-label]="'Undo registering ' + team.clubTeamName + ', ' + undoMin + ' minutes left'"
+                            (click)="undo.emit(reg)">
+                      <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Undo &middot; {{ undoMin }} min
                     </button>
-                  </div>
+                  }
                 </div>
+              } @else if (!canRegister()) {
+                <div class="rtm-done-cell">
+                  <span class="rtm-sub"><i class="bi bi-lock-fill" aria-hidden="true"></i> Registration closed</span>
+                </div>
+              } @else {
+                <label class="rtm-field rtm-field--lop">
+                  <span class="rtm-field-label">Level</span>
+                  <select class="rtm-select" [class.is-blank]="!pick.lop"
+                          [attr.aria-label]="'Level of play for ' + team.clubTeamName"
+                          [disabled]="actionInProgress()"
+                          (change)="setPick(team.clubTeamId, pick, 'lop', $any($event.target).value)">
+                    <option value="" [selected]="!pick.lop">Pick…</option>
+                    @for (c of lopChoices; track c.value) {
+                      <option [value]="c.value" [selected]="c.value === pick.lop">{{ c.label }}</option>
+                    }
+                  </select>
+                </label>
+                <label class="rtm-field rtm-field--ag">
+                  <span class="rtm-field-label">Age group</span>
+                  <select class="rtm-select" [class.is-blank]="!pick.ag"
+                          [attr.aria-label]="'Age group for ' + team.clubTeamName"
+                          [disabled]="actionInProgress()"
+                          (change)="setPick(team.clubTeamId, pick, 'ag', $any($event.target).value)">
+                    <option value="" [selected]="!pick.ag">Pick an age group…</option>
+                    @for (o of ageGroupOptions(); track o.id) {
+                      <option [value]="o.id" [selected]="o.id === pick.ag">{{ o.text }}</option>
+                    }
+                  </select>
+                </label>
+                <div class="rtm-go">
+                  @let wl = pickWaitlists(pick.ag);
+                  <button type="button" class="btn-reg" [class.btn-reg--wl]="wl"
+                          [disabled]="actionInProgress() || !pick.lop || !pick.ag"
+                          (click)="registerRow(team, pick)">
+                    <i class="bi" [class.bi-trophy-fill]="!wl" [class.bi-hourglass-split]="wl" aria-hidden="true"></i>
+                    {{ wl ? 'Join waitlist' : 'Register' }}
+                  </button>
+                </div>
+                <!-- Why a dropdown is blank, or what the pick costs. Words, never color alone. -->
+                <span class="rtm-note">
+                  @if (!pick.lop) {
+                    <i class="bi bi-exclamation-circle" aria-hidden="true"></i> No level of play saved on this team &middot; pick one.
+                  }
+                  @if (!pick.ag) {
+                    <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+                    @if (row.fits) {
+                      No {{ team.clubTeamGradYear || 'matching' }} age group here &middot; pick one to play up in.
+                    } @else {
+                      Older than every age group here &middot; pick one, or archive it in your library.
+                    }
+                  } @else {
+                    @let price = pricingOf(pick.ag);
+                    @switch (price.kind) {
+                      @case ('waitlist') { Full &middot; joins the waitlist, no fee until placed. }
+                      @case ('free') { No fee. }
+                      @case ('deposit') { Deposit {{ $any(price).now | currency }} now &middot; {{ $any(price).total | currency }} total. }
+                      @case ('full') { {{ $any(price).total | currency }}. }
+                    }
+                  }
+                </span>
               }
             </div>
           </ng-template>
@@ -201,6 +202,11 @@ interface ModalRow {
               }
             }
           </div>
+
+          <p class="rtm-hint">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+            The level you pick here is for {{ eventName() }} only &mdash; your library team keeps its own.
+          </p>
         </div>
 
         <!-- When the library doesn't cover it: two named ways out, then Done. -->
@@ -230,6 +236,15 @@ interface ModalRow {
       .rtm-body { display: flex; flex-direction: column; gap: var(--space-3); }
 
       .rtm-lede { margin: 0; font-size: var(--font-size-sm); color: var(--brand-text); }
+
+      .rtm-hint {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0;
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+      }
 
       .rtm-search {
         display: flex;
@@ -262,20 +277,38 @@ interface ModalRow {
         overflow-y: auto;
       }
 
+      /* One row: team | level | age group | Register, the note under the pickers */
       .rtm-row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-        gap: var(--space-3);
+        grid-template-columns: minmax(0, 1.2fr) 88px minmax(0, 1.5fr) auto;
+        grid-template-areas:
+          "team lop ag go"
+          "team note note note";
+        column-gap: var(--space-3);
+        row-gap: 2px;
         align-items: center;
         padding: var(--space-2) var(--space-3);
         border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color) 6%, transparent);
 
         &:last-child { border-bottom: none; }
-        &.is-done { background: color-mix(in srgb, var(--bs-success) 6%, transparent); }
-        &.is-editing { background: color-mix(in srgb, var(--bs-primary) 4%, transparent); }
+        &.is-done {
+          grid-template-areas: "team done done done";
+          background: color-mix(in srgb, var(--bs-success) 6%, transparent);
+        }
       }
 
-      .rtm-team { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .rtm-team { grid-area: team; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .rtm-field--lop { grid-area: lop; }
+      .rtm-field--ag { grid-area: ag; }
+      .rtm-go { grid-area: go; }
+      .rtm-note { grid-area: note; }
+      .rtm-done-cell {
+        grid-area: done;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-3);
+      }
 
       .rtm-name {
         font-size: var(--font-size-sm);
@@ -297,9 +330,42 @@ interface ModalRow {
       .meta-pair { display: inline-flex; align-items: baseline; gap: var(--space-1); }
       .meta-key { text-transform: uppercase; letter-spacing: 0.06em; font-weight: var(--font-weight-semibold); opacity: 0.7; }
 
-      .rtm-action { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+      .rtm-field { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin: 0; }
 
-      .rtm-sub { font-size: var(--font-size-2xs); color: var(--brand-text-muted); font-variant-numeric: tabular-nums; }
+      .rtm-field-label {
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--brand-text-muted);
+      }
+
+      .rtm-select {
+        width: 100%;
+        min-width: 0;
+        padding: 4px var(--space-2);
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--radius-sm);
+        background: var(--brand-surface);
+        color: var(--brand-text);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+
+        &:focus-visible { outline: none; border-color: var(--bs-primary); box-shadow: var(--shadow-focus); }
+        &:disabled { opacity: 0.6; cursor: default; }
+        /* A blank pick asks for attention: dashed amber edge + the note's words below. */
+        &.is-blank { border-style: dashed; border-color: var(--bs-warning); color: var(--brand-text-muted); }
+      }
+
+      .rtm-note {
+        font-size: var(--font-size-2xs);
+        color: var(--brand-text-muted);
+        font-variant-numeric: tabular-nums;
+
+        .bi { color: var(--bs-warning); }
+      }
+
+      .rtm-sub { font-size: var(--font-size-2xs); color: var(--brand-text-muted); }
 
       .rtm-done {
         display: inline-flex;
@@ -312,11 +378,30 @@ interface ModalRow {
         &--wl { color: var(--brand-text); .bi { color: var(--bs-warning); } }
       }
 
+      .btn-undo {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px var(--space-2);
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--radius-sm);
+        background: var(--brand-surface);
+        color: var(--brand-text);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        font-variant-numeric: tabular-nums;
+        cursor: pointer;
+
+        &:hover:not(:disabled) { border-color: var(--bs-danger); color: var(--bs-danger); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+        &:disabled { opacity: 0.45; cursor: default; }
+      }
+
       .btn-reg {
         display: inline-flex;
         align-items: center;
         gap: var(--space-2);
-        max-width: 100%;
+        margin-top: 14px; /* sits on the selects' baseline, under their labels */
         padding: 5px var(--space-3);
         border: 1px solid var(--bs-success);
         border-radius: var(--radius-sm);
@@ -325,8 +410,6 @@ interface ModalRow {
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
         cursor: pointer;
         box-shadow: var(--shadow-xs);
         transition: filter 0.12s ease, transform 0.12s ease;
@@ -337,27 +420,6 @@ interface ModalRow {
         &:disabled { opacity: 0.4; cursor: default; transform: none; }
 
         &--wl { border-color: var(--bs-warning); background: var(--bs-warning); color: var(--bs-dark); }
-        &--choose {
-          border-color: var(--bs-success);
-          background: var(--brand-surface);
-          color: var(--bs-success);
-          box-shadow: none;
-          &:hover:not(:disabled) { filter: none; background: color-mix(in srgb, var(--bs-success) 8%, var(--brand-surface)); }
-        }
-      }
-
-      .btn-change {
-        padding: 0;
-        border: none;
-        background: transparent;
-        color: var(--bs-primary);
-        font-size: inherit;
-        font-weight: var(--font-weight-semibold);
-        text-decoration: underline;
-        cursor: pointer;
-
-        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
-        &:disabled { opacity: 0.4; cursor: default; }
       }
 
       .rtm-empty {
@@ -395,67 +457,6 @@ interface ModalRow {
         color: var(--brand-text);
       }
 
-      /* Inline register editor */
-      .reg-editor {
-        grid-column: 1 / -1;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-        padding: var(--space-3);
-        border: 1px solid color-mix(in srgb, var(--bs-primary) 30%, transparent);
-        border-radius: var(--radius-md);
-        background: var(--brand-surface);
-      }
-
-      .reg-editor-step { display: flex; flex-direction: column; gap: var(--space-1); }
-
-      .step-label {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-      }
-
-      .step-num {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: var(--bs-primary);
-        color: var(--neutral-0);
-        font-size: 10px;
-      }
-
-      .step-hint { font-size: var(--font-size-2xs); color: var(--brand-text-muted); }
-
-      .step-gate {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-1);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-medium);
-        color: var(--bs-primary);
-      }
-
-      .reg-editor-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
-
-      .btn-editor-cancel {
-        padding: 5px var(--space-3);
-        border: 1px solid var(--bs-border-color);
-        border-radius: var(--radius-sm);
-        background: transparent;
-        color: var(--brand-text);
-        font-size: var(--font-size-sm);
-        cursor: pointer;
-
-        &:hover { background: color-mix(in srgb, var(--bs-body-color) 5%, transparent); }
-        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-      }
-
       /* Footer: the ways out when the library doesn't cover it, then Done */
       .rtm-footer { display: flex; align-items: flex-end; gap: var(--space-3); }
 
@@ -482,8 +483,20 @@ interface ModalRow {
 
       .rtm-done-btn { flex-shrink: 0; min-width: 88px; }
 
+      /* Phone: name, then the two pickers side by side, then the note, then Register full width */
       @media (max-width: 575.98px) {
-        .rtm-row { grid-template-columns: 1fr; row-gap: var(--space-2); }
+        .rtm-row {
+          grid-template-columns: 88px minmax(0, 1fr);
+          grid-template-areas:
+            "team team"
+            "lop ag"
+            "note note"
+            "go go";
+          row-gap: var(--space-2);
+
+          &.is-done { grid-template-areas: "team team" "done done"; }
+        }
+        .btn-reg { width: 100%; justify-content: center; margin-top: 0; }
         .rtm-footer { flex-direction: column; align-items: stretch; }
         .rtm-done-btn { width: 100%; }
       }
@@ -503,8 +516,13 @@ export class RegisterTeamModalComponent {
     readonly eventName = input('this event');
     readonly canRegister = input(false);
     readonly actionInProgress = input(false);
+    /** The mistake-undo: teamId → deadline (epoch ms) and the step's ticking clock — same as the grid's. */
+    readonly undoDeadlines = input<ReadonlyMap<string, number>>(new Map());
+    readonly now = input(0);
 
     readonly register = output<LibraryRegisterRequest>();
+    /** Undo a team registered by mistake: the step confirms and removes (the grid's own path). */
+    readonly undo = output<RegisteredTeamDto>();
     /** "Add a New Team": the step closes this and opens the add-and-register modal. */
     readonly addNew = output<void>();
     /** "Open Club Team Library": the step closes this and switches to that segment. */
@@ -512,36 +530,66 @@ export class RegisterTeamModalComponent {
     readonly closed = output<void>();
 
     readonly formatLop = formatLop;
+    readonly lopChoices = LOP_CHOICES;
 
     readonly query = signal('');
     readonly showOutside = signal(false);
     readonly showAlready = signal(false);
 
-    /** Teams registered while THIS modal is open — they stay in place, marked, instead of jumping to the fold. */
+    /** Teams registered while THIS modal is open — they stay in place, locked, instead of jumping to the fold. */
     private readonly registeredThisVisit = signal<ReadonlySet<number>>(new Set());
+    /** The rep's own changes to a row's preselected picks. A row without one shows its seed. */
+    private readonly picks = signal<ReadonlyMap<number, RowPick>>(new Map());
 
     readonly clubPossessive = computed(() => {
         const club = this.clubName().trim();
         return club && club !== 'your club' ? `${club}'s` : "your club's";
     });
 
-    private readonly planContext = computed(() => ({
-        ageGroups: this.ageGroups(),
-        oldestOffered: resolveOldestOfferedGradYear(this.ageGroups()),
-        canRegister: this.canRegister(),
+    private readonly oldestOffered = computed(() => resolveOldestOfferedGradYear(this.ageGroups()));
+
+    /**
+     * The age-group dropdown's options, each carrying what choosing it means: price, or that it is
+     * full and joins the waitlist. Listed in the event's own order.
+     */
+    readonly ageGroupOptions = computed(() => this.ageGroups().map(ag => {
+        const label = ageGroupLabel(ag);
+        const price = pricingOfAgeGroup(ag);
+        const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const text = ageGroupWaitlists(ag)
+            ? `${label} waitlist · no fee until placed`
+            : price.kind === 'free' ? `${label} · no fee`
+            : price.kind === 'deposit' ? `${label} · ${money(price.now)} deposit`
+            : price.kind === 'full' ? `${label} · ${money(price.total)}`
+            : label;
+        return { id: ag.ageGroupId, text };
     }));
+
+    /** The best guess: the library's level (on the 1–5 scale) and the age group the grad year names. */
+    private seedFor(team: ClubTeamDto, fits: boolean): RowPick {
+        return {
+            lop: normalizeLop(team.clubTeamLevelOfPlay),
+            ag: fits ? resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear) : '',
+        };
+    }
 
     private readonly rows = computed<ModalRow[]>(() => {
         const byClubTeam = new Map<number, RegisteredTeamDto>();
         for (const r of this.registeredTeams()) if (r.clubTeamId != null) byClubTeam.set(r.clubTeamId, r);
-        const ctx = this.planContext();
+        const oldest = this.oldestOffered();
+        const picks = this.picks();
         return this.clubTeams()
             .filter(t => !t.bArchived)
             .slice()
             .sort(byGradYearThenName)
             .map(team => {
-                const reg = byClubTeam.get(team.clubTeamId) ?? null;
-                return { team, registered: reg, plan: planRegistration(team, reg, ctx) };
+                const fits = fitsEvent(team, { oldestOffered: oldest });
+                return {
+                    team,
+                    registered: byClubTeam.get(team.clubTeamId) ?? null,
+                    fits,
+                    pick: picks.get(team.clubTeamId) ?? this.seedFor(team, fits),
+                };
             });
     });
 
@@ -559,15 +607,12 @@ export class RegisterTeamModalComponent {
     /** Not registered and fits here — plus anything registered during this visit, kept in place. */
     readonly availableRows = computed(() => {
         const justDone = this.registeredThisVisit();
-        const ctx = this.planContext();
-        return this.visibleRows().filter(r =>
-            justDone.has(r.team.clubTeamId) || (!r.registered && fitsEvent(r.team, ctx)));
+        return this.visibleRows().filter(r => justDone.has(r.team.clubTeamId) || (!r.registered && r.fits));
     });
 
     readonly outsideRows = computed(() => {
         const justDone = this.registeredThisVisit();
-        const ctx = this.planContext();
-        return this.visibleRows().filter(r => !justDone.has(r.team.clubTeamId) && !r.registered && !fitsEvent(r.team, ctx));
+        return this.visibleRows().filter(r => !justDone.has(r.team.clubTeamId) && !r.registered && !r.fits);
     });
 
     readonly alreadyRows = computed(() => {
@@ -575,61 +620,34 @@ export class RegisterTeamModalComponent {
         return this.visibleRows().filter(r => !!r.registered && !justDone.has(r.team.clubTeamId));
     });
 
-    private markRegistering(clubTeamId: number): void {
-        this.registeredThisVisit.set(new Set([...this.registeredThisVisit(), clubTeamId]));
+    /** Whole minutes left to undo this team (rounded up); 0 = no undo now. */
+    undoMinutesLeft(teamId: string): number {
+        const deadline = this.undoDeadlines().get(teamId);
+        if (deadline === undefined) return 0;
+        const ms = deadline - this.now();
+        return ms > 0 ? Math.ceil(ms / 60000) : 0;
     }
 
-    registerNow(req: LibraryRegisterRequest): void {
-        if (this.actionInProgress()) return;
-        this.markRegistering(req.team.clubTeamId);
-        this.register.emit(req);
+    setPick(clubTeamId: number, current: RowPick, field: keyof RowPick, value: string): void {
+        const next = new Map(this.picks());
+        next.set(clubTeamId, { ...current, [field]: value });
+        this.picks.set(next);
     }
 
-    // ── The inline choice (no LOP saved, no exact age group, or "change") ──
-    readonly editingId = signal<number | null>(null);
-    readonly pickLop = signal('');
-    readonly pickAg = signal('');
-
-    readonly pickWaitlists = computed(() => {
-        const ag = this.ageGroups().find(a => a.ageGroupId === this.pickAg());
+    pickWaitlists(ageGroupId: string): boolean {
+        const ag = this.ageGroups().find(a => a.ageGroupId === ageGroupId);
         return !!ag && ageGroupWaitlists(ag);
-    });
-
-    /** Names the AGE GROUP, never the team (ruling 2026-09-24). */
-    readonly editorSubmitLabel = computed(() => {
-        const ag = this.ageGroups().find(a => a.ageGroupId === this.pickAg());
-        if (!ag) return 'Register';
-        const label = ageGroupLabel(ag);
-        return this.pickWaitlists() ? `Join the ${label} waitlist` : `Register in ${label}`;
-    });
-
-    openEditor(team: ClubTeamDto): void {
-        if (this.editingId() === team.clubTeamId) { this.closeEditor(); return; }
-        const lop = normalizeLop(team.clubTeamLevelOfPlay);
-        this.pickLop.set(lop);
-        this.pickAg.set(lop ? resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear) : '');
-        this.editingId.set(team.clubTeamId);
     }
 
-    onLopPicked(lop: string): void {
-        this.pickLop.set(lop);
-        if (!lop || this.pickAg()) return;
-        const team = this.clubTeams().find(t => t.clubTeamId === this.editingId());
-        if (team) this.pickAg.set(resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear));
+    pricingOf(ageGroupId: string): SlotPricing {
+        const ag = this.ageGroups().find(a => a.ageGroupId === ageGroupId);
+        if (!ag) return { kind: 'free' };
+        return ageGroupWaitlists(ag) ? { kind: 'waitlist' } : pricingOfAgeGroup(ag);
     }
 
-    closeEditor(): void {
-        this.editingId.set(null);
-        this.pickLop.set('');
-        this.pickAg.set('');
-    }
-
-    commitEditor(team: ClubTeamDto): void {
-        const ageGroupId = this.pickAg();
-        const levelOfPlay = this.pickLop();
-        if (!ageGroupId || !levelOfPlay || this.actionInProgress()) return;
-        this.markRegistering(team.clubTeamId);
-        this.register.emit({ team, ageGroupId, levelOfPlay });
-        this.closeEditor();
+    registerRow(team: ClubTeamDto, pick: RowPick): void {
+        if (this.actionInProgress() || !pick.lop || !pick.ag) return;
+        this.registeredThisVisit.set(new Set([...this.registeredThisVisit(), team.clubTeamId]));
+        this.register.emit({ team, ageGroupId: pick.ag, levelOfPlay: pick.lop });
     }
 }
