@@ -283,15 +283,10 @@ interface LibRow {
                   <span class="reg-in">registered in
                     <span class="ag-badge" [style.background]="agBg(t.ageGroupColor)" [style.color]="agText(t.ageGroupColor)">{{ t.ageGroupName }}</span>
                   </span>
-                  <button type="button" class="btn-icon" [class.is-locked]="!!renameLockReason()"
-                          [disabled]="actionInProgress()"
-                          [attr.aria-disabled]="!!renameLockReason()"
-                          [attr.aria-label]="'Edit the registration of ' + t.teamName"
-                          [attr.title]="renameLockReason() ?? 'Edit the registration of ' + t.teamName + ' for ' + eventName() + ' (name, level of play). Your Club Team Library is not changed.'"
-                          (click)="renameLockReason() ? explainLock(renameLockReason()!) : startRename(t)">
-                    <i class="bi bi-pencil" aria-hidden="true"></i>
-                  </button>
                 </span>
+                <!-- Line 2: facts left, actions flush right (Todd 2026-09-27) — line 1 keeps the whole
+                     width for the name and its age group, so it doesn't wrap. -->
+                <span class="row-line2">
                 <span class="row-meta">
                   <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(t.levelOfPlay) || '—' }}</span>
                 <span class="fee" [class]="'fee fee--' + s.kind">
@@ -309,7 +304,15 @@ interface LibRow {
                   }
                 </span>
                 </span>
-              </div>
+                <span class="row-actions">
+                  <button type="button" class="btn-icon" [class.is-locked]="!!renameLockReason()"
+                          [disabled]="actionInProgress()"
+                          [attr.aria-disabled]="!!renameLockReason()"
+                          [attr.aria-label]="'Edit the registration of ' + t.teamName"
+                          [attr.title]="renameLockReason() ?? 'Edit the registration of ' + t.teamName + ' for ' + eventName() + ' (name, level of play). Your Club Team Library is not changed.'"
+                          (click)="renameLockReason() ? explainLock(renameLockReason()!) : startRename(t)">
+                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                  </button>
               @if (!removable && undoMin > 0) {
                 <button type="button" class="btn-undo" [disabled]="actionInProgress()"
                         [attr.aria-label]="'Undo registering ' + t.teamName + ', ' + undoMin + ' minutes left'"
@@ -326,6 +329,9 @@ interface LibRow {
                   <i class="bi bi-trash" aria-hidden="true"></i>
                 </button>
               }
+                </span>
+                </span>
+              </div>
               }
             </div>
           } @empty {
@@ -533,6 +539,11 @@ interface LibRow {
       .reg-editor-host { flex: 1; min-width: 0; }
 
       .row-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+      /* Registered row, line 2: facts wrap on the left, actions pinned flush right. */
+      .row-line2 { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+      .row-line2 .row-meta { flex: 1; min-width: 0; }
+      .row-actions { display: flex; align-items: center; gap: var(--space-1); flex-shrink: 0; margin-left: auto; }
 
       .row-name-line { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
       /* The name gives way first; the age group never truncates. */
