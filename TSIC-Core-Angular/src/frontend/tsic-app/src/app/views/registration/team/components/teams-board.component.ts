@@ -272,8 +272,14 @@ interface LibRow {
                   (cancelled)="renameId.set(null)" />
               } @else {
               <div class="row-text">
+                <!-- Name and registered age group on ONE line (Todd 2026-09-27) — a team's name is not
+                     its placement, so they are never read apart. Same words as the library side. -->
                 <span class="row-name-line">
                   <span class="row-name" [attr.title]="t.teamName">{{ t.teamName }}</span>
+                  <span class="reg-in">
+                    @if (t.isWaitlisted) { <i class="bi bi-hourglass-split meta-wl" aria-hidden="true"></i>waitlisted in } @else { registered in }
+                    <b>{{ t.ageGroupDisplayName || t.ageGroupName }}</b>
+                  </span>
                   <button type="button" class="btn-icon" [class.is-locked]="!!renameLockReason()"
                           [disabled]="actionInProgress()"
                           [attr.aria-disabled]="!!renameLockReason()"
@@ -284,12 +290,6 @@ interface LibRow {
                   </button>
                 </span>
                 <span class="row-meta">
-                  <!-- The registered age group, always (Todd 2026-09-27): a team's name is not its placement. -->
-                  <span class="meta-pair">
-                    <span class="meta-key">AG</span>
-                    @if (t.isWaitlisted) { <i class="bi bi-hourglass-split meta-wl" aria-hidden="true"></i>Waitlist &middot; }
-                    {{ t.ageGroupDisplayName || t.ageGroupName }}
-                  </span>
                   <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(t.levelOfPlay) || '—' }}</span>
                 <span class="fee" [class]="'fee fee--' + s.kind">
                   @switch (s.kind) {
