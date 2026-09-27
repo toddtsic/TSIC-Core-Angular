@@ -319,13 +319,13 @@ interface LibRow {
             <div class="reg-row row-placeholder">
               <span class="row-meta">
                 @if (!canRegister()) {
-                  Team registration for {{ eventName() }} is closed.
+                  <span>Team registration for <b class="ev-name">{{ eventName() }}</b> is closed.</span>
                 } @else if (empty()) {
                   <span>Build your list of teams in the Club Team Library, then press <b>Register</b> on each one you're bringing.</span>
                 } @else if (activeCount() === 0) {
                   <span>Restore or add a team in the Club Team Library, then press <b>Register</b> on it.</span>
                 } @else {
-                  <span>Press <b>Register</b> on a library team to register it for {{ eventName() }}.</span>
+                  <span>Press <b>Register</b> on a library team to register it for <b class="ev-name">{{ eventName() }}</b>.</span>
                 }
               </span>
             </div>
@@ -570,6 +570,10 @@ interface LibRow {
       .fee--paid .bi, .fee--depositPaid .bi { color: var(--bs-success); }
       .fee--scheduled .bi { color: var(--bs-info); }
       .fee--free .bi { color: var(--brand-text-muted); }
+
+      /* The event, accented in the empty Registered panel — this side's color, darkened toward the
+         text color so it holds AA on the tinted panel in every palette. */
+      .ev-name { color: color-mix(in srgb, var(--bs-success) 65%, var(--brand-text)); font-weight: var(--font-weight-bold); }
 
       /* ── Buttons ── */
       .btn-add {
