@@ -284,14 +284,6 @@ interface LibRow {
             </p>
           }
         </div>
-
-        <!-- Outside the scrolling list: always in view. -->
-        @if (registeredRows().length > 0) {
-          <p class="panel-foot">
-            <i class="bi bi-info-circle" aria-hidden="true"></i>
-            <span>Amounts are the fee itself &mdash; any processing fee is added at <b>Continue to Payment</b>.</span>
-          </p>
-        }
       </section>
     </div>
 
@@ -446,17 +438,6 @@ interface LibRow {
         color: var(--brand-text-muted);
 
         &--done .bi { color: var(--bs-success); }
-      }
-
-      .panel-foot {
-        display: flex;
-        align-items: baseline;
-        gap: var(--space-1);
-        margin: 0;
-        padding: var(--space-2) var(--space-3);
-        border-top: 1px solid var(--bs-border-color);
-        font-size: var(--font-size-2xs);
-        color: var(--brand-text-muted);
       }
 
       /* ── Rows ── */
