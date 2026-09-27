@@ -189,7 +189,7 @@ interface LibRow {
                     <button type="button" class="btn-reg" [class.btn-reg--wl]="wl"
                             [disabled]="actionInProgress() || !pick.lop || !pick.ag"
                             (click)="confirm(team, pick)">
-                      <i class="bi" [class.bi-clipboard-check-fill]="!wl" [class.bi-hourglass-split]="wl" aria-hidden="true"></i>
+                      <i class="bi" [class.bi-clipboard-check-fill]="!wl" [class.bi-pause-circle-fill]="wl" aria-hidden="true"></i>
                       {{ wl ? 'Join waitlist' : 'Register' }}
                     </button>
                   </div>
@@ -277,7 +277,7 @@ interface LibRow {
                 <span class="row-name-line">
                   <span class="row-name" [attr.title]="t.teamName">{{ t.teamName }}</span>
                   <span class="reg-in">
-                    @if (t.isWaitlisted) { <i class="bi bi-hourglass-split meta-wl" aria-hidden="true"></i>waitlisted in } @else { registered in }
+                    @if (t.isWaitlisted) { <i class="bi bi-pause-circle-fill meta-wl" aria-hidden="true"></i>waitlisted in } @else { registered in }
                     <b>{{ t.ageGroupDisplayName || t.ageGroupName }}</b>
                   </span>
                   <button type="button" class="btn-icon" [class.is-locked]="!!renameLockReason()"
