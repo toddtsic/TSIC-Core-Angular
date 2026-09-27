@@ -589,7 +589,8 @@ mark {
     font-size: var(--font-size-sm);
     text-align: center;
 
-    i {
+    /* Direct child only: the placeholder glyph. A bare `i` also blew up icons inside a CTA button. */
+    > i {
         font-size: 40px;
         color: rgba(var(--bs-primary-rgb), 0.2);
     }

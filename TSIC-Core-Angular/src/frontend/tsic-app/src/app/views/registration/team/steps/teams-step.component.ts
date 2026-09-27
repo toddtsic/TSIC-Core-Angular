@@ -154,20 +154,35 @@ type TeamsSegment = 'library' | 'registered';
                 <span>
                   @if (!canRegisterTeam()) {
                     Team registration for {{ eventName() }} is closed.
-                  } @else if (activeLibraryCount() > 0) {
+                  } @else if (unregisteredEligible().length > 0) {
+                    <!-- Counts only teams that CAN play here — "1 team in it" for a too-old team promised a
+                         modal with nothing to register (Todd 2026-09-27). -->
                     Pick the teams you're bringing from your Club Team Library &mdash;
-                    {{ activeLibraryCount() }} {{ activeLibraryCount() === 1 ? 'team' : 'teams' }} in it.
+                    {{ unregisteredEligible().length }} {{ unregisteredEligible().length === 1 ? 'team fits' : 'teams fit' }} an age group here.
+                  } @else if (activeLibraryCount() > 0) {
+                    None of your library teams fits an age group at {{ eventName() }}
+                    @if (oldestOfferedGradYear() !== null) { (the oldest here is {{ oldestOfferedGradYear() }}) }.
+                    Check their grad years, or add the teams you're bringing.
                   } @else {
                     Your Club Team Library has no active teams. Add or restore one there first.
                   }
                 </span>
                 @if (canRegisterTeam()) {
-                  <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
-                          (click)="openRegisterModal()">
-                    <i class="bi bi-trophy-fill me-2"></i>
-                    Register Your First Team
-                    <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
-                  </button>
+                  @if (unregisteredEligible().length > 0) {
+                    <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
+                            (click)="openRegisterModal()">
+                      <i class="bi bi-trophy-fill me-2"></i>
+                      Register Your First Team
+                      <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
+                    </button>
+                  } @else {
+                    <button type="button" class="btn btn-primary btn-lg cta-empty"
+                            (click)="selectSegment('library')">
+                      <i class="bi bi-collection-fill me-2"></i>
+                      Go to Club Team Library
+                      <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
+                    </button>
+                  }
                 }
               </div>
             } @else {
