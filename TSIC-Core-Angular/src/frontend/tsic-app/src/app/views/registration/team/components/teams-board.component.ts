@@ -7,7 +7,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { resolveRecommendedAgeGroupId, type SlotPricing } from './event-age-group.util';
 import { ageGroupLabel, type LibraryRegisterRequest } from './library-segment.types';
 import { ageGroupWaitlists, byGradYearThenName, pricingOfAgeGroup } from './library-register-plan';
-import { boardFeeStatusOf, sumPaidOf, type BoardFeeStatus } from './board-money';
+import { boardFeeStatusOf, sumFeeDueNowOf, sumPaidOf, type BoardFeeStatus } from './board-money';
 import { LibraryTeamInlineEditorComponent } from './library-team-inline-editor.component';
 import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-editor.component';
 
@@ -243,6 +243,8 @@ interface LibRow {
               <!-- Money RECEIVED, honestly (Todd 2026-09-27): what left the club's account, card fees
                    included — the treasurer's number. Rows show the fee; this says "paid", not "fees". -->
               @if (paidTotal() > 0) { &middot; {{ paidTotal() | currency }} paid }
+              <!-- Due now: the SAME sum as the Continue card (fee only); only when something is owed. -->
+              @if (dueNow() > 0) { &middot; <b class="due-now">{{ dueNow() | currency }} due now</b> }
             }
           </span>
         </div>
@@ -578,6 +580,7 @@ interface LibRow {
 
       /* The event, accented in the empty Registered panel — this side's color, darkened toward the
          text color so it holds AA on the tinted panel in every palette. */
+      .due-now { color: var(--brand-text); font-weight: var(--font-weight-semibold); }
       .ev-name { color: color-mix(in srgb, var(--bs-success) 65%, var(--brand-text)); font-weight: var(--font-weight-bold); }
 
       /* ── Buttons ── */
@@ -914,6 +917,7 @@ export class TeamsBoardComponent {
         (a.ageGroupName ?? '').localeCompare(b.ageGroupName ?? '') || a.teamName.localeCompare(b.teamName)));
 
     readonly paidTotal = computed(() => sumPaidOf(this.registeredTeams()));
+    readonly dueNow = computed(() => sumFeeDueNowOf(this.registeredTeams()));
 
     readonly ageGroupOptions = computed(() => this.ageGroups().map(ag => {
         const label = ageGroupLabel(ag);
