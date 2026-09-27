@@ -7,7 +7,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { resolveRecommendedAgeGroupId, type SlotPricing } from './event-age-group.util';
 import { ageGroupLabel, type LibraryRegisterRequest } from './library-segment.types';
 import { ageGroupWaitlists, byGradYearThenName, pricingOfAgeGroup } from './library-register-plan';
-import { sumDueNowOf, teamFeeStatusOf, type TeamFeeStatus } from './registered-teams-grid.component';
+import { boardFeeStatusOf, type BoardFeeStatus } from './board-money';
 import { LibraryTeamInlineEditorComponent } from './library-team-inline-editor.component';
 import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-editor.component';
 
@@ -47,6 +47,8 @@ interface LibRow {
           <h3 class="board-title" id="board-lib-title">
             <i class="bi bi-collection-fill" aria-hidden="true"></i>Club Team Library
           </h3>
+          <!-- CRITICAL (Todd 2026-09-27): says what this list IS — never drop it for the group labels. -->
+          <span class="board-sub">Your teams to choose from</span>
         </div>
         <!-- One header for every club, new or established (Todd 2026-09-27): no empty-state variant. -->
         <button type="button" class="btn-add" [disabled]="actionInProgress()" (click)="addNew.emit()">
@@ -232,18 +234,13 @@ interface LibRow {
           <h3 class="board-title" id="board-reg-title" [attr.title]="'Registered for ' + eventName()">
             <i class="bi bi-trophy-fill" aria-hidden="true"></i>Registered Teams
           </h3>
+          <!-- Count only (Todd 2026-09-27): no money and no phase chip up here — "Final Balance Due"
+               names a later stage and read as owed-now beside "nothing due now". Due now lives on
+               the Continue card; each team's state lives on its row. -->
           <span class="board-sub">
-            @if (registeredRows().length === 0) {
-              None yet for this event
-            } @else {
-              {{ registeredRows().length }} for this event &middot;
-              @if (dueNow() > 0) { {{ dueNow() | currency }} due now } @else { nothing due now }
-            }
+            @if (registeredRows().length === 0) { None yet for this event } @else { {{ registeredRows().length }} for this event }
           </span>
         </div>
-        @if (phaseLabel()) {
-          <span class="phase-chip" title="Payment phase">{{ phaseLabel() }}</span>
-        }
       </header>
 
       <section class="panel panel--reg" aria-labelledby="board-reg-title">
@@ -291,8 +288,9 @@ interface LibRow {
                       <i class="bi bi-calendar-event" aria-hidden="true"></i>Auto-pay {{ $any(s).owed | currency }}
                       @if ($any(s).nextChargeDate) { &middot; {{ $any(s).nextChargeDate | date:'mediumDate' }} }
                     }
-                    @case ('depositDue') { <i class="bi bi-cash-stack" aria-hidden="true"></i>Deposit {{ $any(s).owed | currency }} due now &middot; {{ $any(s).later | currency }} later }
-                    @case ('depositPaid') { <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Deposit paid &middot; {{ $any(s).later | currency }} later }
+                    @case ('free') { <i class="bi bi-dash-circle" aria-hidden="true"></i>No fee }
+                    @case ('depositDue') { <i class="bi bi-cash-stack" aria-hidden="true"></i>{{ $any(s).owed | currency }} deposit due now &middot; {{ $any(s).later | currency }} balance later }
+                    @case ('depositPaid') { <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Deposit paid &middot; {{ $any(s).later | currency }} balance later }
                     @case ('balanceDue') { <i class="bi bi-cash-stack" aria-hidden="true"></i>{{ $any(s).owed | currency }} {{ $any(s).depositPaid ? 'balance ' : '' }}due now }
                     @case ('paid') { <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Paid in full }
                   }
@@ -457,17 +455,6 @@ interface LibRow {
         text-overflow: ellipsis;
       }
 
-      .phase-chip {
-        flex-shrink: 0;
-        padding: 1px var(--space-2);
-        border-radius: var(--radius-full);
-        background: color-mix(in srgb, var(--bs-success) 12%, transparent);
-        color: var(--brand-text);
-        font-size: var(--font-size-2xs);
-        font-weight: var(--font-weight-semibold);
-        white-space: nowrap;
-      }
-
       /* Each list scrolls on its own under a fixed header, so both sides stay in view together and
          Continue stays in reach for a big club (Todd 2026-09-27). Uncapped once stacked on a phone. */
       .panel-body {
@@ -580,6 +567,7 @@ interface LibRow {
       .fee--depositDue .bi, .fee--balanceDue .bi { color: var(--bs-warning); }
       .fee--paid .bi, .fee--depositPaid .bi { color: var(--bs-success); }
       .fee--scheduled .bi { color: var(--bs-info); }
+      .fee--free .bi { color: var(--brand-text-muted); }
 
       /* ── Buttons ── */
       .btn-add {
@@ -864,7 +852,6 @@ export class TeamsBoardComponent {
     readonly undoDeadlines = input<ReadonlyMap<string, number>>(new Map());
     readonly now = input(0);
     readonly pendingLibraryOnly = input<ReadonlySet<number>>(new Set());
-    readonly phaseLabel = input<string | null>(null);
 
     readonly register = output<LibraryRegisterRequest>();
     readonly remove = output<RegisteredTeamDto>();
@@ -915,8 +902,6 @@ export class TeamsBoardComponent {
     readonly registeredRows = computed(() => [...this.registeredTeams()].sort((a, b) =>
         (a.ageGroupName ?? '').localeCompare(b.ageGroupName ?? '') || a.teamName.localeCompare(b.teamName)));
 
-    readonly dueNow = computed(() => sumDueNowOf(this.registeredTeams()));
-
     readonly ageGroupOptions = computed(() => this.ageGroups().map(ag => {
         const label = ageGroupLabel(ag);
         const price = pricingOfAgeGroup(ag);
@@ -931,7 +916,7 @@ export class TeamsBoardComponent {
         return { id: ag.ageGroupId, text };
     }));
 
-    feeStatus(t: RegisteredTeamDto): TeamFeeStatus { return teamFeeStatusOf(t); }
+    feeStatus(t: RegisteredTeamDto): BoardFeeStatus { return boardFeeStatusOf(t); }
 
     isPending(clubTeamId: number): boolean { return this.pendingLibraryOnly().has(clubTeamId); }
 

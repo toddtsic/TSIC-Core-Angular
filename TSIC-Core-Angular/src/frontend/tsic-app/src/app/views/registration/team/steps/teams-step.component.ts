@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { EMPTY, catchError, concatMap, defer, from, interval, map, of } from 'rxjs';
 import { RegisteredTeamsGridComponent, sumDueNowOf } from '../components/registered-teams-grid.component';
+import { sumCardFeeDueNowOf, sumFeeDueNowOf } from '../components/board-money';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -82,7 +83,6 @@ type TeamsSegment = 'library' | 'registered';
             [undoDeadlines]="gridUndoDeadlines()"
             [now]="clock()"
             [pendingLibraryOnly]="pendingLibraryOnly()"
-            [phaseLabel]="enteredTeams().length > 0 ? phaseBadgeLabel() : null"
             (register)="onLibraryRegister($event)"
             (remove)="onRemoveTeam($event)"
             (renameSaved)="onInlineRenameSaved($event)"
@@ -330,13 +330,16 @@ type TeamsSegment = 'library' | 'registered';
                 </button>
               </div>
             } @else {
-              <button type="button" class="continue-btn" [class.continue-btn--due]="dueNow() > 0"
+              <button type="button" class="continue-btn" [class.continue-btn--due]="continueDue() > 0"
                       [disabled]="actionInProgress()"
                       (click)="onContinue()">
                 <span class="continue-text">
                   <span class="continue-title">Continue to Payment</span>
                   <span class="continue-sub">
-                    @if (dueNow() > 0) { {{ dueNow() | currency }} due now } @else { Nothing due now &middot; review and finish }
+                    @if (continueDue() > 0) {
+                      {{ continueDue() | currency }} due now
+                      @if (continueCardFee() > 0) { &middot; card processing fee added at payment }
+                    } @else { Nothing due now &middot; review and finish }
                   </span>
                 </span>
                 <i class="bi bi-arrow-right-circle-fill continue-icon" aria-hidden="true"></i>
@@ -1041,6 +1044,16 @@ export class TeamTeamsStepComponent implements OnInit {
 
     /** What the rep owes today — the grid footer's own rule (sumDueNowOf), never a second copy. */
     readonly dueNow = computed(() => sumDueNowOf(this._registeredTeams()));
+
+    /**
+     * The Continue card's figure. On the board it is the sum of the rows — the TEAM FEE, the number
+     * the register editor quoted (Todd 2026-09-27); the card fee is named, not added. The retired
+     * segments view keeps the grid's own rule, since its grid shows per-method Owed columns.
+     */
+    readonly continueDue = computed(() =>
+        this.layout() === 'board' ? sumFeeDueNowOf(this._registeredTeams()) : this.dueNow());
+    readonly continueCardFee = computed(() =>
+        this.layout() === 'board' ? sumCardFeeDueNowOf(this._registeredTeams()) : 0);
 
     /** The Club Team Library tab's second line. */
     readonly librarySegmentSub = computed(() => {
