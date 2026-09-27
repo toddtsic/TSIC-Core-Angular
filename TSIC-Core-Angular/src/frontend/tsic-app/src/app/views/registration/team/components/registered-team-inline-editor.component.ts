@@ -264,17 +264,15 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
     readonly ageGroup = computed(() => this.team().ageGroupDisplayName || this.team().ageGroupName);
 
     /**
-     * The year the rep just typed, when it leaves the age group — the rename-to-move mistake. Only a
-     * year the rep CHANGED counts: a play-up team already named "2031 Blue" in 2030 that becomes
-     * "2031 Navy" is not moving anywhere. With no year in the age group's name, a changed name year
-     * is the signal on its own.
+     * The name's year, whenever it differs from the age group's year — the rename-to-move mistake.
+     * No exemption for a name that already carried that year (Todd 2026-09-27: "that caution should
+     * always appear"). An age group with no year in its name can't be compared: calm line only.
      */
     readonly yearMoved = computed<string | null>(() => {
         const year = (s: string | null | undefined) => /\b(20\d{2})\b/.exec(s ?? '')?.[1] ?? null;
         const typed = year(this.name());
-        if (!typed || typed === year(this.team().teamName)) return null;
         const agYear = year(this.ageGroup());
-        return agYear && typed === agYear ? null : typed;
+        return typed && agYear && typed !== agYear ? typed : null;
     });
 
     /** Another of this club's teams already has this name in this age group (Todd 2026-09-27). */
