@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe, NgTemplateOutlet } from '@angular/common';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { LOP_CHOICES, formatLop, normalizeLop } from '@shared/teams/lop-choices';
@@ -37,21 +37,23 @@ interface LibRow {
     template: `
     <div class="board">
 
-      <!-- ═══ LEFT: Club Team Library ═══ -->
-      <section class="panel panel--lib" aria-labelledby="board-lib-title">
-        <header class="panel-head">
-          <div class="panel-head-text">
-            <h3 class="panel-title" id="board-lib-title">
-              <i class="bi bi-collection-fill" aria-hidden="true"></i>Club Team Library
-            </h3>
-            <span class="panel-sub">Edits here change future events</span>
-          </div>
-          <button type="button" class="btn-add" [class.btn-add--primary]="empty()"
-                  [disabled]="actionInProgress()" (click)="addNew.emit()">
-            <i class="bi bi-plus-circle" aria-hidden="true"></i>{{ empty() ? 'Add Your First Team' : 'Add Team' }}
-          </button>
-        </header>
+      <!-- ═══ LEFT: Club Team Library ═══
+           Headers sit ABOVE their panels, in one grid row, so both are always the same height and
+           the panels start level (Todd 2026-09-27). -->
+      <header class="board-head board-head--lib">
+        <div class="board-head-text">
+          <h3 class="board-title" id="board-lib-title">
+            <i class="bi bi-collection-fill" aria-hidden="true"></i>Club Team Library
+          </h3>
+          <span class="board-sub">Edits here change future events</span>
+        </div>
+        <button type="button" class="btn-add" [class.btn-add--primary]="empty()"
+                [disabled]="actionInProgress()" (click)="addNew.emit()">
+          <i class="bi bi-plus-circle" aria-hidden="true"></i>{{ empty() ? 'Add Your First Team' : 'Add Team' }}
+        </button>
+      </header>
 
+      <section class="panel panel--lib" aria-labelledby="board-lib-title">
         <div class="panel-body">
           @if (empty()) {
             <p class="panel-empty">
@@ -76,8 +78,8 @@ interface LibRow {
                   <span class="row-meta">
                     <span class="meta-pair"><span class="meta-key">Grad</span>{{ team.clubTeamGradYear || '—' }}</span>
                     <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(team.clubTeamLevelOfPlay) || '—' }}</span>
+                    <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                   </span>
-                  <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                 </div>
                 @if (canRegister() && !isOpen) {
                   <button type="button" class="btn-go" [disabled]="actionInProgress()"
@@ -159,8 +161,8 @@ interface LibRow {
                     <span class="row-meta">
                       <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
                       <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(row.team.clubTeamLevelOfPlay) || '—' }}</span>
+                      <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                     </span>
-                    <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                   </div>
                 </div>
               }
@@ -181,8 +183,8 @@ interface LibRow {
                     <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
                     <span class="row-meta">
                       <span class="meta-pair"><span class="meta-key">Grad</span>{{ row.team.clubTeamGradYear || '—' }}</span>
+                      <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                     </span>
-                    <ng-container *ngTemplateOutlet="libActions; context: { $implicit: row }" />
                   </div>
                 </div>
               }
@@ -192,26 +194,27 @@ interface LibRow {
       </section>
 
       <!-- ═══ RIGHT: this event's Registered Teams ═══ -->
-      <section class="panel panel--reg" aria-labelledby="board-reg-title">
-        <header class="panel-head">
-          <div class="panel-head-text">
-            <h3 class="panel-title" id="board-reg-title">
-              <i class="bi bi-trophy-fill" aria-hidden="true"></i>{{ eventName() }} Registered Teams
-            </h3>
-            <span class="panel-sub">
-              @if (registeredRows().length === 0) {
-                None yet
-              } @else {
-                {{ registeredRows().length }} registered &middot;
-                @if (dueNow() > 0) { {{ dueNow() | currency }} due now } @else { nothing due now }
-              }
-            </span>
-          </div>
-          @if (phaseLabel()) {
-            <span class="phase-chip" title="Payment phase">{{ phaseLabel() }}</span>
-          }
-        </header>
+      <!-- The event is named in the page title right above — here the side only has to say what it holds. -->
+      <header class="board-head board-head--reg">
+        <div class="board-head-text">
+          <h3 class="board-title" id="board-reg-title" [attr.title]="'Registered for ' + eventName()">
+            <i class="bi bi-trophy-fill" aria-hidden="true"></i>Registered Teams
+          </h3>
+          <span class="board-sub">
+            @if (registeredRows().length === 0) {
+              None yet for this event
+            } @else {
+              {{ registeredRows().length }} for this event &middot;
+              @if (dueNow() > 0) { {{ dueNow() | currency }} due now } @else { nothing due now }
+            }
+          </span>
+        </div>
+        @if (phaseLabel()) {
+          <span class="phase-chip" title="Payment phase">{{ phaseLabel() }}</span>
+        }
+      </header>
 
+      <section class="panel panel--reg" aria-labelledby="board-reg-title">
         <div class="panel-body">
           @for (t of registeredRows(); track t.teamId) {
             @let s = feeStatus(t);
@@ -231,12 +234,14 @@ interface LibRow {
                   </button>
                 </span>
                 <span class="row-meta">
-                  <span class="meta-pair">
-                    @if (t.isWaitlisted) { <i class="bi bi-hourglass-split meta-wl" aria-hidden="true"></i>Waitlist &middot; }
-                    {{ t.ageGroupDisplayName || t.ageGroupName }}
-                  </span>
+                  <!-- The age group only when the name doesn't already say it ("2030 Blue" in 2030). -->
+                  @if (showAgeGroup(t)) {
+                    <span class="meta-pair">
+                      @if (t.isWaitlisted) { <i class="bi bi-hourglass-split meta-wl" aria-hidden="true"></i>Waitlist &middot; }
+                      {{ t.ageGroupDisplayName || t.ageGroupName }}
+                    </span>
+                  }
                   <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(t.levelOfPlay) || '—' }}</span>
-                </span>
                 <span class="fee" [class]="'fee fee--' + s.kind">
                   @switch (s.kind) {
                     @case ('waitlist') { <i class="bi bi-hourglass-split" aria-hidden="true"></i>No fee until placed }
@@ -249,6 +254,7 @@ interface LibRow {
                     @case ('balanceDue') { <i class="bi bi-cash-stack" aria-hidden="true"></i>{{ $any(s).owed | currency }} {{ $any(s).depositPaid ? 'balance ' : '' }}due now }
                     @case ('paid') { <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Paid in full }
                   }
+                </span>
                 </span>
               </div>
               @if (!removable && undoMin > 0) {
@@ -277,14 +283,15 @@ interface LibRow {
               }
             </p>
           }
-
-          @if (registeredRows().length > 0) {
-            <p class="panel-foot">
-              <i class="bi bi-info-circle" aria-hidden="true"></i>
-              Amounts are the fee itself &mdash; any processing fee is added at <b>Continue to Payment</b>.
-            </p>
-          }
         </div>
+
+        <!-- Outside the scrolling list: always in view. -->
+        @if (registeredRows().length > 0) {
+          <p class="panel-foot">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+            <span>Amounts are the fee itself &mdash; any processing fee is added at <b>Continue to Payment</b>.</span>
+          </p>
+        }
       </section>
     </div>
 
@@ -305,7 +312,7 @@ interface LibRow {
                   [attr.title]="editLock ?? 'Edit this team in your Club Team Library — what future events start from. Nothing registered is changed.'"
                   [attr.aria-disabled]="!!editLock"
                   (click)="editLock ? explainLock(editLock) : edit.emit(team)">
-            <i class="bi bi-pencil" aria-hidden="true"></i>Edit
+            <i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Edit</span>
           </button>
           @if (removal.kind === 'archive') {
             <button type="button" class="btn-lib" [class.is-locked]="!!removal.lockReason"
@@ -313,7 +320,7 @@ interface LibRow {
                     [attr.title]="removal.lockReason ?? 'Archive: hide it from your Club Team Library, keep its history'"
                     [attr.aria-disabled]="!!removal.lockReason"
                     (click)="removal.lockReason ? explainLock(removal.lockReason) : archive.emit(team)">
-              <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Archive
+              <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i><span class="visually-hidden">Archive</span>
             </button>
           } @else {
             <button type="button" class="btn-lib btn-lib--danger" [class.is-locked]="!!removal.lockReason"
@@ -321,7 +328,7 @@ interface LibRow {
                     [attr.title]="removal.lockReason ?? 'Delete from your Club Team Library'"
                     [attr.aria-disabled]="!!removal.lockReason"
                     (click)="removal.lockReason ? explainLock(removal.lockReason) : delete.emit(team)">
-              <i class="bi bi-trash" aria-hidden="true"></i>Delete
+              <i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Delete</span>
             </button>
           }
         }
@@ -329,12 +336,22 @@ interface LibRow {
     </ng-template>
     `,
     styles: [`
+      /* Headers in one row, panels in the next: the headers always match height, so the two
+         panels start level whatever each header's text runs to. */
       .board {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: var(--space-3);
+        grid-template-areas:
+          "lib-head reg-head"
+          "lib-panel reg-panel";
+        column-gap: var(--space-3);
+        row-gap: var(--space-2);
         align-items: start;
       }
+      .board-head--lib { grid-area: lib-head; }
+      .board-head--reg { grid-area: reg-head; }
+      .panel--lib { grid-area: lib-panel; }
+      .panel--reg { grid-area: reg-panel; }
 
       .panel {
         display: flex;
@@ -350,32 +367,42 @@ interface LibRow {
       .panel--lib { border-top: 3px solid var(--bs-primary); }
       .panel--reg { border-top: 3px solid var(--bs-success); }
 
-      .panel-head {
+      /* ── Header above each panel ── */
+      .board-head {
         display: flex;
-        align-items: flex-start;
+        align-items: flex-end;
         gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        border-bottom: 1px solid var(--bs-border-color);
+        align-self: stretch;
+        min-width: 0;
+        padding: 0 var(--space-1);
       }
-      .panel--lib .panel-head { background: color-mix(in srgb, var(--bs-primary) 5%, var(--brand-surface)); }
-      .panel--reg .panel-head { background: color-mix(in srgb, var(--bs-success) 6%, var(--brand-surface)); }
 
-      .panel-head-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+      .board-head-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
-      .panel-title {
+      .board-title {
         display: flex;
         align-items: baseline;
         gap: var(--space-2);
         margin: 0;
-        font-size: var(--font-size-sm);
+        font-size: var(--font-size-base);
         font-weight: var(--font-weight-bold);
         color: var(--brand-text);
         line-height: var(--line-height-tight);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      .panel--lib .panel-title .bi { color: var(--bs-primary); }
-      .panel--reg .panel-title .bi { color: var(--bs-success); }
+      .board-head--lib .board-title .bi { color: var(--bs-primary); }
+      .board-head--reg .board-title .bi { color: var(--bs-success); }
 
-      .panel-sub { font-size: var(--font-size-2xs); color: var(--brand-text-muted); font-variant-numeric: tabular-nums; }
+      .board-sub {
+        font-size: var(--font-size-2xs);
+        color: var(--brand-text-muted);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
       .phase-chip {
         flex-shrink: 0;
@@ -388,7 +415,28 @@ interface LibRow {
         white-space: nowrap;
       }
 
-      .panel-body { display: flex; flex-direction: column; }
+      /* Each list scrolls on its own under a fixed header, so both sides stay in view together and
+         Continue stays in reach for a big club (Todd 2026-09-27). Uncapped once stacked on a phone. */
+      .panel-body {
+        display: flex;
+        flex-direction: column;
+        max-height: 60vh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+
+        /* A slim scrollbar in the side's own color, not the OS's 17px gutter. */
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--bs-body-color) 22%, transparent) transparent;
+
+        &::-webkit-scrollbar { width: 8px; }
+        &::-webkit-scrollbar-track { background: transparent; }
+        &::-webkit-scrollbar-thumb {
+          border: 2px solid transparent;
+          border-radius: var(--radius-full);
+          background: color-mix(in srgb, var(--bs-body-color) 22%, transparent) padding-box;
+        }
+        &::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--bs-body-color) 38%, transparent) padding-box; }
+      }
 
       .panel-empty {
         margin: 0;
@@ -453,6 +501,7 @@ interface LibRow {
       .row-meta {
         display: inline-flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: var(--space-3);
         font-size: var(--font-size-2xs);
         color: var(--brand-text-muted);
@@ -525,7 +574,8 @@ interface LibRow {
         &:disabled { opacity: 0.45; cursor: default; }
       }
 
-      .lib-actions { display: inline-flex; flex-wrap: wrap; gap: 2px; margin-left: calc(-1 * var(--space-1)); }
+      /* Rides the meta line (name, then one line): no third line per row. */
+      .lib-actions { display: inline-flex; flex-wrap: wrap; gap: 2px; margin-left: calc(-1 * var(--space-2)); }
 
       .btn-lib {
         display: inline-flex;
@@ -536,7 +586,7 @@ interface LibRow {
         border-radius: var(--radius-sm);
         background: transparent;
         color: var(--brand-text-muted);
-        font-size: var(--font-size-2xs);
+        font-size: var(--font-size-xs);
         font-weight: var(--font-weight-medium);
         cursor: pointer;
 
@@ -708,7 +758,12 @@ interface LibRow {
 
       /* Narrow: stack, library on top — the order the work goes in. */
       @media (max-width: 767.98px) {
-        .board { grid-template-columns: minmax(0, 1fr); }
+        .board {
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-areas: "lib-head" "lib-panel" "reg-head" "reg-panel";
+        }
+        .board-head--reg { margin-top: var(--space-3); }
+        .panel-body { max-height: none; overflow-y: visible; }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -719,6 +774,8 @@ interface LibRow {
 })
 export class TeamsBoardComponent {
     private readonly toast = inject(ToastService);
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+    private readonly injector = inject(Injector);
 
     readonly clubTeams = input.required<readonly ClubTeamDto[]>();
     readonly registeredTeams = input<readonly RegisteredTeamDto[]>([]);
@@ -822,6 +879,19 @@ export class TeamsBoardComponent {
             ag: resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear),
         });
         this.openId.set(team.clubTeamId);
+        // A row near the bottom of the scrolled list opens its editor out of sight — bring it in.
+        afterNextRender(() => {
+            const row = this.host.nativeElement.querySelector<HTMLElement>('.lib-row.is-open');
+            const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+            row?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+        }, { injector: this.injector });
+    }
+
+    /** The age group, unless the team's name already says it ("2030 Blue" in 2030). A waitlist always shows. */
+    showAgeGroup(t: RegisteredTeamDto): boolean {
+        if (t.isWaitlisted) return true;
+        const label = (t.ageGroupDisplayName || t.ageGroupName || '').trim();
+        return !label || !t.teamName.toLowerCase().includes(label.toLowerCase());
     }
 
     setPick(field: keyof RegPick, value: string): void {
