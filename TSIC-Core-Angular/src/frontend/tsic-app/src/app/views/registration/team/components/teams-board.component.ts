@@ -300,8 +300,10 @@ interface LibRow {
               @if (!removable && undoMin > 0) {
                 <button type="button" class="btn-undo" [disabled]="actionInProgress()"
                         [attr.aria-label]="'Undo registering ' + t.teamName + ', ' + undoMin + ' minutes left'"
+                        [attr.title]="'Undo registering ' + t.teamName + ' — ' + undoMin + (undoMin === 1 ? ' minute' : ' minutes') + ' left'"
                         (click)="remove.emit(t)">
-                  <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Undo &middot; {{ undoMin }}m
+                  <!-- No countdown on the face (Todd 2026-09-27): the minutes are in the hover text. -->
+                  <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Undo
                 </button>
               } @else if (removable) {
                 <button type="button" class="btn-icon btn-icon--danger" [disabled]="actionInProgress()"
