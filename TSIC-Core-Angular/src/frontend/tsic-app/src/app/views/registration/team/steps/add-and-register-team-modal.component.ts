@@ -69,7 +69,7 @@ import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error
 
             <input id="art-name" type="text" class="field-input"
                    [value]="teamName()" (input)="teamName.set($any($event.target).value)"
-                   placeholder="e.g. 2028 Blue"
+                   placeholder="e.g. 2032 Blue"
                    [class.is-required]="!teamName().trim()"
                    [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub() || nameIsDuplicate())" />
             <!-- The club-name hammer: the live schedule label, red when the club name is in it. -->

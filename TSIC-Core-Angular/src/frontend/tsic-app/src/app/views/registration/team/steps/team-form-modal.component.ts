@@ -100,7 +100,7 @@ import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam 
 
             <input id="tf-name" type="text" class="field-input"
                    [value]="teamName()" (input)="teamName.set($any($event.target).value)"
-                   placeholder="e.g. 2028 Blue"
+                   placeholder="e.g. 2032 Blue"
                    [class.is-required]="!teamName().trim()"
                    [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub() || nameIsDuplicate())"
                    [class.has-warning]="!submitted() && (nameContainsClub() || nameIsDuplicate())" />
