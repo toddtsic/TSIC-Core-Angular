@@ -16,6 +16,26 @@ export type TeamFeeStatus =
     | { kind: 'paid' };
 
 /**
+ * One row's fee position, from the columns the server already computed — nothing is re-derived
+ * from the ledger (see RegisteredTeamsGridComponent.rowStatus for the column semantics). Shared
+ * with the Teams board so both surfaces word a team's money the same way.
+ */
+export function teamFeeStatusOf(t: RegisteredTeamDto): TeamFeeStatus {
+    if (t.isWaitlisted) return { kind: 'waitlist' };
+    const owed = t.owedTotal ?? 0;
+    const paid = t.tenderPaid ?? 0;
+    if (t.paymentScheduled && owed > 0) return { kind: 'scheduled', owed, nextChargeDate: t.nextChargeDate ?? null };
+    const depositPhase = !t.fullPaymentRequired && (t.deposit ?? 0) > 0 && (t.balanceDue ?? 0) > 0;
+    if (depositPhase) {
+        return owed > 0
+            ? { kind: 'depositDue', owed, later: t.balanceDue }
+            : { kind: 'depositPaid', later: t.balanceDue };
+    }
+    if (owed > 0) return { kind: 'balanceDue', owed, depositPaid: paid > 0 };
+    return { kind: 'paid' };
+}
+
+/**
  * "Due now": what the rep owes today — waitlisted rows owe nothing until placed, and auto-pay rows
  * are drafted on their own schedule. The grid's footer and the teams step's opening-segment rule
  * both read this, so the number the rep sees and the number that picks the segment never differ.
@@ -636,18 +656,7 @@ export class RegisteredTeamsGridComponent {
     // A deposit-phase row is one whose fee HAS a deposit slice and whose balance is not yet
     // required; a deposit-less fee is a single payment and shows as due/paid outright.
     rowStatus(t: RegisteredTeamDto): TeamFeeStatus {
-        if (t.isWaitlisted) return { kind: 'waitlist' };
-        const owed = t.owedTotal ?? 0;
-        const paid = t.tenderPaid ?? 0;
-        if (t.paymentScheduled && owed > 0) return { kind: 'scheduled', owed, nextChargeDate: t.nextChargeDate ?? null };
-        const depositPhase = !t.fullPaymentRequired && (t.deposit ?? 0) > 0 && (t.balanceDue ?? 0) > 0;
-        if (depositPhase) {
-            return owed > 0
-                ? { kind: 'depositDue', owed, later: t.balanceDue }
-                : { kind: 'depositPaid', later: t.balanceDue };
-        }
-        if (owed > 0) return { kind: 'balanceDue', owed, depositPaid: paid > 0 };
-        return { kind: 'paid' };
+        return teamFeeStatusOf(t);
     }
     private isDepositPhaseRow(t: RegisteredTeamDto): boolean {
         return !t.isWaitlisted && !t.fullPaymentRequired && (t.deposit ?? 0) > 0 && (t.balanceDue ?? 0) > 0;

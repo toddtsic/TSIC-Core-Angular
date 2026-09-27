@@ -19,6 +19,7 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 // import { LibraryFlyinComponent, type RegisterRequest, type RegisteredInfo } from '../components/library-flyin.component';
 import { LibrarySegmentComponent } from '../components/library-segment.component';
 import { RegisterTeamModalComponent } from '../components/register-team-modal.component';
+import { TeamsBoardComponent } from '../components/teams-board.component';
 import type { LibraryRegisterRequest } from '../components/library-segment.types';
 import { TeamRenameConfirmComponent, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
 import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
@@ -49,7 +50,7 @@ type TeamsSegment = 'library' | 'registered';
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [CurrencyPipe, RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, /* RETIRED FLY-IN: LibraryFlyinComponent, */ LibrarySegmentComponent, RegisterTeamModalComponent, TeamRenameConfirmComponent],
+    imports: [CurrencyPipe, RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, /* RETIRED FLY-IN: LibraryFlyinComponent, */ LibrarySegmentComponent, RegisterTeamModalComponent, TeamsBoardComponent, TeamRenameConfirmComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -63,6 +64,34 @@ type TeamsSegment = 'library' | 'registered';
 
       <!-- ── One card, two segments (Todd 2026-09-26). The green edge means teams are in. ── -->
       <div class="step-card" [class.step-card-registered]="enteredTeams().length > 0">
+
+        @if (layout() === 'board') {
+        <!-- The board (Todd 2026-09-27): library left, this event right — a team is on one side
+             only, so which list an edit touches answers itself. The tabs below are kept for a return. -->
+        <div class="seg-panel-body">
+          <app-teams-board
+            [clubTeams]="allLibraryTeams()"
+            [registeredTeams]="enteredTeams()"
+            [ageGroups]="ageGroups()"
+            [eventName]="eventName()"
+            [canRegister]="canRegisterTeam()"
+            [canRemove]="canRemoveTeam()"
+            [renameLockReason]="canEditTeam() ? null : 'Editing closed by the director'"
+            [actionInProgress]="actionInProgress()"
+            [undoDeadlines]="gridUndoDeadlines()"
+            [now]="clock()"
+            [pendingLibraryOnly]="pendingLibraryOnly()"
+            [phaseLabel]="enteredTeams().length > 0 ? phaseBadgeLabel() : null"
+            (register)="onLibraryRegister($event)"
+            (remove)="onRemoveTeam($event)"
+            (rename)="onRenameTeam($event)"
+            (addNew)="onAddLibraryTeam()"
+            (edit)="openEditModal($event)"
+            (archive)="askArchiveTeam($event)"
+            (delete)="askDeleteTeam($event)"
+            (restore)="askRestoreTeam($event)" />
+        </div>
+        } @else {
 
         <!-- No tabs for a brand-new club (empty library, nothing registered): two empty views are
              nothing to switch between. Both come back with the first team (Todd 2026-09-26). -->
@@ -234,6 +263,7 @@ type TeamsSegment = 'library' | 'registered';
             }
           }
         </div>
+        }
 
         <!-- Continue lives OUTSIDE the segments: either view can move on. Full weight only when
              money is due now; with nothing due it is the quiet way to finish. -->
@@ -266,7 +296,7 @@ type TeamsSegment = 'library' | 'registered';
                   </button>
                 </div>
               </div>
-            } @else if (canRegisterTeam()) {
+            } @else if (canRegisterTeam() && layout() === 'segments') {
               <!-- The way to add a team is a VERB on the screen, not the library tab's noun (Todd
                    2026-09-26: "not clear at all how I would add a team"). Register Another Team opens
                    the Register-a-team modal — the ONE register path — from either segment. -->
@@ -936,6 +966,12 @@ export class TeamTeamsStepComponent implements OnInit {
     // RETIRED FLY-IN: open state. Opened only on explicit user action — never auto-opened.
     // readonly showLibraryFlyin = signal(false);
 
+    /**
+     * 'board' = library and Registered Teams side by side (Todd 2026-09-27). 'segments' = the two
+     * tabs + Register-a-team modal, kept whole for a return — flip this one line.
+     */
+    readonly layout = signal<'board' | 'segments'>('board');
+
     // ── Segments ───────────────────────────────────────────────────────
     /** Which view is showing. Set ONCE by pickOpeningSegment when the first load lands, then only by the rep. */
     readonly segment = signal<TeamsSegment>('library');
@@ -1109,7 +1145,8 @@ export class TeamTeamsStepComponent implements OnInit {
     /** "Register it now": the Register-a-team modal, where the pending teams are waiting with their Register buttons. */
     registerPendingNow(): void {
         this.confirmingContinue.set(false);
-        this.openRegisterModal();
+        // On the board the pending teams are already in view, edged amber, each with its Register.
+        if (this.layout() === 'segments') this.openRegisterModal();
     }
 
     // ── Register a team (the modal — the one register path) ──────────────
