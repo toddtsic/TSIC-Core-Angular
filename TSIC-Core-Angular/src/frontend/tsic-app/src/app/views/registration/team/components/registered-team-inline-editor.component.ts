@@ -33,8 +33,34 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
                [attr.maxlength]="maxLength()"
                [value]="name()" (input)="name.set($any($event.target).value)"
                (keydown.enter)="save()"
-               [class.is-invalid]="!name().trim()" />
+               [class.is-invalid]="!name().trim() || duplicate()" />
       </label>
+
+      <!-- Reps try to MOVE a team by renaming it (Todd 2026-09-27). Always said, calmly; said in red,
+           with the real way to move, the moment the name's year leaves the age group. -->
+      @if (yearMoved(); as yr) {
+        <div class="ie-move ie-move--alarm" role="alert">
+          <p class="ie-move-line">
+            <i class="bi bi-x-octagon-fill" aria-hidden="true"></i>
+            <span><b>Renaming does not move this team.</b> {{ name().trim() }} will still play in <b>{{ ageGroup() }}</b>.</span>
+          </p>
+          <p class="ie-move-how">
+            @if (undoMinutes() > 0) {
+              To play in {{ yr }}:
+              <button type="button" class="btn-link" [disabled]="saving()" (click)="undo.emit()">Undo this registration</button>
+              and register it again in {{ yr }}.
+            } @else {
+              Only the event director can move a team to another age group.
+            }
+          </p>
+        </div>
+      } @else {
+        <p class="ie-move-calm"><b>Renaming does not change the age group</b> &mdash; this team plays in {{ ageGroup() }}.</p>
+      }
+      @if (duplicate()) {
+        <p class="ie-msg ie-msg--err" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+          {{ name().trim() }} is already registered in {{ ageGroup() }} &mdash; give this team a different name.</p>
+      }
 
       <div class="ie-line">
         <label class="ie-field ie-field--lop">
@@ -49,7 +75,7 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
         <div class="ie-actions">
           <button type="button" class="btn-cancel" [disabled]="saving()" (click)="cancel()">Cancel</button>
           <button type="button" class="btn-save" [disabled]="saving() || !canSave()" (click)="save()">
-            {{ saving() ? 'Saving…' : 'Save' }}
+            {{ saving() ? 'Saving…' : yearMoved() ? 'Rename — keep in ' + ageGroup() : 'Save' }}
           </button>
         </div>
       </div>
@@ -76,7 +102,48 @@ import { renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams
       .ie-line { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); }
 
       .ie-field { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin: 0; }
-      .ie-field--lop { width: 84px; flex-shrink: 0; }
+      /* Wide enough for "5 (strongest)". */
+      .ie-field--lop { width: 116px; flex-shrink: 0; }
+
+      .ie-move-calm { margin: 0; font-size: var(--font-size-xs); color: var(--brand-text); }
+
+      .ie-move {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        padding: var(--space-2);
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-xs);
+
+        &--alarm {
+          border: 1px solid var(--bs-danger);
+          background: color-mix(in srgb, var(--bs-danger) 10%, var(--brand-surface));
+          color: var(--brand-text);
+        }
+      }
+      .ie-move-line {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-1);
+        margin: 0;
+
+        .bi { flex-shrink: 0; color: var(--bs-danger); }
+      }
+      .ie-move-how { margin: 0; }
+
+      .btn-link {
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: var(--bs-primary);
+        font-size: inherit;
+        font-weight: var(--font-weight-semibold);
+        text-decoration: underline;
+        cursor: pointer;
+
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
+        &:disabled { opacity: 0.45; cursor: default; }
+      }
 
       .ie-label {
         font-size: var(--font-size-2xs);
@@ -160,10 +227,16 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
     /** The linked library entry's name; null for an orphan (no library entry → no tick). */
     readonly libraryName = input<string | null>(null);
     readonly eventName = input('this event');
+    /** This event's registered teams — for the same-name-in-this-age-group check (the server enforces it too). */
+    readonly registeredTeams = input<readonly RegisteredTeamDto[]>([]);
+    /** Whole minutes of mistake-undo left on this team; 0 = none. Offered as the real way to move. */
+    readonly undoMinutes = input(0);
 
     /** Landed — carries the toast text; the host reloads, then shows it. */
     readonly saved = output<string>();
     readonly cancelled = output<void>();
+    /** "Undo this registration" — the host runs its usual remove confirm. */
+    readonly undo = output<void>();
 
     readonly lopChoices = LOP_CHOICES;
 
@@ -187,8 +260,35 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
     /** Teams.TeamName is varchar(100); Clubs.ClubTeams.ClubTeamName is varchar(80). */
     readonly maxLength = computed(() => (this.propagate() ? 80 : 100));
 
+    /** The age group as the rep reads it. */
+    readonly ageGroup = computed(() => this.team().ageGroupDisplayName || this.team().ageGroupName);
+
+    /**
+     * The year the rep just typed, when it leaves the age group — the rename-to-move mistake. Only a
+     * year the rep CHANGED counts: a play-up team already named "2031 Blue" in 2030 that becomes
+     * "2031 Navy" is not moving anywhere. With no year in the age group's name, a changed name year
+     * is the signal on its own.
+     */
+    readonly yearMoved = computed<string | null>(() => {
+        const year = (s: string | null | undefined) => /\b(20\d{2})\b/.exec(s ?? '')?.[1] ?? null;
+        const typed = year(this.name());
+        if (!typed || typed === year(this.team().teamName)) return null;
+        const agYear = year(this.ageGroup());
+        return agYear && typed === agYear ? null : typed;
+    });
+
+    /** Another of this club's teams already has this name in this age group (Todd 2026-09-27). */
+    readonly duplicate = computed(() => {
+        const n = this.name().trim().toLowerCase();
+        if (!n || !this.nameChanged()) return false;
+        const t = this.team();
+        return this.registeredTeams().some(o =>
+            o.teamId !== t.teamId && o.ageGroupId === t.ageGroupId && o.teamName.trim().toLowerCase() === n);
+    });
+
     readonly canSave = computed(() =>
-        this.name().trim().length > 0 && (this.nameChanged() || this.lopChanged() || this.propagateEffective()));
+        this.name().trim().length > 0 && !this.duplicate()
+        && (this.nameChanged() || this.lopChanged() || this.propagateEffective()));
 
     ngOnInit(): void {
         this.name.set(this.team().teamName);
@@ -212,7 +312,9 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
             // NULL = unchanged: the server leaves the level alone.
             levelOfPlay: this.lopChanged() ? this.lop() : null,
         };
-        const message = renameSuccessMessage(this.team().teamName, c);
+        // When the name's year moved, the toast says it again: the team did not move.
+        const message = renameSuccessMessage(this.team().teamName, c)
+            + (this.yearMoved() ? ` It still plays in ${this.ageGroup()}.` : '');
         this.saving.set(true);
         this.error.set(null);
         this.teamReg.renameRegisteredTeam(this.team().teamId, c.name, c.alsoPropagate, c.levelOfPlay)

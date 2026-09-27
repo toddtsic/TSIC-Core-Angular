@@ -242,6 +242,9 @@ interface LibRow {
                   [team]="t"
                   [libraryName]="libraryNameOf(t)"
                   [eventName]="eventName()"
+                  [registeredTeams]="registeredTeams()"
+                  [undoMinutes]="undoMinutesLeft(t.teamId)"
+                  (undo)="remove.emit(t)"
                   (saved)="onRenameSaved($event)"
                   (cancelled)="renameId.set(null)" />
               } @else {

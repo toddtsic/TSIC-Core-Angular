@@ -109,6 +109,26 @@ public class TeamRepository : ITeamRepository
                 && t.Active == true, cancellationToken);
     }
 
+    public async Task<bool> ClubRepHasTeamNamedInAgegroupAsync(
+        Guid jobId,
+        Guid agegroupId,
+        Guid clubRepRegistrationId,
+        string teamName,
+        Guid? excludeTeamId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var name = teamName.Trim().ToLower();
+        return await _context.Teams
+            .AsNoTracking()
+            .AnyAsync(t => t.JobId == jobId
+                && t.AgegroupId == agegroupId
+                && t.ClubrepRegistrationid == clubRepRegistrationId
+                && t.Active == true
+                && (excludeTeamId == null || t.TeamId != excludeTeamId)
+                && t.TeamName != null
+                && t.TeamName.Trim().ToLower() == name, cancellationToken);
+    }
+
     public async Task<Teams?> GetTeamFromTeamId(
         Guid teamId,
         CancellationToken cancellationToken = default)

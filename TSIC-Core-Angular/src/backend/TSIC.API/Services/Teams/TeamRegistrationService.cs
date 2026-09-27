@@ -746,6 +746,9 @@ public class TeamRegistrationService : ITeamRegistrationService
             clubTeamId = clubTeam.ClubTeamId;
             teamName = clubTeam.ClubTeamName;
             levelOfPlay = request.LevelOfPlay ?? clubTeam.ClubTeamLevelOfPlay ?? string.Empty;
+
+            // No two of this club's teams share a name within one age group (Todd 2026-09-27).
+            await EnsureNameFreeInAgegroupAsync(jobId, request.AgeGroupId, clubRepRegistration.RegistrationId, teamName);
         }
         else
         {
@@ -754,6 +757,9 @@ public class TeamRegistrationService : ITeamRegistrationService
             {
                 throw new InvalidOperationException("Graduation year is required when creating a new team");
             }
+
+            // Before the library row is created, so a refusal writes nothing.
+            await EnsureNameFreeInAgegroupAsync(jobId, request.AgeGroupId, clubRepRegistration.RegistrationId, request.TeamName!.Trim());
 
             var newClubTeam = new Domain.Entities.ClubTeams
             {
@@ -793,6 +799,10 @@ public class TeamRegistrationService : ITeamRegistrationService
                 IsWaitlisted = false
             };
         }
+
+        // A full age group redirects to its WAITLIST twin — the same name rule applies where the team lands.
+        if (placement.AgegroupId != request.AgeGroupId)
+            await EnsureNameFreeInAgegroupAsync(jobId, placement.AgegroupId, clubRepRegistration.RegistrationId, teamName);
 
         // Create team registration. Fee fields start at zero; non-waitlisted teams get
         // the full Team → Agegroup → Job cascade (including modifiers + net-base processing
@@ -986,6 +996,13 @@ public class TeamRegistrationService : ITeamRegistrationService
             && !string.Equals(team.LevelOfPlay, levelOfPlay, StringComparison.Ordinal);
         if (!eventNameChanged && !alsoRenameLibrary && !lopChanged) return;
 
+        // No two of this club's teams share a name within one age group (Todd 2026-09-27): two
+        // "2030 Blue" in 2030 cannot be told apart on a schedule, a standings table or a bracket.
+        // The same name across DIFFERENT age groups is allowed ("Aces" in 2029 and 2030). Checked
+        // before any write, so a refusal leaves nothing half-done.
+        if (eventNameChanged)
+            await EnsureNameFreeInAgegroupAsync(team.JobId, team.AgegroupId, regId, name, excludeTeamId: teamId);
+
         // The library half FIRST when both were asked for: it is the half that can refuse (identity
         // collision), and a refusal must leave nothing written. Reversing this order would rename the
         // event and then throw, which is the one outcome the rep cannot undo from the dialog.
@@ -1014,6 +1031,21 @@ public class TeamRegistrationService : ITeamRegistrationService
             userId, teamId, name, team.JobId, alsoRenameLibrary, lopChanged ? levelOfPlay : "unchanged");
     }
 
+    /// <summary>
+    /// The no-duplicate-name-within-an-age-group rule, at both writes that put a name into an age
+    /// group (register, rename). Scope = this club rep's active teams in this age group of this job.
+    /// </summary>
+    private async Task EnsureNameFreeInAgegroupAsync(
+        Guid jobId, Guid agegroupId, Guid clubRepRegId, string name, Guid? excludeTeamId = null)
+    {
+        if (!await _teams.ClubRepHasTeamNamedInAgegroupAsync(jobId, agegroupId, clubRepRegId, name, excludeTeamId))
+            return;
+        var ag = await _agegroups.GetByIdAsync(agegroupId);
+        var agName = ag?.AgegroupName ?? "this age group";
+        throw new InvalidOperationException(
+            $"{name} is already registered in {agName} for this event. Give this team a different name.");
+    }
+
     public async Task RenameClubTeamNameAsync(
         string userId, int clubTeamId, Guid? jobId, string newName, bool alsoRenameInThisJob = false)
     {
@@ -1029,14 +1061,28 @@ public class TeamRegistrationService : ITeamRegistrationService
         // and level of play stay locked once scheduled; those carry the squad's identity, not its label.
         // No BClubRepAllowEdit gate either — the list is the rep's, independent of any one event;
         // the controller gates only the opt-in event half below.
+        //
+        // This event's copy, only if the team is actually registered here. Resolved BEFORE the library
+        // write so the age-group name rule can refuse with nothing written.
+        Domain.Entities.Teams? here = null;
+        if (alsoRenameInThisJob && jobId is not null)
+        {
+            var copies = await _teams.GetTrackedTeamsByClubTeamIdAsync(clubTeamId);
+            here = copies.FirstOrDefault(t => t.JobId == jobId.Value);
+            if (here != null
+                && !(here.TeamName != null && here.TeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase))
+                && !string.Equals(here.TeamName, name, StringComparison.Ordinal)
+                && here.ClubrepRegistrationid is Guid hereRepId)
+            {
+                await EnsureNameFreeInAgegroupAsync(here.JobId, here.AgegroupId, hereRepId, name, excludeTeamId: here.TeamId);
+            }
+        }
+
         await RenameLibraryEntryAsync(clubTeamId, userId, name);
 
         if (!alsoRenameInThisJob || jobId is null) return;
 
-        // This event's copy, only if the team is actually registered here. Same single write the
-        // Registered Teams pencil performs — no sweep to any other job.
-        var copies = await _teams.GetTrackedTeamsByClubTeamIdAsync(clubTeamId);
-        var here = copies.FirstOrDefault(t => t.JobId == jobId.Value);
+        // Same single write the Registered Teams pencil performs — no sweep to any other job.
         if (here == null) return;
         if (here.TeamName != null && here.TeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase)) return;
         if (string.Equals(here.TeamName, name, StringComparison.Ordinal)) return;

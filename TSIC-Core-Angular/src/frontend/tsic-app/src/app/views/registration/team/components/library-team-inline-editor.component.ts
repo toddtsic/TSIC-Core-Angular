@@ -120,7 +120,7 @@ import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam 
 
       .ie-field { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin: 0; }
       .ie-field--grad { width: 84px; flex-shrink: 0; }
-      .ie-field--lop { width: 84px; flex-shrink: 0; }
+      .ie-field--lop { width: 116px; flex-shrink: 0; }
 
       .ie-label {
         font-size: var(--font-size-2xs);

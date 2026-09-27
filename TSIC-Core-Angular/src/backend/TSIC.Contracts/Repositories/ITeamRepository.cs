@@ -178,6 +178,19 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Does this club rep already have an active team with this name (trimmed, case-insensitive) in
+    /// this agegroup of this job? <paramref name="excludeTeamId"/> skips the team being renamed.
+    /// Backs the no-duplicate-name-within-an-agegroup rule (Todd 2026-09-27).
+    /// </summary>
+    Task<bool> ClubRepHasTeamNamedInAgegroupAsync(
+        Guid jobId,
+        Guid agegroupId,
+        Guid clubRepRegistrationId,
+        string teamName,
+        Guid? excludeTeamId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get team by ID using FindAsync (loads from identity map).
     /// </summary>
     Task<Teams?> GetTeamFromTeamId(
