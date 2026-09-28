@@ -283,11 +283,17 @@ public partial class Registrations
 
     public virtual Teams? AssignedTeam { get; set; }
 
+    public virtual ICollection<Attendance> Attendance { get; set; } = new List<Attendance>();
+
+    public virtual ICollection<Availability> Availability { get; set; } = new List<Availability>();
+
     public virtual ICollection<DeviceRegistrationIds> DeviceRegistrationIds { get; set; } = new List<DeviceRegistrationIds>();
 
     public virtual ICollection<DeviceTeams> DeviceTeams { get; set; } = new List<DeviceTeams>();
 
     public virtual JobDiscountCodes? DiscountCode { get; set; }
+
+    public virtual ICollection<Duties> Duties { get; set; } = new List<Duties>();
 
     public virtual Families? FamilyUser { get; set; }
 
@@ -302,6 +308,10 @@ public partial class Registrations
     public virtual ICollection<Jobs> Jobs { get; set; } = new List<Jobs>();
 
     public virtual AspNetUsers? LebUser { get; set; }
+
+    public virtual ICollection<Lineups> Lineups { get; set; } = new List<Lineups>();
+
+    public virtual ICollection<MemberTeamPrefs> MemberTeamPrefs { get; set; } = new List<MemberTeamPrefs>();
 
     public virtual ICollection<MemberTeamState> MemberTeamState { get; set; } = new List<MemberTeamState>();
 
@@ -329,7 +339,11 @@ public partial class Registrations
 
     public virtual ICollection<RegistrationAccounting> RegistrationAccounting { get; set; } = new List<RegistrationAccounting>();
 
+    public virtual ICollection<Reminders> Reminders { get; set; } = new List<Reminders>();
+
     public virtual AspNetRoles? Role { get; set; }
+
+    public virtual ICollection<Stats> Stats { get; set; } = new List<Stats>();
 
     public virtual ICollection<StoreCartBatchSkus> StoreCartBatchSkus { get; set; } = new List<StoreCartBatchSkus>();
 

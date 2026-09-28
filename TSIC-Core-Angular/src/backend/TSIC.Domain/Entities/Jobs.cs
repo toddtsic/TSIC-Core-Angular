@@ -281,6 +281,8 @@ public partial class Jobs
 
     public virtual EventScheduleDefaults? EventScheduleDefaults { get; set; }
 
+    public virtual ICollection<Events> Events { get; set; } = new List<Events>();
+
     public virtual ICollection<GameClockParams> GameClockParams { get; set; } = new List<GameClockParams>();
 
     public virtual ICollection<Invitations> InvitationsSourceJob { get; set; } = new List<Invitations>();
@@ -298,6 +300,8 @@ public partial class Jobs
     public virtual ICollection<JobDiscountCodes> JobDiscountCodes { get; set; } = new List<JobDiscountCodes>();
 
     public virtual JobDisplayOptions? JobDisplayOptions { get; set; }
+
+    public virtual JobFeatures? JobFeatures { get; set; }
 
     public virtual ICollection<JobFees> JobFees { get; set; } = new List<JobFees>();
 
@@ -342,6 +346,8 @@ public partial class Jobs
     public virtual ICollection<Registrations> Registrations { get; set; } = new List<Registrations>();
 
     public virtual ICollection<Schedule> Schedule { get; set; } = new List<Schedule>();
+
+    public virtual ICollection<Series> Series { get; set; } = new List<Series>();
 
     public virtual ICollection<Sliders> Sliders { get; set; } = new List<Sliders>();
 

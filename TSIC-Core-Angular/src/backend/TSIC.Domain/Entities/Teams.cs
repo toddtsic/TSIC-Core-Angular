@@ -201,6 +201,8 @@ public partial class Teams
 
     public virtual ICollection<CalendarEvents> CalendarEvents { get; set; } = new List<CalendarEvents>();
 
+    public virtual CalendarSync? CalendarSync { get; set; }
+
     public virtual ICollection<ChatMessages> ChatMessages { get; set; } = new List<ChatMessages>();
 
     public virtual ClubTeams? ClubTeam { get; set; }
@@ -216,6 +218,8 @@ public partial class Teams
     public virtual JobDiscountCodes? DiscountCode { get; set; }
 
     public virtual Divisions? Div { get; set; }
+
+    public virtual ICollection<Events> Events { get; set; } = new List<Events>();
 
     public virtual Fields? FieldId1Navigation { get; set; }
 
@@ -233,6 +237,8 @@ public partial class Teams
 
     public virtual AspNetUsers? LebUser { get; set; }
 
+    public virtual ICollection<MemberTeamPrefs> MemberTeamPrefs { get; set; } = new List<MemberTeamPrefs>();
+
     public virtual ICollection<MemberTeamState> MemberTeamState { get; set; } = new List<MemberTeamState>();
 
     public virtual ICollection<Messages> Messages { get; set; } = new List<Messages>();
@@ -248,6 +254,8 @@ public partial class Teams
     public virtual ICollection<Schedule> ScheduleT1 { get; set; } = new List<Schedule>();
 
     public virtual ICollection<Schedule> ScheduleT2 { get; set; } = new List<Schedule>();
+
+    public virtual ICollection<Series> Series { get; set; } = new List<Series>();
 
     public virtual ICollection<TeamAttendanceEvents> TeamAttendanceEvents { get; set; } = new List<TeamAttendanceEvents>();
 

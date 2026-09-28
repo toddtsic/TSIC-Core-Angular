@@ -101,6 +101,14 @@ public partial class AspNetUsers
 
     public virtual ICollection<Attachments> Attachments { get; set; } = new List<Attachments>();
 
+    public virtual ICollection<Attendance> AttendanceLebUser { get; set; } = new List<Attendance>();
+
+    public virtual ICollection<Attendance> AttendanceRecordedByUser { get; set; } = new List<Attendance>();
+
+    public virtual ICollection<Availability> AvailabilityAnsweredByUser { get; set; } = new List<Availability>();
+
+    public virtual ICollection<Availability> AvailabilityLebUser { get; set; } = new List<Availability>();
+
     public virtual ICollection<BillingTypes> BillingTypes { get; set; } = new List<BillingTypes>();
 
     public virtual ICollection<BracketInstances> BracketInstances { get; set; } = new List<BracketInstances>();
@@ -110,6 +118,8 @@ public partial class AspNetUsers
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();
 
     public virtual ICollection<CalendarEvents> CalendarEvents { get; set; } = new List<CalendarEvents>();
+
+    public virtual ICollection<CalendarSync> CalendarSync { get; set; } = new List<CalendarSync>();
 
     public virtual ICollection<CellphonecarrierDomains> CellphonecarrierDomains { get; set; } = new List<CellphonecarrierDomains>();
 
@@ -139,11 +149,27 @@ public partial class AspNetUsers
 
     public virtual ICollection<Divisions> Divisions { get; set; } = new List<Divisions>();
 
+    public virtual ICollection<Duties> DutiesAssignedByUser { get; set; } = new List<Duties>();
+
+    public virtual ICollection<Duties> DutiesCreatorUser { get; set; } = new List<Duties>();
+
+    public virtual ICollection<Duties> DutiesLebUser { get; set; } = new List<Duties>();
+
     public virtual ICollection<EmailFailures> EmailFailures { get; set; } = new List<EmailFailures>();
 
     public virtual ICollection<EmailLogs> EmailLogs { get; set; } = new List<EmailLogs>();
 
+    public virtual ICollection<EventRevisions> EventRevisionsChangedByUser { get; set; } = new List<EventRevisions>();
+
+    public virtual ICollection<EventRevisions> EventRevisionsLebUser { get; set; } = new List<EventRevisions>();
+
     public virtual ICollection<EventScheduleDefaults> EventScheduleDefaults { get; set; } = new List<EventScheduleDefaults>();
+
+    public virtual ICollection<Events> EventsCancelledByUser { get; set; } = new List<Events>();
+
+    public virtual ICollection<Events> EventsCreatorUser { get; set; } = new List<Events>();
+
+    public virtual ICollection<Events> EventsLebUser { get; set; } = new List<Events>();
 
     public virtual Families? FamiliesFamilyUser { get; set; }
 
@@ -171,6 +197,8 @@ public partial class AspNetUsers
 
     public virtual ICollection<JobDisplayOptions> JobDisplayOptions { get; set; } = new List<JobDisplayOptions>();
 
+    public virtual ICollection<JobFeatures> JobFeatures { get; set; } = new List<JobFeatures>();
+
     public virtual ICollection<JobFees> JobFees { get; set; } = new List<JobFees>();
 
     public virtual ICollection<JobLeagues> JobLeagues { get; set; } = new List<JobLeagues>();
@@ -190,6 +218,10 @@ public partial class AspNetUsers
     public virtual ICollection<Jobs> Jobs { get; set; } = new List<Jobs>();
 
     public virtual ICollection<Leagues> Leagues { get; set; } = new List<Leagues>();
+
+    public virtual ICollection<Lineups> Lineups { get; set; } = new List<Lineups>();
+
+    public virtual ICollection<MemberTeamPrefs> MemberTeamPrefs { get; set; } = new List<MemberTeamPrefs>();
 
     public virtual ICollection<MemberTeamState> MemberTeamState { get; set; } = new List<MemberTeamState>();
 
@@ -239,13 +271,23 @@ public partial class AspNetUsers
 
     public virtual ICollection<Registrations> RegistrationsUser { get; set; } = new List<Registrations>();
 
+    public virtual ICollection<Reminders> Reminders { get; set; } = new List<Reminders>();
+
     public virtual ICollection<ReportLibrary> ReportLibrary { get; set; } = new List<ReportLibrary>();
 
     public virtual ICollection<Schedule> Schedule { get; set; } = new List<Schedule>();
 
     public virtual ICollection<SeedAssignments> SeedAssignments { get; set; } = new List<SeedAssignments>();
 
+    public virtual ICollection<Series> SeriesCreatorUser { get; set; } = new List<Series>();
+
+    public virtual ICollection<Series> SeriesLebUser { get; set; } = new List<Series>();
+
     public virtual ICollection<Sports> Sports { get; set; } = new List<Sports>();
+
+    public virtual ICollection<Stats> StatsLebUser { get; set; } = new List<Stats>();
+
+    public virtual ICollection<Stats> StatsRecordedByUser { get; set; } = new List<Stats>();
 
     public virtual ICollection<StoreCartBatchAccounting> StoreCartBatchAccounting { get; set; } = new List<StoreCartBatchAccounting>();
 
