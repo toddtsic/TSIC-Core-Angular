@@ -1605,78 +1605,78 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<Attendance>(entity =>
         {
-            entity.HasKey(e => new { e.EventId, e.RegId }).HasName("PK_Events_Attendance");
+            entity.HasKey(e => new { e.EventId, e.RegId }).HasName("PK_teamevents_Attendance");
 
-            entity.ToTable("Attendance", "Events");
+            entity.ToTable("Attendance", "teamevents");
 
-            entity.HasIndex(e => new { e.RegId, e.EventId }, "IX_Events_Attendance_Reg");
+            entity.HasIndex(e => new { e.RegId, e.EventId }, "IX_teamevents_Attendance_Reg");
 
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_Attendance_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Attendance_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.Note).HasMaxLength(500);
-            entity.Property(e => e.RecordedAt).HasDefaultValueSql("(sysdatetime())", "DF_Events_Attendance_RecordedAt");
+            entity.Property(e => e.RecordedAt).HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Attendance_RecordedAt");
             entity.Property(e => e.RecordedByUserId).HasMaxLength(450);
 
             entity.HasOne(d => d.Event).WithMany(p => p.Attendance)
                 .HasForeignKey(d => d.EventId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Attendance_Event");
+                .HasConstraintName("FK_teamevents_Attendance_Event");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.AttendanceLebUser)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_Attendance_leb");
+                .HasConstraintName("FK_teamevents_Attendance_leb");
 
             entity.HasOne(d => d.RecordedByUser).WithMany(p => p.AttendanceRecordedByUser)
                 .HasForeignKey(d => d.RecordedByUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Attendance_RecordedBy");
+                .HasConstraintName("FK_teamevents_Attendance_RecordedBy");
 
             entity.HasOne(d => d.Reg).WithMany(p => p.Attendance)
                 .HasForeignKey(d => d.RegId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Attendance_Reg");
+                .HasConstraintName("FK_teamevents_Attendance_Reg");
         });
 
         modelBuilder.Entity<Availability>(entity =>
         {
-            entity.HasKey(e => new { e.EventId, e.RegId }).HasName("PK_Events_Availability");
+            entity.HasKey(e => new { e.EventId, e.RegId }).HasName("PK_teamevents_Availability");
 
-            entity.ToTable("Availability", "Events");
+            entity.ToTable("Availability", "teamevents");
 
-            entity.HasIndex(e => new { e.RegId, e.EventId }, "IX_Events_Availability_Reg");
+            entity.HasIndex(e => new { e.RegId, e.EventId }, "IX_teamevents_Availability_Reg");
 
-            entity.Property(e => e.AnsweredAt).HasDefaultValueSql("(sysdatetime())", "DF_Events_Availability_AnsweredAt");
+            entity.Property(e => e.AnsweredAt).HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Availability_AnsweredAt");
             entity.Property(e => e.AnsweredByUserId).HasMaxLength(450);
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_Availability_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Availability_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.Note).HasMaxLength(500);
 
             entity.HasOne(d => d.AnsweredByUser).WithMany(p => p.AvailabilityAnsweredByUser)
                 .HasForeignKey(d => d.AnsweredByUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Availability_AnsweredBy");
+                .HasConstraintName("FK_teamevents_Availability_AnsweredBy");
 
             entity.HasOne(d => d.Event).WithMany(p => p.Availability)
                 .HasForeignKey(d => d.EventId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Availability_Event");
+                .HasConstraintName("FK_teamevents_Availability_Event");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.AvailabilityLebUser)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_Availability_leb");
+                .HasConstraintName("FK_teamevents_Availability_leb");
 
             entity.HasOne(d => d.Reg).WithMany(p => p.Availability)
                 .HasForeignKey(d => d.RegId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Availability_Reg");
+                .HasConstraintName("FK_teamevents_Availability_Reg");
         });
 
         modelBuilder.Entity<BillingTypes>(entity =>
@@ -1868,9 +1868,9 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<CalendarSync>(entity =>
         {
-            entity.HasKey(e => e.TeamId).HasName("PK_Events_CalendarSync");
+            entity.HasKey(e => e.TeamId).HasName("PK_teamevents_CalendarSync");
 
-            entity.ToTable("CalendarSync", "Events");
+            entity.ToTable("CalendarSync", "teamevents");
 
             entity.Property(e => e.TeamId).ValueGeneratedNever();
             entity.Property(e => e.CalendarId).HasMaxLength(320);
@@ -1882,18 +1882,18 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_CalendarSync_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_CalendarSync_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.SyncToken).HasMaxLength(1000);
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.CalendarSync)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_CalendarSync_leb");
+                .HasConstraintName("FK_teamevents_CalendarSync_leb");
 
             entity.HasOne(d => d.Team).WithOne(p => p.CalendarSync)
                 .HasForeignKey<CalendarSync>(d => d.TeamId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_CalendarSync_Team");
+                .HasConstraintName("FK_teamevents_CalendarSync_Team");
         });
 
         modelBuilder.Entity<CellphonecarrierDomains>(entity =>
@@ -2543,49 +2543,49 @@ public partial class SqlDbContext : DbContext
         modelBuilder.Entity<Duties>(entity =>
         {
             entity.HasKey(e => e.DutyId)
-                .HasName("PK_Events_Duties")
+                .HasName("PK_teamevents_Duties")
                 .IsClustered(false);
 
-            entity.ToTable("Duties", "Events");
+            entity.ToTable("Duties", "teamevents");
 
-            entity.HasIndex(e => new { e.EventId, e.SortOrder, e.DutyId }, "UX_Events_Duties_Event")
+            entity.HasIndex(e => new { e.EventId, e.SortOrder, e.DutyId }, "UX_teamevents_Duties_Event")
                 .IsUnique()
                 .IsClustered();
 
-            entity.Property(e => e.DutyId).HasDefaultValueSql("(newid())", "DF_Events_Duties_DutyId");
+            entity.Property(e => e.DutyId).HasDefaultValueSql("(newid())", "DF_teamevents_Duties_DutyId");
             entity.Property(e => e.AssignedByUserId).HasMaxLength(450);
-            entity.Property(e => e.Created).HasDefaultValueSql("(sysdatetime())", "DF_Events_Duties_Created");
+            entity.Property(e => e.Created).HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Duties_Created");
             entity.Property(e => e.CreatorUserId).HasMaxLength(450);
             entity.Property(e => e.Label).HasMaxLength(200);
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_Duties_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Duties_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.Notes).HasMaxLength(500);
 
             entity.HasOne(d => d.AssignedByUser).WithMany(p => p.DutiesAssignedByUser)
                 .HasForeignKey(d => d.AssignedByUserId)
-                .HasConstraintName("FK_Events_Duties_AssignedBy");
+                .HasConstraintName("FK_teamevents_Duties_AssignedBy");
 
             entity.HasOne(d => d.AssignedReg).WithMany(p => p.Duties)
                 .HasForeignKey(d => d.AssignedRegId)
-                .HasConstraintName("FK_Events_Duties_AssignedReg");
+                .HasConstraintName("FK_teamevents_Duties_AssignedReg");
 
             entity.HasOne(d => d.CreatorUser).WithMany(p => p.DutiesCreatorUser)
                 .HasForeignKey(d => d.CreatorUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Duties_Creator");
+                .HasConstraintName("FK_teamevents_Duties_Creator");
 
             entity.HasOne(d => d.Event).WithMany(p => p.Duties)
                 .HasForeignKey(d => d.EventId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Duties_Event");
+                .HasConstraintName("FK_teamevents_Duties_Event");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.DutiesLebUser)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_Duties_leb");
+                .HasConstraintName("FK_teamevents_Duties_leb");
         });
 
         modelBuilder.Entity<EmailFailures>(entity =>
@@ -2670,38 +2670,38 @@ public partial class SqlDbContext : DbContext
         modelBuilder.Entity<EventRevisions>(entity =>
         {
             entity.HasKey(e => e.RevisionId)
-                .HasName("PK_Events_EventRevisions")
+                .HasName("PK_teamevents_EventRevisions")
                 .IsClustered(false);
 
-            entity.ToTable("EventRevisions", "Events");
+            entity.ToTable("EventRevisions", "teamevents");
 
-            entity.HasIndex(e => new { e.EventId, e.Revision }, "UX_Events_Revisions_Event_Revision")
+            entity.HasIndex(e => new { e.EventId, e.Revision }, "UX_teamevents_Revisions_Event_Revision")
                 .IsUnique()
                 .IsClustered();
 
-            entity.Property(e => e.RevisionId).HasDefaultValueSql("(newid())", "DF_Events_Revisions_Id");
-            entity.Property(e => e.ChangedAt).HasDefaultValueSql("(sysdatetime())", "DF_Events_Revisions_ChangedAt");
+            entity.Property(e => e.RevisionId).HasDefaultValueSql("(newid())", "DF_teamevents_Revisions_Id");
+            entity.Property(e => e.ChangedAt).HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Revisions_ChangedAt");
             entity.Property(e => e.ChangedByUserId).HasMaxLength(450);
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_Revisions_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Revisions_modified")
                 .HasColumnName("modified");
 
             entity.HasOne(d => d.ChangedByUser).WithMany(p => p.EventRevisionsChangedByUser)
                 .HasForeignKey(d => d.ChangedByUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Revisions_ChangedBy");
+                .HasConstraintName("FK_teamevents_Revisions_ChangedBy");
 
             entity.HasOne(d => d.Event).WithMany(p => p.EventRevisions)
                 .HasForeignKey(d => d.EventId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Revisions_Event");
+                .HasConstraintName("FK_teamevents_Revisions_Event");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.EventRevisionsLebUser)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_Revisions_leb");
+                .HasConstraintName("FK_teamevents_Revisions_leb");
         });
 
         modelBuilder.Entity<EventScheduleDefaults>(entity =>
@@ -2735,30 +2735,30 @@ public partial class SqlDbContext : DbContext
         modelBuilder.Entity<Events>(entity =>
         {
             entity.HasKey(e => e.EventId)
-                .HasName("PK_Events_Events")
+                .HasName("PK_teamevents_Events")
                 .IsClustered(false);
 
-            entity.ToTable("Events", "Events");
+            entity.ToTable("Events", "teamevents");
 
-            entity.HasIndex(e => new { e.SeriesId, e.StartsAt }, "IX_Events_Events_Series").HasFilter("([SeriesId] IS NOT NULL)");
+            entity.HasIndex(e => new { e.SeriesId, e.StartsAt }, "IX_teamevents_Events_Series").HasFilter("([SeriesId] IS NOT NULL)");
 
-            entity.HasIndex(e => new { e.TeamId, e.ExternalEventId }, "UX_Events_Events_Team_External")
+            entity.HasIndex(e => new { e.TeamId, e.ExternalEventId }, "UX_teamevents_Events_Team_External")
                 .IsUnique()
                 .HasFilter("([ExternalEventId] IS NOT NULL)");
 
-            entity.HasIndex(e => new { e.TeamId, e.StartsAt, e.EventId }, "UX_Events_Events_Team_Start")
+            entity.HasIndex(e => new { e.TeamId, e.StartsAt, e.EventId }, "UX_teamevents_Events_Team_Start")
                 .IsUnique()
                 .IsClustered();
 
-            entity.Property(e => e.EventId).HasDefaultValueSql("(newid())", "DF_Events_Events_EventId");
+            entity.Property(e => e.EventId).HasDefaultValueSql("(newid())", "DF_teamevents_Events_EventId");
             entity.Property(e => e.ArriveAt).HasPrecision(0);
-            entity.Property(e => e.AvailabilityEnabled).HasDefaultValue(true, "DF_Events_Events_AvailEnabled");
+            entity.Property(e => e.AvailabilityEnabled).HasDefaultValue(true, "DF_teamevents_Events_AvailEnabled");
             entity.Property(e => e.CancelReason).HasMaxLength(500);
             entity.Property(e => e.CancelledByUserId).HasMaxLength(450);
-            entity.Property(e => e.Created).HasDefaultValueSql("(sysdatetime())", "DF_Events_Events_Created");
+            entity.Property(e => e.Created).HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Events_Created");
             entity.Property(e => e.CreatorUserId).HasMaxLength(450);
             entity.Property(e => e.EndsAt).HasPrecision(0);
-            entity.Property(e => e.EventType).HasDefaultValue((byte)3, "DF_Events_Events_EventType");
+            entity.Property(e => e.EventType).HasDefaultValue((byte)3, "DF_teamevents_Events_EventType");
             entity.Property(e => e.ExternalCalendarId).HasMaxLength(320);
             entity.Property(e => e.ExternalUpdated).HasPrecision(0);
             entity.Property(e => e.Latitude).HasColumnType("decimal(9, 6)");
@@ -2769,7 +2769,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.LocationUrl).HasMaxLength(2000);
             entity.Property(e => e.Longitude).HasColumnType("decimal(9, 6)");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_Events_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Events_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.Opponent).HasMaxLength(200);
             entity.Property(e => e.ResultNote).HasMaxLength(200);
@@ -2780,29 +2780,29 @@ public partial class SqlDbContext : DbContext
 
             entity.HasOne(d => d.CancelledByUser).WithMany(p => p.EventsCancelledByUser)
                 .HasForeignKey(d => d.CancelledByUserId)
-                .HasConstraintName("FK_Events_Events_CancelledBy");
+                .HasConstraintName("FK_teamevents_Events_CancelledBy");
 
             entity.HasOne(d => d.CreatorUser).WithMany(p => p.EventsCreatorUser)
                 .HasForeignKey(d => d.CreatorUserId)
-                .HasConstraintName("FK_Events_Events_Creator");
+                .HasConstraintName("FK_teamevents_Events_Creator");
 
             entity.HasOne(d => d.Job).WithMany(p => p.Events)
                 .HasForeignKey(d => d.JobId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Events_Job");
+                .HasConstraintName("FK_teamevents_Events_Job");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.EventsLebUser)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_Events_leb");
+                .HasConstraintName("FK_teamevents_Events_leb");
 
             entity.HasOne(d => d.Series).WithMany(p => p.Events)
                 .HasForeignKey(d => d.SeriesId)
-                .HasConstraintName("FK_Events_Events_Series");
+                .HasConstraintName("FK_teamevents_Events_Series");
 
             entity.HasOne(d => d.Team).WithMany(p => p.Events)
                 .HasForeignKey(d => d.TeamId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Events_Team");
+                .HasConstraintName("FK_teamevents_Events_Team");
         });
 
         modelBuilder.Entity<Families>(entity =>
@@ -4603,26 +4603,26 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<JobFeatures>(entity =>
         {
-            entity.HasKey(e => e.JobId).HasName("PK_Events_JobFeatures");
+            entity.HasKey(e => e.JobId).HasName("PK_teamevents_JobFeatures");
 
-            entity.ToTable("JobFeatures", "Events");
+            entity.ToTable("JobFeatures", "teamevents");
 
             entity.Property(e => e.JobId).ValueGeneratedNever();
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_JobFeatures_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_JobFeatures_modified")
                 .HasColumnName("modified");
 
             entity.HasOne(d => d.Job).WithOne(p => p.JobFeatures)
                 .HasForeignKey<JobFeatures>(d => d.JobId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_JobFeatures_Job");
+                .HasConstraintName("FK_teamevents_JobFeatures_Job");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.JobFeatures)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_JobFeatures_leb");
+                .HasConstraintName("FK_teamevents_JobFeatures_leb");
         });
 
         modelBuilder.Entity<JobFees>(entity =>
@@ -5476,31 +5476,31 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<Lineups>(entity =>
         {
-            entity.HasKey(e => new { e.EventId, e.RegId }).HasName("PK_Events_Lineups");
+            entity.HasKey(e => new { e.EventId, e.RegId }).HasName("PK_teamevents_Lineups");
 
-            entity.ToTable("Lineups", "Events");
+            entity.ToTable("Lineups", "teamevents");
 
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_Lineups_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Lineups_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.Position).HasMaxLength(50);
 
             entity.HasOne(d => d.Event).WithMany(p => p.Lineups)
                 .HasForeignKey(d => d.EventId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Lineups_Event");
+                .HasConstraintName("FK_teamevents_Lineups_Event");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.Lineups)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_Lineups_leb");
+                .HasConstraintName("FK_teamevents_Lineups_leb");
 
             entity.HasOne(d => d.Reg).WithMany(p => p.Lineups)
                 .HasForeignKey(d => d.RegId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Lineups_Reg");
+                .HasConstraintName("FK_teamevents_Lineups_Reg");
         });
 
         modelBuilder.Entity<Masterpairingtable>(entity =>
@@ -5519,36 +5519,36 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<MemberTeamPrefs>(entity =>
         {
-            entity.HasKey(e => new { e.RegId, e.TeamId }).HasName("PK_Events_MemberTeamPrefs");
+            entity.HasKey(e => new { e.RegId, e.TeamId }).HasName("PK_teamevents_MemberTeamPrefs");
 
-            entity.ToTable("MemberTeamPrefs", "Events");
+            entity.ToTable("MemberTeamPrefs", "teamevents");
 
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_MTP_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_MTP_modified")
                 .HasColumnName("modified");
-            entity.Property(e => e.NotifyAvailabilityReminder).HasDefaultValue(true, "DF_Events_MTP_Reminder");
-            entity.Property(e => e.NotifyEventCancelled).HasDefaultValue(true, "DF_Events_MTP_Cancelled");
-            entity.Property(e => e.NotifyEventChanged).HasDefaultValue(true, "DF_Events_MTP_Changed");
-            entity.Property(e => e.NotifyEventCreated).HasDefaultValue(true, "DF_Events_MTP_Created");
+            entity.Property(e => e.NotifyAvailabilityReminder).HasDefaultValue(true, "DF_teamevents_MTP_Reminder");
+            entity.Property(e => e.NotifyEventCancelled).HasDefaultValue(true, "DF_teamevents_MTP_Cancelled");
+            entity.Property(e => e.NotifyEventChanged).HasDefaultValue(true, "DF_teamevents_MTP_Changed");
+            entity.Property(e => e.NotifyEventCreated).HasDefaultValue(true, "DF_teamevents_MTP_Created");
             entity.Property(e => e.QuietEndLocal).HasPrecision(0);
             entity.Property(e => e.QuietStartLocal).HasPrecision(0);
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.MemberTeamPrefs)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_MTP_leb");
+                .HasConstraintName("FK_teamevents_MTP_leb");
 
             entity.HasOne(d => d.Reg).WithMany(p => p.MemberTeamPrefs)
                 .HasForeignKey(d => d.RegId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_MTP_Reg");
+                .HasConstraintName("FK_teamevents_MTP_Reg");
 
             entity.HasOne(d => d.Team).WithMany(p => p.MemberTeamPrefs)
                 .HasForeignKey(d => d.TeamId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_MTP_Team");
+                .HasConstraintName("FK_teamevents_MTP_Team");
         });
 
         modelBuilder.Entity<MemberTeamState>(entity =>
@@ -6817,31 +6817,31 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<Reminders>(entity =>
         {
-            entity.HasKey(e => new { e.EventId, e.RegId, e.Kind, e.LeadMinutes }).HasName("PK_Events_Reminders");
+            entity.HasKey(e => new { e.EventId, e.RegId, e.Kind, e.LeadMinutes }).HasName("PK_teamevents_Reminders");
 
-            entity.ToTable("Reminders", "Events");
+            entity.ToTable("Reminders", "teamevents");
 
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_Reminders_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Reminders_modified")
                 .HasColumnName("modified");
-            entity.Property(e => e.SentAt).HasDefaultValueSql("(sysdatetime())", "DF_Events_Reminders_SentAt");
+            entity.Property(e => e.SentAt).HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Reminders_SentAt");
 
             entity.HasOne(d => d.Event).WithMany(p => p.Reminders)
                 .HasForeignKey(d => d.EventId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Reminders_Event");
+                .HasConstraintName("FK_teamevents_Reminders_Event");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.Reminders)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_Reminders_leb");
+                .HasConstraintName("FK_teamevents_Reminders_leb");
 
             entity.HasOne(d => d.Reg).WithMany(p => p.Reminders)
                 .HasForeignKey(d => d.RegId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Reminders_Reg");
+                .HasConstraintName("FK_teamevents_Reminders_Reg");
         });
 
         modelBuilder.Entity<ReportExportTypes>(entity =>
@@ -7112,44 +7112,44 @@ public partial class SqlDbContext : DbContext
         modelBuilder.Entity<Series>(entity =>
         {
             entity.HasKey(e => e.SeriesId)
-                .HasName("PK_Events_Series")
+                .HasName("PK_teamevents_Series")
                 .IsClustered(false);
 
-            entity.ToTable("Series", "Events");
+            entity.ToTable("Series", "teamevents");
 
-            entity.HasIndex(e => new { e.TeamId, e.SeriesId }, "UX_Events_Series_Team")
+            entity.HasIndex(e => new { e.TeamId, e.SeriesId }, "UX_teamevents_Series_Team")
                 .IsUnique()
                 .IsClustered();
 
-            entity.Property(e => e.SeriesId).HasDefaultValueSql("(newid())", "DF_Events_Series_SeriesId");
-            entity.Property(e => e.Created).HasDefaultValueSql("(sysdatetime())", "DF_Events_Series_Created");
+            entity.Property(e => e.SeriesId).HasDefaultValueSql("(newid())", "DF_teamevents_Series_SeriesId");
+            entity.Property(e => e.Created).HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Series_Created");
             entity.Property(e => e.CreatorUserId).HasMaxLength(450);
             entity.Property(e => e.ExternalSeriesId).HasMaxLength(450);
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_Series_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Series_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.RecurrenceRule).HasMaxLength(500);
 
             entity.HasOne(d => d.CreatorUser).WithMany(p => p.SeriesCreatorUser)
                 .HasForeignKey(d => d.CreatorUserId)
-                .HasConstraintName("FK_Events_Series_Creator");
+                .HasConstraintName("FK_teamevents_Series_Creator");
 
             entity.HasOne(d => d.Job).WithMany(p => p.Series)
                 .HasForeignKey(d => d.JobId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Series_Job");
+                .HasConstraintName("FK_teamevents_Series_Job");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.SeriesLebUser)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_Series_leb");
+                .HasConstraintName("FK_teamevents_Series_leb");
 
             entity.HasOne(d => d.Team).WithMany(p => p.Series)
                 .HasForeignKey(d => d.TeamId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Series_Team");
+                .HasConstraintName("FK_teamevents_Series_Team");
         });
 
         modelBuilder.Entity<Settlement>(entity =>
@@ -7327,9 +7327,9 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<Stats>(entity =>
         {
-            entity.HasKey(e => new { e.EventId, e.RegId, e.StatKey }).HasName("PK_Events_Stats");
+            entity.HasKey(e => new { e.EventId, e.RegId, e.StatKey }).HasName("PK_teamevents_Stats");
 
-            entity.ToTable("Stats", "Events");
+            entity.ToTable("Stats", "teamevents");
 
             entity.Property(e => e.StatKey)
                 .HasMaxLength(50)
@@ -7338,7 +7338,7 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(sysdatetime())", "DF_Events_Stats_modified")
+                .HasDefaultValueSql("(sysdatetime())", "DF_teamevents_Stats_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.RecordedByUserId).HasMaxLength(450);
             entity.Property(e => e.Value).HasColumnType("decimal(12, 3)");
@@ -7346,21 +7346,21 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.Event).WithMany(p => p.Stats)
                 .HasForeignKey(d => d.EventId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Stats_Event");
+                .HasConstraintName("FK_teamevents_Stats_Event");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.StatsLebUser)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Events_Stats_leb");
+                .HasConstraintName("FK_teamevents_Stats_leb");
 
             entity.HasOne(d => d.RecordedByUser).WithMany(p => p.StatsRecordedByUser)
                 .HasForeignKey(d => d.RecordedByUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Stats_RecordedBy");
+                .HasConstraintName("FK_teamevents_Stats_RecordedBy");
 
             entity.HasOne(d => d.Reg).WithMany(p => p.Stats)
                 .HasForeignKey(d => d.RegId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Events_Stats_Reg");
+                .HasConstraintName("FK_teamevents_Stats_Reg");
         });
 
         modelBuilder.Entity<StoreCart>(entity =>
