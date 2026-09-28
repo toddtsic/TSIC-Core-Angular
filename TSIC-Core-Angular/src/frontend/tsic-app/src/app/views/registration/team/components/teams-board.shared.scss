@@ -4,6 +4,8 @@
    panels start level whatever each header's text runs to. */
 .board {
   display: grid;
+  /* 50/50. 45/55 was tried (2026-09-27) and cut the library title to "Club Team Libra"; with the
+     pencil and trash inline in the team cell, Registered Teams no longer needs the width. */
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
     "lib-head reg-head"
@@ -32,7 +34,7 @@
 /* A faint wash of each side's color over the surface: mixed from theme variables, so it
    follows every palette and dark mode, and the two sides read apart at a glance. */
 .panel--lib { border-top: 3px solid var(--bs-primary); background: color-mix(in srgb, var(--bs-primary) 4%, var(--brand-surface)); }
-.panel--reg { border-top: 3px solid var(--bs-success); background: color-mix(in srgb, var(--bs-success) 5%, var(--brand-surface)); }
+.panel--reg { border-top: 3px solid var(--bs-success); } /* no wash (Ann 2026-09-27): plain surface */
 
 /* ── Header above each panel ── */
 .board-head {
@@ -122,22 +124,67 @@
 
 .row-main { display: flex; align-items: center; gap: var(--space-2); }
 
-.reg-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-
-  &.is-open { background: color-mix(in srgb, var(--bs-success) 10%, transparent); }
+/* Registered Teams: one line per team, in columns (Ann 2026-09-27). The body owns the tracks and
+   every row is a subgrid of them, so a column is as wide as its widest cell and lines up top to
+   bottom — # | age group | team (pencil, name, trash) | LOP. No money per row
+   (Ann/Todd 2026-09-27) — the Payment step's grid carries it. A long team name wraps in its cell. */
+.panel-body.reg-grid {
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
+  align-content: start;
 }
 
-.reg-editor-host { flex: 1; min-width: 0; }
+.reg-row, .reg-cols {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  column-gap: var(--space-2);
+}
+
+.reg-row {
+  &.is-open { background: color-mix(in srgb, var(--bs-success) 10%, transparent); }
+  &.row-placeholder { display: block; }
+}
+
+/* Column labels, pinned while the list scrolls; the panel's own wash behind them. */
+.reg-cols {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--brand-surface);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-text-muted);
+  white-space: nowrap;
+}
+
+.reg-ag { display: flex; }
+.reg-num, .col-num { text-align: right; }
+.reg-num {
+  font-size: var(--font-size-2xs);
+  color: var(--brand-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+/* Team name styled exactly as the library's (.row-name above, Todd 2026-09-27); it only wraps here. */
+.reg-row .row-name { white-space: normal; overflow-wrap: break-word; }
+/* Level of play: its own column again (Ann 2026-09-27), centered under LOP. */
+.reg-lop, .col-lop { text-align: center; }
+.reg-lop { font-size: var(--font-size-2xs); color: var(--brand-text); font-variant-numeric: tabular-nums; }
+/* Pencil just before the name it edits; LOP badge, then trash (when shown), just after it. */
+.reg-team { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.reg-row .btn-icon { width: 22px; }
+/* Rows and labels a notch narrower at the edges — the width goes to the team name. */
+.reg-row:not(.row-placeholder), .reg-cols { padding-inline: var(--space-2); }
+
+.reg-editor-host { grid-column: 1 / -1; min-width: 0; }
 
 .row-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 
-/* Registered row, line 2: facts wrap on the left, actions pinned flush right. */
-.row-line2 { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.row-line2 .row-meta { flex: 1; min-width: 0; }
-.row-actions { display: flex; align-items: center; gap: var(--space-1); flex-shrink: 0; margin-left: auto; }
 
 .row-name-line { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
 /* The name gives way first; the age group never truncates. */
@@ -182,21 +229,6 @@
 .meta-pair { display: inline-flex; align-items: baseline; gap: var(--space-1); }
 .meta-key { text-transform: uppercase; letter-spacing: 0.06em; font-weight: var(--font-weight-semibold); opacity: 0.7; }
 
-.fee {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  font-size: var(--font-size-xs);
-  color: var(--brand-text);
-  font-variant-numeric: tabular-nums;
-
-  .bi { color: var(--brand-text-muted); }
-}
-.fee--depositDue .bi, .fee--balanceDue .bi { color: var(--bs-warning); }
-.fee--paid .bi, .fee--depositPaid .bi { color: var(--bs-success); }
-.fee--scheduled .bi { color: var(--bs-info); }
-.fee--free .bi, .fee--waitlist .bi { color: var(--brand-text-muted); }
-
 /* Fold icons repeat the mark of what they stand for: Registered → the right panel's clipboard,
    Available → the library's list, Archived → the row's Archive action. */
 .fold-icon { font-size: var(--font-size-xs); }
@@ -219,12 +251,6 @@
 .stat-key { text-transform: uppercase; letter-spacing: 0.06em; font-weight: var(--font-weight-semibold); }
 .stat-val { font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); color: var(--brand-text); }
 /* Owed: a warning pill — shape and weight as well as color, never color alone. */
-.stat.is-owed .stat-val {
-  padding: 0 var(--space-2);
-  border: 1px solid var(--bs-warning);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--bs-warning) 18%, var(--brand-surface));
-}
 .ev-name { color: color-mix(in srgb, var(--bs-success) 65%, var(--brand-text)); font-weight: var(--font-weight-bold); }
 
 /* ── Buttons ── */
@@ -328,26 +354,6 @@
   &.is-locked { opacity: 0.4; cursor: help; }
 }
 
-.btn-undo {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  flex-shrink: 0;
-  padding: 2px var(--space-2);
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--radius-sm);
-  background: var(--brand-surface);
-  color: var(--brand-text);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-semibold);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  cursor: pointer;
-
-  &:hover:not(:disabled) { border-color: var(--bs-danger); color: var(--bs-danger); }
-  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-  &:disabled { opacity: 0.45; cursor: default; }
-}
 
 /* ── The register editor on a library row ── */
 .reg-editor {

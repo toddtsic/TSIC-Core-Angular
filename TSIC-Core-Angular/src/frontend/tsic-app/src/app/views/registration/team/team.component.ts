@@ -56,7 +56,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [detailsBadgeLabel]="detailsBadge()"
       [detailsBadgeClass]="detailsBadgeClass()"
       (back)="back()"
-      (continue)="next()"
+      (continue)="onShellContinue()"
       (goToStep)="goToStep($event)">
       @switch (currentStepId()) {
         @case ('login') {
@@ -232,7 +232,9 @@ export class TeamWizardV2Component implements OnInit {
     readonly canContinue = computed(() => {
         switch (this.currentStepId()) {
             case 'login': return this.hasWizardSession();
-            case 'teams': return true; // validation in proceedToPayment()
+            // Enabled once a team is registered (the old Continue card only appeared then) and no board
+            // action is mid-flight; the step's onContinue() runs the unregistered-library-team check.
+            case 'teams': return !this.transitioning() && (this.teamsStep()?.enteredTeams().length ?? 0) > 0;
             case 'waivers': return this.state.waiverAccepted();
             case 'payment': {
                 if (this.state.teamPayment.hasBalance()) return false;
@@ -256,9 +258,8 @@ export class TeamWizardV2Component implements OnInit {
 
     readonly showContinue = computed(() => {
         const id = this.currentStepId();
-        // Teams step manages its own internal navigation (micro-steps + proceedToPayment output).
-        // Showing the outer shell button during teams causes a confusing duplicate "Proceed to Payment".
-        if (id === 'teams') return false;
+        // Teams: shown (Todd 2026-09-27), routed through the step's own onContinue() — see
+        // onShellContinue — the ONE Continue on Teams (the step's green card is hidden on the board).
         // Login: only show wizard Continue when the user has a full session (returning rep).
         // First-time / anonymous visitors use the in-step sign-in form's own CTA.
         if (id === 'login') return this.hasWizardSession();
@@ -369,6 +370,14 @@ export class TeamWizardV2Component implements OnInit {
         if (idx > 0) {
             this._currentStepId.set(active[idx - 1].id);
         }
+    }
+
+    /** The action bar's Continue. On Teams it runs the step's own Continue (the unregistered-library-team
+     *  guard included), never a bare next() that would skip it. */
+    onShellContinue(): void {
+        const step = this.currentStepId() === 'teams' ? this.teamsStep() : undefined;
+        if (step) { step.onContinue(); return; }
+        this.next();
     }
 
     next(): void {

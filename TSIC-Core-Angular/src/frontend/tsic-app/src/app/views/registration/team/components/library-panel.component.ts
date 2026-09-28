@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, output, signal } from '@angular/core';
-import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { LOP_CHOICES, formatLop, normalizeLop } from '@shared/teams/lop-choices';
 import { clubTeamArchiveLockReason, clubTeamEditLockReason, clubTeamRemoval, type ClubTeamRemoval } from '@shared/teams/club-team-locks';
 import { ToastService } from '@shared-ui/toast.service';
-import { resolveRecommendedAgeGroupId, type SlotPricing } from './event-age-group.util';
+import { resolveRecommendedAgeGroupId } from './event-age-group.util';
 import { ageGroupLabel, type LibraryRegisterRequest } from './library-segment.types';
-import { ageGroupWaitlists, byGradYearThenName, pricingOfAgeGroup } from './library-register-plan';
+import { ageGroupWaitlists, byGradYearThenName } from './library-register-plan';
 import { contrastText } from '../../../scheduling/shared/utils/scheduling-helpers';
 import { LibraryTeamInlineEditorComponent } from './library-team-inline-editor.component';
 
@@ -35,7 +35,7 @@ interface LibRow {
 @Component({
     selector: 'app-library-panel',
     standalone: true,
-    imports: [CurrencyPipe, NgTemplateOutlet, LibraryTeamInlineEditorComponent],
+    imports: [NgTemplateOutlet, LibraryTeamInlineEditorComponent],
     template: `
       <!-- Headers sit ABOVE their panels, in one grid row, so both are always the same height and
            the panels start level (Todd 2026-09-27). -->
@@ -171,14 +171,9 @@ interface LibRow {
                   <span class="reg-note">
                     @if (!pick.ag) {
                       <i class="bi bi-exclamation-circle" aria-hidden="true"></i> Pick the age group this team plays in.
-                    } @else {
-                      @let price = pricingOf(pick.ag);
-                      @switch (price.kind) {
-                        @case ('waitlist') { Full &middot; joins the waitlist. No fees while on waitlist. }
-                        @case ('free') { No fee. }
-                        @case ('deposit') { {{ $any(price).total | currency }} &middot; {{ $any(price).now | currency }} due now (deposit). }
-                        @case ('full') { {{ $any(price).total | currency }}. }
-                      }
+                    } @else if (pickWaitlists(pick.ag)) {
+                      <!-- No money on this side (Todd 2026-09-27) — the Payment step carries it. -->
+                      Full &middot; joins the waitlist.
                     }
                   </span>
                   <div class="reg-actions">
@@ -225,7 +220,7 @@ interface LibRow {
         </div>
       </section>
 
-    <!-- "{name} registered in [age group]" (Todd 2026-09-27) — the same words as Registered Teams. -->
+    <!-- "{name} registered in [age group]" (Todd 2026-09-27) — points across to the Registered Teams side. -->
     <ng-template #regNameLine let-row>
       @let r = row.registered;
       <span class="row-name-line">
@@ -369,18 +364,11 @@ export class LibraryPanelComponent {
     agBg(color: string | null | undefined): string { return color || 'var(--bs-secondary-bg)'; }
     agText(color: string | null | undefined): string { return contrastText(color); }
 
+    /** The age group's name, no money (Todd 2026-09-27) — the Payment step carries it. A full
+     *  group still says it waitlists: that is capacity, not money, and it decides the button. */
     readonly ageGroupOptions = computed(() => this.ageGroups().map(ag => {
         const label = ageGroupLabel(ag);
-        const price = pricingOfAgeGroup(ag);
-        const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        const text = ageGroupWaitlists(ag)
-            ? `${label} waitlist · no fees while on waitlist`
-            : price.kind === 'free' ? `${label} · no fee`
-            // Two figures ONLY in the deposit stage of a deposit + balance group (Todd 2026-09-26).
-            : price.kind === 'deposit' ? `${label} · ${money(price.total)} · ${money(price.now)} due now`
-            : price.kind === 'full' ? `${label} · ${money(price.total)}`
-            : label;
-        return { id: ag.ageGroupId, text };
+        return { id: ag.ageGroupId, text: ageGroupWaitlists(ag) ? `${label} · waitlist` : label };
     }));
 
     isPending(clubTeamId: number): boolean { return this.pendingLibraryOnly().has(clubTeamId); }
@@ -442,12 +430,6 @@ export class LibraryPanelComponent {
     pickWaitlists(ageGroupId: string): boolean {
         const ag = this.ageGroups().find(a => a.ageGroupId === ageGroupId);
         return !!ag && ageGroupWaitlists(ag);
-    }
-
-    pricingOf(ageGroupId: string): SlotPricing {
-        const ag = this.ageGroups().find(a => a.ageGroupId === ageGroupId);
-        if (!ag) return { kind: 'free' };
-        return ageGroupWaitlists(ag) ? { kind: 'waitlist' } : pricingOfAgeGroup(ag);
     }
 
     confirm(team: ClubTeamDto, pick: RegPick): void {

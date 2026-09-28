@@ -4,7 +4,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { EMPTY, catchError, concatMap, defer, from, interval, map, of } from 'rxjs';
 import { RegisteredTeamsGridComponent, sumDueNowOf } from '../components/registered-teams-grid.component';
-import { sumCardFeeDueNowOf, sumFeeDueNowOf } from '../components/board-money';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -267,8 +266,10 @@ type TeamsSegment = 'library' | 'registered';
         }
 
         <!-- Continue lives OUTSIDE the segments: either view can move on. Full weight only when
-             money is due now; with nothing due it is the quiet way to finish. -->
-        @if (enteredTeams().length > 0) {
+             money is due now; with nothing due it is the quiet way to finish.
+             Board: no card (Todd 2026-09-27) — the wizard bar's blue Proceed to Payment is the one
+             Continue, and runs onContinue(); the footer shows only for its unregistered-team check. -->
+        @if (enteredTeams().length > 0 && (layout() !== 'board' || confirmingContinue())) {
           <div class="step-card-footer">
             @if (confirmingContinue()) {
               <!-- The P0 guard the fly-in's Done used to carry: a team saved to the library this
@@ -338,7 +339,6 @@ type TeamsSegment = 'library' | 'registered';
                   <span class="continue-sub">
                     @if (continueDue() > 0) {
                       {{ continueDue() | currency }} due now
-                      @if (continueCardFee() > 0) { &middot; card processing fee added at payment }
                     } @else { Nothing due now &middot; review and finish }
                   </span>
                 </span>
@@ -1047,15 +1047,9 @@ export class TeamTeamsStepComponent implements OnInit {
     /** What the rep owes today — the grid footer's own rule (sumDueNowOf), never a second copy. */
     readonly dueNow = computed(() => sumDueNowOf(this._registeredTeams()));
 
-    /**
-     * The Continue card's figure. On the board it is the sum of the rows — the TEAM FEE, the number
-     * the register editor quoted (Todd 2026-09-27); the card fee is named, not added. The retired
-     * segments view keeps the grid's own rule, since its grid shows per-method Owed columns.
-     */
-    readonly continueDue = computed(() =>
-        this.layout() === 'board' ? sumFeeDueNowOf(this._registeredTeams()) : this.dueNow());
-    readonly continueCardFee = computed(() =>
-        this.layout() === 'board' ? sumCardFeeDueNowOf(this._registeredTeams()) : 0);
+    /** The Continue card's figure = dueNow: owedTotal, so it carries the card processing fee
+     *  whenever the event adds one (Todd 2026-09-27) — the number the Payment step opens on. */
+    readonly continueDue = computed(() => this.dueNow());
 
     /** The Club Team Library tab's second line. */
     readonly librarySegmentSub = computed(() => {

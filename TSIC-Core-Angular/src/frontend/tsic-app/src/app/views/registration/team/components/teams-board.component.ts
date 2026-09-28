@@ -1,10 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { formatLop } from '@shared/teams/lop-choices';
 import { ToastService } from '@shared-ui/toast.service';
 import { type LibraryRegisterRequest } from './library-segment.types';
-import { boardFeeStatusOf, sumFeeDueNowOf, sumPaidOf, type BoardFeeStatus } from './board-money';
 import { contrastText } from '../../../scheduling/shared/utils/scheduling-helpers';
 import { LibraryPanelComponent } from './library-panel.component';
 import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-editor.component';
@@ -16,7 +14,7 @@ import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-ed
  *   LEFT  — Club Team Library: the shared LibraryPanelComponent (the library page shows the same
  *           one). Every write on this side is to the LIBRARY (future events). Register → opens a
  *           small editor on the row (level + age group, preselected); confirming moves the team across.
- *   RIGHT — {event} Registered Teams: what this event holds and what each team owes. The pencil
+ *   RIGHT — {event} Registered Teams: what this event holds (no money — the Payment step carries it). The pencil
  *           edits THIS EVENT's record; Undo / remove take a team back off.
  *
  * A team is on exactly one side, so "which list am I editing?" answers itself. One open row editor
@@ -25,7 +23,7 @@ import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-ed
 @Component({
     selector: 'app-teams-board',
     standalone: true,
-    imports: [CurrencyPipe, DatePipe, LibraryPanelComponent, RegisteredTeamInlineEditorComponent],
+    imports: [LibraryPanelComponent, RegisteredTeamInlineEditorComponent],
     template: `
     <div class="board">
 
@@ -54,29 +52,29 @@ import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-ed
           <h3 class="board-title" id="board-reg-title" [attr.title]="'Registered for ' + eventName()">
             <i class="bi bi-clipboard-check-fill" aria-hidden="true"></i>Registered Teams
           </h3>
-          <!-- A stat strip (Todd 2026-09-27): Teams · Paid · Due now, read at a glance. No phase chip —
-               "Final Balance Due" names a later stage and read as owed-now. -->
+          <!-- The team count only (Todd 2026-09-27): no money on this side — Paid and Due now went
+               with the row money; the Continue card and the Payment step carry it. -->
           @if (registeredRows().length === 0) {
             <span class="board-sub">None yet for this event</span>
           } @else {
             <span class="board-sub board-stats">
               <span class="stat"><span class="stat-key">Teams</span><span class="stat-val">{{ registeredRows().length }}</span></span>
-              <!-- Money RECEIVED, honestly: what left the club's account, card fees included — the
-                   treasurer's number. Rows show the fee; this says "paid", not "fees". -->
-              <span class="stat"><span class="stat-key">Paid</span><span class="stat-val">{{ paidTotal() | currency }}</span></span>
-              <!-- The SAME sum as the Continue card (fee only). Always shown — $0.00 is an answer. -->
-              <span class="stat" [class.is-owed]="dueNow() > 0">
-                <span class="stat-key">Due now</span><span class="stat-val">{{ dueNow() | currency }}</span>
-              </span>
             </span>
           }
         </div>
       </header>
 
       <section class="panel panel--reg" aria-labelledby="board-reg-title">
-        <div class="panel-body" [class.is-short]="registeredRows().length <= 3">
-          @for (t of registeredRows(); track t.teamId) {
-            @let s = feeStatus(t);
+        <!-- One line per team, in columns (Ann 2026-09-27 — scans like prod's grid): the rows share
+             the body's tracks (subgrid), so the badges and names line up down the list. No money per row
+             (Ann/Todd 2026-09-27) — the Payment step's grid carries it. -->
+        <div class="panel-body reg-grid" [class.is-short]="registeredRows().length <= 3">
+          @if (registeredRows().length > 0) {
+            <div class="reg-cols" aria-hidden="true">
+              <span class="col-num">#</span><span title="Age group">AG</span><span>Team</span><span class="col-lop">LOP</span>
+            </div>
+          }
+          @for (t of registeredRows(); track t.teamId; let i = $index) {
             @let undoMin = undoMinutesLeft(t.teamId);
             @let removable = canRemove() && t.paidTotal === 0;
             <div class="reg-row" [class.is-open]="renameId() === t.teamId">
@@ -91,39 +89,16 @@ import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-ed
                   (saved)="onRenameSaved($event)"
                   (cancelled)="renameId.set(null)" />
               } @else {
-              <div class="row-text">
-                <!-- Name and registered age group on ONE line (Todd 2026-09-27) — a team's name is not
-                     its placement, so they are never read apart. Same words as the library side. -->
-                <span class="row-name-line">
-                  <span class="row-name" [attr.title]="t.teamName">{{ t.teamName }}</span>
-                  <!-- The age group as a badge in ITS color (Todd 2026-09-27) — the same chip the director's
-                       screens use. A WAITLIST age group is an age group like any other: its own name, its
-                       own color, no special casing. -->
-                  <span class="reg-in">registered in
-                    <span class="ag-badge" [style.background]="agBg(t.ageGroupColor)" [style.color]="agText(t.ageGroupColor)">{{ t.ageGroupName }}</span>
-                  </span>
+                <!-- The age group first, as a badge in ITS color (Todd 2026-09-27) — down the left edge the
+                     colors read as a column. A WAITLIST age group is an age group like any other: its own
+                     name, its own color, no special casing. No "registered in" — this whole side is. -->
+                <span class="reg-num">{{ i + 1 }}</span>
+                <span class="reg-ag">
+                  <span class="ag-badge" [style.background]="agBg(t.ageGroupColor)" [style.color]="agText(t.ageGroupColor)">{{ t.ageGroupName }}</span>
                 </span>
-                <!-- Line 2: facts left, actions flush right (Todd 2026-09-27) — line 1 keeps the whole
-                     width for the name and its age group, so it doesn't wrap. -->
-                <span class="row-line2">
-                <span class="row-meta">
-                  <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(t.levelOfPlay) || '—' }}</span>
-                <span class="fee" [class]="'fee fee--' + s.kind">
-                  @switch (s.kind) {
-                    @case ('waitlist') { <i class="bi bi-dash-circle" aria-hidden="true"></i>No fees while on waitlist }
-                    @case ('scheduled') {
-                      <i class="bi bi-calendar-event" aria-hidden="true"></i>Auto-pay {{ $any(s).owed | currency }}
-                      @if ($any(s).nextChargeDate) { &middot; {{ $any(s).nextChargeDate | date:'mediumDate' }} }
-                    }
-                    @case ('free') { <i class="bi bi-dash-circle" aria-hidden="true"></i>No fee }
-                    @case ('depositDue') { <i class="bi bi-cash-stack" aria-hidden="true"></i>{{ $any(s).owed | currency }} deposit due now &middot; {{ $any(s).later | currency }} balance later }
-                    @case ('depositPaid') { <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Deposit paid &middot; {{ $any(s).later | currency }} balance later }
-                    @case ('balanceDue') { <i class="bi bi-cash-stack" aria-hidden="true"></i>{{ $any(s).owed | currency }} {{ $any(s).depositPaid ? 'balance ' : '' }}due now }
-                    @case ('paid') { <i class="bi bi-check-circle-fill" aria-hidden="true"></i>Paid in full }
-                  }
-                </span>
-                </span>
-                <span class="row-actions">
+                <!-- The team cell carries its own actions (Todd 2026-09-27): pencil just before the name it
+                     edits, trash (when it applies) just after — never side by side. LOP is its own column. -->
+                <span class="reg-team">
                   <button type="button" class="btn-icon" [class.is-locked]="!!renameLockReason()"
                           [disabled]="actionInProgress()"
                           [attr.aria-disabled]="!!renameLockReason()"
@@ -132,25 +107,26 @@ import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-ed
                           (click)="renameLockReason() ? explainLock(renameLockReason()!) : startRename(t)">
                     <i class="bi bi-pencil" aria-hidden="true"></i>
                   </button>
-              @if (!removable && undoMin > 0) {
-                <button type="button" class="btn-undo" [disabled]="actionInProgress()"
-                        [attr.aria-label]="'Undo registering ' + t.teamName + ', ' + undoMin + ' minutes left'"
-                        [attr.title]="'Undo registering ' + t.teamName + ' — ' + undoMin + (undoMin === 1 ? ' minute' : ' minutes') + ' left'"
-                        (click)="remove.emit(t)">
-                  <!-- No countdown on the face (Todd 2026-09-27): the minutes are in the hover text. -->
-                  <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Undo
-                </button>
-              } @else if (removable) {
-                <button type="button" class="btn-icon btn-icon--danger" [disabled]="actionInProgress()"
-                        [attr.aria-label]="'Remove ' + t.teamName + ' from ' + eventName()"
-                        [attr.title]="'Remove ' + t.teamName + ' from ' + eventName()"
-                        (click)="remove.emit(t)">
-                  <i class="bi bi-trash" aria-hidden="true"></i>
-                </button>
-              }
+                  <span class="row-name" [attr.title]="t.teamName">{{ t.teamName }}</span>
+                  @if (!removable && undoMin > 0) {
+                    <!-- The mistake-undo is a trash can too (Todd 2026-09-27) — a worded button broke the
+                         one-line row. Same action and same words as remove; no countdown anywhere. -->
+                    <button type="button" class="btn-icon btn-icon--danger" [disabled]="actionInProgress()"
+                            [attr.aria-label]="'Remove ' + t.teamName + ' from ' + eventName()"
+                            [attr.title]="'Remove ' + t.teamName + ' from ' + eventName()"
+                            (click)="remove.emit(t)">
+                      <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                  } @else if (removable) {
+                    <button type="button" class="btn-icon btn-icon--danger" [disabled]="actionInProgress()"
+                            [attr.aria-label]="'Remove ' + t.teamName + ' from ' + eventName()"
+                            [attr.title]="'Remove ' + t.teamName + ' from ' + eventName()"
+                            (click)="remove.emit(t)">
+                      <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                  }
                 </span>
-                </span>
-              </div>
+                <span class="reg-lop"><span class="visually-hidden">Level of play </span>{{ formatLop(t.levelOfPlay) || '—' }}</span>
               }
             </div>
           } @empty {
@@ -222,10 +198,6 @@ export class TeamsBoardComponent {
     agBg(color: string | null | undefined): string { return color || 'var(--bs-secondary-bg)'; }
     agText(color: string | null | undefined): string { return contrastText(color); }
 
-    readonly paidTotal = computed(() => sumPaidOf(this.registeredTeams()));
-    readonly dueNow = computed(() => sumFeeDueNowOf(this.registeredTeams()));
-
-    feeStatus(t: RegisteredTeamDto): BoardFeeStatus { return boardFeeStatusOf(t); }
 
     undoMinutesLeft(teamId: string): number {
         const deadline = this.undoDeadlines().get(teamId);
