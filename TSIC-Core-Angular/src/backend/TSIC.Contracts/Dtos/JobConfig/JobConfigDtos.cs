@@ -483,6 +483,27 @@ public record JobConfigMobileStoreDto
     public string? StorePickupDetails { get; init; }
     public decimal? StoreSalesTax { get; init; }
     public decimal? StoreTsicrate { get; init; }
+
+    // SuperUser-only — Team Events switches (teamevents.JobFeatures, not Jobs).
+    // Null for non-super callers; all-false when the job has no row.
+    public JobFeaturesDto? Features { get; init; }
+}
+
+/// <summary>
+/// Per-job Team Events feature switches. Lives in <c>teamevents.JobFeatures</c> (one row per
+/// job); a job with no row has every feature off.
+/// </summary>
+public record JobFeaturesDto
+{
+    /// <summary>Maps JobFeatures.ScheduleEnabled — named "Team" to keep it apart from tournament scheduling.</summary>
+    public required bool TeamScheduleEnabled { get; init; }
+    public required bool AvailabilityEnabled { get; init; }
+    public required bool AttendanceEnabled { get; init; }
+    public required bool RemindersEnabled { get; init; }
+    public required bool DutiesEnabled { get; init; }
+    public required bool LineupsEnabled { get; init; }
+    public required bool StatsEnabled { get; init; }
+    public required bool CalendarSyncEnabled { get; init; }
 }
 
 public record UpdateJobConfigMobileStoreRequest
@@ -505,6 +526,7 @@ public record UpdateJobConfigMobileStoreRequest
     public string? StorePickupDetails { get; init; }
     public decimal? StoreSalesTax { get; init; }
     public decimal? StoreTsicrate { get; init; }
+    public JobFeaturesDto? Features { get; init; }
 }
 
 // ════════════════════════════════════════════════════════════════

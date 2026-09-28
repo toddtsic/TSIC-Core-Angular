@@ -21,6 +21,7 @@ namespace TSIC.API.Services.Admin;
 public class JobConfigService : IJobConfigService
 {
     private readonly IJobConfigRepository _repo;
+    private readonly IJobFeaturesRepository _featuresRepo;
     private readonly IJobRepository _jobRepo;
     private readonly ITeamRegistrationService _teamRegService;
     private readonly IPlayerRegistrationService _playerRegService;
@@ -31,6 +32,7 @@ public class JobConfigService : IJobConfigService
 
     public JobConfigService(
         IJobConfigRepository repo,
+        IJobFeaturesRepository featuresRepo,
         IJobRepository jobRepo,
         ITeamRegistrationService teamRegService,
         IPlayerRegistrationService playerRegService,
@@ -40,6 +42,7 @@ public class JobConfigService : IJobConfigService
         ILogger<JobConfigService> logger)
     {
         _repo = repo;
+        _featuresRepo = featuresRepo;
         _jobRepo = jobRepo;
         _teamRegService = teamRegService;
         _playerRegService = playerRegService;
@@ -105,6 +108,7 @@ public class JobConfigService : IJobConfigService
         var gameClock = await _repo.GetGameClockParamsAsync(jobId, ct);
         var adminCharges = isSuperUser ? await _repo.GetAdminChargesAsync(jobId, ct) : null;
         var displayOptions = await _repo.GetDisplayOptionsByJobIdAsync(jobId, ct);
+        var features = isSuperUser ? await _featuresRepo.GetByJobIdAsync(jobId, ct) : null;
 
         return new JobConfigFullDto
         {
@@ -116,7 +120,7 @@ public class JobConfigService : IJobConfigService
             Teams = MapTeams(job, isSuperUser),
             Coaches = MapCoaches(job),
             Scheduling = MapScheduling(job, gameClock, isSuperUser),
-            MobileStore = MapMobileStore(job, isSuperUser),
+            MobileStore = MapMobileStore(job, features, isSuperUser),
         };
     }
 
@@ -518,7 +522,7 @@ public class JobConfigService : IJobConfigService
         }
     }
 
-    public async Task UpdateMobileStoreAsync(Guid jobId, UpdateJobConfigMobileStoreRequest req, bool isSuperUser, CancellationToken ct = default)
+    public async Task UpdateMobileStoreAsync(Guid jobId, UpdateJobConfigMobileStoreRequest req, bool isSuperUser, string? userId, CancellationToken ct = default)
     {
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
@@ -543,10 +547,56 @@ public class JobConfigService : IJobConfigService
             job.StorePickupDetails = req.StorePickupDetails;
             if (req.StoreSalesTax.HasValue) job.StoreSalesTax = req.StoreSalesTax.Value;
             job.StoreTsicrate = req.StoreTsicrate;
+
+            if (req.Features is not null)
+                await ApplyJobFeaturesAsync(jobId, req.Features, userId, ct);
         }
 
         job.Modified = DateTime.Now;
+        // One SaveChanges commits Jobs and JobFeatures together — both repos share the scoped DbContext.
         await _repo.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Upserts teamevents.JobFeatures. A missing row already means "all off", so a row is only
+    /// inserted when some feature is switched on; an existing row is updated (and re-stamped)
+    /// only when a value actually changed.
+    /// </summary>
+    private async Task ApplyJobFeaturesAsync(Guid jobId, JobFeaturesDto req, string? userId, CancellationToken ct)
+    {
+        var row = await _featuresRepo.GetTrackedAsync(jobId, ct);
+        if (row is null)
+        {
+            var anyOn = req.TeamScheduleEnabled || req.AvailabilityEnabled || req.AttendanceEnabled
+                || req.RemindersEnabled || req.DutiesEnabled || req.LineupsEnabled
+                || req.StatsEnabled || req.CalendarSyncEnabled;
+            if (!anyOn) return;
+
+            row = new JobFeatures { JobId = jobId };
+            _featuresRepo.Add(row);
+        }
+        else if (row.ScheduleEnabled == req.TeamScheduleEnabled
+            && row.AvailabilityEnabled == req.AvailabilityEnabled
+            && row.AttendanceEnabled == req.AttendanceEnabled
+            && row.RemindersEnabled == req.RemindersEnabled
+            && row.DutiesEnabled == req.DutiesEnabled
+            && row.LineupsEnabled == req.LineupsEnabled
+            && row.StatsEnabled == req.StatsEnabled
+            && row.CalendarSyncEnabled == req.CalendarSyncEnabled)
+        {
+            return;
+        }
+
+        row.ScheduleEnabled = req.TeamScheduleEnabled;
+        row.AvailabilityEnabled = req.AvailabilityEnabled;
+        row.AttendanceEnabled = req.AttendanceEnabled;
+        row.RemindersEnabled = req.RemindersEnabled;
+        row.DutiesEnabled = req.DutiesEnabled;
+        row.LineupsEnabled = req.LineupsEnabled;
+        row.StatsEnabled = req.StatsEnabled;
+        row.CalendarSyncEnabled = req.CalendarSyncEnabled;
+        row.Modified = DateTime.Now;
+        row.LebUserId = userId;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -913,7 +963,7 @@ public class JobConfigService : IJobConfigService
         },
     };
 
-    private static JobConfigMobileStoreDto MapMobileStore(Jobs job, bool isSuperUser) => new()
+    private static JobConfigMobileStoreDto MapMobileStore(Jobs job, JobFeatures? features, bool isSuperUser) => new()
     {
         BSuspendPublic = job.BSuspendPublic,
         BEnableTsicteams = job.BEnableTsicteams,
@@ -931,5 +981,17 @@ public class JobConfigService : IJobConfigService
         StorePickupDetails = isSuperUser ? job.StorePickupDetails : null,
         StoreSalesTax = isSuperUser ? job.StoreSalesTax : null,
         StoreTsicrate = isSuperUser ? job.StoreTsicrate : null,
+        // No row = every feature off, so a missing row maps to all-false rather than null.
+        Features = !isSuperUser ? null : new JobFeaturesDto
+        {
+            TeamScheduleEnabled = features?.ScheduleEnabled ?? false,
+            AvailabilityEnabled = features?.AvailabilityEnabled ?? false,
+            AttendanceEnabled = features?.AttendanceEnabled ?? false,
+            RemindersEnabled = features?.RemindersEnabled ?? false,
+            DutiesEnabled = features?.DutiesEnabled ?? false,
+            LineupsEnabled = features?.LineupsEnabled ?? false,
+            StatsEnabled = features?.StatsEnabled ?? false,
+            CalendarSyncEnabled = features?.CalendarSyncEnabled ?? false,
+        },
     };
 }

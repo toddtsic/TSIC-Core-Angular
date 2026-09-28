@@ -27,7 +27,7 @@ public interface IJobConfigService
     // Per-job coach-form template swap (SuperUser only — enforced at controller level)
     Task UpdateCoachFormTemplateAsync(Guid jobId, UpdateCoachFormTemplateRequest req, CancellationToken ct = default);
     Task UpdateSchedulingAsync(Guid jobId, UpdateJobConfigSchedulingRequest req, bool isSuperUser, CancellationToken ct = default);
-    Task UpdateMobileStoreAsync(Guid jobId, UpdateJobConfigMobileStoreRequest req, bool isSuperUser, CancellationToken ct = default);
+    Task UpdateMobileStoreAsync(Guid jobId, UpdateJobConfigMobileStoreRequest req, bool isSuperUser, string? userId, CancellationToken ct = default);
     Task UpdateBrandingAsync(Guid jobId, UpdateJobConfigBrandingRequest req, CancellationToken ct = default);
     Task UpdateBrandingImageFieldAsync(Guid jobId, string conventionName, string? fileName, CancellationToken ct = default);
 

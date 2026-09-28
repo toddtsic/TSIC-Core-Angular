@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { JobFeaturesDto } from './JobFeaturesDto';
 export type UpdateJobConfigMobileStoreRequest = {
     bSuspendPublic: boolean | null;
     bEnableTsicteams: boolean | null;
@@ -18,5 +19,6 @@ export type UpdateJobConfigMobileStoreRequest = {
     storePickupDetails?: string | null;
     storeSalesTax?: number | null;
     storeTsicrate?: number | null;
+    features?: (null | JobFeaturesDto);
 };
 

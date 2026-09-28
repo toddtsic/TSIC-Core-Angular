@@ -23,24 +23,6 @@
       <div class="field-check-row">
         <label class="field-check">
           <input type="checkbox"
-            [ngModel]="bEnableTsicteams()"
-            (ngModelChange)="bEnableTsicteams.set($event); onFieldChange()" />
-          <span class="field-label">Enable TSIC Teams</span>
-        </label>
-        <label class="field-check">
-          <input type="checkbox"
-            [ngModel]="bEnableMobileRsvp()"
-            (ngModelChange)="bEnableMobileRsvp.set($event); onFieldChange()" />
-          <span class="field-label">Enable Mobile RSVP</span>
-        </label>
-        <label class="field-check">
-          <input type="checkbox"
-            [ngModel]="bEnableMobileTeamChat()"
-            (ngModelChange)="bEnableMobileTeamChat.set($event); onFieldChange()" />
-          <span class="field-label">Enable Mobile Team Chat</span>
-        </label>
-        <label class="field-check">
-          <input type="checkbox"
             [ngModel]="bAllowMobileLogin()"
             (ngModelChange)="bAllowMobileLogin.set($event); onFieldChange()" />
           <span class="field-label">Allow Mobile Login</span>
@@ -61,6 +43,46 @@
             (ngModelChange)="mobileScoreHoursPastGameEligible.set($event); onFieldChange()" />
         </div>
       </div>
+    </div>
+
+    <!-- Mixed storage, one save: the first row lives on Jobs, the features row on
+         teamevents.JobFeatures. The backend commits both in a single SaveChanges. -->
+    <div class="form-section form-section--super">
+      <h6 class="section-title"><i class="bi bi-shield-lock me-2"></i>Team Events (SuperUser)</h6>
+
+      <div class="field-check-row">
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bEnableTsicteams()"
+            (ngModelChange)="bEnableTsicteams.set($event); onFieldChange()" />
+          <span class="field-label">Enable TSIC Teams</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bEnableMobileRsvp()"
+            (ngModelChange)="bEnableMobileRsvp.set($event); onFieldChange()" />
+          <span class="field-label">Enable Mobile RSVP</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bEnableMobileTeamChat()"
+            (ngModelChange)="bEnableMobileTeamChat.set($event); onFieldChange()" />
+          <span class="field-label">Enable Mobile Team Chat</span>
+        </label>
+      </div>
+
+      @if (features(); as f) {
+        <div class="field-check-row mt-2">
+          @for (feat of teamEventFeatures; track feat.key) {
+            <label class="field-check">
+              <input type="checkbox"
+                [ngModel]="f[feat.key]"
+                (ngModelChange)="setFeature(feat.key, $event)" />
+              <span class="field-label">{{ feat.label }}</span>
+            </label>
+          }
+        </div>
+      }
     </div>
     }
 

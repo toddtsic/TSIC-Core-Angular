@@ -185,6 +185,7 @@ public class PaymentFeeRecalcTests
 
         var configService = new JobConfigService(
             configRepo,
+            new Mock<IJobFeaturesRepository>().Object,
             // Registration-readiness readout only — untouched by the fee-recalc paths under test.
             new Mock<IJobRepository>().Object,
             teamRegService,
@@ -366,6 +367,7 @@ public class PaymentFeeRecalcTests
 
         var configService = new JobConfigService(
             configRepo,
+            new Mock<IJobFeaturesRepository>().Object,
             new Mock<IJobRepository>().Object,
             teamRegService,
             new Mock<IPlayerRegistrationService>().Object,

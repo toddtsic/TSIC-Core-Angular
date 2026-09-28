@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
@@ -224,7 +225,8 @@ public class JobConfigController : ControllerBase
         if (jobId is null)
             return NotFound(new { message = "Job not found for current user." });
 
-        await _configService.UpdateMobileStoreAsync(jobId.Value, request, IsSuperUser, ct);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        await _configService.UpdateMobileStoreAsync(jobId.Value, request, IsSuperUser, userId, ct);
         return NoContent();
     }
 

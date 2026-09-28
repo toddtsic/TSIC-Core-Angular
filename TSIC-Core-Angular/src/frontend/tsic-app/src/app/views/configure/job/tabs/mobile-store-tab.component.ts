@@ -2,7 +2,19 @@ import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnI
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
-import type { UpdateJobConfigMobileStoreRequest } from '@core/api';
+import type { JobFeaturesDto, UpdateJobConfigMobileStoreRequest } from '@core/api';
+
+/** Team Events switches, in display order. Keys are JobFeaturesDto fields (teamevents.JobFeatures). */
+const TEAM_EVENT_FEATURES: ReadonlyArray<{ key: keyof JobFeaturesDto; label: string }> = [
+  { key: 'teamScheduleEnabled', label: 'Team Schedule' },
+  { key: 'availabilityEnabled', label: 'Availability' },
+  { key: 'attendanceEnabled', label: 'Attendance' },
+  { key: 'remindersEnabled', label: 'Reminders' },
+  { key: 'dutiesEnabled', label: 'Duties' },
+  { key: 'lineupsEnabled', label: 'Lineups' },
+  { key: 'statsEnabled', label: 'Stats' },
+  { key: 'calendarSyncEnabled', label: 'Calendar Sync' },
+];
 
 @Component({
   selector: 'app-mobile-store-tab',
@@ -38,6 +50,11 @@ export class MobileStoreTabComponent implements OnInit {
   storeSalesTax = linkedSignal(() => this.svc.mobileStore()?.storeSalesTax);
   storeTsicrate = linkedSignal(() => this.svc.mobileStore()?.storeTsicrate);
 
+  // Team Events switches — a different table (teamevents.JobFeatures) saved with this tab.
+  // Null for non-super callers; the server sends all-false when the job has no row.
+  protected readonly teamEventFeatures = TEAM_EVENT_FEATURES;
+  features = linkedSignal(() => this.svc.mobileStore()?.features ?? null);
+
   /**
    * The TSIC rate restated as a percentage, so the multiplier the field actually stores is
    * never ambiguous. Null when unset or zero — there is nothing to disambiguate then, and a
@@ -71,12 +88,20 @@ export class MobileStoreTabComponent implements OnInit {
       req.storePickupDetails = m.storePickupDetails ?? null;
       req.storeSalesTax = m.storeSalesTax;
       req.storeTsicrate = m.storeTsicrate;
+      req.features = m.features ?? null;
     }
     return JSON.stringify(req);
   });
 
   ngOnInit(): void {
     this.svc.saveHandler.set(() => this.save());
+  }
+
+  setFeature(key: keyof JobFeaturesDto, value: boolean): void {
+    const current = this.features();
+    if (!current) return;
+    this.features.set({ ...current, [key]: value });
+    this.onFieldChange();
   }
 
   onFieldChange(): void {
@@ -112,6 +137,7 @@ export class MobileStoreTabComponent implements OnInit {
       req.storePickupDetails = this.storePickupDetails();
       req.storeSalesTax = this.storeSalesTax();
       req.storeTsicrate = this.storeTsicrate();
+      req.features = this.features();
     }
     return req;
   }

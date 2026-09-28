@@ -186,6 +186,7 @@ builder.Services.AddScoped<IVisibilityRulesEvaluator, VisibilityRulesEvaluator>(
 builder.Services.AddScoped<INavRepository, NavRepository>();
 builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
 builder.Services.AddScoped<IJobConfigRepository, JobConfigRepository>();
+builder.Services.AddScoped<IJobFeaturesRepository, JobFeaturesRepository>();
 // Referee Assignment
 builder.Services.AddScoped<IRefAssignmentRepository, RefAssignmentRepository>();
 // Store
