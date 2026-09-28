@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
 import { FamilyService } from '@infrastructure/services/family.service';
@@ -97,6 +97,17 @@ import { environment } from '@environments/environment';
              [class.bg-body-tertiary]="editingIndex() === null">
           <div class="card-body">
             <form [formGroup]="form" (ngSubmit)="addChild()" class="row g-3">
+              <!-- AR-112: editing a SAVED player — the headshot control belongs here too, not only on
+                   the row. Ann looked for it in this form twice; the row thumbnail was not findable. -->
+              @if (editingUserId(); as uid) {
+                <div class="col-12">
+                  <label class="field-label">Player photo</label>
+                  <div class="edit-photo">
+                    <app-headshot-upload [userId]="uid" />
+                    <div class="tip">Saves as soon as you choose a file — "Save changes" below covers the details only.</div>
+                  </div>
+                </div>
+              }
               <div class="col-12 col-md-3">
                 <label class="field-label" for="v2-childFirst">First name</label>
                 <input id="v2-childFirst" type="text" formControlName="firstName" class="field-input"
@@ -255,6 +266,14 @@ import { environment } from '@environments/environment';
         border-top: 1px solid var(--border-color);
       }
 
+      /* AR-112: the same control inside the edit form. */
+      .edit-photo {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-3);
+      }
+
       .editing-row {
         border-color: var(--bs-primary) !important;
         background: rgba(var(--bs-primary-rgb), 0.04);
@@ -318,12 +337,26 @@ export class ChildrenStepComponent {
         const userId = this.photoOpenFor();
         if (!userId) return;
         this.photoOpenFor.set(null);
-        // Re-read the stored file: clear the 404 mark and bust the cache.
+        this.bumpThumb(userId);
+    }
+
+    /** Re-read the stored file for one player: clear the 404 mark and bust the cache. */
+    private bumpThumb(userId: string): void {
         const missing = new Set(this.thumbMissing());
         missing.delete(userId);
         this.thumbMissing.set(missing);
         this.thumbVersion.set({ ...this.thumbVersion(), [userId]: Date.now() });
     }
+
+    /**
+     * AR-112: userId of the SAVED player currently open in the edit form, or null when adding a new
+     * one (no account yet, so nothing to key the file on) — drives the headshot control in the form.
+     */
+    readonly editingUserId = computed(() => {
+        const i = this.editingIndex();
+        if (i === null) return null;
+        return this.state.children()[i]?.userId ?? null;
+    });
 
     readonly form = this.fb.group({
         firstName: ['', [Validators.required]],
@@ -381,10 +414,12 @@ export class ChildrenStepComponent {
         if (idx !== null) {
             const existing = this.state.children()[idx];
             if (existing?.userId) {
+                const uid = existing.userId;
                 this.saving.set(true);
                 this.familyApi.updateChild(existing.userId, child).subscribe({
                     next: () => {
                         this.state.updateChildAt(idx, { ...child, userId: existing.userId, hasRegistrations: existing.hasRegistrations });
+                        this.bumpThumb(uid);   // AR-112: row avatar re-reads the file the form just saved
                         this.editingIndex.set(null);
                         this.form.reset();
                         this.submitted.set(false);
@@ -425,6 +460,7 @@ export class ChildrenStepComponent {
     }
 
     edit(index: number): void {
+        this.closePhoto();   // AR-112: one photo control at a time — the form carries it while editing
         const c = this.state.children()[index];
         if (!c) return;
         this.form.patchValue({
@@ -440,6 +476,8 @@ export class ChildrenStepComponent {
     }
 
     cancelEdit(): void {
+        const uid = this.editingUserId();
+        if (uid) this.bumpThumb(uid);   // AR-112: the photo saves on pick, so Cancel must not un-show it
         this.editingIndex.set(null);
         this.form.reset();
         this.submitted.set(false);
