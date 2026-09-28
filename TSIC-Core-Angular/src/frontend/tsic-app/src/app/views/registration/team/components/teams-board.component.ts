@@ -20,6 +20,8 @@ import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-ed
  * A team is on exactly one side, so "which list am I editing?" answers itself. One open row editor
  * across both sides. Owns no domain state: the Teams step feeds rows and runs every mutation.
  */
+type BoardSide = 'lib' | 'reg';
+
 @Component({
     selector: 'app-teams-board',
     standalone: true,
@@ -28,7 +30,13 @@ import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-ed
     <div class="board">
 
       <!-- ═══ LEFT: Club Team Library — the shared panel, the same one the library page shows ═══ -->
+      <!-- Spotlight (Todd 2026-09-27): the side under the pointer — or holding keyboard focus, so an
+           open editor keeps its side lit — is lifted; the other softens. Emphasis only: nothing
+           moves or resizes. -->
       <app-library-panel
+        [class.is-lit]="lit() === 'lib'" [class.is-soft]="lit() === 'reg'"
+        (pointerenter)="hover.set('lib')" (pointerleave)="unhover('lib')"
+        (focusin)="focus.set('lib')" (focusout)="unfocus('lib')"
         [clubTeams]="clubTeams()"
         [registeredTeams]="registeredTeams()"
         [ageGroups]="ageGroups()"
@@ -47,7 +55,9 @@ import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-ed
 
       <!-- ═══ RIGHT: this event's Registered Teams ═══ -->
       <!-- The event is named in the page title right above — here the side only has to say what it holds. -->
-      <header class="board-head board-head--reg">
+      <header class="board-head board-head--reg"
+              [class.is-lit]="lit() === 'reg'" [class.is-soft]="lit() === 'lib'"
+              (pointerenter)="hover.set('reg')" (pointerleave)="unhover('reg')">
         <div class="board-head-text">
           <h3 class="board-title" id="board-reg-title" [attr.title]="'Registered for ' + eventName()">
             <i class="bi bi-clipboard-check-fill" aria-hidden="true"></i>Registered Teams
@@ -64,7 +74,10 @@ import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-ed
         </div>
       </header>
 
-      <section class="panel panel--reg" aria-labelledby="board-reg-title">
+      <section class="panel panel--reg" aria-labelledby="board-reg-title"
+               [class.is-lit]="lit() === 'reg'" [class.is-soft]="lit() === 'lib'"
+               (pointerenter)="hover.set('reg')" (pointerleave)="unhover('reg')"
+               (focusin)="focus.set('reg')" (focusout)="unfocus('reg')">
         <!-- One line per team, in columns (Ann 2026-09-27 — scans like prod's grid): the rows share
              the body's tracks (subgrid), so the badges and names line up down the list. No money per row
              (Ann/Todd 2026-09-27) — the Payment step's grid carries it. -->
@@ -186,6 +199,14 @@ export class TeamsBoardComponent {
 
     /** The registered row being edited inline (teamId). */
     readonly renameId = signal<string | null>(null);
+
+    // ── Spotlight: which side is emphasized. The pointer wins while it is over a side; otherwise
+    //    the side holding keyboard focus (an open editor) stays lit. Neither → both at rest. ──
+    readonly hover = signal<BoardSide | null>(null);
+    readonly focus = signal<BoardSide | null>(null);
+    readonly lit = computed(() => this.hover() ?? this.focus());
+    unhover(side: BoardSide): void { if (this.hover() === side) this.hover.set(null); }
+    unfocus(side: BoardSide): void { if (this.focus() === side) this.focus.set(null); }
 
     readonly activeCount = computed(() => this.clubTeams().filter(t => !t.bArchived).length);
     readonly empty = computed(() => this.clubTeams().length === 0);

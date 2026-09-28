@@ -36,6 +36,39 @@
 .panel--lib { border-top: 3px solid var(--bs-primary); background: color-mix(in srgb, var(--bs-primary) 4%, var(--brand-surface)); }
 .panel--reg { border-top: 3px solid var(--bs-success); } /* no wash (Ann 2026-09-27): plain surface */
 
+/* ── Spotlight (Todd 2026-09-27): the side under the pointer, or holding focus, is LIFTED; the
+   other SOFTENS. Emphasis only — no size or position changes, and text keeps full contrast
+   (the soft side mutes chrome, never content). The board sets .is-lit / .is-soft: on the
+   library's host (reached via :host) and on the Registered header + panel directly. The
+   soft state waits a beat, so sweeping across the gutter doesn't flicker. ── */
+.panel--lib, .board-head--lib { --side: var(--bs-primary); }
+.panel--reg, .board-head--reg { --side: var(--bs-success); }
+.panel { transition: box-shadow 150ms ease, border-color 150ms ease, background-color 150ms ease; }
+.board-title, .board-title .bi, .row-name, .reg-cols { transition: color 150ms ease, background-color 150ms ease; }
+
+/* Lifted: a 2px ring in the side's color over a deep shadow — reads at a glance (a lone
+   medium shadow didn't, 2026-09-27). */
+:host(.is-lit) .panel--lib, .panel--reg.is-lit {
+  border-color: var(--side);
+  box-shadow: 0 0 0 1px var(--side), var(--shadow-lg);
+}
+:host(.is-lit) .board-head--lib .board-title,
+.board-head--reg.is-lit .board-title { color: color-mix(in srgb, var(--side) 45%, var(--brand-text)); }
+
+/* Softened: a faint grey ground and muted names (the muted token is AA) — quieter, still legible. */
+:host(.is-soft) .panel--lib, .panel--reg.is-soft,
+.panel--reg.is-soft .reg-cols {
+  background-color: color-mix(in srgb, var(--bs-body-color) 5%, var(--brand-surface));
+  transition-delay: 80ms;
+}
+:host(.is-soft) .panel--lib, .panel--reg.is-soft {
+  box-shadow: none;
+  border-top-color: color-mix(in srgb, var(--side) 35%, var(--bs-border-color));
+}
+:host(.is-soft) .panel--lib .row-name, .panel--reg.is-soft .row-name,
+:host(.is-soft) .board-head--lib .board-title .bi,
+.board-head--reg.is-soft .board-title .bi { color: var(--brand-text-muted); transition-delay: 80ms; }
+
 /* ── Header above each panel ── */
 .board-head {
   display: flex;
@@ -491,5 +524,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .btn-go { transition: none !important; }
+  .btn-go, .panel, .board-title, .board-title .bi, .row-name, .reg-cols { transition: none !important; }
 }
