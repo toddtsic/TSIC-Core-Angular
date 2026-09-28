@@ -490,6 +490,8 @@ export type { OptionSetUpdateRequest } from './models/OptionSetUpdateRequest';
 export type { PackedRosterColumnDto } from './models/PackedRosterColumnDto';
 export type { PackedRosterFieldDto } from './models/PackedRosterFieldDto';
 export type { PackedRosterRequestDto } from './models/PackedRosterRequestDto';
+export type { PaidRegistrationsByDayDto } from './models/PaidRegistrationsByDayDto';
+export type { PaidRegistrationsDayRowDto } from './models/PaidRegistrationsDayRowDto';
 export type { PairingDto } from './models/PairingDto';
 export type { ParkAllChampionshipRequest } from './models/ParkAllChampionshipRequest';
 export type { ParkedGameInfo } from './models/ParkedGameInfo';

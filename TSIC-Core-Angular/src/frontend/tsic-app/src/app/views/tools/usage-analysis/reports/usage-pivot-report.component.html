@@ -17,7 +17,7 @@
 	<div class="ubr-tiles">
 		@for (tile of tiles(); track tile.label) {
 			<div class="ubr-tile" [class.ubr-tile--primary]="tile.primary">
-				<div class="ubr-tile-value">{{ tile.value.toLocaleString() }}</div>
+				<div class="ubr-tile-value">{{ tile.money ? money(tile.value) : tile.value.toLocaleString() }}</div>
 				<div class="ubr-tile-label">{{ tile.label }}</div>
 			</div>
 		}
@@ -57,55 +57,57 @@
 	<!-- A report's own detail beneath the chart (the route reports' every-route table). -->
 	<ng-content select="[usageAfterChart]" />
 
-	<div class="ubr-table-wrap">
-		<table class="ubr-table">
-			<thead>
-				<tr>
-					<th scope="col">{{ rowHeader() }}</th>
-					@for (col of columns(); track col) {
-						<th scope="col" class="ubr-num">{{ col }}</th>
+	@if (showTable()) {
+		<div class="ubr-table-wrap">
+			<table class="ubr-table">
+				<thead>
+					<tr>
+						<th scope="col">{{ rowHeader() }}</th>
+						@for (col of columns(); track col) {
+							<th scope="col" class="ubr-num">{{ col }}</th>
+						}
+						<th scope="col" class="ubr-num ubr-total">{{ totalHeader() }}</th>
+					</tr>
+				</thead>
+				<tbody>
+					@if (showAllRow()) {
+						@if (allRow(); as all) {
+							<tr class="ubr-row--all" [class.ubr-row--current]="isRollup()">
+								<td class="ubr-event">
+									@if (isRollup()) {
+										<i class="bi bi-caret-right-fill ubr-row-marker" aria-hidden="true"></i>
+									}
+									<button type="button" class="ubr-event-btn" (click)="state.setEvent(null)" title="Chart every live event">{{ all.name }}</button>
+								</td>
+								@for (col of columns(); track col) {
+									<td class="ubr-num">{{ cell(all, col) }}</td>
+								}
+								<td class="ubr-num ubr-total">{{ all.total.toLocaleString() }}</td>
+							</tr>
+						}
 					}
-					<th scope="col" class="ubr-num ubr-total">{{ totalHeader() }}</th>
-				</tr>
-			</thead>
-			<tbody>
-				@if (showAllRow()) {
-					@if (allRow(); as all) {
-						<tr class="ubr-row--all" [class.ubr-row--current]="isRollup()">
+					@for (row of rows(); track row.id) {
+						<tr [class.ubr-row--current]="isHighlighted(row)" [class.ubr-row--nodata]="row.noData">
 							<td class="ubr-event">
-								@if (isRollup()) {
+								@if (isHighlighted(row)) {
 									<i class="bi bi-caret-right-fill ubr-row-marker" aria-hidden="true"></i>
 								}
-								<button type="button" class="ubr-event-btn" (click)="state.setEvent(null)" title="Chart every live event">{{ all.name }}</button>
+								@if (canDrill()) {
+									<button type="button" class="ubr-event-btn" (click)="state.setEvent(row.id)" [title]="'Chart ' + row.name">{{ row.name }}</button>
+								} @else {
+									{{ row.name }}
+								}
 							</td>
 							@for (col of columns(); track col) {
-								<td class="ubr-num">{{ cell(all, col) }}</td>
+								<td class="ubr-num">{{ cell(row, col) }}</td>
 							}
-							<td class="ubr-num ubr-total">{{ all.total.toLocaleString() }}</td>
+							<td class="ubr-num ubr-total">{{ total(row) }}</td>
 						</tr>
 					}
-				}
-				@for (row of rows(); track row.id) {
-					<tr [class.ubr-row--current]="isHighlighted(row)" [class.ubr-row--nodata]="row.noData">
-						<td class="ubr-event">
-							@if (isHighlighted(row)) {
-								<i class="bi bi-caret-right-fill ubr-row-marker" aria-hidden="true"></i>
-							}
-							@if (canDrill()) {
-								<button type="button" class="ubr-event-btn" (click)="state.setEvent(row.id)" [title]="'Chart ' + row.name">{{ row.name }}</button>
-							} @else {
-								{{ row.name }}
-							}
-						</td>
-						@for (col of columns(); track col) {
-							<td class="ubr-num">{{ cell(row, col) }}</td>
-						}
-						<td class="ubr-num ubr-total">{{ total(row) }}</td>
-					</tr>
-				}
-			</tbody>
-		</table>
-	</div>
+				</tbody>
+			</table>
+		</div>
+	}
 
 	<p class="ubr-note">
 		<ng-content />

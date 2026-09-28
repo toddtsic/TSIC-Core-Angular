@@ -1,0 +1,122 @@
+// The day x event x role table beneath the chart. Class prefix prd- = paid registrations by day.
+// Surface and table rules match the pivot layout's (ubr-) and the export log's (tpe-).
+:host {
+	display: block;
+}
+
+.prd {
+	margin-bottom: var(--space-4);
+	background: var(--brand-surface);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-md, 0.375rem);
+}
+
+// A year across every live event is thousands of lines: scroll inside the card, header pinned.
+.prd-wrap {
+	max-height: 36rem;
+	overflow: auto;
+}
+
+.prd-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text);
+
+	th, td {
+		padding: var(--space-2) var(--space-3);
+		border-bottom: 1px solid var(--brand-border);
+		text-align: left;
+		vertical-align: middle;
+		white-space: nowrap;
+	}
+
+	thead {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+	}
+
+	thead th {
+		background: var(--brand-surface);
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--brand-text-muted);
+	}
+}
+
+// A role's name spans its # and $ pair.
+.prd-group {
+	text-align: center !important;
+	border-left: 1px solid var(--brand-border);
+}
+
+.prd-sub {
+	text-transform: none !important;
+}
+
+.prd-num {
+	text-align: right !important;
+	font-variant-numeric: tabular-nums;
+}
+
+// Each role pair starts with a rule, so # and $ read as belonging together.
+.prd-table td.prd-num:not(.prd-money),
+.prd-table th.prd-sub:nth-child(odd) {
+	border-left: 1px solid var(--brand-border);
+}
+
+.prd-total {
+	font-weight: 600;
+}
+
+.prd-event {
+	max-width: 22rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.prd-event-btn {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--bs-primary);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+
+	&:hover {
+		text-decoration: underline;
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-radius: var(--radius-sm);
+	}
+}
+
+// The span's totals lead the table, ruled off.
+.prd-row--all td {
+	font-weight: 600;
+	border-bottom: 2px solid var(--brand-border);
+}
+
+// A day's subtotal above its events: set apart by weight and a surface step, never colour alone.
+.prd-row--day td {
+	font-weight: 600;
+	background: var(--bs-tertiary-bg);
+}
+
+// The charted event: tint plus a marker.
+.prd-row--current td {
+	background: var(--bs-primary-bg-subtle, transparent);
+	font-weight: 600;
+}
+
+.prd-marker {
+	margin-right: var(--space-1);
+	color: var(--bs-primary);
+}

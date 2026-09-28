@@ -884,6 +884,21 @@ public interface IRegistrationRepository
         IReadOnlyList<string> roleIds,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Paid registrations per (day, job, role) CREATED since <paramref name="since"/>, for the
+    /// Paid Registrations by Day report: <c>PaidTotal &gt; 0</c> only, anchored on
+    /// <c>RegistrationTs</c> raw, with their PaidTotal summed. Roles in
+    /// <paramref name="excludedRoleIds"/> are left out.
+    ///
+    /// Aggregated in SQL -- no id list crosses the wire. <paramref name="since"/> MUST be a
+    /// midnight; an index outside the span is the caller's to discard.
+    /// </summary>
+    Task<List<PaidRegistrationsByDayCountDto>> GetPaidRegistrationsByDayAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        IReadOnlyList<string> excludedRoleIds,
+        CancellationToken ct = default);
+
 }
 
 /// <summary>Everything <c>UsLaxEligibilityPolicy</c> needs for ONE registration, joined in a single

@@ -207,6 +207,31 @@ public class UsageAnalysisController : ControllerBase
     }
 
     /// <summary>
+    /// Paid Registrations by Day -- count and money of NEW registrations per day, per event,
+    /// per role, dated by RegistrationTs, paid ones only (PaidTotal &gt; 0), admin roles out.
+    /// Club Rep rides its registration's rollup PaidTotal. TSICV5 only, so no clientId.
+    ///
+    /// The window is whole days ending today: windowDays = 7 is today and the six before it.
+    /// The answer is scope-wide; the event and role lenses only move the page's chart.
+    /// </summary>
+    [HttpGet("paid-registrations-by-day")]
+    public async Task<ActionResult<PaidRegistrationsByDayDto>> GetPaidRegistrationsByDay(
+        [FromQuery] string? scope,
+        [FromQuery] int windowDays = 30,
+        CancellationToken ct = default)
+    {
+        var days = Math.Clamp(windowDays, 1, 365);
+        var since = DateTime.Today.AddDays(-(days - 1));
+
+        // Live as of the START of the span, as on Registrations over Time: an event taking
+        // money at any point in it keeps the days it genuinely took.
+        var (failure, resolution) = await ResolveForReportAsync(scope, null, ct, liveAsOf: since);
+        if (failure is not null) return failure;
+
+        return Ok(await _reports.GetPaidRegistrationsByDayAsync(resolution!, days, since, ct));
+    }
+
+    /// <summary>
     /// Third-Party Roster Exports -- every run of the vendor roster/schedule export against
     /// the scoped live events in the window, per event, with the dated log behind it.
     ///

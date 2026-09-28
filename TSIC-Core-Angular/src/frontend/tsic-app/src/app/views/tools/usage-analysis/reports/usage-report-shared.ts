@@ -29,6 +29,15 @@ export interface UsageTile {
 	readonly value: number;
 	readonly label: string;
 	readonly primary?: boolean;
+	/** True when the value is dollars rather than a count. */
+	readonly money?: boolean;
+}
+
+const MONEY = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+/** Dollars and cents, "$1,234.50". Exact on purpose: this is money, never rounded for looks. */
+export function formatMoney(value: number): string {
+	return MONEY.format(value);
 }
 
 /**

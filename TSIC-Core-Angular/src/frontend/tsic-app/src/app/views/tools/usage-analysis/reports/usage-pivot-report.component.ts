@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { ChartAllModule, type IPointRenderEventArgs, type SeriesModel } from '@syncfusion/ej2-angular-charts';
 
 import { UsageAnalysisStateService } from '../usage-analysis-state.service';
-import type { UsagePivotRow, UsageTile } from './usage-report-shared';
+import { formatMoney, type UsagePivotRow, type UsageTile } from './usage-report-shared';
 
 /**
  * The layout every usage report renders into: headline tiles, one chart driven by the
@@ -57,6 +57,12 @@ export class UsagePivotReportComponent {
 	 * total actually adds: Registrations over Time totals PEOPLE, and its Teams column is not in it.
 	 */
 	readonly totalHeader = input('Total');
+	/**
+	 * False for a report whose table is not one number per cell. Paid Registrations by Day
+	 * pairs a count with dollars per role and nests events under days, so it renders its own
+	 * table in the `usageAfterChart` slot and keeps only the tiles, chart, states and note here.
+	 */
+	readonly showTable = input(true);
 
 	// Chart
 	/** The row the chart draws when rows are events; null when the lens event had no rows. */
@@ -110,6 +116,8 @@ export class UsagePivotReportComponent {
 		const lens = this.state.eventId();
 		return this.rowsAreEvents() && lens !== null && row.id.toLowerCase() === lens.toLowerCase();
 	}
+
+	readonly money = formatMoney;
 
 	cell(row: UsagePivotRow, column: string): string {
 		if (row.noData) return '';

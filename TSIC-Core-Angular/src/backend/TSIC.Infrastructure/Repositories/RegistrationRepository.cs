@@ -4661,4 +4661,45 @@ public partial class RegistrationRepository : IRegistrationRepository
             })
             .ToListAsync(ct);
     }
+
+    public async Task<List<PaidRegistrationsByDayCountDto>> GetPaidRegistrationsByDayAsync(
+        IReadOnlyList<Guid> jobIds,
+        DateTime since,
+        IReadOnlyList<string> excludedRoleIds,
+        CancellationToken ct = default)
+    {
+        if (jobIds.Count == 0)
+            return [];
+
+        // PaidTotal > 0 is the whole test (Todd, 2026-09-28: "only include if payment made").
+        // No bActive filter on top: a payment is the stronger fact, and the only deactivation
+        // path for a player is gated on there being none. A Club Rep's PaidTotal is the rollup
+        // across its teams, and counting it that way is the ruling, not an accident.
+        //
+        // DATEDIFF(day) from a midnight `since` is the whole-day index, as in
+        // GetRegistrationCountsByBucketAsync, so the two registration reports slice days alike.
+        return await (
+            from r in _context.Registrations
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            where jobIds.Contains(r.JobId)
+                  && r.PaidTotal > 0m
+                  && !excludedRoleIds.Contains(r.RoleId!)
+                  && r.RegistrationTs >= since
+            group r by new
+            {
+                Index = EF.Functions.DateDiffDay(since, r.RegistrationTs),
+                r.JobId,
+                RoleName = role.Name,
+            } into g
+            select new PaidRegistrationsByDayCountDto
+            {
+                DayIndex = g.Key.Index,
+                JobId = g.Key.JobId,
+                RoleName = g.Key.RoleName ?? string.Empty,
+                Registrations = g.Count(),
+                Paid = g.Sum(x => x.PaidTotal),
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
 }

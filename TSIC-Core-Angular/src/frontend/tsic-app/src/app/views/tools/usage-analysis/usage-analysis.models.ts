@@ -87,7 +87,7 @@ export const USAGE_REPORT_GROUPS: readonly { readonly group: UsageReportGroup; r
 	{ group: 'registrations', label: 'Registrations (what came in)' },
 ];
 
-export type UsageReportKey = 'report-01' | 'report-02' | 'report-03' | 'report-04' | 'report-05' | 'report-06' | 'report-07';
+export type UsageReportKey = 'report-01' | 'report-02' | 'report-03' | 'report-04' | 'report-05' | 'report-06' | 'report-07' | 'report-08';
 
 export interface UsageReportDef {
 	readonly key: UsageReportKey;
@@ -135,5 +135,8 @@ export const USAGE_REPORTS: readonly UsageReportDef[] = [
 	{ key: 'report-07', label: 'Third-Party Roster Exports', group: 'users', roles: ALL_ADMINS, built: true, timeAxis: 'window', clientLens: false, defaultWindowDays: 365 },
 	{ key: 'report-02', label: 'Public Requests by Route', group: 'public', roles: ALL_ADMINS, built: true, timeAxis: 'window' },
 	{ key: 'report-05', label: 'Registrations over Time', group: 'registrations', roles: ALL_ADMINS, built: true, timeAxis: 'bucket', clientLens: false },
+	// Opens on 30 days: a day-by-day money trend needs a month to read, and 7d is barely a week of points.
+	// The role lens moves only the chart, like the event lens — the answer is always scope-wide.
+	{ key: 'report-08', label: 'Paid Registrations by Day', group: 'registrations', roleLens: true, roles: ALL_ADMINS, built: true, timeAxis: 'window', clientLens: false, defaultWindowDays: 30 },
 	{ key: 'report-06', label: 'Report-06', group: 'users', roles: SUPERUSER, built: false, timeAxis: 'window' },
 ];

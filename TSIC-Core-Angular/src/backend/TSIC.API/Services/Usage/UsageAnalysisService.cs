@@ -77,6 +77,18 @@ public interface IUsageAnalysisService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Paid Registrations by Day: count and PaidTotal of registrations created per (day, event,
+    /// role) over the last <paramref name="windowDays"/> days, today included, paid ones only,
+    /// admin roles excluded. TSICV5 only -- no client lens. <paramref name="scope"/> must have
+    /// been resolved live-as-of <paramref name="since"/>.
+    /// </summary>
+    Task<PaidRegistrationsByDayDto> GetPaidRegistrationsByDayAsync(
+        UsageScopeResolution scope,
+        int windowDays,
+        DateTime since,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Third-Party Roster Exports: runs of the vendor export against the scoped live events
     /// in the window, counted per event, with the dated log behind them. Reads
     /// Jobs.JobReportExportHistory in TSICV5 and never the log, so there is no client lens
@@ -498,6 +510,45 @@ public sealed class UsageAnalysisService : IUsageAnalysisService
             Bucket = UsageBuckets.ToWord(bucket),
             Since = since,
             Buckets = starts,
+            JobCount = scope.Jobs.Count,
+            Rows = rows,
+        };
+    }
+
+    public async Task<PaidRegistrationsByDayDto> GetPaidRegistrationsByDayAsync(
+        UsageScopeResolution scope,
+        int windowDays,
+        DateTime since,
+        CancellationToken ct = default)
+    {
+        var days = Enumerable.Range(0, windowDays).Select(i => since.AddDays(i)).ToList();
+        var jobNames = scope.Jobs.ToDictionary(j => j.JobId, j => j.JobName);
+
+        // Every admin role, via the shared list: provisioning rather than intake, and job
+        // clone rewrites their RegistrationTs. Anything else that carries a payment counts.
+        var counts = await _registrationRepo.GetPaidRegistrationsByDayAsync(
+            scope.GetJobIds(), since, RoleConstants.AdminRoleIds, ct);
+
+        // An index outside the span is dropped -- which also drops a future-dated row, as on
+        // Registrations over Time: there is no day past today for it to sit on.
+        var rows = counts
+            .Where(c => c.DayIndex >= 0 && c.DayIndex < days.Count && jobNames.ContainsKey(c.JobId))
+            .Select(c => new PaidRegistrationsDayRowDto
+            {
+                Day = days[c.DayIndex],
+                JobId = c.JobId,
+                JobName = jobNames[c.JobId],
+                RoleName = c.RoleName,
+                Registrations = c.Registrations,
+                Paid = c.Paid,
+            })
+            .ToList();
+
+        return new PaidRegistrationsByDayDto
+        {
+            WindowDays = windowDays,
+            Since = since,
+            Days = days,
             JobCount = scope.Jobs.Count,
             Rows = rows,
         };

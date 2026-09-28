@@ -1,0 +1,89 @@
+<app-usage-pivot-report
+	[isLoading]="fetch.isLoading()"
+	[error]="fetch.error()"
+	[isEmpty]="isEmpty()"
+	loadingMessage="Adding up paid registrations…"
+	emptyMessage="No paid registrations in this window."
+	[tiles]="tiles()"
+	[columns]="[]"
+	[rows]="[]"
+	[rowsAreEvents]="false"
+	[showTable]="false"
+	[chartTitle]="chartTitle()"
+	[chartSubtitle]="chartSubtitle"
+	[chartSeries]="chartSeries()"
+	[primaryXAxis]="primaryXAxis()"
+	[primaryYAxis]="primaryYAxis()"
+	[axes]="axes()"
+	[legendSettings]="legendSettings"
+	[tooltip]="tooltip"
+	[pointRender]="pointRender"
+	chartHeight="300px"
+	chartEmptyMessage="No paid registrations in the window.">
+
+	<!-- A count and its dollars per role, so the layout's one-number table does not fit: this is the report's own. -->
+	<div usageAfterChart class="prd">
+		<div class="prd-wrap">
+			<table class="prd-table">
+				<thead>
+					<tr>
+						<th scope="col" rowspan="2">Day</th>
+						@if (multiEvent()) {
+							<th scope="col" rowspan="2">Event</th>
+						}
+						@for (role of roles(); track role) {
+							<th scope="colgroup" colspan="2" class="prd-group">{{ role }}</th>
+						}
+						<th scope="colgroup" colspan="2" class="prd-group prd-total">Total</th>
+					</tr>
+					<tr>
+						@for (role of roles(); track role) {
+							<th scope="col" class="prd-num prd-sub">#</th>
+							<th scope="col" class="prd-num prd-sub">$</th>
+						}
+						<th scope="col" class="prd-num prd-sub prd-total">#</th>
+						<th scope="col" class="prd-num prd-sub prd-total">$</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (line of lines(); track line.id) {
+						<tr [class.prd-row--all]="line.kind === 'all'"
+							[class.prd-row--day]="line.kind === 'day' && multiEvent()"
+							[class.prd-row--current]="isCharted(line)">
+							<td class="prd-day">{{ line.day }}</td>
+							@if (multiEvent()) {
+								<td class="prd-event">
+									@if (line.kind === 'event') {
+										@if (isCharted(line)) {
+											<i class="bi bi-caret-right-fill prd-marker" aria-hidden="true"></i>
+										}
+										<button type="button" class="prd-event-btn" (click)="state.setEvent(line.jobId)" [title]="'Chart ' + line.event">{{ line.event }}</button>
+									} @else if (line.kind === 'all') {
+										<button type="button" class="prd-event-btn" (click)="state.setEvent(null)" title="Chart every live event">{{ line.event }}</button>
+									} @else {
+										{{ line.event }}
+									}
+								</td>
+							}
+							@for (role of roles(); track role) {
+								<td class="prd-num">{{ count(line.byRole.get(role)) }}</td>
+								<td class="prd-num prd-money">{{ dollars(line.byRole.get(role)) }}</td>
+							}
+							<td class="prd-num prd-total">{{ count(line.total) }}</td>
+							<td class="prd-num prd-money prd-total">{{ dollars(line.total) }}</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	New registrations per day, dated by when each was created, counted only if something has been
+	paid on it. The dollars are what has been paid on those registrations as of now — not the money
+	that arrived that day: a registration made on the 5th and paid on the 10th sits on the 5th with
+	its payment, so recent days can still grow. A club rep is counted once, on the day the rep
+	registered for the event, carrying the paid total across every team that rep has entered since.
+	Admin registrations are left out — provisioning, not intake. The chart follows the Event and Role
+	dropdowns and draws every day, a day with nothing paid as zero; the table always covers the whole
+	scope and lists only days that took a paid registration.
+</app-usage-pivot-report>
