@@ -10,7 +10,7 @@
 	[rowsAreEvents]="false"
 	[showTable]="false"
 	[chartTitle]="chartTitle()"
-	[chartSubtitle]="chartSubtitle"
+	[chartSubtitle]="chartSubtitle()"
 	[chartSeries]="chartSeries()"
 	[primaryXAxis]="primaryXAxis()"
 	[primaryYAxis]="primaryYAxis()"
@@ -83,7 +83,8 @@
 	that arrived that day: a registration made on the 5th and paid on the 10th sits on the 5th with
 	its payment, so recent days can still grow. A club rep is counted once, on the day the rep
 	registered for the event, carrying the paid total across every team that rep has entered since.
-	Admin registrations are left out — provisioning, not intake. The chart follows the Event and Role
-	dropdowns and draws every day, a day with nothing paid as zero; the table always covers the whole
-	scope and lists only days that took a paid registration.
+	Admin registrations are left out — provisioning, not intake. The chart draws Player and Club Rep,
+	each in its own colour — solid for the count, dashed for the dollars — or the one role picked in the
+	Role dropdown; it follows the Event dropdown and draws every day, a day with nothing paid as zero.
+	The table always covers the whole scope and every role, and lists only days that took a paid registration.
 </app-usage-pivot-report>

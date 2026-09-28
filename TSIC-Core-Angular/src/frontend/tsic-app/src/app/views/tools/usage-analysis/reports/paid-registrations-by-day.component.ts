@@ -18,6 +18,9 @@ import {
 /** The ej2 axis name the dollars line binds to. */
 const PAID_AXIS = 'paid';
 
+/** The roles the chart draws when the Role dropdown is on All. Exact AspNetRoles names. */
+const CHART_ROLES: readonly string[] = ['Player', 'Club Rep'];
+
 /**
  * A count and its money — one cell pair of the table, one point of the chart. Money is held
  * in whole CENTS and added as integers, so a sum of hundreds of payments cannot drift a penny.
@@ -60,9 +63,10 @@ const DAY_LONG = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: '
  *    rep who adds teams later carries that money back to the day the rep first registered.
  *  - Admin roles are out: provisioning, and job clone rewrites their RegistrationTs.
  *
- * The chart is two lines on two scales — count on the left, dollars on the right — so a
- * trend in either reads at a glance; stacked columns hid it. Both axes start at zero so the
- * two shapes stay comparable. The chart follows the Event and Role dropdowns; the table is
+ * The chart is lines on two scales — count on the left, dollars on the right — so a trend in
+ * either reads at a glance; stacked columns hid it. One pair per role, Player and Club Rep
+ * (Todd, 2026-09-28): colour is the role, solid/dashed is the measure. Both axes start at
+ * zero so the shapes stay comparable. The chart follows the Event and Role dropdowns; the table is
  * always the whole scope, one event per line under each day, the charted event highlighted.
  * Neither lens refetches: the answer is scope-wide and both are applied here.
  */
@@ -98,75 +102,110 @@ export class PaidRegistrationsByDayComponent {
 
 	// ── Chart and tiles: the lens slice ─────────────────────────
 
-	/** The rows the chart and tiles are drawn from: the Event and Role dropdowns applied. */
-	private readonly lensRows = computed<readonly PaidRegistrationsDayRowDto[]>(() => {
-		const eventId = this.state.eventId()?.toLowerCase() ?? null;
+	/**
+	 * The roles the chart draws, each as its own pair of lines. Player and Club Rep (Todd,
+	 * 2026-09-28) — the two that carry the event's money. Picking a role in the Role dropdown
+	 * charts that role alone, whichever it is.
+	 */
+	readonly chartRoles = computed<readonly string[]>(() => {
 		const role = this.state.roleName();
-		return (this.fetch.data()?.rows ?? []).filter(r =>
-			(eventId === null || r.jobId.toLowerCase() === eventId) && (role === null || r.roleName === role));
+		return role ? [role] : CHART_ROLES;
 	});
 
-	/** Every day in the span, oldest first, quiet days as zero — a day with nothing paid is a real zero, not a gap. */
-	private readonly series = computed<readonly { readonly label: string; readonly tally: Tally }[]>(() => {
+	/** The rows the chart and tiles are drawn from: the Event dropdown applied, charted roles only. */
+	private readonly lensRows = computed<readonly PaidRegistrationsDayRowDto[]>(() => {
+		const eventId = this.state.eventId()?.toLowerCase() ?? null;
+		const roles = new Set(this.chartRoles());
+		return (this.fetch.data()?.rows ?? []).filter(r =>
+			(eventId === null || r.jobId.toLowerCase() === eventId) && roles.has(r.roleName));
+	});
+
+	/**
+	 * Every day in the span, oldest first, with a tally per charted role. Quiet days are zero —
+	 * a day with nothing paid is a real zero, not a gap.
+	 */
+	private readonly series = computed<readonly { readonly label: string; readonly byRole: ReadonlyMap<string, Tally> }[]>(() => {
 		const d = this.fetch.data();
 		if (!d) return [];
-		const byDay = new Map<string, Tally>(d.days.map(day => [day, { registrations: 0, cents: 0 }]));
+		const roles = this.chartRoles();
+		const byDay = new Map<string, Map<string, Tally>>(
+			d.days.map(day => [day, new Map(roles.map(role => [role, { registrations: 0, cents: 0 }]))]));
 		for (const r of this.lensRows()) {
-			const t = byDay.get(r.day);
+			const t = byDay.get(r.day)?.get(r.roleName);
 			if (!t) continue;
 			t.registrations += r.registrations;
 			t.cents += toCents(r.paid);
 		}
-		return d.days.map(day => ({ label: DAY_LABEL.format(new Date(day)), tally: byDay.get(day)! }));
+		return d.days.map(day => ({ label: DAY_LABEL.format(new Date(day)), byRole: byDay.get(day)! }));
 	});
-
-	private readonly lensTotal = computed<Tally>(() =>
-		this.series().reduce((t, p) => ({ registrations: t.registrations + p.tally.registrations, cents: t.cents + p.tally.cents }), { registrations: 0, cents: 0 }));
 
 	private readonly spanWords = computed(() => {
 		const n = this.fetch.data()?.windowDays ?? this.state.windowDays();
 		return n === 1 ? 'today' : `last ${n} days`;
 	});
 
-	/** Tiles follow the chart: whatever the two dropdowns point at, over the whole span. */
+	/** Tiles follow the chart: a count and its dollars per charted role, over the whole span. */
 	readonly tiles = computed<readonly UsageTile[]>(() => {
-		const t = this.lensTotal();
-		const who = this.state.roleName() ? `${this.state.roleName()} registrations` : 'Paid registrations';
-		return [
-			{ value: t.registrations, label: `${who} · ${this.spanWords()}`, primary: true },
-			{ value: t.cents / 100, label: 'Paid on them, as of now', money: true },
-		];
+		const series = this.series();
+		const span = this.spanWords();
+		return this.chartRoles().flatMap((role, i) => {
+			const t = series.reduce(
+				(acc, p) => {
+					const x = p.byRole.get(role);
+					return x ? { registrations: acc.registrations + x.registrations, cents: acc.cents + x.cents } : acc;
+				},
+				{ registrations: 0, cents: 0 });
+			return [
+				{ value: t.registrations, label: `${plural(role)} paid · ${span}`, primary: i === 0 },
+				{ value: t.cents / 100, label: `Paid on ${plural(role)}, as of now`, money: true },
+			] satisfies UsageTile[];
+		});
 	});
 
 	readonly chartTitle = computed(() => {
-		const role = this.state.roleName();
-		const suffix = role ? ` · ${role}` : '';
-		if (this.state.eventId()) return this.state.eventLabel() + suffix;
+		if (this.state.eventId()) return this.state.eventLabel();
 		const n = this.fetch.data()?.jobCount ?? 0;
-		if (n === 1) return (this.state.jobNames()[0] ?? 'This event') + suffix;
-		return `All ${n} events live during the span${suffix}`;
+		if (n === 1) return this.state.jobNames()[0] ?? 'This event';
+		return `All ${n} events live during the span`;
 	});
 
-	readonly chartSubtitle = 'registrations per day on the left, dollars paid on them on the right — hollow point: today, still filling';
+	readonly chartSubtitle = computed(() =>
+		`${this.chartRoles().join(' and ')} per day — solid: registrations (left axis), dashed: dollars paid on them (right axis) — hollow point: today, still filling`);
 
-	private readonly countColor = computed(() => this.palette[0]);
-	private readonly paidColor = computed(() => this.palette[2]);
+	/** A role's colour: its place among the charted roles. Both of its lines wear it; the dash says which measure. */
+	private roleColor(i: number): string {
+		return this.palette[i % this.palette.length];
+	}
 
+	/**
+	 * Two lines per charted role, one colour per role: solid circles for the count on the left
+	 * axis, dashed diamonds for the dollars on the right. Colour answers "which role", line style
+	 * answers "which measure" — so four lines still read as two pairs.
+	 */
 	readonly chartSeries = computed<SeriesModel[]>(() => {
-		const data = this.series().map(p => ({ x: p.label, n: p.tally.registrations, paid: p.tally.cents / 100 }));
+		const roles = this.chartRoles();
+		const data = this.series().map(p => {
+			const point: Record<string, string | number> = { x: p.label };
+			roles.forEach((role, i) => {
+				const t = p.byRole.get(role);
+				point['n' + i] = t?.registrations ?? 0;
+				point['p' + i] = (t?.cents ?? 0) / 100;
+			});
+			return point;
+		});
 		if (data.length === 0) return [];
-		return [
+		return roles.flatMap((role, i) => [
 			{
-				type: 'Line', dataSource: data, xName: 'x', yName: 'n', name: 'Registrations',
-				fill: this.countColor(), width: 2,
+				type: 'Line', dataSource: data, xName: 'x', yName: 'n' + i, name: `${role} #`,
+				fill: this.roleColor(i), width: 2,
 				marker: { visible: true, width: 6, height: 6, shape: 'Circle' },
 			},
 			{
-				type: 'Line', dataSource: data, xName: 'x', yName: 'paid', name: 'Paid',
-				fill: this.paidColor(), width: 2, dashArray: '5,3', yAxisName: PAID_AXIS,
+				type: 'Line', dataSource: data, xName: 'x', yName: 'p' + i, name: `${role} $`,
+				fill: this.roleColor(i), width: 2, dashArray: '5,3', yAxisName: PAID_AXIS,
 				marker: { visible: true, width: 6, height: 6, shape: 'Diamond' },
 			},
-		] satisfies SeriesModel[];
+		] satisfies SeriesModel[]);
 	});
 
 	/** ej2 draws today's markers hollow: today is still filling. */
@@ -178,34 +217,29 @@ export class PaidRegistrationsByDayComponent {
 
 	readonly primaryXAxis = computed(() => categoryAxis(this.theme, { labelIntersectAction: 'Rotate45' }));
 
-	/** Registrations, titled and tinted to its line so neither scale has to be worked out. Starts at zero. */
+	/** Registrations, from zero. Neutral: two roles share it, and the legend carries the colours. */
 	readonly primaryYAxis = computed(() => {
-		const max = Math.max(0, ...this.series().map(p => p.tally.registrations));
-		const color = this.countColor();
+		const max = Math.max(0, ...this.series().flatMap(p => [...p.byRole.values()].map(t => t.registrations)));
 		return {
 			...countAxis(this.theme, max),
-			title: 'Registrations',
-			titleStyle: { color, size: '11px', fontFamily: this.theme.fontFamily },
-			labelStyle: { color, size: '11px', fontFamily: this.theme.fontFamily },
+			title: 'Registrations (solid)',
+			titleStyle: { color: this.theme.muted, size: '11px', fontFamily: this.theme.fontFamily },
 		};
 	});
 
 	/** Dollars, opposed, also from zero. No gridlines of its own — two sets at different intervals read as a moiré. */
-	readonly axes = computed<object[]>(() => {
-		const color = this.paidColor();
-		return [{
-			name: PAID_AXIS,
-			opposedPosition: true,
-			minimum: 0,
-			title: 'Paid',
-			titleStyle: { color, size: '11px', fontFamily: this.theme.fontFamily },
-			labelStyle: { color, size: '11px', fontFamily: this.theme.fontFamily },
-			labelFormat: '$#,##0',
-			majorGridLines: { width: 0 },
-			majorTickLines: { width: 0 },
-			lineStyle: { width: 0 },
-		}];
-	});
+	readonly axes = computed<object[]>(() => [{
+		name: PAID_AXIS,
+		opposedPosition: true,
+		minimum: 0,
+		title: 'Paid (dashed)',
+		titleStyle: { color: this.theme.muted, size: '11px', fontFamily: this.theme.fontFamily },
+		labelStyle: { color: this.theme.muted, size: '11px', fontFamily: this.theme.fontFamily },
+		labelFormat: '$#,##0',
+		majorGridLines: { width: 0 },
+		majorTickLines: { width: 0 },
+		lineStyle: { width: 0 },
+	}]);
 
 	readonly legendSettings = {
 		visible: true,
@@ -288,6 +322,11 @@ function add(into: Map<string, Tally>, r: PaidRegistrationsDayRowDto): void {
 	} else {
 		into.set(r.roleName, { registrations: r.registrations, cents: toCents(r.paid) });
 	}
+}
+
+/** A role name's plural, for a tile label. Role names are singular ("Player", "Club Rep"). */
+function plural(role: string): string {
+	return role.endsWith('s') ? role : `${role}s`;
 }
 
 function sum(byRole: ReadonlyMap<string, Tally>): Tally {
