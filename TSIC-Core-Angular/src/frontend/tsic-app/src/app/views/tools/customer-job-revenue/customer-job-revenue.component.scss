@@ -2,8 +2,47 @@
 	display: block;
 }
 
-.nav-tabs .nav-link {
-	font-size: var(--font-size-sm);
+// ONE row of tabs, however many there are (Todd, 2026-09-29): every tab takes an equal share
+// of the row and a long label wraps inside its own tab, rather than the last tab wrapping onto
+// a second row. Labels stay as they are. Tabs stretch to one height, so a two-line label
+// does not leave its neighbours' bottom borders stepped.
+.nav-tabs {
+	// The one knob: each tab's width. Narrower wraps labels onto more lines; tabs still shrink
+	// below it if the row runs out of room.
+	--cjr-tab-width: 6rem;
+
+	flex-wrap: nowrap;
+
+	.nav-item {
+		display: flex;
+		flex: 0 1 var(--cjr-tab-width);
+		min-width: 0;
+	}
+
+	.nav-link {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		padding: var(--space-2);
+		font-size: var(--font-size-sm);
+		line-height: 1.2;
+		text-align: center;
+		white-space: normal;
+	}
+
+	// Too narrow to share: back to natural widths, and the row scrolls sideways.
+	@media (max-width: 767.98px) {
+		overflow-x: auto;
+
+		.nav-item {
+			flex: 0 0 auto;
+		}
+
+		.nav-link {
+			white-space: nowrap;
+		}
+	}
 }
 
 // Guided scope panel — numbered steps, labeled fields, one visual rhythm for both modes
