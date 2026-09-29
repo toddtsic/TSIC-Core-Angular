@@ -115,9 +115,16 @@
   background: transparent;
   border: 1px solid var(--bs-primary);
 
-  &:hover {
+  &:hover:not(:disabled) {
     color: var(--neutral-0);
     background: var(--bs-primary);
+  }
+
+  /* navLocked: an inline form on the step holds unsaved input — same greyed look as Continue's. */
+  &:disabled {
+    color: var(--neutral-500);
+    border-color: var(--neutral-300);
+    cursor: not-allowed;
   }
 }
 

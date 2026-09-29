@@ -1,0 +1,61 @@
+/* The Teams step's two zone headings (Todd 2026-09-28: announce each part LOUDLY): "Add a Team"
+   and "Your Registered Teams". One look for both, each in its side's color via --zone: the
+   library's primary for Add, the event's success for Registered. Shared by the add row and the
+   board, so the two headings can never drift. */
+.zone-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* A filled disc in the zone's color — the mark that reads first. */
+.zone-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--zone, var(--bs-primary));
+  color: var(--neutral-0);
+  font-size: var(--font-size-lg);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--zone, var(--bs-primary)) 18%, transparent), var(--shadow-sm);
+}
+
+.zone-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.zone-title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  /* The zone's color, darkened toward the text so it holds AA on the tinted grounds in every palette. */
+  color: color-mix(in srgb, var(--zone, var(--bs-primary)) 70%, var(--brand-text));
+}
+
+.zone-sub {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--brand-text-muted);
+}
+
+/* The count, as a pill in the zone's color: "8 teams". */
+.zone-count {
+  flex-shrink: 0;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--zone, var(--bs-primary)) 14%, var(--brand-surface));
+  color: color-mix(in srgb, var(--zone, var(--bs-primary)) 70%, var(--brand-text));
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 575.98px) {
+  .zone-icon { width: 32px; height: 32px; font-size: var(--font-size-base); }
+  .zone-title { font-size: var(--font-size-base); }
+  .zone-sub { font-size: var(--font-size-xs); }
+}

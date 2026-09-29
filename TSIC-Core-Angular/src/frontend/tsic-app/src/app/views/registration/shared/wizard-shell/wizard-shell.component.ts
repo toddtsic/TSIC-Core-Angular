@@ -51,6 +51,9 @@ export class WizardShellComponent {
     readonly busy = input(false);
     /** Message under the large busy overlay spinner (shown while busy). */
     readonly busyMessage = input('Working…');
+    /** Unsaved input on the step: Back / Continue disabled, no overlay (see the action bar). */
+    readonly navLocked = input(false);
+    readonly navLockedReason = input('Finish or cancel what you are editing first.');
     /** Label for the Continue button. */
     readonly continueLabel = input('Continue');
     /**

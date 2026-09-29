@@ -2,7 +2,8 @@
     <div class="action-bar-inner">
         <!-- Back Button (left) -->
         @if (canBack()) {
-        <button type="button" class="btn btn-back" (click)="back.emit()" aria-label="Go back to previous step">
+        <button type="button" class="btn btn-back" (click)="back.emit()" [disabled]="navLocked()"
+            [attr.title]="navLocked() ? navLockedReason() : null" aria-label="Go back to previous step">
             <i class="bi bi-chevron-left" aria-hidden="true"></i>
             <span class="back-label">Back</span>
         </button>
@@ -17,7 +18,8 @@
 
         <!-- Forward Button (right) -->
         @if (showContinue()) {
-        <button type="button" class="btn btn-forward" (click)="continue.emit()" [disabled]="!canContinue() || busy()"
+        <button type="button" class="btn btn-forward" (click)="continue.emit()" [disabled]="!canContinue() || busy() || navLocked()"
+            [attr.title]="navLocked() ? navLockedReason() : null"
             [attr.aria-label]="continueAriaLabel()">
             @if (busy()) {
             <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>

@@ -36,6 +36,13 @@ export class WizardActionBarComponent {
     readonly canContinue = input(false);
     /** When true, Continue is disabled and shows a spinner — an async step transition is in flight. */
     readonly busy = input(false);
+    /**
+     * The step holds unsaved input (an open or half-filled inline form): Back and Continue are
+     * disabled, with no spinner — nothing is in flight, the rep has to finish or clear it first.
+     */
+    readonly navLocked = input(false);
+    /** Hover text on the locked buttons: what to finish. */
+    readonly navLockedReason = input('Finish or cancel what you are editing first.');
     readonly continueLabel = input('Continue');
     /**
      * What the forward button DOES, which decides its icon and how a screen reader announces it.

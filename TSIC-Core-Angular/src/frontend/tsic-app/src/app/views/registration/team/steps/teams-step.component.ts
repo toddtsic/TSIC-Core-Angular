@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, computed, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, computed, DestroyRef, viewChild } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
@@ -84,6 +84,8 @@ type TeamsSegment = 'library' | 'registered';
             [now]="clock()"
             [pendingLibraryOnly]="pendingLibraryOnly()"
             [showLibrary]="layout() === 'board'"
+            (addStarted)="actionInProgress.set(true)"
+            (addFailed)="onAddFailed($event)"
             (teamAdded)="onTeamAddedFromRow($event)"
             (register)="onLibraryRegister($event)"
             (remove)="onRemoveTeam($event)"
@@ -984,6 +986,10 @@ export class TeamTeamsStepComponent implements OnInit {
      */
     readonly layout = signal<'list' | 'board' | 'segments'>('list');
 
+    private readonly board = viewChild(TeamsBoardComponent);
+    /** An inline form on the board is open or holds unsaved input — the wizard shuts Back / Proceed. */
+    readonly editing = computed(() => this.board()?.editing() ?? false);
+
     // ── Segments ───────────────────────────────────────────────────────
     /** Which view is showing. Set ONCE by pickOpeningSegment when the first load lands, then only by the rep. */
     readonly segment = signal<TeamsSegment>('library');
@@ -1409,6 +1415,12 @@ export class TeamTeamsStepComponent implements OnInit {
     }
 
     /** The add row registered a team (it made the calls itself): reload, then say what happened. */
+    /** Refused: unlock — after a reload when a library row was made first, so it shows. */
+    onAddFailed(e: { reload: boolean }): void {
+        if (e.reload) this.loadTeamsMetadata();
+        else this.actionInProgress.set(false);
+    }
+
     onTeamAddedFromRow(e: TeamAddedEvent): void {
         this.loadTeamsMetadata(false, () => this.toast.show(e.message, e.tone, 3000));
     }

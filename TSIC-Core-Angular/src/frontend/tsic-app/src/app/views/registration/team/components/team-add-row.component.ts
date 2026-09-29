@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, OnChanges, SimpleChanges, afterNextRender, computed, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto, RegisterTeamResponse } from '@core/api';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
@@ -60,13 +60,31 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
  * library team, from the typed name when new, else must be chosen.
  * Enter adds; the row clears and the cursor is back in the name for the next team.
  *
- * Owns its own writes, like the row editors; the step reloads on `added` / `libraryChanged`.
+ * Owns its own writes, like the row editors; the step locks on `started` and reloads on `added` / `failed`.
  */
 @Component({
     selector: 'app-team-add-row',
     standalone: true,
     template: `
-    <div class="add" role="group" aria-label="Add a team to this event" (keydown.escape)="closeList()">
+    <section class="add" [attr.aria-labelledby]="inputId + '-title'" (keydown.escape)="closeList()">
+      <!-- The zone says what it is for, loudly (Todd 2026-09-28): this is where a team comes in. -->
+      <header class="zone-head">
+        <span class="zone-icon zone-icon--add" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+        <div class="zone-text">
+          <h3 class="zone-title" [id]="inputId + '-title'">Add a Team</h3>
+          <!-- Said only when there is something to pick (Todd 2026-09-28): an empty library, or one
+               whose teams are all registered here already, gets the type-in line alone. -->
+          <p class="zone-sub">
+            @if (available().length > 0) {
+              Pick one from your Club Team Library, or type a new team name &mdash; a new team is saved to your library too.
+            } @else if (clubTeams().length === 0) {
+              Type your team's name &mdash; it's saved to your Club Team Library, ready for the next event.
+            } @else {
+              Every team in your Club Team Library is registered. Type a new team name to add another &mdash; it's saved to your library too.
+            }
+          </p>
+        </div>
+      </header>
       <div class="add-fields">
         <!-- Team: the combobox -->
         <div class="f f--team">
@@ -84,7 +102,7 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
                    [value]="text()"
                    [class.is-invalid]="!!nameProblem()"
                    (input)="onType($any($event.target).value)"
-                   (focus)="openList()"
+                   (focus)="onFocus()"
                    (click)="openList()"
                    (blur)="closeList()"
                    (keydown)="onNameKey($event)" />
@@ -158,6 +176,12 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
             {{ waitlists() ? 'Join waitlist' : 'Add' }}
           }
         </button>
+        @if (dirty() && !busy()) {
+          <!-- A started row holds Back / Proceed shut — this is the way out without adding. -->
+          <button type="button" class="btn-clear" (click)="clear()" title="Clear this row">
+            <i class="bi bi-x-lg" aria-hidden="true"></i><span class="visually-hidden">Clear</span>
+          </button>
+        }
       </div>
 
       <!-- One line under the fields: what the press will do, or what's in the way. -->
@@ -178,30 +202,57 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
           {{ available().length }} {{ available().length === 1 ? 'team' : 'teams' }} in your Club Team Library not registered yet.
         }
       </p>
-    </div>
+    </section>
     `,
+    styleUrl: './zone-heading.scss',
     styles: [`
       :host { display: block; }
 
+      /* The Add zone wears the library's color (primary): it is where library teams are picked and
+         new ones made. Registered Teams below wears the event's (success). */
       .add {
+        --zone: var(--bs-primary);
         display: flex;
         flex-direction: column;
-        gap: var(--space-1);
-        padding: var(--space-2) var(--space-3);
-        border: 1px solid color-mix(in srgb, var(--bs-success) 35%, var(--bs-border-color));
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid color-mix(in srgb, var(--zone) 40%, var(--bs-border-color));
+        border-top: 4px solid var(--zone);
         border-radius: var(--radius-md);
-        background: color-mix(in srgb, var(--bs-success) 5%, var(--brand-surface));
-        box-shadow: var(--shadow-xs);
+        background: linear-gradient(180deg,
+          color-mix(in srgb, var(--zone) 9%, var(--brand-surface)) 0%,
+          color-mix(in srgb, var(--zone) 3%, var(--brand-surface)) 100%);
+        box-shadow: var(--shadow-md);
+      }
+
+      .btn-clear {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--radius-sm);
+        background: var(--brand-surface);
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+        cursor: pointer;
+
+        &:hover { color: var(--bs-danger); border-color: var(--bs-danger); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
       }
 
       /* Team | Grad | LOP | Age group | Add — wraps to Team over the rest on a narrow screen. */
       .add-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); }
 
       .f { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin: 0; }
-      .f--team { flex: 1 1 14rem; }
-      .f--grad { flex: 0 0 5.5rem; }
-      .f--lop { flex: 0 0 6.5rem; }
-      .f--ag { flex: 1 1 8rem; }
+      /* Team on its own line, full width, so its placeholder reads in full (Todd 2026-09-28);
+         Grad | LOP | Age group | Add below it. */
+      .f--team { flex: 1 1 100%; }
+      .f--grad { flex: 0 0 6rem; }
+      .f--lop { flex: 0 0 7.5rem; }
+      .f--ag { flex: 1 1 10rem; }
 
       .f-label {
         font-size: var(--font-size-2xs);
@@ -326,14 +377,13 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
       }
 
       @media (max-width: 575.98px) {
-        .f--team { flex-basis: 100%; }
         .f--ag { flex-basis: 100%; }
         .btn-add-team { flex: 1 1 100%; height: 36px; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TeamAddRowComponent {
+export class TeamAddRowComponent implements OnChanges {
     private readonly teamReg = inject(TeamRegistrationService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -349,8 +399,10 @@ export class TeamAddRowComponent {
 
     /** A team was registered (or waitlisted): the step reloads, then toasts this. */
     readonly added = output<TeamAddedEvent>();
-    /** The library gained a row but the registration was refused: the step reloads the list. */
-    readonly libraryChanged = output<void>();
+    /** Add pressed: the step locks the whole screen until its reload lands. */
+    readonly started = output<void>();
+    /** Refused. reload = the library gained a row first (a new team), so the step reloads to show it. */
+    readonly failed = output<{ reload: boolean }>();
 
     readonly inputId = `team-add-${++nextId}`;
     readonly listId = `${this.inputId}-list`;
@@ -377,6 +429,16 @@ export class TeamAddRowComponent {
     private readonly justAdded = signal<ReadonlySet<number>>(new Set());
 
     readonly busy = computed(() => this.saving() || this.actionInProgress());
+
+    /** Anything entered or in flight — the wizard's Back / Proceed stay shut until it's added or cleared. */
+    readonly dirty = computed(() => this.saving() || !!this.text().trim()
+        || !!this.gradPick() || !!this.lopPick() || this.agPick() !== null);
+
+    /** The row's ✕: drop what was entered, back to the name. */
+    clear(): void {
+        if (this.busy()) return;
+        this.reset();
+    }
 
     private readonly registeredClubTeamIds = computed(() => {
         const ids = new Set<number>(this.justAdded());
@@ -562,6 +624,8 @@ export class TeamAddRowComponent {
         this.closeList();
         this.errorMsg.set(null);
         this.saving.set(true);
+        // The step locks everything (this row, the registered list) until its reload lands.
+        this.started.emit();
 
         const target = this.target();
         const ageGroupId = this.ageGroupId();
@@ -581,6 +645,7 @@ export class TeamAddRowComponent {
                 error: (err: unknown) => {
                     this.saving.set(false);
                     this.errorMsg.set(extractHttpErrorMessage(err, 'Failed to add the team.'));
+                    this.failed.emit({ reload: false });
                 },
             });
     }
@@ -610,19 +675,44 @@ export class TeamAddRowComponent {
                     this.saving.set(false);
                     const why = extractHttpErrorMessage(err, 'The registration failed.');
                     this.errorMsg.set(createdNow ? `${why} ${team.clubTeamName} is saved to your Club Team Library.` : why);
-                    if (createdNow) this.libraryChanged.emit();
+                    this.failed.emit({ reload: createdNow });
                 },
             });
     }
 
-    /** Clear for the next team; the cursor goes back to the name. */
+    /** Clear for the next team. The cursor goes back to the name once the step's reload lands. */
     private reset(): void {
         this.text.set('');
         this.chosen.set(null);
         this.clearPicks();
         this.errorMsg.set(null);
         this.closeList();
-        afterNextRender(() => this.host.nativeElement.querySelector<HTMLInputElement>('.f-name')?.focus(),
-            { injector: this.injector });
+        this.focusWhenFree = true;
+        if (!this.actionInProgress()) this.focusName();
+    }
+
+    /** Set by a successful add; drained when the step releases its lock. */
+    private focusWhenFree = false;
+
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['actionInProgress'] && !this.actionInProgress() && this.focusWhenFree) this.focusName();
+    }
+
+    /** Back to the name for the next team — without popping the list over the team just added. */
+    private focusName(): void {
+        this.focusWhenFree = false;
+        afterNextRender(() => {
+            const input = this.host.nativeElement.querySelector<HTMLInputElement>('.f-name');
+            if (!input) return;
+            this.quietFocus = true;
+            input.focus();
+            this.quietFocus = false;
+        }, { injector: this.injector });
+    }
+
+    /** A programmatic focus: the list stays shut until the rep types, clicks or arrows. */
+    private quietFocus = false;
+    onFocus(): void {
+        if (!this.quietFocus) this.openList();
     }
 }

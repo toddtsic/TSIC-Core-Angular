@@ -48,6 +48,8 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [canContinue]="canContinue()"
       [busy]="shellBusy()"
       [busyMessage]="shellBusyMessage()"
+      [navLocked]="navLocked()"
+      navLockedReason="Finish adding or editing the team first — or clear it."
       [showContinue]="showContinue()"
       [showBack]="showBack()"
       [showActionBarOnFirstStep]="hasWizardSession()"
@@ -364,7 +366,14 @@ export class TeamWizardV2Component implements OnInit {
     }
 
     // ── Navigation ──────────────────────────────────────────────────
+    /**
+     * An inline form on the Teams step is open or half-filled (Todd 2026-09-28): Back, Proceed and
+     * the step circles all hold still — leaving would drop what the rep typed without a word.
+     */
+    readonly navLocked = computed(() => this.currentStepId() === 'teams' && (this.teamsStep()?.editing() ?? false));
+
     back(): void {
+        if (this.navLocked()) return;
         const active = this.activeSteps();
         const idx = this.currentIndex();
         if (idx > 0) {
@@ -375,6 +384,7 @@ export class TeamWizardV2Component implements OnInit {
     /** The action bar's Continue. On Teams it runs the step's own Continue (the unregistered-library-team
      *  guard included), never a bare next() that would skip it. */
     onShellContinue(): void {
+        if (this.navLocked()) return;
         const step = this.currentStepId() === 'teams' ? this.teamsStep() : undefined;
         if (step) { step.onContinue(); return; }
         this.next();
@@ -405,6 +415,7 @@ export class TeamWizardV2Component implements OnInit {
     goToStep(stepIndex: number): void {
         const active = this.activeSteps();
         if (stepIndex < 0 || stepIndex >= active.length) return;
+        if (this.navLocked()) return;
         // Backward nav: always allowed. Forward nav: only with a full session.
         if (stepIndex < this.currentIndex() || this.hasWizardSession()) {
             this._currentStepId.set(active[stepIndex].id);

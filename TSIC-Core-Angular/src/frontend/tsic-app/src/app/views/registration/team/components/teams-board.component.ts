@@ -61,6 +61,20 @@ type BoardSide = 'lib' | 'reg';
       <header class="board-head board-head--reg"
               [class.is-lit]="lit() === 'reg'" [class.is-soft]="lit() === 'lib'"
               (pointerenter)="hover.set('reg')" (pointerleave)="unhover('reg')">
+        @if (!showLibrary()) {
+          <!-- The list's zone heading, as loud as Add a Team's above it (Todd 2026-09-28). -->
+          <div class="zone-head zone-head--reg">
+            <span class="zone-icon" aria-hidden="true"><i class="bi bi-clipboard-check-fill"></i></span>
+            <div class="zone-text">
+              <h3 class="zone-title" id="board-reg-title">Your Registered Teams</h3>
+              <p class="zone-sub">
+                @if (registeredRows().length === 0) { Nothing registered for {{ eventName() }} yet. }
+                @else { Registered for {{ eventName() }}. The pencil edits a team for this event only. }
+              </p>
+            </div>
+            <span class="zone-count">{{ registeredRows().length }} {{ registeredRows().length === 1 ? 'team' : 'teams' }}</span>
+          </div>
+        } @else {
         <div class="board-head-text">
           <h3 class="board-title" id="board-reg-title" [attr.title]="'Registered for ' + eventName()">
             <i class="bi bi-clipboard-check-fill" aria-hidden="true"></i>Registered Teams
@@ -75,6 +89,7 @@ type BoardSide = 'lib' | 'reg';
             </span>
           }
         </div>
+        }
       </header>
 
       @if (!showLibrary() && canRegister()) {
@@ -87,8 +102,9 @@ type BoardSide = 'lib' | 'reg';
           [clubName]="clubName()"
           [eventName]="eventName()"
           [actionInProgress]="actionInProgress()"
+          (started)="addStarted.emit()"
           (added)="teamAdded.emit($event)"
-          (libraryChanged)="librarySaved.emit()" />
+          (failed)="addFailed.emit($event)" />
       }
 
       <section class="panel panel--reg" aria-labelledby="board-reg-title"
@@ -180,12 +196,24 @@ type BoardSide = 'lib' | 'reg';
       </section>
     </div>
     `,
-    styleUrl: './teams-board.shared.scss',
+    styleUrls: ['./teams-board.shared.scss', './zone-heading.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TeamsBoardComponent {
     private readonly toast = inject(ToastService);
     private readonly libraryPanel = viewChild(LibraryPanelComponent);
+    private readonly addRow = viewChild(TeamAddRowComponent);
+
+    /**
+     * An inline form is open or holds unsaved input — the add row started, a registered row's
+     * editor, a library row's editor or register editor. The wizard keeps Back / Proceed shut
+     * while it is (Todd 2026-09-28).
+     */
+    readonly editing = computed(() =>
+        (this.addRow()?.dirty() ?? false)
+        || this.renameId() !== null
+        || this.libraryPanel()?.openId() != null
+        || this.libraryPanel()?.editId() != null);
 
     readonly clubTeams = input.required<readonly ClubTeamDto[]>();
     readonly registeredTeams = input<readonly RegisteredTeamDto[]>([]);
@@ -210,6 +238,10 @@ export class TeamsBoardComponent {
 
     /** The add row registered a team: the step reloads, then toasts this. */
     readonly teamAdded = output<TeamAddedEvent>();
+    /** Add pressed: the step locks the screen until its reload lands. */
+    readonly addStarted = output<void>();
+    /** The add was refused: the step unlocks (reload = a library row was made first, show it). */
+    readonly addFailed = output<{ reload: boolean }>();
     readonly register = output<LibraryRegisterRequest>();
     readonly remove = output<RegisteredTeamDto>();
     /** An inline event edit landed — carries the toast text; the step reloads, then shows it. */

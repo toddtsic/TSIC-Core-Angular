@@ -7,6 +7,7 @@
     <div class="wizard-title-row">
       @if (showActionBar() && showBack() && currentIndex() > 0) {
       <button type="button" class="wz-nav-btn wz-back" (click)="back.emit()"
+        [disabled]="navLocked()" [attr.title]="navLocked() ? navLockedReason() : null"
         aria-label="Go back to previous step">
         <i class="bi bi-chevron-left"></i> Back
       </button>
@@ -31,7 +32,8 @@
 
       @if (showActionBar() && showContinue()) {
       <button type="button" class="wz-nav-btn wz-continue"
-        [disabled]="!canContinue() || busy()"
+        [disabled]="!canContinue() || busy() || navLocked()"
+        [attr.title]="navLocked() ? navLockedReason() : null"
         (click)="continue.emit()"
         [attr.aria-label]="continueAriaLabel()">
         @if (busy()) {
@@ -62,6 +64,8 @@
         [canBack]="showBack() && currentIndex() > 0"
         [canContinue]="canContinue()"
         [busy]="busy()"
+        [navLocked]="navLocked()"
+        [navLockedReason]="navLockedReason()"
         [showContinue]="showContinue()"
         [continueLabel]="continueLabel()"
         [continueIntent]="continueIntent()"

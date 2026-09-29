@@ -14,14 +14,23 @@
   row-gap: var(--space-2);
   align-items: start;
 }
-/* No library panel (Todd 2026-09-28): Registered Teams alone, the add row between its header and
-   its list. The add row stacks above the panel so its dropdown overlays the list. */
+/* No library panel (Todd 2026-09-28): two headed zones — Add a Team on top, then Your Registered
+   Teams (its heading, then its list). The add zone stacks above the panel so its dropdown overlays
+   the list. */
 .board.board--list {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "reg-head" "reg-add" "reg-panel";
+  grid-template-areas: "reg-add" "reg-head" "reg-panel";
 }
 .board-add { grid-area: reg-add; position: relative; z-index: 2; min-width: 0; }
 .board--list .panel--reg { align-self: start; }
+/* The Registered zone's heading: the event's color, a clear gap below the Add zone. */
+.board--list .board-head--reg {
+  --zone: var(--bs-success);
+  align-items: center;
+  margin-top: var(--space-4);
+  padding: 0 var(--space-1);
+}
+.zone-head--reg { flex: 1; }
 
 .board-head--lib { grid-area: lib-head; }
 .board-head--reg { grid-area: reg-head; }
@@ -515,8 +524,7 @@
     grid-template-areas: "lib-head" "lib-panel" "reg-head" "reg-panel";
   }
   .board-head--reg { margin-top: var(--space-3); }
-  .board.board--list { grid-template-areas: "reg-head" "reg-add" "reg-panel"; }
-  .board--list .board-head--reg { margin-top: 0; }
+  .board.board--list { grid-template-areas: "reg-add" "reg-head" "reg-panel"; }
   .panel { align-self: start; }
   /* Capped short on a phone so Registered Teams is one flick away, not 20 rows down
      (Todd 2026-09-27). Scroll CHAINS at the ends: a swipe past a list's end moves the page,
