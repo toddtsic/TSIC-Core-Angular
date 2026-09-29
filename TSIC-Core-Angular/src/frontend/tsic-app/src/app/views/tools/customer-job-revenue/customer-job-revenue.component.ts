@@ -1110,7 +1110,9 @@ export class CustomerJobRevenueComponent {
 	 * YoY needs dates: the whole report is an as-of pin shifted back whole years, and a
 	 * job-name scope carries no date to pin to. Rather than fail silently, the tab says so.
 	 */
-	readonly yoyNeedsDateScope = computed(() => this.submittedScope()?.mode === 'jobs');
+	// Final by Year is exempt: nothing there is pinned to a date, so the chosen jobs simply pick
+	// their events and every season of each is shown.
+	readonly yoyNeedsDateScope = computed(() => this.submittedScope()?.mode === 'jobs' && !this.yoyIsFinal());
 
 	/** One lineage's seasons, shaped for the chart. */
 	private toChartGroup(g: YoyEventGroupDto, index: number, finalTotals: boolean): YoyChartGroup {
@@ -1159,17 +1161,23 @@ export class CustomerJobRevenueComponent {
 		const scope = this.submittedScope();
 		const data = finalTotals ? this.yoyFinal : this.yoyPace;
 		const loading = finalTotals ? this.yoyFinalLoading : this.yoyPaceLoading;
-		if (!scope || scope.mode === 'jobs' || data() !== null || loading()) {
+		if (!scope || (scope.mode === 'jobs' && !finalTotals) || data() !== null || loading()) {
 			return;
 		}
 		loading.set(true);
 		// Start date picks which events are in the report; the as-of date is the PIN every
 		// season is cut at, and it is always TODAY — see asOfToday. Final totals cut every
-		// season at today itself instead of shifting it back.
-		const params = new HttpParams()
-			.set('startDate', scope.startDate!)
+		// season at today itself instead of shifting it back, and may be picked by job name.
+		let params = new HttpParams()
 			.set('endDate', this.asOfToday())
 			.set('finalTotals', finalTotals);
+		if (scope.mode === 'jobs') {
+			for (const job of scope.jobs) {
+				params = params.append('jobNames', job);
+			}
+		} else {
+			params = params.set('startDate', scope.startDate!);
+		}
 		this.http.get<YoyRevenueResponseDto>(`${this.apiUrl}/yoy`, { params }).subscribe({
 			next: (res) => {
 				data.set(res);
@@ -1462,8 +1470,14 @@ export class CustomerJobRevenueComponent {
 	 */
 	onYoySegmentLabel(args: {
 		text?: string;
-		point?: { index?: number };
-		series?: { name?: string; dataSource?: YoyChartPoint[] };
+		point?: { index?: number; symbolLocations?: { y: number }[] };
+		series?: {
+			name?: string;
+			dataSource?: YoyChartPoint[];
+			clipRect?: { height: number };
+			chart?: { primaryYAxis?: { visibleRange?: { min: number; max: number } } };
+		};
+		location?: { x: number; y: number };
 		cancel?: boolean;
 	}): void {
 		const name = args.series?.name ?? '';
@@ -1508,6 +1522,49 @@ export class CustomerJobRevenueComponent {
 			return;
 		}
 		args.text = `${total}`;
+		this.dodgeMoneyLabel(args, row);
+	}
+
+	/**
+	 * Moves a count label off the dollar total when the two would print on top of each other.
+	 *
+	 * The dollar chip is wider than its bar and reaches across the count bar beside it, lifted
+	 * by its bottom margin. When the count bar tops out about that lift ABOVE the money bar —
+	 * which Final by Year does routinely, a full season's roster against its money — both labels
+	 * land at the same height (Todd, 2026-09-29: "$448,609" over "4214"). The fixed stagger
+	 * cannot prevent that, because it depends on where two bars on two scales happen to end.
+	 *
+	 * So the overlap is predicted per bar: the money top is placed from the money axis's own
+	 * range, the count top is this point's rendered location, and if their labels would fall
+	 * within one text height of each other the count moves to whichever side is nearer.
+	 * `location` shifts the TEXT only (ej2 data-label.js:231) — safe here because the count
+	 * label carries no background chip.
+	 */
+	private dodgeMoneyLabel(
+		args: {
+			point?: { index?: number; symbolLocations?: { y: number }[] };
+			series?: { clipRect?: { height: number }; chart?: { primaryYAxis?: { visibleRange?: { min: number; max: number } } } };
+			location?: { x: number; y: number };
+		},
+		row: YoyChartPoint
+	): void {
+		const countTop = args.point?.symbolLocations?.[0]?.y;
+		const height = args.series?.clipRect?.height;
+		const range = args.series?.chart?.primaryYAxis?.visibleRange;
+		if (countTop == null || !height || !range || range.max <= range.min || !args.location || row.billed <= 0) {
+			return;
+		}
+		const moneyTop = height - ((row.billed - range.min) / (range.max - range.min)) * height;
+		// Where the dollar label's baseline sits relative to this label's natural one.
+		const moneyLabel = moneyTop - this.yoyTotalLabel.margin.bottom;
+		const gap = moneyLabel - countTop;
+		// A 12px label plus its chip padding.
+		const clearance = 20;
+		if (Math.abs(gap) >= clearance) {
+			return;
+		}
+		// gap < 0: the money label sits above -> push the count below it, toward its own bar.
+		args.location.y = gap < 0 ? gap + clearance : gap - clearance;
 	}
 
 	/**

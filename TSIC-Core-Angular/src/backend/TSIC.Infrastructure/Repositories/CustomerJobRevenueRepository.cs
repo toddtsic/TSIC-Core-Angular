@@ -1095,7 +1095,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
     // years end", kept on its own tab so the pace view stays exactly what it is.
     // =====================================================================
     public async Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
-        Guid jobId, DateTime startDate, DateTime endDate, bool finalTotals, CancellationToken ct = default)
+        Guid jobId, DateTime startDate, DateTime endDate, bool finalTotals,
+        IReadOnlyList<string> jobNames, CancellationToken ct = default)
     {
         // Chart readability, not a data bound. Deeper history stays reachable by scrolling.
         const int MaxYearColumns = 6;
@@ -1103,6 +1104,10 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         var customerIds = await GetCustomerGroupIdsAsync(jobId, ct);
         var asOf = endDate.Date;
         var activeFrom = startDate.Date;
+        // Specific-jobs scope (Final by Year only): the named jobs pick the lineages instead of the
+        // start date, and each lineage shows EVERY season, newer ones included.
+        var selected = new HashSet<string>(jobNames, StringComparer.OrdinalIgnoreCase);
+        var byJobName = selected.Count > 0;
         // A job is LIVE when its registration window has not closed by the time the range
         // opens. NOT "expiry falls inside the range": an expiry is a deadline, so it lands in
         // any given month only by coincidence — on Top Threat an 8/1-8/31/2026 window caught 0
@@ -1128,7 +1133,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 // Only worth reporting if it would otherwise have been on the chart. A dead
                 // 2014 job with a blank year is noise; a LIVE job that cannot be placed is a
                 // hole in the report the reader would never catch unaided.
-                if (j.ExpiryUsers >= activeFrom)
+                if (byJobName ? selected.Contains(j.JobName) : j.ExpiryUsers >= activeFrom)
                 {
                     ungrouped.Add(j.JobName);
                 }
@@ -1145,7 +1150,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         var labelByKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var a in jobs)
         {
-            if (a.ExpiryUsers < activeFrom)
+            if (byJobName ? !selected.Contains(a.JobName) : a.ExpiryUsers < activeFrom)
             {
                 continue;
             }
@@ -1155,6 +1160,18 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 // Label follows the newest live season, so casing and spacing match the job
                 // the director is actually running right now.
                 labelByKey[a.GroupKey] = a.GroupKey;
+            }
+        }
+
+        // A named job may be an older season; its lineage still reads through its newest one.
+        if (byJobName)
+        {
+            foreach (var j in jobs)
+            {
+                if (anchorByKey.TryGetValue(j.GroupKey, out var cur) && j.Year > cur)
+                {
+                    anchorByKey[j.GroupKey] = j.Year;
+                }
             }
         }
 

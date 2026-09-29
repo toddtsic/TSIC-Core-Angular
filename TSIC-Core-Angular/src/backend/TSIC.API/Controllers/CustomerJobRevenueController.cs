@@ -178,6 +178,7 @@ public class CustomerJobRevenueController : ControllerBase
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
         [FromQuery] bool finalTotals,
+        [FromQuery] List<string>? jobNames,
         CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -186,9 +187,16 @@ public class CustomerJobRevenueController : ControllerBase
             return BadRequest(new { message = "Registration context required" });
         }
 
-        if (startDate == null || endDate == null)
+        // Final by Year may be scoped by job name instead of a start date: every season is read
+        // through the end date anyway, so nothing needs a start date to pin to. YoY to Date
+        // still requires it — its start date is what picks the events.
+        var names = jobNames ?? [];
+        var byJobName = finalTotals && names.Count > 0;
+        if (endDate == null || (!byJobName && startDate == null))
         {
-            return BadRequest(new { message = "Year-over-Year requires a full date range." });
+            return BadRequest(new { message = finalTotals
+                ? "Final by Year requires a start date or a job selection."
+                : "YoY to Date requires a full date range." });
         }
         if (startDate > endDate)
         {
@@ -196,7 +204,8 @@ public class CustomerJobRevenueController : ControllerBase
         }
 
         var result = await _revenueService.GetYoyRevenueAsync(
-            jobId.Value, startDate.Value, endDate.Value, finalTotals, ct);
+            jobId.Value, startDate ?? DateTime.MinValue, endDate.Value, finalTotals,
+            byJobName ? names : [], ct);
 
         return Ok(result);
     }

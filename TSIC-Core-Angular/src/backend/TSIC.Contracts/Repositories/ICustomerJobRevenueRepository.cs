@@ -71,9 +71,13 @@ public interface ICustomerJobRevenueRepository
     /// True skips the year shift: every season is cut at <paramref name="endDate"/> itself, so
     /// a concluded season reports what it finished with and the current one where it stands.
     /// </param>
+    /// <param name="jobNames">
+    /// Final totals only: when non-empty, these jobs pick the lineages instead of the start date,
+    /// and every season of each lineage is shown.
+    /// </param>
     Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
         Guid jobId, DateTime startDate, DateTime endDate, bool finalTotals,
-        CancellationToken ct = default);
+        IReadOnlyList<string> jobNames, CancellationToken ct = default);
 
     /// <summary>
     /// Adjustments tab: one row per money-bearing entity with a NON-ZERO net fee adjustment
