@@ -204,14 +204,20 @@
 				}
 			}
 			<span class="ms-auto d-flex gap-2">
-				<!-- No PDF on Team Billing: the pivot exposes no per-cell sanitiser, and
+				<!-- PDF button HIDDEN (Todd, 2026-09-29: "probably useless, may change my mind").
+				     exportActive('pdf') and every grid's allowPdfExport are left in place, so
+				     restoring it is uncommenting the block below.
+
+				     No PDF on Team Billing: the pivot exposes no per-cell sanitiser, and
 				     club/team names are free text carrying characters the WinAnsi PDF fonts
-				     reject. Excel handles the Unicode and the row volume. -->
+				     reject. Excel handles the Unicode and the row volume.
 				@if (activeTab() !== 'teamBilling' && activeTab() !== 'yoy' && activeTab() !== 'finals') {
 					<button class="btn btn-sm btn-outline-primary" (click)="exportActive('pdf')">
 						<i class="bi bi-file-earmark-pdf me-1"></i>PDF
 					</button>
 				}
+				-->
+
 				<!-- No shared export on the two chart tabs: they render charts, not a grid or
 				     pivot, and carry their own Excel button in the chart toolbar. -->
 				@if (activeTab() !== 'yoy' && activeTab() !== 'finals') {
@@ -569,12 +575,13 @@
 				<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
 					<i class="bi bi-info-circle" aria-hidden="true"></i>
 					<span>
-						<strong>This tab is {{ finalsBasis }}.</strong>
-						Every season shows everything it recorded — its finished figures — with the season
-						still selling marked <em>In progress</em> beneath its bar. To see how this season
-						is pacing against where prior seasons stood on today's date, use
+						<strong>Every season's final total.</strong>
+						The season still selling is marked <em>In progress</em> — to compare seasons at the
+						same date, see
 						<button type="button" class="cjr-help-toggle" (click)="setTab('yoy')">YoY to Date</button>.
+						<ng-container [ngTemplateOutlet]="chartHelpToggle"></ng-container>
 						<ng-container [ngTemplateOutlet]="correctionsNote"></ng-container>
+						<ng-container [ngTemplateOutlet]="chartHelp"></ng-container>
 					</span>
 				</div>
 			} @else {
@@ -583,74 +590,13 @@
 			<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
 				<i class="bi bi-info-circle" aria-hidden="true"></i>
 				<span>
-					<strong>This tab is {{ yoyBasis }}.</strong>
-					It paces each event against where the same event stood at this point in prior
-					seasons, rather than against what those seasons finished with — for that, see
-					<button type="button" class="cjr-help-toggle" (click)="setTab('finals')">Final by Year</button>.
-					<button type="button" class="cjr-help-toggle"
-						[attr.aria-expanded]="yoyHelpOpen()"
-						(click)="toggleYoyHelp()">
-						<i class="bi" aria-hidden="true"
-							[class.bi-chevron-right]="!yoyHelpOpen()"
-							[class.bi-chevron-down]="yoyHelpOpen()"></i>
-						How to read this
-					</button>
+					<strong>Every season as of {{ yoyAsOfMmDd() ?? 'today' }}.</strong>
+					This season through today; each prior season through {{ yoyAsOfMmDd() ?? 'today' }}
+					of its own year — not its final total (see
+					<button type="button" class="cjr-help-toggle" (click)="setTab('finals')">Final by Year</button>).
+					<ng-container [ngTemplateOutlet]="chartHelpToggle"></ng-container>
 					<ng-container [ngTemplateOutlet]="correctionsNote"></ng-container>
-					@if (yoyHelpOpen()) {
-						<span class="cjr-help-detail">
-							<strong>Your date range does not cut these numbers.</strong> Your start date
-							picks which events are compared — the ones whose registration was still open on
-							that date, plus anything that has opened since. The dollars and the registration
-							counts are all <strong>as of today</strong>, so what came in this morning is in.
-							<br>
-							<strong>Every season is cut at the same point in the calendar</strong> — today,
-							shifted back a whole year at a time. Read this on 9/2/2026 and the 2025 bars show
-							where 2025 stood on 9/2/2025, not what it finished with. That is what makes a
-							season still selling comparable to one that has already run, and each bar prints
-							its own cutoff beneath it so you can see the same date repeating.
-							<br>
-							<strong>The cutoff is today, so older seasons are not frozen.</strong> Run this
-							a month from now and last season's bars advance a month too. A season that had not opened yet by its cutoff shows an empty bar — that is
-							an answer, not a gap: the event was selling by this date last year and is not
-							this year.
-							<br>
-							<strong>Two bars per season, on two scales.</strong> The left bar is money, read
-							against the left axis; the right bar is registrations, read against the right.
-							They are separate measures on purpose — a fee increase raises the money bar with
-							no more people in the event, and only a pair of bars shows you which one moved.
-							<br>
-							<strong>The money bar's full height is Billed</strong>, what was charged, already
-							net of adjustments, printed above it. The green part is <strong>Collected</strong>,
-							what came in across all methods with refunds netted out; the red part on top is
-							<strong>Owed</strong>. Owed is computed as Billed less Collected at that
-							season's own cutoff. For this season that is today's balance; for an older one it
-							is what was outstanding on that date, not what it finished up owing.
-							<br>
-							<strong>The count bar is split by route</strong> — teams on the club-rep
-							route, players on their own — and it counts <em>everyone</em>, whether or not
-							they were charged. On a tournament that matters: the teams pay the entry and
-							their players self-roster for free, so the players are the bigger number and
-							none of them appear in the money bar at all. A team counts once it is charged
-							or someone is on it, which leaves out the empty duplicates left behind while
-							rosters are being sorted out. The number above the bar is the whole count.
-							<br>
-							It is deliberately NOT split settled-versus-owing: "settled" means a zero
-							balance, so someone who has paid most of their fee still counts as owing, and
-							colouring that like the money bar would invite a comparison that does not hold.
-							Hover a bar for how many of the <em>charged</em> have settled — that is a
-							fraction of the billed population, not of the bar's height.
-							<br>
-							<strong>Events are grouped by name with the season removed</strong>, so
-							<em>Fall Draw 2026</em> and <em>Fall Draw 2025</em> sit under one heading. The jobs
-							behind the chart are listed underneath — check them if a comparison looks wrong.
-							<br>
-							<strong>The chart shows one event at a time — use the selector to change
-							which.</strong> It opens on the event you are signed into. Every event gets the
-							whole axis to itself so its own seasons read at full height; showing several at
-							once meant sharing one dollar scale, which turned anything next to a large event
-							into a sliver.
-						</span>
-					}
+					<ng-container [ngTemplateOutlet]="chartHelp"></ng-container>
 				</span>
 			</div>
 			}
@@ -672,20 +618,7 @@
 				</div>
 			} @else {
 				<div class="yoy-toolbar">
-					@if (yoyIsFinal()) {
-						<p class="yoy-asof">
-							<i class="bi bi-flag me-1"></i>
-							Every season through {{ yoyAsOfDate() | date:'MMM d, y' }} — finished seasons
-							marked <strong>Final</strong>, the one still selling <strong>In progress</strong>.
-						</p>
-					} @else if (yoyAsOfMmDd(); as mmdd) {
-						<p class="yoy-asof">
-							<i class="bi bi-pin-angle me-1"></i>
-							Every season cut at <strong>{{ mmdd }}</strong> — the newest at
-							{{ yoyAsOfDate() | date:'MMM d, y' }}, each earlier one at {{ mmdd }} a whole
-							number of years before that.
-						</p>
-					}
+					<!-- No cutoff line here on either tab: each banner states it, and repeating it was noise. -->
 
 					<!-- Shown only when there is more than one event to choose between: a picker with a
 					     single option is furniture. There is deliberately NO "all events" entry — the
@@ -899,15 +832,46 @@
 </div>
 
 <!-- The corrections caveat, shared by Teams/Players to Customer, YoY to Date and Final by Year
-     (Todd, 2026-09-29). All three count every ledger method as Collected, corrections included,
-     and that is kept deliberately — but a correction is a credit, not cash. Carolina Clash 2026
-     showed $73,649.75 collected of which $8,550 was "Half off" and a carried-over deposit, and a
-     $0.00 Owed that was five teams owing $500 netted against seven carrying credits. -->
+     (Todd, 2026-09-29). The figures are what was paid and stay that way; amounts given back
+     through correction records are not taken off them (Carolina Clash 2026: $8,550). One plain
+     sentence on purpose — anything longer generates support calls. -->
 <ng-template #correctionsNote>
 	<span class="cjr-help-detail">
-		<strong>Collected includes corrections you entered</strong> — a discount given after the
-		team paid, a deposit carried over from another event — so it can be more than the cash you
-		actually received. <strong>Owed is a net figure:</strong> a team that still owes and a team
-		carrying a credit cancel each other out, so a balance of $0 can still hide both.
+		<strong>These figures do not reflect amounts given back through correction records</strong>
+		(see <button type="button" class="cjr-help-toggle" (click)="setTab('adjustments')">Adjustments</button> tab).
 	</span>
+</ng-template>
+
+<!-- "How to read this" for the two chart tabs, YoY to Date and Final by Year — one chart, so
+     one explanation. Kept to what a reader needs to read the bars (Todd, 2026-09-29: the old
+     version was redundant); the design rationale lives in the component comments. -->
+<ng-template #chartHelpToggle>
+	<button type="button" class="cjr-help-toggle"
+		[attr.aria-expanded]="yoyHelpOpen()"
+		(click)="toggleYoyHelp()">
+		<i class="bi" aria-hidden="true"
+			[class.bi-chevron-right]="!yoyHelpOpen()"
+			[class.bi-chevron-down]="yoyHelpOpen()"></i>
+		How to read this
+	</button>
+</ng-template>
+<ng-template #chartHelp>
+	@if (yoyHelpOpen()) {
+		<span class="cjr-help-detail">
+			<strong>Which events.</strong> Your start date — or the jobs you picked — chooses the
+			events; their earlier seasons come along however old. Events are matched by name with
+			the year removed; the jobs behind the chart are listed under it.
+			<br>
+			<strong>Money bar (left scale).</strong> Its full height is Billed, printed above it.
+			Green is Collected, red is Owed — Billed less Collected.
+			<br>
+			<strong>Count bar (right scale).</strong> Teams and players registered, charged or not.
+			Hover a bar for exact figures and how many of those charged have paid in full.
+			@if (!yoyIsFinal()) {
+				<br>
+				<strong>An empty season</strong> had not opened by {{ yoyAsOfMmDd() ?? 'this date' }}
+				that year.
+			}
+		</span>
+	}
 </ng-template>

@@ -305,18 +305,11 @@
 .yoy-toolbar {
 	display: flex;
 	align-items: flex-end;
-	justify-content: space-between;
+	/* Picker and buttons sit right; the cutoff line that used to fill the left is in the banner now. */
+	justify-content: flex-end;
 	gap: var(--space-4);
 	flex-wrap: wrap;
 	margin-bottom: var(--space-3);
-}
-
-.yoy-asof {
-	color: var(--brand-text-muted);
-	font-size: 0.875rem;
-	/* Owned by the toolbar row now. */
-	margin-bottom: 0;
-	flex: 1 1 20rem;
 }
 
 .yoy-picker {

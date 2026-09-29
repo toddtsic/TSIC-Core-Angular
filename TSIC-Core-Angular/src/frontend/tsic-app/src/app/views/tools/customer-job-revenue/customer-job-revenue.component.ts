@@ -569,10 +569,30 @@ export class CustomerJobRevenueComponent {
 			'Teams', 'Players', 'Charged', 'Settled', 'Still owing', 'Jobs'
 		];
 
-		const rows: object[] = [{
-			index: 1,
+		// Title block, so a sheet opened on its own says what it is — the same statements as the
+		// tab's banner, the scope it was run with, and the corrections caveat.
+		const today = this.asOfToday();
+		const mmdd = this.yoyAsOfMmDd() ?? 'today';
+		const title = [
+			{ text: finalTotals ? 'Final by Year' : 'YoY to Date', style: { bold: true, fontSize: 14 } },
+			{ text: finalTotals
+				? `Every season's final total, as of ${today}. The season still selling is marked In progress.`
+				: `Every season as of ${mmdd}: this season through ${today}, each prior season through ${mmdd} of its own year.` },
+			{ text: this.submittedScope()?.label ?? '' },
+			{ text: 'These figures do not reflect amounts given back through correction records (see Adjustments tab).' }
+		];
+		const rows: object[] = title.map((t, i) => ({
+			index: i + 1,
+			cells: [{ index: 1, value: t.text, ...(t.style ? { style: t.style } : {}) }]
+		}));
+		// One blank row, then the column headers. Rows carry explicit indices, so the blank row is
+		// simply a skipped number.
+		const headerRow = title.length + 2;
+		rows.push({
+			index: headerRow,
 			cells: headers.map((h, i) => ({ index: i + 1, value: h, style: head }))
-		}];
+		});
+		let nextRow = headerRow + 1;
 
 		for (const g of groups) {
 			for (const y of g.years) {
@@ -596,7 +616,7 @@ export class CustomerJobRevenueComponent {
 					{ index: 13, value: y.owingCount },
 					{ index: 14, value: y.jobNames.join('; ') }
 				];
-				rows.push({ index: rows.length + 1, cells });
+				rows.push({ index: nextRow++, cells });
 			}
 		}
 
