@@ -73,7 +73,7 @@ const TEAM_BILLING_BASIS = 'what your teams and players owe you';
 const YOY_BASIS = 'how each event is doing versus the same point in prior seasons';
 
 /**
- * What Final Totals by Year is, in one line, shown on screen. The pace tab's counterpart: the
+ * What Final Totals by Year is, in one line, shown on screen. The Year-over-Year tab's counterpart: the
  * same seasons, each read through today rather than cut at today's date in its own year.
  */
 const FINALS_BASIS = 'what each season of each event finished with';
@@ -602,7 +602,7 @@ export class CustomerJobRevenueComponent {
 
 		const book = new Workbook({
 			worksheets: [{
-				name: finalTotals ? 'Final Totals by Year' : 'Pace vs Prior Years',
+				name: finalTotals ? 'Final Totals by Year' : 'Year-over-Year',
 				rows,
 				columns: [
 					{ index: 1, width: 260 }, { index: 2, width: 70 }, { index: 3, width: 90 },
@@ -613,7 +613,7 @@ export class CustomerJobRevenueComponent {
 				]
 			}]
 		}, 'xlsx');
-		book.save(`${finalTotals ? 'Final-Totals-by-Year' : 'Pace-vs-Prior-Years'}-as-of-${this.asOfToday()}.xlsx`);
+		book.save(`${finalTotals ? 'Final-Totals-by-Year' : 'Year-over-Year'}-as-of-${this.asOfToday()}.xlsx`);
 	}
 
 	constructor() {
@@ -1020,7 +1020,7 @@ export class CustomerJobRevenueComponent {
 	 * entirely, and reseeding on `yoy` re-picks with the data that justifies the pick.
 	 *
 	 * A lineage the reader already picked is KEPT when the new data still has it — which is
-	 * what carries the event across between the pace and final-totals tabs, so flipping from
+	 * what carries the event across between the Year-over-Year and final-totals tabs, so flipping from
 	 * one to the other compares the same event both ways.
 	 */
 	readonly yoySelectedGroup = linkedSignal<YoyRevenueResponseDto | null, string>({

@@ -175,7 +175,7 @@
 			</li>
 			<li class="nav-item">
 				<button class="nav-link" [class.active]="activeTab() === 'yoy'" (click)="setTab('yoy')">
-					Pace vs Prior Years
+					Year-over-Year
 				</button>
 			</li>
 			<li class="nav-item">
@@ -560,8 +560,8 @@
 				</ejs-pivotview>
 			}
 		}
-		<!-- ============ PACE VS PRIOR YEARS / FINAL TOTALS BY YEAR ============
-		     One chart, two tabs. Pace cuts each season at today's date in its own year; Final
+		<!-- ============ YEAR-OVER-YEAR / FINAL TOTALS BY YEAR ============
+		     One chart, two tabs. Year-over-Year cuts each season at today's date in its own year; Final
 		     Totals reads every season through today, i.e. what it finished with. -->
 		@if (activeTab() === 'yoy' || activeTab() === 'finals') {
 			@if (yoyIsFinal()) {
@@ -572,7 +572,7 @@
 						Every season shows everything it recorded — its finished figures — with the season
 						still selling marked <em>In progress</em> beneath its bar. To see how this season
 						is pacing against where prior seasons stood on today's date, use
-						<button type="button" class="cjr-help-toggle" (click)="setTab('yoy')">Pace vs Prior Years</button>.
+						<button type="button" class="cjr-help-toggle" (click)="setTab('yoy')">Year-over-Year</button>.
 					</span>
 				</div>
 			} @else {
@@ -662,7 +662,7 @@
 			} @else if (yoyLoading()) {
 				<div class="text-center py-5">
 					<div class="spinner-border text-primary"></div>
-					<p class="mt-2 text-muted">Loading {{ yoyIsFinal() ? 'final totals by year' : 'year-over-year pace' }}...</p>
+					<p class="mt-2 text-muted">Loading {{ yoyIsFinal() ? 'final totals by year' : 'year-over-year review' }}...</p>
 				</div>
 			} @else if (yoyGroups().length === 0) {
 				<div class="alert alert-secondary">
