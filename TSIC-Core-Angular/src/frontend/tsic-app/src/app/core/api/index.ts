@@ -807,6 +807,8 @@ export type { TeamPaymentResultDto } from './models/TeamPaymentResultDto';
 export type { TeamPushDto } from './models/TeamPushDto';
 export type { TeamResultDto } from './models/TeamResultDto';
 export type { TeamResultsResponse } from './models/TeamResultsResponse';
+export type { TeamRetentionResponseDto } from './models/TeamRetentionResponseDto';
+export type { TeamRetentionRowDto } from './models/TeamRetentionRowDto';
 export type { TeamRosterCountDto } from './models/TeamRosterCountDto';
 export type { TeamRosterDetailDto } from './models/TeamRosterDetailDto';
 export type { TeamRosterPlayerDto } from './models/TeamRosterPlayerDto';
