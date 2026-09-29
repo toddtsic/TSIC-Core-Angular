@@ -820,6 +820,8 @@ export type { TeamSearchResponse } from './models/TeamSearchResponse';
 export type { TeamSearchResultDto } from './models/TeamSearchResultDto';
 export type { TeamSeatingResultDto } from './models/TeamSeatingResultDto';
 export type { TeamsMetadataResponse } from './models/TeamsMetadataResponse';
+export type { TeamTournamentDto } from './models/TeamTournamentDto';
+export type { TeamTournamentMatchDto } from './models/TeamTournamentMatchDto';
 export type { TestValidationRequest } from './models/TestValidationRequest';
 export type { ThirdPartyAccessOverviewDto } from './models/ThirdPartyAccessOverviewDto';
 export type { ThirdPartyAssignmentDto } from './models/ThirdPartyAssignmentDto';
@@ -840,6 +842,7 @@ export type { ToggleTeamSubscriptionRequest } from './models/ToggleTeamSubscript
 export type { ToggleTeamSubscriptionResponse } from './models/ToggleTeamSubscriptionResponse';
 export type { TournamentParkingRequest } from './models/TournamentParkingRequest';
 export type { TournamentParkingResponse } from './models/TournamentParkingResponse';
+export type { TournamentTeamOptionDto } from './models/TournamentTeamOptionDto';
 export type { TransferAllTeamsRequest } from './models/TransferAllTeamsRequest';
 export type { UnassignedAdultAssignedTeamDto } from './models/UnassignedAdultAssignedTeamDto';
 export type { UnassignedAdultQueueRowDto } from './models/UnassignedAdultQueueRowDto';
