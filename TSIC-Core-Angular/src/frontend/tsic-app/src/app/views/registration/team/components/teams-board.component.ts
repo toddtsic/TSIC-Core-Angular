@@ -6,6 +6,7 @@ import { type LibraryRegisterRequest } from './library-segment.types';
 import { contrastText } from '../../../scheduling/shared/utils/scheduling-helpers';
 import { LibraryPanelComponent } from './library-panel.component';
 import { RegisteredTeamInlineEditorComponent } from './registered-team-inline-editor.component';
+import { TeamAddRowComponent, type TeamAddedEvent } from './team-add-row.component';
 
 /**
  * The Teams step as ONE board, two panels side by side (Todd 2026-09-27 — "like configure pools
@@ -25,10 +26,11 @@ type BoardSide = 'lib' | 'reg';
 @Component({
     selector: 'app-teams-board',
     standalone: true,
-    imports: [LibraryPanelComponent, RegisteredTeamInlineEditorComponent],
+    imports: [LibraryPanelComponent, RegisteredTeamInlineEditorComponent, TeamAddRowComponent],
     template: `
-    <div class="board">
+    <div class="board" [class.board--list]="!showLibrary()">
 
+      @if (showLibrary()) {
       <!-- ═══ LEFT: Club Team Library — the shared panel, the same one the library page shows ═══ -->
       <!-- Spotlight (Todd 2026-09-27): the side under the pointer — or holding keyboard focus, so an
            open editor keeps its side lit — is lifted; the other softens. Emphasis only: nothing
@@ -52,6 +54,7 @@ type BoardSide = 'lib' | 'reg';
         (delete)="delete.emit($event)"
         (restore)="restore.emit($event)"
         (editorOpened)="renameId.set(null)" />
+      }
 
       <!-- ═══ RIGHT: this event's Registered Teams ═══ -->
       <!-- The event is named in the page title right above — here the side only has to say what it holds. -->
@@ -73,6 +76,20 @@ type BoardSide = 'lib' | 'reg';
           }
         </div>
       </header>
+
+      @if (!showLibrary() && canRegister()) {
+        <!-- The one way in (Todd 2026-09-28): pick a library team or type a new one. Outside the
+             panel, so its dropdown is never clipped by the panel's scroll box. -->
+        <app-team-add-row class="board-add"
+          [clubTeams]="clubTeams()"
+          [registeredTeams]="registeredTeams()"
+          [ageGroups]="ageGroups()"
+          [clubName]="clubName()"
+          [eventName]="eventName()"
+          [actionInProgress]="actionInProgress()"
+          (added)="teamAdded.emit($event)"
+          (libraryChanged)="librarySaved.emit()" />
+      }
 
       <section class="panel panel--reg" aria-labelledby="board-reg-title"
                [class.is-lit]="lit() === 'reg'" [class.is-soft]="lit() === 'lib'"
@@ -147,6 +164,8 @@ type BoardSide = 'lib' | 'reg';
               <span class="row-meta">
                 @if (!canRegister()) {
                   <span>Team registration for <b class="ev-name">{{ eventName() }}</b> is closed.</span>
+                } @else if (!showLibrary()) {
+                  <span>Add your first team above &mdash; pick it from your Club Team Library or type its name.</span>
                 } @else if (empty()) {
                   <span>Build your list of teams in the Club Team Library, then press <b>Register</b> on each one you're bringing.</span>
                 } @else if (activeCount() === 0) {
@@ -183,7 +202,14 @@ export class TeamsBoardComponent {
     readonly undoDeadlines = input<ReadonlyMap<string, number>>(new Map());
     readonly now = input(0);
     readonly pendingLibraryOnly = input<ReadonlySet<number>>(new Set());
+    /**
+     * false = no library panel (Todd 2026-09-28): Registered Teams alone, one column, and teams come
+     * in through the add row on top of it — a library team picked, or a new one typed.
+     */
+    readonly showLibrary = input(true);
 
+    /** The add row registered a team: the step reloads, then toasts this. */
+    readonly teamAdded = output<TeamAddedEvent>();
     readonly register = output<LibraryRegisterRequest>();
     readonly remove = output<RegisteredTeamDto>();
     /** An inline event edit landed — carries the toast text; the step reloads, then shows it. */
@@ -204,7 +230,8 @@ export class TeamsBoardComponent {
     //    the side holding keyboard focus (an open editor) stays lit. Neither → both at rest. ──
     readonly hover = signal<BoardSide | null>(null);
     readonly focus = signal<BoardSide | null>(null);
-    readonly lit = computed(() => this.hover() ?? this.focus());
+    /** One side only (no library panel) → nothing to spotlight against. */
+    readonly lit = computed(() => this.showLibrary() ? this.hover() ?? this.focus() : null);
     unhover(side: BoardSide): void { if (this.hover() === side) this.hover.set(null); }
     unfocus(side: BoardSide): void { if (this.focus() === side) this.focus.set(null); }
 

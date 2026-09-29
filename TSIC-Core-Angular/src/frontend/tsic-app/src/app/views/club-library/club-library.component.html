@@ -15,6 +15,19 @@
   <!-- The Teams step's library panel, verbatim (Ann/Todd 2026-09-27): same header, same rows, same
        Archived pile — only Register and the Registered pile are gone. -->
   <div class="lib-page">
+    <!-- What the library is FOR, said outright (Todd 2026-09-28): the Teams step no longer shows it,
+         only picks from it, so this page is where a rep learns why it exists. -->
+    <section class="lib-purpose" aria-labelledby="lib-purpose-title">
+      <i class="bi bi-lightning-charge-fill lib-purpose-icon" aria-hidden="true"></i>
+      <div>
+        <h2 class="lib-purpose-title" id="lib-purpose-title">Set up your teams once</h2>
+        <p class="lib-purpose-text">
+          Your Club Team Library makes registering easier. When you register for an event, pick a team
+          from this list and its grad year and level of play fill in for you. A team you type in while
+          registering is saved here too.
+        </p>
+      </div>
+    </section>
     <app-library-panel
       mode="page"
       [clubTeams]="clubTeams()"

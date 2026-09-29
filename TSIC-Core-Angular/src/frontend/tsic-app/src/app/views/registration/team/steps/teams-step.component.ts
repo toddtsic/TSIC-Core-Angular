@@ -21,6 +21,7 @@ import { LibrarySegmentComponent } from '../components/library-segment.component
 import { RegisterTeamModalComponent } from '../components/register-team-modal.component';
 import { TeamsBoardComponent } from '../components/teams-board.component';
 import type { LibraryRegisterRequest } from '../components/library-segment.types';
+import type { TeamAddedEvent } from '../components/team-add-row.component';
 import { TeamRenameConfirmComponent, renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
 import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
@@ -65,7 +66,7 @@ type TeamsSegment = 'library' | 'registered';
       <!-- ── One card, two segments (Todd 2026-09-26). The green edge means teams are in. ── -->
       <div class="step-card" [class.step-card-registered]="enteredTeams().length > 0">
 
-        @if (layout() === 'board') {
+        @if (layout() !== 'segments') {
         <!-- The board (Todd 2026-09-27): library left, this event right — a team is on one side
              only, so which list an edit touches answers itself. The tabs below are kept for a return. -->
         <div class="seg-panel-body">
@@ -82,6 +83,8 @@ type TeamsSegment = 'library' | 'registered';
             [undoDeadlines]="gridUndoDeadlines()"
             [now]="clock()"
             [pendingLibraryOnly]="pendingLibraryOnly()"
+            [showLibrary]="layout() === 'board'"
+            (teamAdded)="onTeamAddedFromRow($event)"
             (register)="onLibraryRegister($event)"
             (remove)="onRemoveTeam($event)"
             (renameSaved)="onInlineRenameSaved($event)"
@@ -269,7 +272,7 @@ type TeamsSegment = 'library' | 'registered';
              money is due now; with nothing due it is the quiet way to finish.
              Board: no card (Todd 2026-09-27) — the wizard bar's blue Proceed to Payment is the one
              Continue, and runs onContinue(); the footer shows only for its unregistered-team check. -->
-        @if (enteredTeams().length > 0 && (layout() !== 'board' || confirmingContinue())) {
+        @if (enteredTeams().length > 0 && (layout() === 'segments' || confirmingContinue())) {
           <div class="step-card-footer">
             @if (confirmingContinue()) {
               <!-- The P0 guard the fly-in's Done used to carry: a team saved to the library this
@@ -973,10 +976,13 @@ export class TeamTeamsStepComponent implements OnInit {
     // readonly showLibraryFlyin = signal(false);
 
     /**
+     * 'list' = Registered Teams alone, teams added through the add row on top — a library team
+     * picked, or a new one typed and saved to the library too (Todd 2026-09-28). The library's own
+     * upkeep lives on the Club Team Library page.
      * 'board' = library and Registered Teams side by side (Todd 2026-09-27). 'segments' = the two
-     * tabs + Register-a-team modal, kept whole for a return — flip this one line.
+     * tabs + Register-a-team modal. Both kept whole for a return — flip this one line.
      */
-    readonly layout = signal<'board' | 'segments'>('board');
+    readonly layout = signal<'list' | 'board' | 'segments'>('list');
 
     // ── Segments ───────────────────────────────────────────────────────
     /** Which view is showing. Set ONCE by pickOpeningSegment when the first load lands, then only by the rep. */
@@ -1400,6 +1406,11 @@ export class TeamTeamsStepComponent implements OnInit {
     onRenameTeam(team: RegisteredTeamDto): void {
         this.renameError.set(null);
         this.pendingRename.set({ origin: 'event', team });
+    }
+
+    /** The add row registered a team (it made the calls itself): reload, then say what happened. */
+    onTeamAddedFromRow(e: TeamAddedEvent): void {
+        this.loadTeamsMetadata(false, () => this.toast.show(e.message, e.tone, 3000));
     }
 
     /** The board's inline event edit landed (it made the call itself): reload, then say what moved. */

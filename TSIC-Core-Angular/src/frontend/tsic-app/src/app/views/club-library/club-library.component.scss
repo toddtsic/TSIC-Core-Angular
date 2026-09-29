@@ -15,3 +15,37 @@
     max-width: 40rem;
     margin: 0 auto;
 }
+
+// The page's purpose, above the list: a primary-tinted callout, the library's own color.
+.lib-purpose {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid color-mix(in srgb, var(--bs-primary) 30%, var(--bs-border-color));
+    border-left: 4px solid var(--bs-primary);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--bs-primary) 6%, var(--brand-surface));
+}
+
+.lib-purpose-icon {
+    flex-shrink: 0;
+    font-size: var(--font-size-xl);
+    line-height: 1.2;
+    color: var(--bs-primary);
+}
+
+.lib-purpose-title {
+    margin: 0 0 var(--space-1);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
+    color: var(--brand-text);
+}
+
+.lib-purpose-text {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    color: var(--brand-text);
+}
