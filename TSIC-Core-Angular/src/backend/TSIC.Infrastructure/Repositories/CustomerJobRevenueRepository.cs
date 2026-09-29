@@ -1087,9 +1087,15 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
     // so at job level Owed is simply Billed less Collected over the same populations. The team
     // join is still made — it is what enforces the routing rules and the active-team filter, so
     // both reports read exactly the same population.
+    //
+    // FINAL TOTALS (Todd, 2026-09-29). The same report with the pin NOT shifted: every season
+    // is cut at the date asked, so a concluded season reads everything it ever recorded — what
+    // it finished with — and the current one reads where it stands now. A client read the
+    // paced chart's empty early seasons as missing data; this is the answer to "how did those
+    // years end", kept on its own tab so the pace view stays exactly what it is.
     // =====================================================================
     public async Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
-        Guid jobId, DateTime startDate, DateTime endDate, CancellationToken ct = default)
+        Guid jobId, DateTime startDate, DateTime endDate, bool finalTotals, CancellationToken ct = default)
     {
         // Chart readability, not a data bound. Deeper history stays reachable by scrolling.
         const int MaxYearColumns = 6;
@@ -1208,7 +1214,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     list = [];
                     cellJobs[cell] = list;
                     // AddYears is calendar-safe — a Feb 29 ask lands on Feb 28 in a common year.
-                    pinByCell[cell] = asOf.AddYears(m.Year - anchor);
+                    // Final totals: no shift, every season through the date asked.
+                    pinByCell[cell] = finalTotals ? asOf : asOf.AddYears(m.Year - anchor);
                 }
                 list.Add(m);
                 pinExByJob[m.JobId] = pinByCell[cell].AddDays(1);

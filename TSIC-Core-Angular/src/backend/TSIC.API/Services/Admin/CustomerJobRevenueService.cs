@@ -180,10 +180,10 @@ public class CustomerJobRevenueService : ICustomerJobRevenueService
     }
 
     public async Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
-        Guid jobId, DateTime startDate, DateTime endDate,
+        Guid jobId, DateTime startDate, DateTime endDate, bool finalTotals,
         CancellationToken ct = default)
     {
-        return await _repo.GetYoyRevenueAsync(jobId, startDate, endDate, ct);
+        return await _repo.GetYoyRevenueAsync(jobId, startDate, endDate, finalTotals, ct);
     }
 
     public async Task<List<AdjustmentRecordDto>> GetAdjustmentsAsync(

@@ -23,7 +23,7 @@ public interface ICustomerJobRevenueService
         List<string> jobNames, CancellationToken ct = default);
 
     Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
-        Guid jobId, DateTime startDate, DateTime endDate,
+        Guid jobId, DateTime startDate, DateTime endDate, bool finalTotals,
         CancellationToken ct = default);
 
     Task<List<AdjustmentRecordDto>> GetAdjustmentsAsync(

@@ -73,6 +73,12 @@ const TEAM_BILLING_BASIS = 'what your teams and players owe you';
 const YOY_BASIS = 'how each event is doing versus the same point in prior seasons';
 
 /**
+ * What Final Totals by Year is, in one line, shown on screen. The pace tab's counterpart: the
+ * same seasons, each read through today rather than cut at today's date in its own year.
+ */
+const FINALS_BASIS = 'what each season of each event finished with';
+
+/**
  * What the Adjustments tab is, in one line, shown on screen.
  *
  * The entity-level detail behind the Adj column on Teams/Players — every team and registrant
@@ -300,7 +306,7 @@ export class CustomerJobRevenueComponent {
 	// UI state
 	isLoading = signal(false);
 	errorMessage = signal('');
-	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords' | 'teamBilling' | 'adjustments' | 'yoy'>('rollup');
+	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords' | 'teamBilling' | 'adjustments' | 'yoy' | 'finals'>('rollup');
 
 	// Guided scope flow — lands on All jobs · date range (pickers preset to last month);
 	// nothing runs until the user clicks Run Report.
@@ -555,10 +561,11 @@ export class CustomerJobRevenueComponent {
 			return;
 		}
 
+		const finalTotals = this.yoyIsFinal();
 		const money = { numberFormat: '$#,##0.00' };
 		const head = { bold: true, backColor: '#F2F2F2' };
 		const headers = [
-			'Event', 'Season', 'Cut at', 'Billed', 'Adj', 'Collected', 'Refunds', 'Owed',
+			'Event', 'Season', finalTotals ? 'Status' : 'Cut at', 'Billed', 'Adj', 'Collected', 'Refunds', 'Owed',
 			'Teams', 'Players', 'Charged', 'Settled', 'Still owing', 'Jobs'
 		];
 
@@ -576,7 +583,7 @@ export class CustomerJobRevenueComponent {
 				const cells = [
 					{ index: 1, value: g.groupLabel },
 					{ index: 2, value: y.year },
-					{ index: 3, value: y.asOf.slice(0, 10) },
+					{ index: 3, value: finalTotals ? (y.isActive ? 'In progress' : 'Final') : y.asOf.slice(0, 10) },
 					{ index: 4, value: y.billed, style: money },
 					{ index: 5, value: y.adj, style: money },
 					{ index: 6, value: y.collected, style: money },
@@ -595,7 +602,7 @@ export class CustomerJobRevenueComponent {
 
 		const book = new Workbook({
 			worksheets: [{
-				name: 'Year-over-Year',
+				name: finalTotals ? 'Final Totals by Year' : 'Pace vs Prior Years',
 				rows,
 				columns: [
 					{ index: 1, width: 260 }, { index: 2, width: 70 }, { index: 3, width: 90 },
@@ -606,7 +613,7 @@ export class CustomerJobRevenueComponent {
 				]
 			}]
 		}, 'xlsx');
-		book.save(`Year-over-Year-as-of-${this.asOfToday()}.xlsx`);
+		book.save(`${finalTotals ? 'Final-Totals-by-Year' : 'Pace-vs-Prior-Years'}-as-of-${this.asOfToday()}.xlsx`);
 	}
 
 	constructor() {
@@ -714,7 +721,8 @@ export class CustomerJobRevenueComponent {
 		this.checkDetail.set(null);
 		this.echeckDetail.set(null);
 		this.teamBilling.set(null);
-		this.yoy.set(null);
+		this.yoyPace.set(null);
+		this.yoyFinal.set(null);
 		this.qaResult.set(null);
 		this.errorMessage.set('');
 		this.activeTab.set('rollup');
@@ -772,7 +780,8 @@ export class CustomerJobRevenueComponent {
 				this.echeckDetail.set(null);
 				this.teamBilling.set(null);
 				this.adjustments.set(null);
-				this.yoy.set(null);
+				this.yoyPace.set(null);
+				this.yoyFinal.set(null);
 				this.qaResult.set(null);
 				this.rowHeaderWidth = this.measureRowHeaderWidth(data.revenueRecords);
 				this.pivotDataSource.set({
@@ -838,8 +847,8 @@ export class CustomerJobRevenueComponent {
 		if (tab === 'adjustments') {
 			this.fetchAdjustmentsIfNeeded();
 		}
-		if (tab === 'yoy') {
-			this.fetchYoyIfNeeded();
+		if (tab === 'yoy' || tab === 'finals') {
+			this.fetchYoyIfNeeded(tab === 'finals');
 		}
 	}
 
@@ -901,11 +910,23 @@ export class CustomerJobRevenueComponent {
 	// Every column is measured at the SAME calendar point — the end date shifted back whole
 	// years — so a season still selling is read against where last season stood on that date,
 	// not against what it finished with.
+	//
+	// FINAL TOTALS BY YEAR is the same chart with the pin not shifted (Todd, 2026-09-29): every
+	// season read through today, so a concluded season shows what it finished with. Its own tab
+	// and its own cache — the two are different questions and each fetch is kept.
 	// ===================================================================
 
-	private readonly yoy = signal<YoyRevenueResponseDto | null>(null);
-	yoyLoading = signal(false);
+	private readonly yoyPace = signal<YoyRevenueResponseDto | null>(null);
+	private readonly yoyFinal = signal<YoyRevenueResponseDto | null>(null);
+	private readonly yoyPaceLoading = signal(false);
+	private readonly yoyFinalLoading = signal(false);
+
+	/** True on the Final Totals by Year tab — the chart, toolbar and export read their mode off this. */
+	readonly yoyIsFinal = computed(() => this.activeTab() === 'finals');
+	private readonly yoy = computed(() => this.yoyIsFinal() ? this.yoyFinal() : this.yoyPace());
+	readonly yoyLoading = computed(() => this.yoyIsFinal() ? this.yoyFinalLoading() : this.yoyPaceLoading());
 	readonly yoyBasis = YOY_BASIS;
+	readonly finalsBasis = FINALS_BASIS;
 
 	yoyHelpOpen = signal(false);
 	toggleYoyHelp(): void {
@@ -955,7 +976,7 @@ export class CustomerJobRevenueComponent {
 	});
 	readonly yoyUngrouped = computed(() => this.yoy()?.ungroupedJobNames ?? []);
 	readonly yoyGroups = computed<YoyChartGroup[]>(() =>
-		(this.yoy()?.groups ?? []).map((g, i) => this.toChartGroup(g, i)));
+		(this.yoy()?.groups ?? []).map((g, i) => this.toChartGroup(g, i, this.yoyIsFinal())));
 
 	/**
 	 * The label each lineage wears on the chart and in the picker, resolved ONCE over the whole
@@ -997,11 +1018,18 @@ export class CustomerJobRevenueComponent {
 	 *
 	 * linkedSignal, not a plain signal: a fresh report can retire the selected lineage
 	 * entirely, and reseeding on `yoy` re-picks with the data that justifies the pick.
+	 *
+	 * A lineage the reader already picked is KEPT when the new data still has it — which is
+	 * what carries the event across between the pace and final-totals tabs, so flipping from
+	 * one to the other compares the same event both ways.
 	 */
 	readonly yoySelectedGroup = linkedSignal<YoyRevenueResponseDto | null, string>({
 		source: this.yoy,
-		computation: () => {
+		computation: (_source, previous) => {
 			const groups = this.yoyGroups().filter(g => g.points.length > 0);
+			if (previous?.value && groups.some(g => g.label === previous.value)) {
+				return previous.value;
+			}
 			const current = this.jobService.currentJob()?.jobName;
 			const mine = current
 				? groups.find(g => g.points.some(p => p.jobNames.includes(current)))
@@ -1085,7 +1113,7 @@ export class CustomerJobRevenueComponent {
 	readonly yoyNeedsDateScope = computed(() => this.submittedScope()?.mode === 'jobs');
 
 	/** One lineage's seasons, shaped for the chart. */
-	private toChartGroup(g: YoyEventGroupDto, index: number): YoyChartGroup {
+	private toChartGroup(g: YoyEventGroupDto, index: number, finalTotals: boolean): YoyChartGroup {
 		const points: YoyChartPoint[] = g.years.map(y => ({
 			// Unique across the whole chart, because a Category axis keys points by their x
 			// value and two lineages both showing a 2025 season would otherwise collapse into
@@ -1100,7 +1128,11 @@ export class CustomerJobRevenueComponent {
 			// lineage's anchor, not from the season's own calendar year, so a 2024 season can
 			// legitimately be measured at 8/31/23 — a label showing only the cutoff would put
 			// "8/31/23" under a 2024 bar and name the wrong season.
-			pinLabel: shortPin(y.asOf),
+			//
+			// Final totals cut every season at today, so the date would be the same under every
+			// bar and say nothing. What the reader needs there is whether the figure is finished:
+			// a season still selling at the cutoff is in progress, everything else is final.
+			pinLabel: finalTotals ? (y.isActive ? 'In progress' : 'Final') : shortPin(y.asOf),
 			rawYear: y.year,
 			billed: y.billed,
 			collected: y.collected,
@@ -1123,25 +1155,30 @@ export class CustomerJobRevenueComponent {
 		};
 	}
 
-	private fetchYoyIfNeeded(): void {
+	private fetchYoyIfNeeded(finalTotals: boolean): void {
 		const scope = this.submittedScope();
-		if (!scope || scope.mode === 'jobs' || this.yoy() !== null || this.yoyLoading()) {
+		const data = finalTotals ? this.yoyFinal : this.yoyPace;
+		const loading = finalTotals ? this.yoyFinalLoading : this.yoyPaceLoading;
+		if (!scope || scope.mode === 'jobs' || data() !== null || loading()) {
 			return;
 		}
-		this.yoyLoading.set(true);
+		loading.set(true);
 		// Start date picks which events are in the report; the as-of date is the PIN every
-		// season is cut at, and it is always TODAY — see asOfToday.
+		// season is cut at, and it is always TODAY — see asOfToday. Final totals cut every
+		// season at today itself instead of shifting it back.
 		const params = new HttpParams()
 			.set('startDate', scope.startDate!)
-			.set('endDate', this.asOfToday());
+			.set('endDate', this.asOfToday())
+			.set('finalTotals', finalTotals);
 		this.http.get<YoyRevenueResponseDto>(`${this.apiUrl}/yoy`, { params }).subscribe({
-			next: (data) => {
-				this.yoy.set(data);
-				this.yoyLoading.set(false);
+			next: (res) => {
+				data.set(res);
+				loading.set(false);
 			},
 			error: (err) => {
-				this.yoyLoading.set(false);
-				this.errorMessage.set(err.error?.message || 'Failed to load year-over-year review');
+				loading.set(false);
+				this.errorMessage.set(err.error?.message
+					|| (finalTotals ? 'Failed to load final totals by year' : 'Failed to load year-over-year review'));
 			}
 		});
 	}
@@ -1511,7 +1548,10 @@ export class CustomerJobRevenueComponent {
 		// so naming the denominator is what stops the reader reading it off the bar.
 		const charged = row.paidCount + row.owingCount;
 		args.headerText =
-			`${span ? `${span.text} · ` : ''}${row.rawYear} season, as of ${row.pinLabel}` +
+			`${span ? `${span.text} · ` : ''}${row.rawYear} season, ` +
+			(this.yoyIsFinal()
+				? (row.pinLabel === 'Final' ? 'final' : 'in progress, as of today')
+				: `as of ${row.pinLabel}`) +
 			(charged > 0
 				? ` — ${row.paidCount} of ${charged} charged settled, ${row.owingCount} still owing`
 				: ' — nothing charged yet');

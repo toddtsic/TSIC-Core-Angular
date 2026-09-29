@@ -67,8 +67,12 @@ public interface ICustomerJobRevenueRepository
     /// cell, so name grouping can never disturb the arithmetic. Same money basis as
     /// <see cref="GetTeamBillingAsync"/> — the client's own book, not TSIC settlement.
     /// </remarks>
+    /// <param name="finalTotals">
+    /// True skips the year shift: every season is cut at <paramref name="endDate"/> itself, so
+    /// a concluded season reports what it finished with and the current one where it stands.
+    /// </param>
     Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
-        Guid jobId, DateTime startDate, DateTime endDate,
+        Guid jobId, DateTime startDate, DateTime endDate, bool finalTotals,
         CancellationToken ct = default);
 
     /// <summary>

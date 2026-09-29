@@ -175,7 +175,12 @@
 			</li>
 			<li class="nav-item">
 				<button class="nav-link" [class.active]="activeTab() === 'yoy'" (click)="setTab('yoy')">
-					Year-over-Year
+					Pace vs Prior Years
+				</button>
+			</li>
+			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'finals'" (click)="setTab('finals')">
+					Final Totals by Year
 				</button>
 			</li>
 		</ul>
@@ -202,14 +207,14 @@
 				<!-- No PDF on Team Billing: the pivot exposes no per-cell sanitiser, and
 				     club/team names are free text carrying characters the WinAnsi PDF fonts
 				     reject. Excel handles the Unicode and the row volume. -->
-				@if (activeTab() !== 'teamBilling' && activeTab() !== 'yoy') {
+				@if (activeTab() !== 'teamBilling' && activeTab() !== 'yoy' && activeTab() !== 'finals') {
 					<button class="btn btn-sm btn-outline-primary" (click)="exportActive('pdf')">
 						<i class="bi bi-file-earmark-pdf me-1"></i>PDF
 					</button>
 				}
-				<!-- No export on Year-over-Year: it renders charts, not a grid or pivot, so
-				     there is no exporter to call. -->
-				@if (activeTab() !== 'yoy') {
+				<!-- No shared export on the two chart tabs: they render charts, not a grid or
+				     pivot, and carry their own Excel button in the chart toolbar. -->
+				@if (activeTab() !== 'yoy' && activeTab() !== 'finals') {
 					<button class="btn btn-sm btn-outline-primary" (click)="exportActive('excel')">
 						<i class="bi bi-file-earmark-excel me-1"></i>Excel
 					</button>
@@ -555,8 +560,22 @@
 				</ejs-pivotview>
 			}
 		}
-		<!-- ============ YEAR-OVER-YEAR REVIEW ============ -->
-		@if (activeTab() === 'yoy') {
+		<!-- ============ PACE VS PRIOR YEARS / FINAL TOTALS BY YEAR ============
+		     One chart, two tabs. Pace cuts each season at today's date in its own year; Final
+		     Totals reads every season through today, i.e. what it finished with. -->
+		@if (activeTab() === 'yoy' || activeTab() === 'finals') {
+			@if (yoyIsFinal()) {
+				<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
+					<i class="bi bi-info-circle" aria-hidden="true"></i>
+					<span>
+						<strong>This tab is {{ finalsBasis }}.</strong>
+						Every season shows everything it recorded — its finished figures — with the season
+						still selling marked <em>In progress</em> beneath its bar. To see how this season
+						is pacing against where prior seasons stood on today's date, use
+						<button type="button" class="cjr-help-toggle" (click)="setTab('yoy')">Pace vs Prior Years</button>.
+					</span>
+				</div>
+			} @else {
 			<!-- Same "say what this is" contract as Teams/Players: two tabs on this page use the
 			     word "owed" pointing in opposite directions, so the basis is stated, not inferred. -->
 			<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
@@ -564,7 +583,8 @@
 				<span>
 					<strong>This tab is {{ yoyBasis }}.</strong>
 					It paces each event against where the same event stood at this point in prior
-					seasons, rather than against what those seasons finished with.
+					seasons, rather than against what those seasons finished with — for that, see
+					<button type="button" class="cjr-help-toggle" (click)="setTab('finals')">Final Totals by Year</button>.
 					<button type="button" class="cjr-help-toggle"
 						[attr.aria-expanded]="yoyHelpOpen()"
 						(click)="toggleYoyHelp()">
@@ -630,18 +650,19 @@
 					}
 				</span>
 			</div>
+			}
 
 			@if (yoyNeedsDateScope()) {
 				<div class="alert alert-warning">
 					<i class="bi bi-calendar-range me-2"></i>
-					Year-over-Year needs a date range. Your start date is what picks the events to
+					This tab needs a date range. Your start date is what picks the events to
 					compare and pulls in their prior seasons; a specific-jobs scope names individual jobs
 					instead, one season each — re-run with <strong>All Jobs</strong> and a start date.
 				</div>
 			} @else if (yoyLoading()) {
 				<div class="text-center py-5">
 					<div class="spinner-border text-primary"></div>
-					<p class="mt-2 text-muted">Loading year-over-year review...</p>
+					<p class="mt-2 text-muted">Loading {{ yoyIsFinal() ? 'final totals by year' : 'year-over-year pace' }}...</p>
 				</div>
 			} @else if (yoyGroups().length === 0) {
 				<div class="alert alert-secondary">
@@ -651,7 +672,13 @@
 				</div>
 			} @else {
 				<div class="yoy-toolbar">
-					@if (yoyAsOfMmDd(); as mmdd) {
+					@if (yoyIsFinal()) {
+						<p class="yoy-asof">
+							<i class="bi bi-flag me-1"></i>
+							Every season through {{ yoyAsOfDate() | date:'MMM d, y' }} — finished seasons
+							marked <strong>Final</strong>, the one still selling <strong>In progress</strong>.
+						</p>
+					} @else if (yoyAsOfMmDd(); as mmdd) {
 						<p class="yoy-asof">
 							<i class="bi bi-pin-angle me-1"></i>
 							Every season cut at <strong>{{ mmdd }}</strong> — the newest at
@@ -715,9 +742,13 @@
 					<section class="yoy-card" id="yoy-print-area">
 						<header class="yoy-card__head">
 							<h3 class="yoy-card__title">
-								Revenue and registrations at
-								@if (yoyAsOfMmDd(); as mmdd) { <strong>{{ mmdd }}</strong> } @else { the same date }
-								each season
+								@if (yoyIsFinal()) {
+									Final revenue and registrations each season
+								} @else {
+									Revenue and registrations at
+									@if (yoyAsOfMmDd(); as mmdd) { <strong>{{ mmdd }}</strong> } @else { the same date }
+									each season
+								}
 							</h3>
 							<span class="yoy-card__meta">
 								{{ view.groups.length }} event{{ view.groups.length === 1 ? '' : 's' }},

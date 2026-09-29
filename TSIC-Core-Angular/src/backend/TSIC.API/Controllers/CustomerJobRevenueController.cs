@@ -167,11 +167,17 @@ public class CustomerJobRevenueController : ControllerBase
     /// lineage reaches back through is deliberately unbounded, because a prior season that
     /// was collected well has no recent transactions and any activity-based filter would
     /// drop exactly the seasons worth comparing against.
+    /// <para>
+    /// <c>finalTotals=true</c> is the Final Totals by Year tab: same lineages, same money, but
+    /// every season cut at the end date itself rather than shifted back — what each season
+    /// finished with, the current one as it stands.
+    /// </para>
     /// </remarks>
     [HttpGet("yoy")]
     public async Task<ActionResult<YoyRevenueResponseDto>> GetYoyRevenue(
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
+        [FromQuery] bool finalTotals,
         CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -190,7 +196,7 @@ public class CustomerJobRevenueController : ControllerBase
         }
 
         var result = await _revenueService.GetYoyRevenueAsync(
-            jobId.Value, startDate.Value, endDate.Value, ct);
+            jobId.Value, startDate.Value, endDate.Value, finalTotals, ct);
 
         return Ok(result);
     }
