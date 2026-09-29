@@ -45,6 +45,8 @@
 
 .lib-purpose-text {
     margin: 0;
+
+    & + & { margin-top: var(--space-2); }
     font-size: var(--font-size-sm);
     line-height: 1.5;
     color: var(--brand-text);
