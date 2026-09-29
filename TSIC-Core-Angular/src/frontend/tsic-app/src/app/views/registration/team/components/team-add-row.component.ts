@@ -8,6 +8,7 @@ import { clubNameInTeamName } from '@shared/teams/team-name-hints';
 import { libraryGradYearOptions } from '@shared/teams/library-team-form';
 import { ageGroupLabel, isWaitlistAgeGroup } from './library-segment.types';
 import { ageGroupWaitlists, byGradYearThenName } from './library-register-plan';
+import { resolveRecommendedAgeGroupId } from './event-age-group.util';
 
 /** What the step toasts once its reload lands. */
 export interface TeamAddedEvent { message: string; tone: 'success' | 'warning'; }
@@ -17,8 +18,8 @@ let nextId = 0;
 const norm = (s: string | null | undefined): string => (s ?? '').trim().toLowerCase();
 
 /**
- * The age group a team NAME names, or '' (Todd 2026-09-28: "preselect if you can from team name,
- * otherwise must be selected"). An age group matches when its name appears in the team name as a
+ * The age group a typed-in team's NAME names, or '' (Todd 2026-09-28: from the name for a type-in,
+ * from the grad year for a library pick; otherwise must be selected). An age group matches when its name appears in the team name as a
  * whole token ("2029 Blue" → 2029, never 20291). Several matches resolve only when the longest
  * contains every other ("2029/2030 Blue" → 2029/2030); anything else is ambiguous → ''. A full
  * match lands on its WAITLIST twin, as the library's register editor does.
@@ -52,7 +53,8 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
  *                          library and registered, one press.
  *
  * Typing a library team's exact name (any case/spacing) IS picking it, so a near-duplicate never
- * mints a second library row. The age group preselects from the name, else must be chosen.
+ * mints a second library row. The age group preselects from the library team's grad year when picked, from the typed
+ * name when new (Todd 2026-09-28), else must be chosen.
  * Enter adds; the row clears and the cursor is back in the name for the next team.
  *
  * Owns its own writes, like the row editors; the step reloads on `added` / `libraryChanged`.
@@ -398,7 +400,16 @@ export class TeamAddRowComponent {
 
     readonly lop = computed(() => this.lopPick() || (this.picked() ? normalizeLop(this.picked()!.clubTeamLevelOfPlay) : ''));
     readonly effectiveGradYear = computed(() => this.picked()?.clubTeamGradYear ?? this.gradYear());
-    readonly ageGroupId = computed(() => this.agPick() ?? ageGroupFromTeamName(this.ageGroups(), this.text()));
+    /** The rep's pick, else the preselect: a library team by its grad year (as the library's own
+     *  register did), a typed-in team by its name. */
+    readonly ageGroupId = computed(() => {
+        const pick = this.agPick();
+        if (pick !== null) return pick;
+        const p = this.picked();
+        return p
+            ? resolveRecommendedAgeGroupId(this.ageGroups(), p.clubTeamGradYear)
+            : ageGroupFromTeamName(this.ageGroups(), this.text());
+    });
 
     readonly ageGroupOptions = computed(() => this.ageGroups().map(ag => {
         const label = ageGroupLabel(ag);
