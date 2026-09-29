@@ -183,6 +183,11 @@
 					Final by Year
 				</button>
 			</li>
+			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'retention'" (click)="setTab('retention')">
+					Team Retention
+				</button>
+			</li>
 		</ul>
 
 	<!-- Shared tab toolbar: exports identical on every tab; rollup adds its own tools -->
@@ -220,7 +225,7 @@
 
 				<!-- No shared export on the two chart tabs: they render charts, not a grid or
 				     pivot, and carry their own Excel button in the chart toolbar. -->
-				@if (activeTab() !== 'yoy' && activeTab() !== 'finals') {
+				@if (activeTab() !== 'yoy' && activeTab() !== 'finals' && activeTab() !== 'retention') {
 					<button class="btn btn-sm btn-outline-primary" (click)="exportActive('excel')">
 						<i class="bi bi-file-earmark-excel me-1"></i>Excel
 					</button>
@@ -825,6 +830,97 @@
 						</details>
 					</section>
 				}
+			}
+		}
+
+		<!-- ============ TEAM RETENTION ============
+		     Did each team come back? Raw list from the server with Returning / New on each row;
+		     the chart counts it, the Excel export is it. -->
+		@if (activeTab() === 'retention') {
+			<div class="cjr-info-panel tsic-callout tsic-callout--warning tsic-callout--block" role="note">
+				<i class="bi bi-info-circle" aria-hidden="true"></i>
+				<span>
+					<strong>Did each team come back?</strong>
+					A team is <em>Returning</em> when the same club and team name played this event's
+					previous season; otherwise it is <em>New</em>. A team that changed its name counts as
+					New. Tournament events only.
+				</span>
+			</div>
+
+			@if (retentionLoading()) {
+				<div class="text-center py-5">
+					<div class="spinner-border text-primary"></div>
+					<p class="mt-2 text-muted">Loading team retention...</p>
+				</div>
+			} @else if (retentionEvents().length === 0) {
+				<div class="alert alert-secondary">
+					No tournament events in this scope.
+				</div>
+			} @else {
+				<div class="yoy-toolbar">
+					@if (retentionEventOptions().length > 1) {
+						<div class="yoy-picker">
+							<label class="yoy-picker-label" for="retention-event">Event</label>
+							<select id="retention-event" class="form-select form-select-sm"
+								[ngModel]="retentionSelectedEvent()"
+								(ngModelChange)="onRetentionEventChange($event)">
+								@for (opt of retentionEventOptions(); track opt.value) {
+									<option [value]="opt.value">{{ opt.text }}</option>
+								}
+							</select>
+						</div>
+					}
+					<!-- Excel carries EVERY event in the report, not just the one charted. -->
+					<button type="button" class="btn btn-sm btn-outline-secondary yoy-print"
+						(click)="exportRetentionExcel()">
+						<i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Excel
+					</button>
+				</div>
+
+				@if (retention()?.ungroupedJobNames?.length) {
+					<div class="alert alert-warning">
+						<i class="bi bi-exclamation-triangle me-2"></i>
+						These jobs carry no usable year and are not included:
+						{{ retention()?.ungroupedJobNames?.join(', ') }}
+					</div>
+				}
+
+				<section class="yoy-card">
+					<header class="yoy-card__head">
+						<h3 class="yoy-card__title">Teams each season — returning and new</h3>
+					</header>
+					<ejs-chart
+						[primaryXAxis]="retentionXAxis()"
+						[primaryYAxis]="retentionYAxis()"
+						[tooltip]="yoyTooltip"
+						[legendSettings]="yoyLegend"
+						[chartArea]="yoyChartArea"
+						[margin]="yoyMargin"
+						[width]="'100%'"
+						[height]="'420'"
+						[background]="'transparent'"
+						(textRender)="onRetentionLabel($event)"
+						(sharedTooltipRender)="onRetentionTooltip($event)">
+						<e-series-collection>
+							<e-series [dataSource]="retentionPoints()" type="StackingColumn"
+								xName="season" yName="first" name="First season"
+								[fill]="retentionFirstColor()" [columnWidthInPixel]="yoyBarWidth"
+								[marker]="retentionLabelMarker">
+							</e-series>
+							<e-series [dataSource]="retentionPoints()" type="StackingColumn"
+								xName="season" yName="returning" name="Returning"
+								[fill]="retentionReturningColor()" [columnWidthInPixel]="yoyBarWidth"
+								[marker]="retentionLabelMarker">
+							</e-series>
+							<e-series [dataSource]="retentionPoints()" type="StackingColumn"
+								xName="season" yName="fresh" name="New"
+								[fill]="retentionNewColor()" [columnWidthInPixel]="yoyBarWidth"
+								[cornerRadius]="yoyTopCorner"
+								[marker]="retentionLabelMarker">
+							</e-series>
+						</e-series-collection>
+					</ejs-chart>
+				</section>
 			}
 		}
 

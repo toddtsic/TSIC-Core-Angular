@@ -35,6 +35,7 @@ import type { LegacyCompareResultDto } from '@core/api';
 import type { TeamBillingRecordDto } from '@core/api';
 import type { YoyRevenueResponseDto, YoyEventGroupDto } from '@core/api';
 import type { AdjustmentRecordDto } from '@core/api';
+import type { TeamRetentionResponseDto, TeamRetentionRowDto } from '@core/api';
 
 interface MonthOption {
 	startDate: string;
@@ -306,7 +307,7 @@ export class CustomerJobRevenueComponent {
 	// UI state
 	isLoading = signal(false);
 	errorMessage = signal('');
-	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords' | 'teamBilling' | 'adjustments' | 'yoy' | 'finals'>('rollup');
+	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords' | 'teamBilling' | 'adjustments' | 'yoy' | 'finals' | 'retention'>('rollup');
 
 	// Guided scope flow — lands on All jobs · date range (pickers preset to last month);
 	// nothing runs until the user clicks Run Report.
@@ -742,6 +743,7 @@ export class CustomerJobRevenueComponent {
 		this.echeckDetail.set(null);
 		this.teamBilling.set(null);
 		this.yoyPace.set(null);
+		this.retention.set(null);
 		this.yoyFinal.set(null);
 		this.qaResult.set(null);
 		this.errorMessage.set('');
@@ -801,6 +803,7 @@ export class CustomerJobRevenueComponent {
 				this.teamBilling.set(null);
 				this.adjustments.set(null);
 				this.yoyPace.set(null);
+				this.retention.set(null);
 				this.yoyFinal.set(null);
 				this.qaResult.set(null);
 				this.rowHeaderWidth = this.measureRowHeaderWidth(data.revenueRecords);
@@ -869,6 +872,9 @@ export class CustomerJobRevenueComponent {
 		}
 		if (tab === 'yoy' || tab === 'finals') {
 			this.fetchYoyIfNeeded(tab === 'finals');
+		}
+		if (tab === 'retention') {
+			this.fetchRetentionIfNeeded();
 		}
 	}
 
@@ -1647,6 +1653,240 @@ export class CustomerJobRevenueComponent {
 				default: return args.text?.[k] ?? '';
 			}
 		});
+	}
+
+	// ===================================================================
+	// TEAM RETENTION (Todd, 2026-09-29)
+	//
+	// Did each team come back? The server returns the raw list — event, season, club, team —
+	// with Returning / New already decided on each row; the chart counts those rows, and the
+	// Excel export IS those rows. Deliberately nothing more: no team-history grid, no club
+	// rollup, no dropped-teams sheet. The client can pivot the list themselves.
+	// ===================================================================
+
+	readonly retention = signal<TeamRetentionResponseDto | null>(null);
+	readonly retentionLoading = signal(false);
+
+	private fetchRetentionIfNeeded(): void {
+		const scope = this.submittedScope();
+		if (!scope || this.retention() !== null || this.retentionLoading()) {
+			return;
+		}
+		this.retentionLoading.set(true);
+		let params = new HttpParams();
+		if (scope.mode === 'jobs') {
+			for (const job of scope.jobs) {
+				params = params.append('jobNames', job);
+			}
+		} else {
+			params = params.set('startDate', scope.startDate!);
+		}
+		this.http.get<TeamRetentionResponseDto>(`${this.apiUrl}/team-retention`, { params }).subscribe({
+			next: (res) => {
+				this.retention.set(res);
+				this.retentionLoading.set(false);
+			},
+			error: (err) => {
+				this.retentionLoading.set(false);
+				this.errorMessage.set(err.error?.message || 'Failed to load team retention');
+			}
+		});
+	}
+
+	/** The events in the report, in the server's order. */
+	readonly retentionEvents = computed<string[]>(() =>
+		[...new Set((this.retention()?.rows ?? []).map(r => r.eventLabel))]);
+
+	/**
+	 * Which event the chart shows — one at a time, like YoY. Opens on the event the signed-in
+	 * job belongs to, matched on the job names the rows carry; a picked event is kept when a
+	 * fresh report still has it.
+	 */
+	readonly retentionSelectedEvent = linkedSignal<TeamRetentionResponseDto | null, string>({
+		source: this.retention,
+		computation: (_source, previous) => {
+			const events = this.retentionEvents();
+			if (previous?.value && events.includes(previous.value)) {
+				return previous.value;
+			}
+			const current = this.jobService.currentJob()?.jobName;
+			const mine = (this.retention()?.rows ?? []).find(r => r.jobName === current)?.eventLabel;
+			return mine ?? events[0] ?? '';
+		}
+	});
+
+	onRetentionEventChange(value: string): void {
+		this.retentionSelectedEvent.set(value);
+	}
+
+	/** Picker label: the event without its organisation prefix when every event shares one. */
+	readonly retentionEventOptions = computed(() => {
+		const events = this.retentionEvents();
+		const singleOrg = new Set(events.map(orgPrefix)).size === 1;
+		return events.map(e => ({ value: e, text: singleOrg ? eventLabel(e) : e }));
+	});
+
+	/**
+	 * One point per season of the selected event. Retention % is returning ÷ the PREVIOUS
+	 * season's teams — the share of last season that came back — and the oldest season, with
+	 * nothing before it, has none.
+	 */
+	readonly retentionPoints = computed(() => {
+		const event = this.retentionSelectedEvent();
+		const rows = (this.retention()?.rows ?? []).filter(r => r.eventLabel === event);
+		const byYear = new Map<number, TeamRetentionRowDto[]>();
+		for (const r of rows) {
+			byYear.set(r.year, [...(byYear.get(r.year) ?? []), r]);
+		}
+		let previousTotal = 0;
+		return [...byYear.entries()]
+			.sort(([a], [b]) => a - b)
+			.map(([year, list]) => {
+				const returning = list.filter(r => r.status === 'Returning').length;
+				const fresh = list.filter(r => r.status === 'New').length;
+				const first = list.filter(r => r.status === 'First season').length;
+				const pct = previousTotal > 0 ? Math.round((returning / previousTotal) * 100) : null;
+				const point = {
+					season: `${year}`,
+					returning,
+					fresh,
+					first,
+					total: list.length,
+					previousTotal,
+					pct
+				};
+				previousTotal = list.length;
+				return point;
+			});
+	});
+
+	readonly retentionReturningColor = signal(cssVar('--bs-primary', '#0ea5e9'));
+	readonly retentionNewColor = signal(cssVar('--brand-accent', '#f97316'));
+	readonly retentionFirstColor = signal(cssVar('--brand-text-muted', '#78716c'));
+
+	readonly retentionXAxis = computed<object>(() => ({
+		valueType: 'Category',
+		majorGridLines: { width: 0 },
+		majorTickLines: { width: 0 },
+		lineStyle: { width: 0.5, color: this.yoyBorder() },
+		labelStyle: { color: this.yoyText(), size: '12px', fontFamily: YOY_FONT_FAMILY }
+	}));
+	readonly retentionYAxis = computed<object>(() => ({
+		minimum: 0,
+		title: 'Teams',
+		titleStyle: { color: this.yoyMuted(), size: '11px', fontFamily: YOY_FONT_FAMILY },
+		majorGridLines: { width: 0.5, color: this.yoyBorder() },
+		majorTickLines: { width: 0 },
+		lineStyle: { width: 0 },
+		labelStyle: { color: this.yoyMuted(), size: '11px', fontFamily: YOY_FONT_FAMILY }
+	}));
+	readonly retentionLabelMarker = {
+		dataLabel: {
+			visible: true,
+			position: 'Outer' as const,
+			labelIntersectAction: 'None' as const,
+			font: { fontFamily: YOY_FONT_FAMILY, size: '12px', fontWeight: '600', color: this.yoyText() }
+		}
+	};
+
+	/**
+	 * The label above each bar: the season's team count and, from the second season on, the
+	 * share of last season's teams that came back. Drawn by the TOPMOST non-zero segment, since a
+	 * zero-height segment is not guaranteed a label location (same rule as the YoY count bar).
+	 */
+	onRetentionLabel(args: {
+		text?: string;
+		point?: { index?: number };
+		series?: { name?: string };
+		cancel?: boolean;
+	}): void {
+		const i = args.point?.index;
+		const p = i == null ? undefined : this.retentionPoints()[i];
+		if (!p) {
+			args.cancel = true;
+			return;
+		}
+		const top = p.fresh > 0 ? 'New' : p.returning > 0 ? 'Returning' : p.first > 0 ? 'First season' : null;
+		if (args.series?.name !== top) {
+			args.cancel = true;
+			return;
+		}
+		args.text = p.pct == null ? `${p.total}` : `${p.total} · ${p.pct}% back`;
+	}
+
+	onRetentionTooltip(args: {
+		text?: string[];
+		headerText?: string;
+		point?: ({ index?: number } | undefined)[];
+		series?: ({ name?: string } | undefined)[];
+	}): void {
+		const i = args.point?.[0]?.index;
+		const p = i == null ? undefined : this.retentionPoints()[i];
+		if (!p || !args.text || !args.series) {
+			return;
+		}
+		args.headerText = p.pct == null
+			? `${p.season} — ${p.total} teams, first season on record`
+			: `${p.season} — ${p.returning} of last season's ${p.previousTotal} teams came back (${p.pct}%)`;
+		args.text = args.series.map((s, k) => {
+			switch (s?.name) {
+				case 'Returning': return `Returning: ${p.returning}`;
+				case 'New': return `New: ${p.fresh}`;
+				case 'First season': return `First season: ${p.first}`;
+				default: return args.text?.[k] ?? '';
+			}
+		});
+	}
+
+	/**
+	 * The raw list as a spreadsheet — EVERY event in the report, not just the one charted — under
+	 * the same kind of title block as the other chart exports.
+	 */
+	exportRetentionExcel(): void {
+		const rows = this.retention()?.rows ?? [];
+		if (rows.length === 0) {
+			return;
+		}
+		const head = { bold: true, backColor: '#F2F2F2' };
+		const title = [
+			{ text: 'Team Retention', style: { bold: true, fontSize: 14 } },
+			{ text: 'Returning = the same club and team name played the previous season of this event. A team that changed its name counts as New.' },
+			{ text: this.submittedScope()?.label ?? '' },
+			{ text: `As of ${this.asOfToday()}` }
+		];
+		const sheetRows: object[] = title.map((t, i) => ({
+			index: i + 1,
+			cells: [{ index: 1, value: t.text, ...(t.style ? { style: t.style } : {}) }]
+		}));
+		const headerRow = title.length + 2;
+		sheetRows.push({
+			index: headerRow,
+			cells: ['Event', 'Year', 'Club', 'Team', 'Status'].map((h, i) => ({ index: i + 1, value: h, style: head }))
+		});
+		let next = headerRow + 1;
+		for (const r of rows) {
+			sheetRows.push({
+				index: next++,
+				cells: [
+					{ index: 1, value: r.eventLabel },
+					{ index: 2, value: r.year },
+					{ index: 3, value: r.clubName },
+					{ index: 4, value: r.teamName },
+					{ index: 5, value: r.status }
+				]
+			});
+		}
+		const book = new Workbook({
+			worksheets: [{
+				name: 'Team Retention',
+				rows: sheetRows,
+				columns: [
+					{ index: 1, width: 280 }, { index: 2, width: 60 }, { index: 3, width: 220 },
+					{ index: 4, width: 220 }, { index: 5, width: 100 }
+				]
+			}]
+		}, 'xlsx');
+		book.save(`Team-Retention-as-of-${this.asOfToday()}.xlsx`);
 	}
 
 	/** Accent Credit Card Credit rows so they jump out when scanning the CC grid. */
