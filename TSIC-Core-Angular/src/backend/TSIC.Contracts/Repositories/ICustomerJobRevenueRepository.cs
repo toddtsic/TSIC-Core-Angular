@@ -72,8 +72,8 @@ public interface ICustomerJobRevenueRepository
     /// a concluded season reports what it finished with and the current one where it stands.
     /// </param>
     /// <param name="jobNames">
-    /// Final totals only: when non-empty, these jobs pick the lineages instead of the start date,
-    /// and every season of each lineage is shown.
+    /// When non-empty, these jobs pick the lineages instead of the start date. Final totals show
+    /// every season of each lineage; the paced view anchors on the named season.
     /// </param>
     Task<YoyRevenueResponseDto> GetYoyRevenueAsync(
         Guid jobId, DateTime startDate, DateTime endDate, bool finalTotals,

@@ -1106,14 +1106,6 @@ export class CustomerJobRevenueComponent {
 		};
 	});
 
-	/**
-	 * YoY needs dates: the whole report is an as-of pin shifted back whole years, and a
-	 * job-name scope carries no date to pin to. Rather than fail silently, the tab says so.
-	 */
-	// Final by Year is exempt: nothing there is pinned to a date, so the chosen jobs simply pick
-	// their events and every season of each is shown.
-	readonly yoyNeedsDateScope = computed(() => this.submittedScope()?.mode === 'jobs' && !this.yoyIsFinal());
-
 	/** One lineage's seasons, shaped for the chart. */
 	private toChartGroup(g: YoyEventGroupDto, index: number, finalTotals: boolean): YoyChartGroup {
 		const points: YoyChartPoint[] = g.years.map(y => ({
@@ -1161,7 +1153,7 @@ export class CustomerJobRevenueComponent {
 		const scope = this.submittedScope();
 		const data = finalTotals ? this.yoyFinal : this.yoyPace;
 		const loading = finalTotals ? this.yoyFinalLoading : this.yoyPaceLoading;
-		if (!scope || (scope.mode === 'jobs' && !finalTotals) || data() !== null || loading()) {
+		if (!scope || data() !== null || loading()) {
 			return;
 		}
 		loading.set(true);

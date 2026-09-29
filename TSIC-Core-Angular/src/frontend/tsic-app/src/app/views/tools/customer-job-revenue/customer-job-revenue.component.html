@@ -655,23 +655,20 @@
 			</div>
 			}
 
-			@if (yoyNeedsDateScope()) {
-				<div class="alert alert-warning">
-					<i class="bi bi-calendar-range me-2"></i>
-					This tab needs a date range. Your start date is what picks the events to
-					compare and pulls in their prior seasons; a specific-jobs scope names individual jobs
-					instead, one season each — re-run with <strong>All Jobs</strong> and a start date.
-				</div>
-			} @else if (yoyLoading()) {
+			@if (yoyLoading()) {
 				<div class="text-center py-5">
 					<div class="spinner-border text-primary"></div>
 					<p class="mt-2 text-muted">Loading {{ yoyIsFinal() ? 'final by year' : 'YoY to date' }}...</p>
 				</div>
 			} @else if (yoyGroups().length === 0) {
 				<div class="alert alert-secondary">
-					No events were still open as of your start date, so there is nothing to compare. The
-					start date picks the events — a job counts when its registration had not closed by then
-					— and their prior seasons are pulled in regardless of age.
+					@if (submittedScope()?.mode === 'jobs') {
+						The jobs you picked carry no usable season year, so they cannot be placed on a chart.
+					} @else {
+						No events were still open as of your start date, so there is nothing to compare. The
+						start date picks the events — a job counts when its registration had not closed by then
+						— and their prior seasons are pulled in regardless of age.
+					}
 				</div>
 			} @else {
 				<div class="yoy-toolbar">

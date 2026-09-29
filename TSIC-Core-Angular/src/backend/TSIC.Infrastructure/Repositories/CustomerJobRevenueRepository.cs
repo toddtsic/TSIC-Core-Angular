@@ -1104,8 +1104,10 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         var customerIds = await GetCustomerGroupIdsAsync(jobId, ct);
         var asOf = endDate.Date;
         var activeFrom = startDate.Date;
-        // Specific-jobs scope (Final by Year only): the named jobs pick the lineages instead of the
-        // start date, and each lineage shows EVERY season, newer ones included.
+        // Specific-jobs scope: the named jobs pick the lineages instead of the start date. Final
+        // by Year then shows EVERY season, newer ones included; YoY to Date anchors on the NAMED
+        // season — the job the reader picked is the one read at today, its predecessors at
+        // today shifted back.
         var selected = new HashSet<string>(jobNames, StringComparer.OrdinalIgnoreCase);
         var byJobName = selected.Count > 0;
         // A job is LIVE when its registration window has not closed by the time the range
@@ -1163,8 +1165,9 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             }
         }
 
-        // A named job may be an older season; its lineage still reads through its newest one.
-        if (byJobName)
+        // Final by Year: a named job may be an older season; its lineage still reads through its
+        // newest one. Not for YoY to Date, whose anchor IS the named season.
+        if (byJobName && finalTotals)
         {
             foreach (var j in jobs)
             {
@@ -1216,7 +1219,9 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 .Select(m => m.Year)
                 .Distinct()
                 .OrderByDescending(y => y)
-                .Take(MaxYearColumns)
+                // Final by Year caps AFTER dropping empty seasons (see assembly), so it
+                // aggregates every season here. One pin for all of them, so one batch.
+                .Take(finalTotals ? int.MaxValue : MaxYearColumns)
                 .ToHashSet();
 
             foreach (var m in members)
@@ -1565,6 +1570,19 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                     PaidCount = Math.Max(0, chargedCount - owingCount),
                     OwingCount = owingCount
                 });
+            }
+
+            // Final by Year drops seasons with nothing in them — no money, no teams, no players —
+            // BEFORE the column cap, so an empty future season (Carolina Clash 2027, created ahead
+            // of time) cannot push a real one (2021) off the chart (Todd, 2026-09-29). YoY to Date
+            // keeps its empties: there, "had not opened by this date" is the answer.
+            if (finalTotals)
+            {
+                columns = columns
+                    .Where(c => c.Billed != 0m || c.Collected != 0m || c.TeamCount > 0 || c.PlayerCount > 0)
+                    .OrderByDescending(c => c.Year)
+                    .Take(MaxYearColumns)
+                    .ToList();
             }
 
             if (columns.Count == 0)

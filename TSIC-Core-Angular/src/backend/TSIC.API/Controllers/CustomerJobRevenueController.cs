@@ -187,16 +187,13 @@ public class CustomerJobRevenueController : ControllerBase
             return BadRequest(new { message = "Registration context required" });
         }
 
-        // Final by Year may be scoped by job name instead of a start date: every season is read
-        // through the end date anyway, so nothing needs a start date to pin to. YoY to Date
-        // still requires it — its start date is what picks the events.
+        // Either a start date or named jobs picks the events. With named jobs, Final by Year
+        // shows every season of each; YoY to Date anchors on the named season.
         var names = jobNames ?? [];
-        var byJobName = finalTotals && names.Count > 0;
+        var byJobName = names.Count > 0;
         if (endDate == null || (!byJobName && startDate == null))
         {
-            return BadRequest(new { message = finalTotals
-                ? "Final by Year requires a start date or a job selection."
-                : "YoY to Date requires a full date range." });
+            return BadRequest(new { message = "Pick a start date or one or more jobs." });
         }
         if (startDate > endDate)
         {
