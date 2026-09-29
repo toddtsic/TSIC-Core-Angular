@@ -78,7 +78,7 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
             @if (available().length > 0) {
               Pick one from your Club Team Library, or type a new team name &mdash; a new team is saved to your library too.
             } @else if (clubTeams().length === 0) {
-              Type your team's name &mdash; it's saved to your Club Team Library, ready for the next event.
+              Fill in the team name, grad year, level of play and age group, then click <b>Add</b>.
             } @else {
               Every team in your Club Team Library is registered. Type a new team name to add another &mdash; it's saved to your library too.
             }
