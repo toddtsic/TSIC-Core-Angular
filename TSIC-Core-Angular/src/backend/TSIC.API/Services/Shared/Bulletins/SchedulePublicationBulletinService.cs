@@ -46,8 +46,11 @@ public sealed partial class SchedulePublicationBulletinService : ISchedulePublic
     /// or an authored link ending in <c>/{jobPath}/schedule</c>. It CAN skip seeding for a job
     /// whose director hand-wrote their own schedule bulletin; that is correct, they already have
     /// the announcement and a second one is noise.
+    ///
+    /// Public because it is also THE announce test for the TSIC-Teams Schedules tab: a published
+    /// schedule is surfaced there only once an active bulletin points at it. One rule, not a copy.
     /// </summary>
-    private static bool PointsAtSchedule(string? text) =>
+    public static bool PointsAtSchedule(string? text) =>
         !string.IsNullOrEmpty(text)
         && (text.Contains("!SCHEDULE", StringComparison.OrdinalIgnoreCase)
             || CurrentScheduleLink().IsMatch(text));
