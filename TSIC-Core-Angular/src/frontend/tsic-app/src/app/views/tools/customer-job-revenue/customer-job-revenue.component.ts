@@ -602,7 +602,7 @@ export class CustomerJobRevenueComponent {
 
 		const book = new Workbook({
 			worksheets: [{
-				name: finalTotals ? 'Final Totals by Year' : 'Year-over-Year',
+				name: finalTotals ? 'Final by Year' : 'YoY to Date',
 				rows,
 				columns: [
 					{ index: 1, width: 260 }, { index: 2, width: 70 }, { index: 3, width: 90 },
@@ -613,7 +613,7 @@ export class CustomerJobRevenueComponent {
 				]
 			}]
 		}, 'xlsx');
-		book.save(`${finalTotals ? 'Final-Totals-by-Year' : 'Year-over-Year'}-as-of-${this.asOfToday()}.xlsx`);
+		book.save(`${finalTotals ? 'Final-by-Year' : 'YoY-to-Date'}-as-of-${this.asOfToday()}.xlsx`);
 	}
 
 	constructor() {
@@ -921,7 +921,7 @@ export class CustomerJobRevenueComponent {
 	private readonly yoyPaceLoading = signal(false);
 	private readonly yoyFinalLoading = signal(false);
 
-	/** True on the Final Totals by Year tab — the chart, toolbar and export read their mode off this. */
+	/** True on the Final by Year tab — the chart, toolbar and export read their mode off this. */
 	readonly yoyIsFinal = computed(() => this.activeTab() === 'finals');
 	private readonly yoy = computed(() => this.yoyIsFinal() ? this.yoyFinal() : this.yoyPace());
 	readonly yoyLoading = computed(() => this.yoyIsFinal() ? this.yoyFinalLoading() : this.yoyPaceLoading());
@@ -1178,7 +1178,7 @@ export class CustomerJobRevenueComponent {
 			error: (err) => {
 				loading.set(false);
 				this.errorMessage.set(err.error?.message
-					|| (finalTotals ? 'Failed to load final totals by year' : 'Failed to load year-over-year review'));
+					|| (finalTotals ? 'Failed to load final by year' : 'Failed to load year-over-year review'));
 			}
 		});
 	}

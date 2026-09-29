@@ -175,12 +175,12 @@
 			</li>
 			<li class="nav-item">
 				<button class="nav-link" [class.active]="activeTab() === 'yoy'" (click)="setTab('yoy')">
-					Year-over-Year
+					YoY to Date
 				</button>
 			</li>
 			<li class="nav-item">
 				<button class="nav-link" [class.active]="activeTab() === 'finals'" (click)="setTab('finals')">
-					Final Totals by Year
+					Final by Year
 				</button>
 			</li>
 		</ul>
@@ -572,7 +572,7 @@
 						Every season shows everything it recorded — its finished figures — with the season
 						still selling marked <em>In progress</em> beneath its bar. To see how this season
 						is pacing against where prior seasons stood on today's date, use
-						<button type="button" class="cjr-help-toggle" (click)="setTab('yoy')">Year-over-Year</button>.
+						<button type="button" class="cjr-help-toggle" (click)="setTab('yoy')">YoY to Date</button>.
 					</span>
 				</div>
 			} @else {
@@ -584,7 +584,7 @@
 					<strong>This tab is {{ yoyBasis }}.</strong>
 					It paces each event against where the same event stood at this point in prior
 					seasons, rather than against what those seasons finished with — for that, see
-					<button type="button" class="cjr-help-toggle" (click)="setTab('finals')">Final Totals by Year</button>.
+					<button type="button" class="cjr-help-toggle" (click)="setTab('finals')">Final by Year</button>.
 					<button type="button" class="cjr-help-toggle"
 						[attr.aria-expanded]="yoyHelpOpen()"
 						(click)="toggleYoyHelp()">
@@ -662,7 +662,7 @@
 			} @else if (yoyLoading()) {
 				<div class="text-center py-5">
 					<div class="spinner-border text-primary"></div>
-					<p class="mt-2 text-muted">Loading {{ yoyIsFinal() ? 'final totals by year' : 'year-over-year review' }}...</p>
+					<p class="mt-2 text-muted">Loading {{ yoyIsFinal() ? 'final by year' : 'YoY to date' }}...</p>
 				</div>
 			} @else if (yoyGroups().length === 0) {
 				<div class="alert alert-secondary">
