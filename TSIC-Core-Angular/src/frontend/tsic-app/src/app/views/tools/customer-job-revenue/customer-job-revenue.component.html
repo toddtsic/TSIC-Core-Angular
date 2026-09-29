@@ -799,7 +799,9 @@
 								     Collected + Owed = Billed holds exactly here — Owed is computed as
 								     Billed − Collected at each season's own cutoff, never read from a
 								     stored balance. If a season is ever OVERPAID the Owed segment goes
-								     negative and hangs below the axis; the stack label stays correct. -->
+								     negative and hangs below the axis — so Collected carries the total
+								     label then (see onYoySegmentLabel), because Owed's would print below
+								     the axis and be clipped (Carolina Clash 2024, overpaid $1,541). -->
 								<e-series
 									[dataSource]="view.points"
 									type="StackingColumn"
@@ -808,7 +810,8 @@
 									name="Collected"
 									stackingGroup="money"
 									[fill]="yoyCollectedColor()"
-									[columnWidthInPixel]="yoyBarWidth">
+									[columnWidthInPixel]="yoyBarWidth"
+									[marker]="yoyTotalMarker">
 								</e-series>
 								<e-series
 									[dataSource]="view.points"

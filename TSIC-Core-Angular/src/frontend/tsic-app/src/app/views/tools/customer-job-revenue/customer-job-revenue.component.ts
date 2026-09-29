@@ -1491,8 +1491,12 @@ export class CustomerJobRevenueComponent {
 
 		// Owed is the money stack's TOP series, so its label sits above that bar and prints
 		// Billed rather than its own segment. Collected carries no marker.
-		if (name === YOY_SERIES.owed) {
-			if (row.billed <= 0) {
+		// The total rides on whichever money segment is the TOP of the bar. Normally that is
+		// Owed; on an OVERPAID season Owed is negative and ej2 draws it below the axis, where its
+		// label is clipped away — so Collected, now the top, carries it instead.
+		if (name === YOY_SERIES.owed || name === YOY_SERIES.collected) {
+			const topSeries = row.owed < 0 ? YOY_SERIES.collected : YOY_SERIES.owed;
+			if (name !== topSeries || row.billed <= 0) {
 				args.cancel = true;
 				return;
 			}
@@ -1554,7 +1558,9 @@ export class CustomerJobRevenueComponent {
 		if (countTop == null || !height || !range || range.max <= range.min || !args.location || row.billed <= 0) {
 			return;
 		}
-		const moneyTop = height - ((row.billed - range.min) / (range.max - range.min)) * height;
+		// The bar's top is Collected on an overpaid season, where Owed hangs below the axis.
+		const moneyValue = Math.max(row.billed, row.collected);
+		const moneyTop = height - ((moneyValue - range.min) / (range.max - range.min)) * height;
 		// Where the dollar label's baseline sits relative to this label's natural one.
 		const moneyLabel = moneyTop - this.yoyTotalLabel.margin.bottom;
 		const gap = moneyLabel - countTop;
