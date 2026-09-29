@@ -186,6 +186,12 @@ public class CustomerJobRevenueService : ICustomerJobRevenueService
         return await _repo.GetYoyRevenueAsync(jobId, startDate, endDate, finalTotals, jobNames, ct);
     }
 
+    public async Task<TeamRetentionResponseDto> GetTeamRetentionAsync(
+        Guid jobId, DateTime? startDate, IReadOnlyList<string> jobNames, CancellationToken ct = default)
+    {
+        return await _repo.GetTeamRetentionAsync(jobId, startDate, jobNames, ct);
+    }
+
     public async Task<List<AdjustmentRecordDto>> GetAdjustmentsAsync(
         Guid jobId, DateTime? startDate, DateTime? endDate,
         List<string> jobNames, CancellationToken ct = default)

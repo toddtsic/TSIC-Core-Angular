@@ -208,6 +208,33 @@ public class CustomerJobRevenueController : ControllerBase
     }
 
     /// <summary>
+    /// Team Retention tab: every active team in every season of the selected tournament events,
+    /// each marked Returning or New by club + team name against the event's previous season.
+    /// Events are picked by named jobs, else by a start date.
+    /// </summary>
+    [HttpGet("team-retention")]
+    public async Task<ActionResult<TeamRetentionResponseDto>> GetTeamRetention(
+        [FromQuery] DateTime? startDate,
+        [FromQuery] List<string>? jobNames,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        var names = jobNames ?? [];
+        if (names.Count == 0 && startDate == null)
+        {
+            return BadRequest(new { message = "Pick a start date or one or more jobs." });
+        }
+
+        var result = await _revenueService.GetTeamRetentionAsync(jobId.Value, startDate, names, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Adjustments tab: one row per money-bearing entity carrying a non-zero net fee
     /// adjustment, as of the end date. UNDATED rows — see the repository for why.
     /// </summary>

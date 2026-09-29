@@ -1606,6 +1606,141 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         };
     }
 
+    // =====================================================================
+    // TEAM RETENTION — did this team come back? (Todd, 2026-09-29)
+    //
+    // Tournament jobs only (JobTypeID 2). Events are picked exactly as YoY picks them — named
+    // jobs, else jobs still open on the start date — and each event reaches back through every
+    // season it has. Grouped by name, seasons from Jobs.year, same parse and same key as YoY.
+    //
+    // IDENTITY IS THE NAME PAIR, NOTHING ELSE: the club rep's registration club_name plus the
+    // team name, trimmed and case-insensitive. The Club Team Library link is deliberately NOT
+    // used (Todd) — it only exists from 2025, and one rule across every season beats a better
+    // rule for two of them. A team that renames itself, or a club spelled two ways, reads as
+    // New; that is a property of the data, stated rather than guessed around.
+    //
+    // "Returning" compares to the event's PREVIOUS SEASON ON RECORD, not year − 1: an event
+    // that skipped a year is compared to the last time it ran. The oldest season has nothing
+    // to compare against and says so.
+    // =====================================================================
+    private const int TournamentJobTypeId = 2;
+
+    public async Task<TeamRetentionResponseDto> GetTeamRetentionAsync(
+        Guid jobId, DateTime? startDate, IReadOnlyList<string> jobNames, CancellationToken ct = default)
+    {
+        var customerIds = await GetCustomerGroupIdsAsync(jobId, ct);
+        var selected = new HashSet<string>(jobNames, StringComparer.OrdinalIgnoreCase);
+        var byJobName = selected.Count > 0;
+        var activeFrom = (startDate ?? DateTime.MinValue).Date;
+
+        var allJobs = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => customerIds.Contains(j.CustomerId)
+                && j.JobName != null
+                && j.JobTypeId == TournamentJobTypeId)
+            .Select(j => new { j.JobId, JobName = j.JobName!, j.Year, j.ExpiryUsers })
+            .ToListAsync(ct);
+
+        var jobs = new List<YoyJobRef>();
+        var ungrouped = new List<string>();
+        foreach (var j in allJobs)
+        {
+            var year = ParseJobYear(j.Year);
+            var picked = byJobName ? selected.Contains(j.JobName) : j.ExpiryUsers >= activeFrom;
+            if (year == null)
+            {
+                if (picked)
+                {
+                    ungrouped.Add(j.JobName);
+                }
+                continue;
+            }
+            jobs.Add(new YoyJobRef(j.JobId, j.JobName, j.ExpiryUsers, year.Value,
+                BuildGroupKey(j.JobName, year.Value)));
+        }
+
+        var keys = jobs
+            .Where(j => byJobName ? selected.Contains(j.JobName) : j.ExpiryUsers >= activeFrom)
+            .Select(j => j.GroupKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var members = jobs.Where(j => keys.Contains(j.GroupKey)).ToList();
+
+        if (members.Count == 0)
+        {
+            return new TeamRetentionResponseDto
+            {
+                Rows = [],
+                UngroupedJobNames = ungrouped.Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList()
+            };
+        }
+
+        var memberIds = members.Select(m => m.JobId).ToList();
+        var teams = await _context.Teams
+            .AsNoTracking()
+            .Where(t => memberIds.Contains(t.JobId) && t.Active == true)
+            .Select(t => new
+            {
+                t.JobId,
+                t.TeamName,
+                ClubName = t.ClubrepRegistration != null ? t.ClubrepRegistration.ClubName : null
+            })
+            .ToListAsync(ct);
+
+        var jobById = members.ToDictionary(m => m.JobId);
+        var placed = teams
+            .Select(t =>
+            {
+                var job = jobById[t.JobId];
+                var club = (t.ClubName ?? string.Empty).Trim();
+                var team = (t.TeamName ?? string.Empty).Trim();
+                return new
+                {
+                    job.GroupKey,
+                    job.Year,
+                    job.JobName,
+                    Club = club,
+                    Team = team,
+                    Match = $"{club.ToLowerInvariant()}\u001f{team.ToLowerInvariant()}"
+                };
+            })
+            .ToList();
+
+        var rows = new List<TeamRetentionRowDto>();
+        foreach (var byEvent in placed.GroupBy(p => p.GroupKey, StringComparer.OrdinalIgnoreCase))
+        {
+            HashSet<string>? previous = null;
+            foreach (var season in byEvent.GroupBy(p => p.Year).OrderBy(s => s.Key))
+            {
+                foreach (var p in season)
+                {
+                    rows.Add(new TeamRetentionRowDto
+                    {
+                        EventLabel = byEvent.Key,
+                        Year = p.Year,
+                        JobName = p.JobName,
+                        ClubName = p.Club,
+                        TeamName = p.Team,
+                        Status = previous == null ? "First season"
+                            : previous.Contains(p.Match) ? "Returning"
+                            : "New"
+                    });
+                }
+                previous = season.Select(p => p.Match).ToHashSet(StringComparer.Ordinal);
+            }
+        }
+
+        return new TeamRetentionResponseDto
+        {
+            Rows = rows
+                .OrderBy(r => r.EventLabel, StringComparer.Ordinal)
+                .ThenBy(r => r.Year)
+                .ThenBy(r => r.ClubName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(r => r.TeamName, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            UngroupedJobNames = ungrouped.Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList()
+        };
+    }
+
     /// <summary>One job's identity for YoY placement. Money never travels on this record.</summary>
     private sealed record YoyJobRef(
         Guid JobId, string JobName, DateTime ExpiryUsers, int Year, string GroupKey);

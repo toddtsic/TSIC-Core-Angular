@@ -26,6 +26,9 @@ public interface ICustomerJobRevenueService
         Guid jobId, DateTime startDate, DateTime endDate, bool finalTotals,
         IReadOnlyList<string> jobNames, CancellationToken ct = default);
 
+    Task<TeamRetentionResponseDto> GetTeamRetentionAsync(
+        Guid jobId, DateTime? startDate, IReadOnlyList<string> jobNames, CancellationToken ct = default);
+
     Task<List<AdjustmentRecordDto>> GetAdjustmentsAsync(
         Guid jobId, DateTime? startDate, DateTime? endDate,
         List<string> jobNames, CancellationToken ct = default);

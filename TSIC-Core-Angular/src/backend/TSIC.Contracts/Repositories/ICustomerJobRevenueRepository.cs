@@ -80,6 +80,15 @@ public interface ICustomerJobRevenueRepository
         IReadOnlyList<string> jobNames, CancellationToken ct = default);
 
     /// <summary>
+    /// Team Retention: every active team in every season of the selected tournament events,
+    /// marked Returning / New against the event's previous season by club + team name.
+    /// </summary>
+    /// <param name="startDate">Picks events still open on this date; ignored when <paramref name="jobNames"/> is non-empty.</param>
+    /// <param name="jobNames">When non-empty, these jobs pick the events instead of the start date.</param>
+    Task<TeamRetentionResponseDto> GetTeamRetentionAsync(
+        Guid jobId, DateTime? startDate, IReadOnlyList<string> jobNames, CancellationToken ct = default);
+
+    /// <summary>
     /// Adjustments tab: one row per money-bearing entity with a NON-ZERO net fee adjustment
     /// (<c>lateFee − discount − correction</c>), as of the end date.
     /// </summary>
