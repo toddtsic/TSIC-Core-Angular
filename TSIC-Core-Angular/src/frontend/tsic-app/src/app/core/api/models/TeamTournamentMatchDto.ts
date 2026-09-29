@@ -7,6 +7,6 @@ export type TeamTournamentMatchDto = {
     tournamentJobId: string;
     tournamentJobName: string;
     matchedTeamId?: string | null;
-    candidates: Array<TournamentTeamOptionDto>;
+    teams: Array<TournamentTeamOptionDto>;
 };
 

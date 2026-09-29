@@ -73,13 +73,13 @@ public sealed partial class TeamTournamentsService : ITeamTournamentsService
             .Where(t => string.Equals(t.TeamName.Trim(), ownName, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+        // The match only decides what to PRESELECT; the list is always the club's full one, so
+        // the user can flip to any of the club's teams.
         ClubTournamentTeamRow? matched = null;
-        List<ClubTournamentTeamRow> candidates;
 
         if (byName.Count == 1)
         {
             matched = byName[0];
-            candidates = [];
         }
         else if (byName.Count > 1)
         {
@@ -90,20 +90,7 @@ public sealed partial class TeamTournamentsService : ITeamTournamentsService
                 ? []
                 : byName.Where(t => GradYear(t.AgegroupName) == ownYear).ToList();
 
-            if (byYear.Count == 1)
-            {
-                matched = byYear[0];
-                candidates = [];
-            }
-            else
-            {
-                // Never an empty pick list when names did match.
-                candidates = byYear.Count > 1 ? byYear : byName;
-            }
-        }
-        else
-        {
-            candidates = clubTeams;
+            if (byYear.Count == 1) matched = byYear[0];
         }
 
         return new TeamTournamentMatchDto
@@ -111,7 +98,7 @@ public sealed partial class TeamTournamentsService : ITeamTournamentsService
             TournamentJobId = tournament.JobId,
             TournamentJobName = tournament.JobName,
             MatchedTeamId = matched?.TeamId,
-            Candidates = candidates
+            Teams = clubTeams
                 .OrderBy(t => t.TeamName, StringComparer.OrdinalIgnoreCase)
                 .Select(t => new TournamentTeamOptionDto { TournamentTeamId = t.TeamId, TeamName = t.TeamName })
                 .ToList()

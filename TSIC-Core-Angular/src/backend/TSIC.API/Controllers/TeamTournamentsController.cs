@@ -50,7 +50,7 @@ public class TeamTournamentsController : ControllerBase
         return Ok(await _tournaments.GetTournamentsAsync(teamId, ct));
     }
 
-    /// <summary>The single matched tournament team, or the club's teams in it to pick from.</summary>
+    /// <summary>All the club's teams in the tournament, plus the one to preselect when the app's team matches cleanly.</summary>
     [HttpGet("{tournamentJobId:guid}/match")]
     [ProducesResponseType(typeof(TeamTournamentMatchDto), 200)]
     [ProducesResponseType(403)]

@@ -14,9 +14,9 @@ public record TeamTournamentDto
 }
 
 /// <summary>
-/// Result of matching the app's team to the club's teams in one tournament. Exactly one of the
-/// two outcomes: <see cref="MatchedTeamId"/> set and <see cref="Candidates"/> empty, or
-/// <see cref="MatchedTeamId"/> null and <see cref="Candidates"/> holding the teams to pick from.
+/// The club's teams in one tournament, with the app's team matched among them if it can be.
+/// <see cref="Teams"/> is ALWAYS the club's full scheduled list -- the user can flip between
+/// them. <see cref="MatchedTeamId"/>, when set, is one of <see cref="Teams"/> to preselect.
 /// Carries the tournament ids back so the next call is built from this response alone.
 /// </summary>
 public record TeamTournamentMatchDto
@@ -24,10 +24,11 @@ public record TeamTournamentMatchDto
     public required Guid TournamentJobId { get; init; }
     public required string TournamentJobName { get; init; }
 
-    /// <summary>The single matched TOURNAMENT team, or null when the user must pick.</summary>
+    /// <summary>The single good match to preselect, or null when nothing matched cleanly.</summary>
     public Guid? MatchedTeamId { get; init; }
 
-    public required List<TournamentTeamOptionDto> Candidates { get; init; }
+    /// <summary>Every club team scheduled in the tournament, sorted by name.</summary>
+    public required List<TournamentTeamOptionDto> Teams { get; init; }
 }
 
 /// <summary>A club team in the tournament, named as the tournament names it.</summary>
