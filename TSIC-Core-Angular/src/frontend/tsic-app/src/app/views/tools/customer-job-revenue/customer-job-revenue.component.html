@@ -498,6 +498,7 @@
 							[class.bi-chevron-down]="teamBillingHelpOpen()"></i>
 						How to read this
 					</button>
+					<ng-container [ngTemplateOutlet]="correctionsNote"></ng-container>
 					@if (teamBillingHelpOpen()) {
 						<span class="cjr-help-detail">
 							<strong>Your start date picks the events.</strong> An event is in when its
@@ -573,6 +574,7 @@
 						still selling marked <em>In progress</em> beneath its bar. To see how this season
 						is pacing against where prior seasons stood on today's date, use
 						<button type="button" class="cjr-help-toggle" (click)="setTab('yoy')">YoY to Date</button>.
+						<ng-container [ngTemplateOutlet]="correctionsNote"></ng-container>
 					</span>
 				</div>
 			} @else {
@@ -593,6 +595,7 @@
 							[class.bi-chevron-down]="yoyHelpOpen()"></i>
 						How to read this
 					</button>
+					<ng-container [ngTemplateOutlet]="correctionsNote"></ng-container>
 					@if (yoyHelpOpen()) {
 						<span class="cjr-help-detail">
 							<strong>Your date range does not cut these numbers.</strong> Your start date
@@ -894,3 +897,17 @@
 
 	}
 </div>
+
+<!-- The corrections caveat, shared by Teams/Players to Customer, YoY to Date and Final by Year
+     (Todd, 2026-09-29). All three count every ledger method as Collected, corrections included,
+     and that is kept deliberately — but a correction is a credit, not cash. Carolina Clash 2026
+     showed $73,649.75 collected of which $8,550 was "Half off" and a carried-over deposit, and a
+     $0.00 Owed that was five teams owing $500 netted against seven carrying credits. -->
+<ng-template #correctionsNote>
+	<span class="cjr-help-detail">
+		<strong>Collected includes corrections you entered</strong> — a discount given after the
+		team paid, a deposit carried over from another event — so it can be more than the cash you
+		actually received. <strong>Owed is a net figure:</strong> a team that still owes and a team
+		carrying a credit cancel each other out, so a balance of $0 can still hide both.
+	</span>
+</ng-template>
