@@ -11,6 +11,7 @@ import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedu
 import { EventAgeGroupPickerComponent } from '@views/registration/team/components/event-age-group-picker.component';
 import { resolveRecommendedAgeGroupId } from '@views/registration/team/components/event-age-group.util';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
+import { isDuplicateLibraryName, libraryGradYearOptions } from '@shared/teams/library-team-form';
 
 /**
  * Combined add-team + event-registration modal — THE way a new team enters the
@@ -80,7 +81,7 @@ import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error
             @if (nameIsDuplicate()) {
               <div class="field-error">
                 <i class="bi bi-exclamation-triangle me-1"></i>
-                <strong>{{ teamName().trim() }}</strong> is already in your library &mdash; register it from the library list instead.
+                <strong>{{ teamName().trim() }} &middot; {{ gradYear() }}</strong> is already in your library &mdash; register it from the library list instead.
               </div>
             }
             <!-- Soft nudge, never a block: a bare year is legal, but two squads in one
@@ -482,14 +483,8 @@ export class AddAndRegisterTeamModalComponent {
     private readonly toast = inject(ToastService);
     private readonly destroyRef = inject(DestroyRef);
 
-    /** Grad year options: current year through +12, plus Adult. */
-    readonly gradYearOptions: string[] = (() => {
-        const now = new Date().getFullYear();
-        const years: string[] = [];
-        for (let y = now; y <= now + 12; y++) years.push(String(y));
-        years.push('Adult');
-        return years;
-    })();
+    /** Grad year options: the library's own list (years, Adult, N/A). */
+    readonly gradYearOptions: string[] = libraryGradYearOptions();
 
     readonly teamName = signal('');
     readonly gradYear = signal('');
@@ -504,12 +499,9 @@ export class AddAndRegisterTeamModalComponent {
     /** The whole club name is in the team name — blocks the save; the preview says why. */
     readonly nameContainsClub = computed(() => clubNameInTeamName(this.clubName(), this.teamName()) === 'full');
 
-    /** True when the name matches a library team (case-insensitive). Same rule as team-form-modal. */
-    readonly nameIsDuplicate = computed(() => {
-        const name = this.teamName().trim().toLowerCase();
-        if (!name) return false;
-        return this.existingTeams().some(t => (t.clubTeamName ?? '').trim().toLowerCase() === name);
-    });
+    /** True when name + grad year match a library team (case-insensitive). Same rule as team-form-modal. */
+    readonly nameIsDuplicate = computed(() =>
+        isDuplicateLibraryName(this.existingTeams(), this.teamName(), this.gradYear(), null));
 
     /** Advisory only — see team-name-hints. Does not feed step1Done. */
     readonly nameIsBareYear = computed(() => isBareYearName(this.teamName()));
@@ -539,7 +531,7 @@ export class AddAndRegisterTeamModalComponent {
     readonly disabledReason = computed(() => {
         if (!this.teamName().trim()) return 'Enter a team name';
         if (this.nameContainsClub())  return 'Remove the club name from the team name';
-        if (this.nameIsDuplicate())   return 'That name is already in your library';
+        if (this.nameIsDuplicate())   return 'That team and grad year are already in your library';
         if (!this.gradYear())         return 'Pick a grad year';
         if (!this.levelOfPlay())      return 'Pick a level of play';
         if (!this.selectedAgeGroup()) return 'Pick an age group';

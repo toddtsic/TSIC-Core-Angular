@@ -6,7 +6,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
 import { clubNameInTeamName, isBareYearName } from '@shared/teams/team-name-hints';
 import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedule-preview.component';
-import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam } from '@shared/teams/library-team-form';
+import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam, sameLibraryText } from '@shared/teams/library-team-form';
 
 /**
  * Edit a library team IN ITS ROW on the teams board (Todd 2026-09-27: "make the editing inline …
@@ -90,7 +90,7 @@ import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam 
         }
         @if (nameIsDuplicate()) {
           <p class="ie-msg ie-msg--err"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-            <b>{{ teamName().trim() }}</b> is already in your library &mdash; pick a different name.</p>
+            <b>{{ teamName().trim() }} &middot; {{ gradYear() }}</b> is already in your library &mdash; change the name or the grad year.</p>
         } @else if (nameIsBareYear()) {
           <p class="ie-msg"><i class="bi bi-lightbulb" aria-hidden="true"></i>
             Just a year? Add a word to tell teams apart &mdash; <b>{{ teamName().trim() }} Blue</b>. Optional.</p>
@@ -236,7 +236,7 @@ export class LibraryTeamInlineEditorComponent implements OnInit {
     readonly clubHit = computed(() => clubNameInTeamName(this.clubName(), this.teamName()));
     readonly nameContainsClub = computed(() => this.clubHit() === 'full');
     readonly nameIsDuplicate = computed(() =>
-        isDuplicateLibraryName(this.existingTeams(), this.teamName(), this.team().clubTeamId));
+        isDuplicateLibraryName(this.existingTeams(), this.teamName(), this.gradYear(), this.team().clubTeamId));
     readonly nameIsBareYear = computed(() => isBareYearName(this.teamName()));
     readonly nameEdited = computed(() => this.teamName().trim() !== this.team().clubTeamName.trim());
     readonly differentTeam = computed(() =>
@@ -294,8 +294,9 @@ export class LibraryTeamInlineEditorComponent implements OnInit {
         if (this.saving() || !this.canSave()) return;
         const old = this.team();
         const name = this.teamName().trim();
-        if (name.toLowerCase() === old.clubTeamName.trim().toLowerCase()) {
-            this.errorMsg.set(`Give the new team its own name — ${old.clubTeamName} keeps this one.`);
+        // Name + grad year is the identity: a new grad year alone makes a new team.
+        if (sameLibraryText(name, old.clubTeamName) && sameLibraryText(this.gradYear(), old.clubTeamGradYear)) {
+            this.errorMsg.set(`Change the name or the grad year — ${old.clubTeamName} keeps this one.`);
             return;
         }
         this.saving.set(true);

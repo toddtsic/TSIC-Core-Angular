@@ -5,7 +5,7 @@ import { TeamRegistrationService } from '@views/registration/team/services/team-
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 import { LOP_CHOICES, formatLop, normalizeLop } from '@shared/teams/lop-choices';
 import { clubNameInTeamName } from '@shared/teams/team-name-hints';
-import { libraryGradYearOptions } from '@shared/teams/library-team-form';
+import { GRAD_YEAR_NA, libraryGradYearOptions, sameLibraryText } from '@shared/teams/library-team-form';
 import { ageGroupLabel, isWaitlistAgeGroup } from './library-segment.types';
 import { ageGroupWaitlists, byGradYearThenName } from './library-register-plan';
 import { resolveRecommendedAgeGroupId } from './event-age-group.util';
@@ -48,13 +48,16 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
  * The ONE way a team gets onto this event (Todd 2026-09-28): a compound input on top of Registered
  * Teams. The team name is a combobox over the club's library:
  *
- *   pick a library team  → its grad year and level fill in; register it.
- *   type a new name      → grad year and level are the rep's to fill; the team is ADDED to the
- *                          library and registered, one press.
+ *   pick a library team  → its grad year and level preselect; register it. Change the grad year
+ *                          and it is a different team: Add makes a NEW library team (same name,
+ *                          new grad year) and registers that; the picked one is untouched.
+ *   type a new name      → grad year defaults to N/A, level is the rep's; the team is ADDED to
+ *                          the library and registered, one press.
  *
- * Typing a library team's exact name (any case/spacing) IS picking it, so a near-duplicate never
- * mints a second library row. The age group preselects from the library team's grad year when picked, from the typed
- * name when new (Todd 2026-09-28), else must be chosen.
+ * Name + grad year is the library's identity (Todd 2026-09-28, the server's own rule). Typing a
+ * library team's exact name (any case/spacing) IS picking it, so a near-duplicate never mints a
+ * second library row. The age group preselects from the grad year when the row started from a
+ * library team, from the typed name when new, else must be chosen.
  * Enter adds; the row clears and the cursor is back in the name for the next team.
  *
  * Owns its own writes, like the row editors; the step reloads on `added` / `libraryChanged`.
@@ -108,19 +111,15 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
           </div>
         </div>
 
-        <!-- Grad year: the library's when picked (read-only — it is the library team's), else typed in. -->
+        <!-- Grad year: preselected from the library team, N/A for a new one; always the rep's to
+             change. A changed grad year on a library team makes a NEW library team (name + grad year
+             is its identity) — the note under the row says so. -->
         <label class="f f--grad">
           <span class="f-label">Grad</span>
-          <select class="f-input" [disabled]="busy() || !!picked()"
-                  [class.is-blank]="!picked() && !gradYear()"
-                  (change)="gradYear.set($any($event.target).value)">
-            @if (picked(); as p) {
-              <option selected>{{ p.clubTeamGradYear || '—' }}</option>
-            } @else {
-              <option value="" [selected]="!gradYear()">Pick…</option>
-              @for (yr of gradYearOptions; track yr) {
-                <option [value]="yr" [selected]="yr === gradYear()">{{ yr }}</option>
-              }
+          <select class="f-input" [disabled]="busy()"
+                  (change)="gradPick.set($any($event.target).value)">
+            @for (yr of gradOptions(); track yr) {
+              <option [value]="yr" [selected]="yr === gradYear()">{{ yr }}</option>
             }
           </select>
         </label>
@@ -167,8 +166,12 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
           <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>{{ errorMsg() }}
         } @else if (nameProblem()) {
           <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>{{ nameProblem() }}
-        } @else if (picked()) {
+        } @else if (target()) {
           <i class="bi bi-card-list" aria-hidden="true"></i>From your Club Team Library.
+        } @else if (newFromBase()) {
+          <i class="bi bi-plus-circle" aria-hidden="true"></i>
+          <span>New library team <b>{{ text().trim() }} &middot; {{ gradYear() }}</b> &mdash;
+            {{ base()!.clubTeamName }} &middot; {{ base()!.clubTeamGradYear || '—' }} stays as it is.</span>
         } @else if (text().trim()) {
           <i class="bi bi-plus-circle" aria-hidden="true"></i>New team &mdash; it will be saved to your Club Team Library too.
         } @else if (available().length) {
@@ -358,11 +361,13 @@ export class TeamAddRowComponent {
     readonly gradYearOptions = libraryGradYearOptions();
 
     readonly text = signal('');
-    /** Typed grad year — a new team only; a picked team's is its own. */
-    readonly gradYear = signal('');
-    /** The rep's level pick; '' = the picked library team's level. */
+    /** The library team picked from the list — which one, when several share a name. */
+    private readonly chosen = signal<ClubTeamDto | null>(null);
+    /** The rep's grad-year pick; '' = the library team's, or N/A for a new one. */
+    readonly gradPick = signal('');
+    /** The rep's level pick; '' = the library team's level. */
     readonly lopPick = signal('');
-    /** The rep's age-group pick; null = untouched, follow the name. */
+    /** The rep's age-group pick; null = untouched, follow the preselect. */
     private readonly agPick = signal<string | null>(null);
     readonly listOpen = signal(false);
     readonly activeIndex = signal(-1);
@@ -388,27 +393,54 @@ export class TeamAddRowComponent {
     /** The dropdown: every available team until the rep types, then the ones whose name or grad year contain it. */
     readonly options = computed(() => {
         const q = norm(this.text());
-        if (!q || this.picked()) return this.available();
+        if (!q || this.base()) return this.available();
         return this.available().filter(t => norm(t.clubTeamName).includes(q) || norm(t.clubTeamGradYear).includes(q));
     });
 
-    /** The library team the name IS — exact, case- and spacing-insensitive. */
-    readonly picked = computed<ClubTeamDto | null>(() => {
-        const n = norm(this.text());
-        return n ? this.available().find(t => norm(t.clubTeamName) === n) ?? null : null;
+    /**
+     * The library team the row started from — it seeds grad year and level. The one picked from
+     * the list while the name still reads as its name; else the one available team with exactly
+     * this name (case/spacing-insensitive), so typing a library name IS picking it.
+     */
+    readonly base = computed<ClubTeamDto | null>(() => {
+        const c = this.chosen();
+        if (c && sameLibraryText(c.clubTeamName, this.text())) return c;
+        const same = this.available().filter(t => sameLibraryText(t.clubTeamName, this.text()));
+        return same.length === 1 ? same[0] : null;
     });
 
-    readonly lop = computed(() => this.lopPick() || (this.picked() ? normalizeLop(this.picked()!.clubTeamLevelOfPlay) : ''));
-    readonly effectiveGradYear = computed(() => this.picked()?.clubTeamGradYear ?? this.gradYear());
-    /** The rep's pick, else the preselect: a library team by its grad year (as the library's own
-     *  register did), a typed-in team by its name. */
+    /** Preselected from the library team, editable; a new team defaults to N/A (Todd 2026-09-28). */
+    readonly gradYear = computed(() => this.gradPick() || this.base()?.clubTeamGradYear?.trim() || GRAD_YEAR_NA);
+
+    /** The list, plus a library team's off-list value (a legacy year) so its own reads selected. */
+    readonly gradOptions = computed(() =>
+        this.gradYearOptions.includes(this.gradYear()) ? this.gradYearOptions : [this.gradYear(), ...this.gradYearOptions]);
+
+    /**
+     * The library team being REGISTERED: name + grad year, the library's identity. Leave the grad
+     * year and it is the base; change it and there is none — Add makes a new library team with this
+     * name and grad year (Todd 2026-09-28), the base untouched.
+     */
+    readonly target = computed<ClubTeamDto | null>(() => {
+        if (!this.text().trim()) return null;
+        return this.available().find(t =>
+            sameLibraryText(t.clubTeamName, this.text()) && sameLibraryText(t.clubTeamGradYear, this.gradYear())) ?? null;
+    });
+
+    /** Started from a library team, grad year changed: a new library team, not that one. */
+    readonly newFromBase = computed(() => !this.target() && !!this.base());
+
+    readonly lop = computed(() => this.lopPick() || normalizeLop((this.target() ?? this.base())?.clubTeamLevelOfPlay));
+
+    /** The rep's pick, else the preselect: from a library team, its grad year (as the library's
+     *  own register did), falling back to the name; a typed-in team, its name (Todd 2026-09-28). */
     readonly ageGroupId = computed(() => {
         const pick = this.agPick();
         if (pick !== null) return pick;
-        const p = this.picked();
-        return p
-            ? resolveRecommendedAgeGroupId(this.ageGroups(), p.clubTeamGradYear)
-            : ageGroupFromTeamName(this.ageGroups(), this.text());
+        const fromName = ageGroupFromTeamName(this.ageGroups(), this.text());
+        return this.target() ?? this.base()
+            ? resolveRecommendedAgeGroupId(this.ageGroups(), this.gradYear()) || fromName
+            : fromName;
     });
 
     readonly ageGroupOptions = computed(() => this.ageGroups().map(ag => {
@@ -421,15 +453,19 @@ export class TeamAddRowComponent {
         return !!ag && ageGroupWaitlists(ag);
     });
 
-    /** Why the typed name can't be used — only for a name that is not a pickable library team. */
+    /** Why this name + grad year can't be added. */
     readonly nameProblem = computed<string | null>(() => {
         const name = this.text().trim();
-        if (!name || this.picked()) return null;
-        const n = norm(name);
-        if (this.registeredTeams().some(r => norm(r.teamName) === n)) return `${name} is already registered for ${this.eventName()}.`;
-        const inLibrary = this.clubTeams().find(t => norm(t.clubTeamName) === n);
-        if (inLibrary?.bArchived) return `${inLibrary.clubTeamName} is archived in your Club Team Library — restore it there to use it again.`;
-        if (inLibrary) return `${inLibrary.clubTeamName} is already registered for ${this.eventName()}.`;
+        if (!name) return null;
+        // The server's rule: no two of this club's teams share a name within one age group.
+        const agId = this.ageGroupId();
+        const clash = agId ? this.registeredTeams().find(r => r.ageGroupId === agId && sameLibraryText(r.teamName, name)) : undefined;
+        if (clash) return `${clash.teamName} is already registered in ${clash.ageGroupName} — pick another age group or name.`;
+        if (this.target()) return null;
+        const grad = this.gradYear();
+        const inLibrary = this.clubTeams().find(t => sameLibraryText(t.clubTeamName, name) && sameLibraryText(t.clubTeamGradYear, grad));
+        if (inLibrary?.bArchived) return `${inLibrary.clubTeamName} · ${grad} is archived in your Club Team Library — restore it there to use it again.`;
+        if (inLibrary) return `${inLibrary.clubTeamName} · ${grad} is already registered for ${this.eventName()}.`;
         if (clubNameInTeamName(this.clubName(), name) === 'full') {
             return `Leave "${this.clubName()}" out of the team name — schedules print it in front: ${this.clubName()}:${name}.`;
         }
@@ -440,7 +476,6 @@ export class TeamAddRowComponent {
     readonly missing = computed<string | null>(() => {
         if (!this.text().trim()) return 'Pick or type a team';
         if (this.nameProblem()) return this.nameProblem();
-        if (!this.picked() && !this.gradYear()) return 'Pick a grad year';
         if (!this.lop()) return 'Pick a level of play';
         if (!this.ageGroupId()) return 'Pick an age group';
         return null;
@@ -458,12 +493,20 @@ export class TeamAddRowComponent {
     }
 
     onType(value: string): void {
+        const before = this.base();
         this.text.set(value);
+        if (!sameLibraryText(this.chosen()?.clubTeamName, value)) this.chosen.set(null);
+        // A different library team: its grad year, level and age group are not the last one's.
+        if (this.base() !== before) this.clearPicks();
         this.errorMsg.set(null);
-        // A different team: its level and grad year are not the last one's.
-        this.lopPick.set('');
         this.activeIndex.set(-1);
         this.listOpen.set(true);
+    }
+
+    private clearPicks(): void {
+        this.gradPick.set('');
+        this.lopPick.set('');
+        this.agPick.set(null);
     }
 
     onNameKey(e: KeyboardEvent): void {
@@ -494,9 +537,9 @@ export class TeamAddRowComponent {
     }
 
     pick(team: ClubTeamDto): void {
+        this.chosen.set(team);
         this.text.set(team.clubTeamName);
-        this.lopPick.set('');
-        this.agPick.set(null);
+        this.clearPicks();
         this.errorMsg.set(null);
         this.closeList();
         // Everything filled → straight to Add, so Enter registers; otherwise the first blank.
@@ -520,15 +563,16 @@ export class TeamAddRowComponent {
         this.errorMsg.set(null);
         this.saving.set(true);
 
-        const picked = this.picked();
+        const target = this.target();
         const ageGroupId = this.ageGroupId();
         const lop = this.lop();
 
-        if (picked) {
-            this.register(picked, ageGroupId, lop, false);
+        if (target) {
+            this.register(target, ageGroupId, lop, false);
             return;
         }
 
+        // A new name, or a library team's name with a new grad year: a new library team.
         const name = this.text().trim();
         this.teamReg.createClubTeam({ clubTeamName: name, clubTeamGradYear: this.gradYear(), levelOfPlay: lop })
             .pipe(takeUntilDestroyed(this.destroyRef))
@@ -574,9 +618,8 @@ export class TeamAddRowComponent {
     /** Clear for the next team; the cursor goes back to the name. */
     private reset(): void {
         this.text.set('');
-        this.gradYear.set('');
-        this.lopPick.set('');
-        this.agPick.set(null);
+        this.chosen.set(null);
+        this.clearPicks();
         this.errorMsg.set(null);
         this.closeList();
         afterNextRender(() => this.host.nativeElement.querySelector<HTMLInputElement>('.f-name')?.focus(),

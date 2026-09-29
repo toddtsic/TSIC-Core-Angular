@@ -8,7 +8,7 @@ import type { ClubTeamDto } from '@core/api';
 import { LevelOfPlayPickerComponent } from '@shared/teams/level-of-play-picker.component';
 import { clubNameInTeamName, isBareYearName } from '@shared/teams/team-name-hints';
 import { TeamNameSchedulePreviewComponent } from '@shared/teams/team-name-schedule-preview.component';
-import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam } from '@shared/teams/library-team-form';
+import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam, sameLibraryText } from '@shared/teams/library-team-form';
 
 /**
  * Modal for editing an existing library team (when `editingTeam` is supplied), or
@@ -112,7 +112,7 @@ import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam 
             @if (nameIsDuplicate()) {
               <div class="field-error">
                 <i class="bi bi-exclamation-triangle me-1"></i>
-                <strong>{{ teamName().trim() }}</strong> is already in your library — pick a different name.
+                <strong>{{ teamName().trim() }} · {{ gradYear() }}</strong> is already in your library — change the name or the grad year.
               </div>
             }
             <!-- Soft nudge, never a block — same copy as add-and-register-team-modal. -->
@@ -422,10 +422,10 @@ export class TeamFormModalComponent implements OnInit {
     /** The whole club name is in the team name — blocks the save; the preview says why. */
     readonly nameContainsClub = computed(() => clubNameInTeamName(this.clubName(), this.teamName()) === 'full');
 
-    /** True when the team name matches an existing library team (case-insensitive),
+    /** True when name + grad year match an existing library team (case-insensitive),
      *  excluding the team being edited. */
     readonly nameIsDuplicate = computed(() =>
-        isDuplicateLibraryName(this.existingTeams(), this.teamName(), this.editingTeam?.clubTeamId));
+        isDuplicateLibraryName(this.existingTeams(), this.teamName(), this.gradYear(), this.editingTeam?.clubTeamId));
 
     /** Advisory only — see team-name-hints. Does not feed step1Done. */
     readonly nameIsBareYear = computed(() => isBareYearName(this.teamName()));
@@ -479,12 +479,13 @@ export class TeamFormModalComponent implements OnInit {
         this.submitted.set(true);
         if (!this.canSubmit() || this.nameContainsClub()) return;
         const name = this.teamName().trim();
-        if (name.toLowerCase() === old.clubTeamName.trim().toLowerCase()) {
-            this.errorMsg.set(`Give the new team its own name — ${old.clubTeamName} keeps this one.`);
+        // Name + grad year is the identity: a new grad year alone makes a new team.
+        if (sameLibraryText(name, old.clubTeamName) && sameLibraryText(this.gradYear(), old.clubTeamGradYear)) {
+            this.errorMsg.set(`Change the name or the grad year — ${old.clubTeamName} keeps this one.`);
             return;
         }
-        if (this.existingTeams().some(e => e.clubTeamName.trim().toLowerCase() === name.toLowerCase())) {
-            this.errorMsg.set(`${name} is already in your library.`);
+        if (isDuplicateLibraryName(this.existingTeams(), name, this.gradYear(), null)) {
+            this.errorMsg.set(`${name} · ${this.gradYear()} is already in your library.`);
             return;
         }
         this.saving.set(true);
