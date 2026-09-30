@@ -31,17 +31,17 @@
 		white-space: normal;
 	}
 
-	// The year-over-year group (YoY to Date, Final by Year, Team Retention): each compares one
-	// event across its seasons, not the date range the other tabs settle. A divider before the
-	// first marks the group without relying on the tint alone; the active tab keeps the
-	// standard active look.
-	.nav-item--yoy-first {
+	// The customer-facing group (Teams/Players to Customer, YoY to Date, Final by Year, Team
+	// Retention): the client's own view of its events, not TSIC's settlement records. A divider
+	// before the first marks the group without relying on the tint alone; the active tab keeps
+	// the standard active look.
+	.nav-item--group-first {
 		margin-left: var(--space-2);
 		padding-left: var(--space-2);
 		border-left: 2px solid var(--bs-info-border-subtle);
 	}
 
-	.nav-item--yoy .nav-link:not(.active) {
+	.nav-item--group .nav-link:not(.active) {
 		background: var(--bs-info-bg-subtle);
 		color: var(--bs-info-text-emphasis);
 
@@ -50,7 +50,7 @@
 		}
 	}
 
-	.nav-item--yoy .nav-link:focus-visible {
+	.nav-item--group .nav-link:focus-visible {
 		outline: none;
 		box-shadow: var(--shadow-focus);
 	}
