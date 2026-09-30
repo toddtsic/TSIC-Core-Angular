@@ -39,7 +39,10 @@ public class TeamTournamentsController : ControllerBase
         _jobLookupService = jobLookupService;
     }
 
-    /// <summary>Tournaments with the club's teams scheduled, public and announced, a game still ahead.</summary>
+    /// <summary>
+    /// Tournaments with the club's teams scheduled and a public schedule: upcoming and announced,
+    /// or finished within 6 months with every club game scored.
+    /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(List<TeamTournamentDto>), 200)]
     [ProducesResponseType(403)]

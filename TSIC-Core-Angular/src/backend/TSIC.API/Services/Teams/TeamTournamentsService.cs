@@ -37,23 +37,29 @@ public sealed partial class TeamTournamentsService : ITeamTournamentsService
         var clubName = TournamentClubNames.Resolve(context.CustomerName, context.Gender);
         if (clubName == null) return [];
 
-        var rows = await _repo.GetUpcomingPublicTournamentsForClubAsync(clubName, context.JobId, DateTime.Today, ct: ct);
+        var rows = await _repo.GetPublicTournamentsForClubAsync(
+            clubName, context.JobId, DateTime.Today, FinishedSince(), ct: ct);
 
-        var announced = new List<ClubTournamentRow>();
+        var shown = new List<ClubTournamentRow>();
         foreach (var row in rows)
         {
             // Sequential: one scoped DbContext.
-            if (await IsAnnouncedAsync(row.JobId, ct)) announced.Add(row);
+            if (await PassesAnnounceGateAsync(row, ct)) shown.Add(row);
         }
 
-        return announced
-            .OrderBy(r => r.NextGameDate)
+        // Upcoming first, soonest next game first; then finished, most recent last game first.
+        return shown
+            .OrderBy(r => r.NextGameDate == null)
+            .ThenBy(r => r.NextGameDate)
+            .ThenByDescending(r => r.NextGameDate == null ? r.LastGameDate : DateTime.MinValue)
             .ThenBy(r => r.JobName)
             .Select(r => new TeamTournamentDto
             {
                 TournamentJobId = r.JobId,
                 TournamentJobName = r.JobName,
-                NextGameDate = r.NextGameDate
+                IsFinished = r.NextGameDate == null,
+                NextGameDate = r.NextGameDate,
+                LastGameDate = r.LastGameDate
             })
             .ToList();
     }
@@ -130,8 +136,9 @@ public sealed partial class TeamTournamentsService : ITeamTournamentsService
     }
 
     /// <summary>
-    /// All gates for one tournament, re-derived from the app's team: club name, T1/T2 presence,
-    /// public schedule, a game ahead, and the announce bulletin.
+    /// All gates for one tournament, re-derived from the app's team -- the same rule the list
+    /// applies, so a tournament the list shows always opens: club name, T1/T2 presence, public
+    /// schedule, then upcoming + announced, or finished within the window with the club's games scored.
     /// </summary>
     private async Task<(TeamTournamentsContext Context, string ClubName, ClubTournamentRow Tournament)?> ResolveAvailableAsync(
         Guid teamId, Guid tournamentJobId, CancellationToken ct)
@@ -142,23 +149,32 @@ public sealed partial class TeamTournamentsService : ITeamTournamentsService
         var clubName = TournamentClubNames.Resolve(context.CustomerName, context.Gender);
         if (clubName == null) return null;
 
-        var rows = await _repo.GetUpcomingPublicTournamentsForClubAsync(
-            clubName, context.JobId, DateTime.Today, tournamentJobId, ct);
+        var rows = await _repo.GetPublicTournamentsForClubAsync(
+            clubName, context.JobId, DateTime.Today, FinishedSince(), tournamentJobId, ct);
         var tournament = rows.FirstOrDefault();
         if (tournament == null) return null;
 
-        if (!await IsAnnouncedAsync(tournament.JobId, ct)) return null;
+        if (!await PassesAnnounceGateAsync(tournament, ct)) return null;
 
         return (context, clubName, tournament);
     }
 
     /// <summary>
-    /// The director's public announce: an active, in-window bulletin pointing at the schedule.
-    /// The publish flag alone is rep/coach REVIEW and must not surface here.
+    /// How far back a finished tournament stays listed, measured from its last game.
     /// </summary>
-    private async Task<bool> IsAnnouncedAsync(Guid jobId, CancellationToken ct)
+    private static DateTime FinishedSince() => DateTime.Today.AddMonths(-6);
+
+    /// <summary>
+    /// UPCOMING tournaments need the director's public announce: an active, in-window bulletin
+    /// pointing at the schedule. The publish flag alone is rep/coach REVIEW and must not surface
+    /// an upcoming schedule here. FINISHED tournaments skip it -- their results are settled, and
+    /// the public flag (checked in the query) still has to be on.
+    /// </summary>
+    private async Task<bool> PassesAnnounceGateAsync(ClubTournamentRow tournament, CancellationToken ct)
     {
-        var bulletins = await _bulletins.GetActiveBulletinsForJobAsync(jobId, ct);
+        if (tournament.NextGameDate == null) return true;
+
+        var bulletins = await _bulletins.GetActiveBulletinsForJobAsync(tournament.JobId, ct);
         return bulletins.Any(b => SchedulePublicationBulletinService.PointsAtSchedule(b.Text));
     }
 

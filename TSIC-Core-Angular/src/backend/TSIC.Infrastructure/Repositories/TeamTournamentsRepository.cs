@@ -30,16 +30,17 @@ public class TeamTournamentsRepository : ITeamTournamentsRepository
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<List<ClubTournamentRow>> GetUpcomingPublicTournamentsForClubAsync(
-        string clubName, Guid excludeJobId, DateTime today, Guid? onlyJobId = null, CancellationToken ct = default)
+    public async Task<List<ClubTournamentRow>> GetPublicTournamentsForClubAsync(
+        string clubName, Guid excludeJobId, DateTime today, DateTime finishedSince,
+        Guid? onlyJobId = null, CancellationToken ct = default)
     {
         var clubTeamIds = ClubTeamIds(clubName);
 
-        var scheduledJobIds = _context.Schedule.AsNoTracking()
+        var clubGames = _context.Schedule.AsNoTracking()
             .Where(s => (s.T1Id != null && clubTeamIds.Contains(s.T1Id.Value))
-                        || (s.T2Id != null && clubTeamIds.Contains(s.T2Id.Value)))
-            .Select(s => s.JobId)
-            .Distinct();
+                        || (s.T2Id != null && clubTeamIds.Contains(s.T2Id.Value)));
+
+        var scheduledJobIds = clubGames.Select(s => s.JobId).Distinct();
 
         var rows = await _context.Jobs.AsNoTracking()
             .Where(j => scheduledJobIds.Contains(j.JobId)
@@ -50,13 +51,21 @@ public class TeamTournamentsRepository : ITeamTournamentsRepository
             {
                 j.JobId,
                 JobName = j.JobName ?? string.Empty,
-                // Anyone's game, not the club's: "not finished" is the TOURNAMENT still having a
+                // Anyone's game, not the club's: "upcoming" is the TOURNAMENT still having a
                 // game ahead of it, dated rather than scored -- unscored old events never close.
                 NextGameDate = _context.Schedule
                     .Where(s => s.JobId == j.JobId && s.GDate >= today)
-                    .Min(s => s.GDate)
+                    .Min(s => s.GDate),
+                LastGameDate = _context.Schedule
+                    .Where(s => s.JobId == j.JobId)
+                    .Max(s => s.GDate),
+                // A finished tournament is shown only once the CLUB's games in it are all
+                // scored -- the club's results are what a finished listing is for.
+                ClubGameUnscored = clubGames.Any(s => s.JobId == j.JobId
+                                                      && (s.T1Score == null || s.T2Score == null))
             })
-            .Where(x => x.NextGameDate != null)
+            .Where(x => x.NextGameDate != null
+                        || (x.LastGameDate != null && x.LastGameDate >= finishedSince && !x.ClubGameUnscored))
             .ToListAsync(ct);
 
         return rows
@@ -64,7 +73,8 @@ public class TeamTournamentsRepository : ITeamTournamentsRepository
             {
                 JobId = x.JobId,
                 JobName = x.JobName,
-                NextGameDate = x.NextGameDate!.Value
+                NextGameDate = x.NextGameDate,
+                LastGameDate = x.LastGameDate!.Value
             })
             .ToList();
     }

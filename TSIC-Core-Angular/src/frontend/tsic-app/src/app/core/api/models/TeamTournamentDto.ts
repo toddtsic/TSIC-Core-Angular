@@ -5,6 +5,8 @@
 export type TeamTournamentDto = {
     tournamentJobId: string;
     tournamentJobName: string;
-    nextGameDate: string;
+    isFinished: boolean;
+    nextGameDate?: string | null;
+    lastGameDate: string;
 };
 

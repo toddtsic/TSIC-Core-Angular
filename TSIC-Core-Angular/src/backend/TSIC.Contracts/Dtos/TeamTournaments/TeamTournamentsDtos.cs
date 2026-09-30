@@ -9,8 +9,17 @@ public record TeamTournamentDto
     public required Guid TournamentJobId { get; init; }
     public required string TournamentJobName { get; init; }
 
-    /// <summary>Earliest game in the tournament dated today or later. The list is sorted on it.</summary>
-    public required DateTime NextGameDate { get; init; }
+    /// <summary>
+    /// True when the tournament has no game dated today or later. Finished tournaments are listed
+    /// for 6 months after their last game, once every game the club's teams played is scored.
+    /// </summary>
+    public required bool IsFinished { get; init; }
+
+    /// <summary>Earliest game in the tournament dated today or later; null when finished.</summary>
+    public DateTime? NextGameDate { get; init; }
+
+    /// <summary>Latest game in the tournament.</summary>
+    public required DateTime LastGameDate { get; init; }
 }
 
 /// <summary>

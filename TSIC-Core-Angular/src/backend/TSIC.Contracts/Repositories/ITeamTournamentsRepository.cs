@@ -15,13 +15,15 @@ public interface ITeamTournamentsRepository
 
     /// <summary>
     /// Jobs other than <paramref name="excludeJobId"/> where an active team registered under
-    /// <paramref name="clubName"/> is in a game (T1 or T2), whose schedule is public, and which
-    /// have a game dated <paramref name="today"/> or later. <paramref name="onlyJobId"/> narrows
-    /// to one job. The bulletin announce test is NOT applied here -- it is a regex over bulletin
-    /// text and runs in the service.
+    /// <paramref name="clubName"/> is in a game (T1 or T2) and whose schedule is public, that are
+    /// EITHER upcoming (a game dated <paramref name="today"/> or later) OR finished no earlier than
+    /// <paramref name="finishedSince"/> with every one of the club's games scored.
+    /// <paramref name="onlyJobId"/> narrows to one job. The bulletin announce test (upcoming only)
+    /// is NOT applied here -- it is a regex over bulletin text and runs in the service.
     /// </summary>
-    Task<List<ClubTournamentRow>> GetUpcomingPublicTournamentsForClubAsync(
-        string clubName, Guid excludeJobId, DateTime today, Guid? onlyJobId = null, CancellationToken ct = default);
+    Task<List<ClubTournamentRow>> GetPublicTournamentsForClubAsync(
+        string clubName, Guid excludeJobId, DateTime today, DateTime finishedSince,
+        Guid? onlyJobId = null, CancellationToken ct = default);
 
     /// <summary>Active teams registered under <paramref name="clubName"/> that are in a game in the job.</summary>
     Task<List<ClubTournamentTeamRow>> GetClubScheduledTeamsAsync(
@@ -48,7 +50,11 @@ public record ClubTournamentRow
 {
     public required Guid JobId { get; init; }
     public required string JobName { get; init; }
-    public required DateTime NextGameDate { get; init; }
+
+    /// <summary>Earliest game dated today or later; null means the tournament is finished.</summary>
+    public DateTime? NextGameDate { get; init; }
+
+    public required DateTime LastGameDate { get; init; }
 }
 
 public record ClubTournamentTeamRow
