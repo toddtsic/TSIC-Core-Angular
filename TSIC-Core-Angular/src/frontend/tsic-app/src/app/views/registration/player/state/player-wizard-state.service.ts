@@ -7,7 +7,7 @@ import { getPropertyCI } from '@views/registration/shared/utils/property-utils';
 import { JobContextService } from './job-context.service';
 import { FamilyPlayersService } from './family-players.service';
 import { EligibilityService } from './eligibility.service';
-import { PlayerFormsService } from './player-forms.service';
+import { PlayerFormsService, hasRecruitingEnvelope } from './player-forms.service';
 import { InsuranceStateV2Service } from './insurance-state-v2.service';
 import { InsuranceV2Service } from './insurance-v2.service';
 import { TeamService } from '@views/registration/player/services/team.service';
@@ -60,8 +60,9 @@ export class PlayerWizardStateService {
         const tct = this.eligibility.teamConstraintType();
         const recruitingGradYears = this.jobCtx.recruitingGradYears();
         const playerGradYear = this.resolvePlayerGradYear(playerId);
+        const envelope = hasRecruitingEnvelope(this.jobCtx.profileFieldSchemas());
         return this.playerForms.isFieldVisibleForPlayer(
-            playerId, field, wfn, tct, recruitingGradYears, playerGradYear,
+            playerId, field, wfn, tct, recruitingGradYears, playerGradYear, envelope,
         );
     }
 
