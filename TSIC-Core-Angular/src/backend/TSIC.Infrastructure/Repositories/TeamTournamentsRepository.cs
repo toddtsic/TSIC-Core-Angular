@@ -51,6 +51,7 @@ public class TeamTournamentsRepository : ITeamTournamentsRepository
             {
                 j.JobId,
                 JobName = j.JobName ?? string.Empty,
+                j.JobPath,
                 // Anyone's game, not the club's: "upcoming" is the TOURNAMENT still having a
                 // game ahead of it, dated rather than scored -- unscored old events never close.
                 NextGameDate = _context.Schedule
@@ -73,6 +74,7 @@ public class TeamTournamentsRepository : ITeamTournamentsRepository
             {
                 JobId = x.JobId,
                 JobName = x.JobName,
+                JobPath = x.JobPath,
                 NextGameDate = x.NextGameDate,
                 LastGameDate = x.LastGameDate!.Value
             })

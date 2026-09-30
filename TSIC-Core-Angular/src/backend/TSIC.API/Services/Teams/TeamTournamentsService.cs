@@ -57,6 +57,7 @@ public sealed partial class TeamTournamentsService : ITeamTournamentsService
             {
                 TournamentJobId = r.JobId,
                 TournamentJobName = r.JobName,
+                TournamentJobPath = r.JobPath,
                 IsFinished = r.NextGameDate == null,
                 NextGameDate = r.NextGameDate,
                 LastGameDate = r.LastGameDate

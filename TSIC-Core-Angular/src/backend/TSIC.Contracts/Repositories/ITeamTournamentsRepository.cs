@@ -50,6 +50,7 @@ public record ClubTournamentRow
 {
     public required Guid JobId { get; init; }
     public required string JobName { get; init; }
+    public required string JobPath { get; init; }
 
     /// <summary>Earliest game dated today or later; null means the tournament is finished.</summary>
     public DateTime? NextGameDate { get; init; }

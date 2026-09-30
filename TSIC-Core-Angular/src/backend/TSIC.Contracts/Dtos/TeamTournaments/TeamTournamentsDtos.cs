@@ -9,6 +9,9 @@ public record TeamTournamentDto
     public required Guid TournamentJobId { get; init; }
     public required string TournamentJobName { get; init; }
 
+    /// <summary>The TOURNAMENT's jobPath -- never the club job's.</summary>
+    public required string TournamentJobPath { get; init; }
+
     /// <summary>
     /// True when the tournament has no game dated today or later. Finished tournaments are listed
     /// for 6 months after their last game, once every game the club's teams played is scored.
