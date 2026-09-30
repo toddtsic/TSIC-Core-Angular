@@ -360,10 +360,11 @@ export class PlayerFormsService {
     // ── Visibility ────────────────────────────────────────────────────
     /**
      * Central visibility logic. waiverFieldNames + teamConstraintType come from JobContextService.
-     * Recruiting field gating (SP-040): recruiting fields are shown only when the grad
-     * year of the TEAM being registered for ∈ recruitingGradYears (NCAA contact rules).
-     * The gating year is the team's division/agegroup grad year — not the player's
-     * self-reported academic grad year, and NOT gated by job type. When the job has no
+     * Recruiting field gating: recruiting fields are shown only when the PLAYER's own grad
+     * year (the `gradYear` field, or the BYGRADYEAR eligibility pick) ∈ recruitingGradYears
+     * (NCAA contact rules), NOT gated by job type. AR-126 (Todd, 09-30) replaced SP-040's
+     * team-name match: on BYCLUBNAME jobs a team named without a year hid the block from
+     * every player on it. Resolved in PlayerWizardStateService.resolvePlayerGradYear. When the job has no
      * List_RecruitingGradYears configured (recruitingGradYears empty), the fields are
      * HIDDEN — the empty list IS the "not a recruiting event" declaration (PL-021,
      * b6b240028). This rule was briefly inverted (02894891, show-on-empty) and reverted
@@ -376,7 +377,7 @@ export class PlayerFormsService {
         waiverFieldNames: string[],
         teamConstraintType: string | null,
         recruitingGradYears: string[] = [],
-        teamGradYear: string | null = null,
+        playerGradYear: string | null = null,
     ): boolean {
         if (field.visibility === 'hidden' || field.visibility === 'adminOnly') return false;
         if (waiverFieldNames.includes(field.name)) return false;
@@ -393,12 +394,11 @@ export class PlayerFormsService {
             // The List_RecruitingGradYears list IS the source of truth for "is this a recruiting
             // event." Empty ⇒ NOT a recruiting event ⇒ hide the recruiting fields (they were
             // leaking onto non-recruiting jobs like festivals, PL-021). When it IS configured, gate
-            // to the matching team grad year. Config invariant: a genuine recruiting job (e.g. PP35/
-            // PP27 with required recruiting fields) MUST have its grad years valued — otherwise its
-            // required recruiting fields are hidden here and won't collect.
+            // to the player's own grad year. Config invariant: a genuine recruiting job MUST have
+            // its grad years valued — otherwise its recruiting fields are hidden here and won't collect.
             if (recruitingGradYears.length === 0) return false;
-            if (!teamGradYear) return false;
-            return recruitingGradYears.includes(teamGradYear);
+            if (!playerGradYear) return false;
+            return recruitingGradYears.includes(playerGradYear);
         }
         if (!field.condition) return true;
         const otherVal = this.getPlayerFieldValue(playerId, field.condition.field);

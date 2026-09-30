@@ -3530,7 +3530,7 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 - ⚙ **PARTIAL CODE FINDING (09-30): the Search / Teams summary is `results.Sum(r => r.PaidTotal)` (`TeamSearchService.cs:99-100`) over rows whose `PaidTotal` is read straight off the stored column (`TeamRepository.cs:1169`, `:1386`, `:1503`).** 🎯 **The summary is a faithful sum of a stored value, so if Corrections are landing in `Teams.paid_total` the defect is in whatever WRITES that column — one place, inherited by every screen that reads it, including AR-119's.** ⏳ **Not yet established: whether Corrections do land there, and whether Search / Registrations computes its summary the same way.** ⚠ **That check is the difference between a one-line screen fix and a write-path fix.**
 - **Status**: 🔴 **OPEN — ground 2 RULED (adjustments out of Paid), ground 1 (remove vs role-gate) still needs Todd's decision.** ⚙ **Ruled together with AR-119.**
 
-### AR-126: 🔴 OPEN — filed 09-30 (Ann), UNRESEARCHED · [Self-Roster / College Recruiting] The recruiting fields are gated on the TEAM NAME's grad year instead of the High School Grad Year dropdown — and team names are not required to carry a year
+### AR-126: ✅ BUILT + VERIFIED BY TODD ON DEV 09-30 — gate is now the PLAYER's `gradYear` · [Self-Roster / College Recruiting] The recruiting fields are gated on the TEAM NAME's grad year instead of the High School Grad Year dropdown — and team names are not required to carry a year
 
 - **Topic**: what decides whether the **College Recruiting** fields appear during **self-roster** registration — reported by Ann under the heading **"Self-Roster Errors"**
 - **Reported by**: Ann, 09-30. **Filed as reported — NO research requested.** ⚠ **Nothing opened in code:** which control the gate actually reads, where the grad-year value comes from, and whether the recruiting grad years are a per-job list are all **unestablished in this entry.**
@@ -3551,7 +3551,7 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 - ⚠ **ONE EDGE TO RULE ON WHILE HERE: what happens when the grad year is BLANK or not applicable** (a non-high-school registrant). **Failing closed hides recruiting from someone who simply has not answered yet; failing open asks everyone.** **Pick deliberately — today's behaviour on that case is unknown.**
 - ❓ **TO CONFIRM WITH ANN IF A REPRO IS NEEDED: whether "Self-Roster Errors" is a SCREEN she was looking at or her own category label for errors found in the self-roster flow.** **It does not change the defect, only where to reproduce it.**
 - **Severity**: 🔴 **Rated on her report — this is a wrong trigger, not a layout preference.** **The consequence is uncollected recruiting information on the registrations that most need it, with nothing on screen to reveal the omission.**
-- **Status**: 🔴 **OPEN — filed 09-30 at Ann's instruction, UNRESEARCHED.** **For Todd:** ⏳ **establish what the gate reads today** (and whether it is the AR-031 trailing-four-character helper), **then whether a per-job recruiting-grad-year list exists to match against.** ⚙ **Related:** **AR-031** (grad year parsed from the trailing characters of a team name), **AR-006** (self-roster flags and where they are owned).
+- **Status**: ✅ **BUILT + VERIFIED BY TODD ON DEV 09-30 — see RULED + BUILT below. Not deployed.** *(Original: ⏳ establish what the gate reads today, then whether a per-job recruiting-grad-year list exists.)* ⚙ **Related:** **AR-031** (grad year parsed from the trailing characters of a team name), **AR-006** (self-roster flags and where they are owned).
 
 **✅ ADDENDUM — MECHANISM CONFIRMED IN CODE, 09-30 (established while answering the AR-127 question Ann asked on the same topic; the ITEM is still unruled and stays OPEN).** ⚠ **This neither narrows nor widens her report — it answers this entry's own first question: what the gate reads today.**
 
@@ -3562,6 +3562,16 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 - ⏳ **THE SEQUENCING QUESTION THIS ENTRY RAISED IS ANSWERED, AND IT IS THE EASY CASE**: the grad-year field sits **on the same player form as the recruiting fields**, and visibility is already recomputed per field per player through `isFieldVisibleForPlayer`. ✅ **Reading the player's own grad-year value needs no new reactivity** — `getPlayerFieldValue` is already used by the generic `field.condition` branch two lines below the recruiting branch.
 - ⚠ **ONE REAL DESIGN POINT FOR TODD, AND IT IS THE ONLY ONE**: `BYGRADYEAR` jobs **suppress the grad-year field entirely** (`player-forms.service.ts:390`) because the team choice already states it. **On those jobs there is no dropdown to read, so the team-derived year is the only value available** — so the fix is likely *"use the registrant's grad year; fall back to the team match where the field is suppressed,"* **not a straight swap.** ⛔ **A straight swap would blank the gate on every BYGRADYEAR recruiting job — 387 jobs carry these fields with grad years configured.**
 - ⚙ **Scale for the ruling (dev TSICV5, 09-30): 500 jobs across 40 customers carry the recruiting-adjacent fields; 387 have recruiting grad years SET, 91 have an EMPTY list, 22 have no key at all; 56 are live.**
+
+**✅ RULED + BUILT — Todd, 09-30: "gate on gradYear."**
+
+- 🎯 **WHERE DATA WAS LOST (the damage map, from the code):**
+  - **BYGRADYEAR jobs — NO loss.** The team list is pre-filtered to teams whose agegroup/team name contains the player's grad year (`team.service.ts:92-98`), so the old gate always found it. Only an over-show edge on multi-year names ("2029/2030").
+  - **BYCLUBNAME jobs — THE LOSS.** Teams are filtered by club alone (`team.service.ts:121-124`). **Agegroups named by grad year** (e.g. Five Star 2026 "2028/2029", "2030") mostly worked. **Agegroups NOT named by grad year** (e.g. Florida Wish 2026 "High School Select/Elite") fell to the team name — a team named without a year (**High School Red, High School White, Limitless HS, HS Select, HS Teal, Blue, BLACK**) hid recruiting from **every** player on it.
+- ⚖ **FALLBACK ORDER WAS DESIGNED, THEN DROPPED ON DATA:** player form grad year → agegroup name → team name was agreed, then the data showed **all 429 jobs with recruiting grad years + recruiting fields carry a public, required `gradYear` field (0 lack one)** — the name fallbacks would never fire. **Also checked: NO recruiting job marks any recruiting field required**, so hiding them can never cause a server "Required" at PreSubmit (the server has no recruiting gate).
+- 🛠 **THE CHANGE (frontend only, no backend/DTO/regen):** `player-wizard-state.service.ts` — `resolveTeamGradYear` → **`resolvePlayerGradYear`**: the form's `gradYear`; on **BYGRADYEAR only**, the eligibility-step pick (the Forms step hides `gradYear` there, and PreSubmit writes that pick into it). Null → hidden until chosen. `player-forms.service.ts` — param `teamGradYear` → `playerGradYear`, SP-040 "team, not player" comment replaced (**SP-040 reversed by this ruling**). Spec wording updated; assertions unchanged. `tsc --noEmit` clean.
+- ✅ **VERIFIED BY TODD ON DEV, 09-30 (screenshot, Florida Wish 2026):** **M&D Orlando : High School White** (no year in either name) + Grad Year **2029** → **College Recruiting block SHOWS**; the registered player on the same team with Grad Year **2034** → hidden. ⚠ **Not deployed.**
+- ⏳ **NOT DONE — backfill:** BYCLUBNAME registrations since go-live on year-less teams in non-grad-year agegroups were never asked for recruiting data. **Size not measured** (Todd stopped the data pass to direct from code).
 
 ### AR-127: 🔴 OPEN — filed 09-30 (Ann) · ✅ RESEARCHED AT HER REQUEST · 📣 SCOPE RULED BY ANN 09-30: STRIP FROM STEPS AND ALL OTHER TOURNEYS, KEEP FOR TOP THREATS · ✅ LEGACY VERIFIED: STEPS WAS PP20 AND IT HID THE FIELDS · [Self-Roster / Profile Editor] Height and Weight show irrespective of grad year — by design, for a reason she correctly remembered, but they were MIGRATED INCORRECTLY
 
@@ -3697,6 +3707,44 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 - ⚙ **Related USA Lacrosse items for context**: **AR-113** (the `usLaxRequired` gate, built and verified on prod), **AR-088** (per-job Valid Through), **AR-073** (which jobs have validation wired up), **AR-110** (⛔ closed — showing the validation checklist at registration), **AR-092 / AR-071 / AR-085** (the reconciliation screen).
 - **Severity**: 🟡 **Pending — she assigned none, but a blocked registration on a live STEPS job would raise it.** ⏳ **Establish whether STEPS's need is dated before scheduling.**
 - **Status**: 🔴 **OPEN — filed 09-30 at Ann's instruction, UNRESEARCHED.** **For Todd:** ⏳ **locate the legacy team-editor control first — it is both the proof of the parity claim and the spec** — **then whether the new USA Lacrosse requirement check has a team dimension at all.** ⏳ **Ask Ann how soon "soon" is, and which STEPS job needs it.**
+
+**🔎 USAGE CHECK — Todd asked, 09-30 (Todd was dubious of the need).** The legacy override is the team column **`Leagues.teams.bDoNotValidateUSLaxNumber`** (entity `Teams.BDoNotValidateUslaxNumber`). Query: every job with a registration whose `assigned_teamID` points at a team carrying the flag. ⚠ **Run against THIS box's `TSICV5` (dev restore), NOT PHOENIX** — anything flagged since the last restore is missing. Counts are **all roles** on those teams; dates are `RegistrationTs` (last-touched, **not** a signup date — approximate active window only).
+
+| Job | Flagged teams | Regs on them | Earliest | Latest |
+|---|---|---|---|---|
+| **STEPS Lacrosse: Winter Training Programs 2026** | 1 | 8 | 2025-12-17 | 2026-01-09 |
+| Cape St. Claire Rec Council: Soccer Fall 2025 | 1 | 1 | 2025-06-02 | 2025-06-02 |
+| IWLCA: Presidents Cup 2023 | 2 | 49 | 2023-06-24 | 2023-11-13 |
+| IWLCA: Southwest Cup 2023 | 2 | 38 | 2023-09-20 | 2023-10-06 |
+| IWLCA: Presidents Cup 2022 | 2 | 42 | 2022-09-28 | 2022-11-09 |
+| IWLCA: Debut 2022 | 1 | 24 | 2022-10-05 | 2022-10-19 |
+
+- 🎯 **Ann's STEPS attribution holds** — Todd suspected **Triple Threat**, which **does not appear at all**. STEPS used it **once** (one team, 8 regs, last winter); otherwise one soccer rec job and **IWLCA, last used 2023**. **Rarely used.**
+- ✅ **THE FLAG IS NOT DEAD IN THE NEW CODE — it is still READ:** player registration honors it (`PlayerRegistrationService.cs:649`), the USA Lacrosse reconciliation honors it (`RegistrationRepository.cs:4178`, `:4252`), and `JobRepository.cs:46` reads it. **What is missing is only the SETTER** — the LADT team editor exposes no control for it. So the port is a checkbox on an existing, still-enforced column, not new machinery.
+- ⚠ **Job clone COPIES it** (`JobCloneResetRules.cs:850`) — **a STEPS team flagged in the 2026 job arrives flagged in a clone**, whether or not anyone can see or clear it in the new UI.
+- **Status after the check**: 🔴 **still OPEN — for further discussion with Todd.** Nothing built.
+
+**🛠 IMPLEMENTATION ASSESSMENT — Todd + Claude, 09-30. NOT BUILT, no green light yet.**
+
+- 🎯 **INTENDED BEHAVIOR (Todd):** on a flagged team the USA Lacrosse field **still SHOWS and is OPTIONAL** — blank allowed; a number entered is recorded and not vendor-validated. **Players only** — the policy never exempts coaches.
+- ✅ **Enforcement already exists — all 5 `UsLaxEligibilityPolicy.Evaluate` callers pass the team flag:** live field check (`ValidationController.cs:141`), submit gate (`PlayerRegistrationService.cs:648`), USA Lacrosse admin screen (`UsLaxMembershipService.cs:495`, `:632`), registration detail fly-in (`RegistrationSearchService.cs:356`). **But the policy only decides whether a number PASSES — it does not make the field optional.**
+- 🔴 **WHY A JOB-LEVEL SETTING CANNOT DO THIS:** "required" comes from `Jobs.PlayerProfileMetadataJson` (`sportAssnId` → `validation.required: true`, `remote: /api/validation/uslax`), read by **both** the wizard and the server. It is **per JOB**; the flag is **per TEAM**. STEPS mixes one flagged team with unflagged ones — un-requiring the field job-wide would let EVERY team's players submit blank, and a blank number is never vendor-checked (the submit gate only checks entered numbers, `PlayerRegistrationService.cs:616`).
+- ⛔ **TRAP CAUGHT IN REVIEW — the server ALSO enforces "required":** PreSubmit runs `PlayerFormValidationService.ValidatePlayerFormValues(ctx.MetadataJson, …)` (`PlayerRegistrationService.cs:116`), which applies `required` to every metadata field, team-blind. **A client-only change would pass the wizard and then FAIL at submit with "Required."** Claude's first plan said "required is enforced only in the browser" — **wrong**; Todd's adversarial pass caught it.
+- 🔀 **MULTI-TEAM RULE:** selections are a list per player and the server merges form values per player. **Optional ONLY when ALL of that player's selected teams are flagged** — the wizard and the server must apply the same rule.
+
+**PLAN (revised after review):**
+1. **LADT CRUD** — flag on `TeamDetailDto` + `UpdateTeamRequest`, mapped in `LadtService` read/update, **copied in the LADT team clone** (`LadtService.cs:1325` copies `BHideRoster` but not this; job clone already copies it), checkbox in `team-detail.component`. Pattern = `BHideRoster`.
+2. **Available-teams list** — carry the flag through `AvailableTeamQueryResult` → `TeamRepository.GetAvailableTeamsQueryResultsAsync` projection → `AvailableTeamDto` → `TeamLookupService`. Same `Teams` row, no new join.
+3. **Server submit** — `ValidatePlayerFormValues` takes the set of players whose selected teams are ALL flagged and skips `required` on the USA Lacrosse field for them (`ctx.Teams` is already loaded; optional parameter keeps other callers compiling).
+4. **Waitlist twin** — `TeamPlacementService.cs:311-339` does NOT copy the flag when minting the WAITLIST twin; a waitlisted player on a flagged team would then show as failing on the admin USA Lacrosse screen / revalidate. One-line copy (twins minted earlier stay unflagged).
+5. **Regen** API models.
+6. **Wizard** — a per-player "is required" helper in `state/player-forms.service.ts`, used by the validator AND by the forms-step template's required markers (~7 places read `field.required` directly, `player-forms-step.component.ts:160-263`). **Leave the live check alone** — it still format-checks 6–12 digits and the server passes a flagged team's number.
+- ⚠ **Only ONE live copy of wizard validation:** `state/player-forms.service.ts`. The duplicate in `services/registration-wizard.service.ts` belongs to the **dead** `RegistrationWizardService` class (never injected; the file survives only for its type exports) — **never change behavior there.**
+- ⏳ **UNCHECKED:** whether other player-profile edit surfaces (director detail fly-in, family player edit) enforce `required` on this field.
+
+**VERIFICATION (Todd does not take Claude's word — proof decides):**
+1. **Before any code**, on dev: Todd flags the STEPS team (his SQL), registers a player there with a **blank** number → expect **"Required"** on today's code (proves the server trap).
+2. **After the build:** the same case **succeeds**; **unflagged + blank** → still rejected; **unflagged + bad number** → still rejected; **one flagged + one unflagged team, blank** → still rejected. **Any other outcome = the build is wrong; it does not ship.**
 
 
 ### AR-129: 🔴 OPEN — filed 09-30 (Ann), UNRESEARCHED · [Login / Role selection] Remove the event dates from the role-selection screen — the screen has one job, and for a multi-weekend tournament the dates are not even a single answer

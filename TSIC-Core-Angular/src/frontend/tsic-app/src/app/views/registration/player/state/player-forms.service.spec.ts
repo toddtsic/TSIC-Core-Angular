@@ -261,8 +261,8 @@ describe('PlayerFormsService', () => {
             expect(service.isFieldVisibleForPlayer('p1', field, [], null)).toBe(false);
         });
 
-        // ── Recruiting field gating (SP-040) ─────────────────────────
-        // Gated by jsonOptions.List_RecruitingGradYears vs the registered team's grad
+        // ── Recruiting field gating (AR-126) ─────────────────────────
+        // Gated by jsonOptions.List_RecruitingGradYears vs the PLAYER's own grad
         // year (NCAA contact rules) — no job-type gate. No list configured → hidden.
         it('recruiting field hidden when no list configured (empty = not a recruiting event)', () => {
             // PL-021 (b6b240028): an empty List_RecruitingGradYears IS the "not a recruiting event"
@@ -275,7 +275,7 @@ describe('PlayerFormsService', () => {
 
         it('height and weight are NOT recruiting fields — no grad-years gate (e876a5ab7)', () => {
             // They answer to the profile editor's per-job `visibility` alone. Empty grad years,
-            // no team grad year: still visible. Regression guard on both RECRUITING_FIELD_NAMES
+            // no player grad year: still visible. Regression guard on both RECRUITING_FIELD_NAMES
             // and RECRUITING_ORDER, which must stay in lockstep.
             const height = mkField({ name: 'heightInches', label: 'Height (in inches)' });
             const weight = mkField({ name: 'weightLbs', label: 'Weight (in lbs)' });
@@ -283,17 +283,17 @@ describe('PlayerFormsService', () => {
             expect(service.isFieldVisibleForPlayer('p1', weight, [], null, [], null)).toBe(true);
         });
 
-        it('recruiting field hidden when team grad year not in list', () => {
+        it('recruiting field hidden when player grad year not in list', () => {
             const gpa = mkField({ name: 'gpa', label: 'GPA' });
             expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, ['2024', '2025'], '2030')).toBe(false);
         });
 
-        it('recruiting field visible when team grad year matches list', () => {
+        it('recruiting field visible when player grad year matches list', () => {
             const gpa = mkField({ name: 'gpa', label: 'GPA' });
             expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, ['2024', '2025', '2026'], '2025')).toBe(true);
         });
 
-        it('recruiting field hidden when team grad year is null', () => {
+        it('recruiting field hidden when player grad year is null', () => {
             const sat = mkField({ name: 'satMath', label: 'SAT Math' });
             expect(service.isFieldVisibleForPlayer('p1', sat, [], null, ['2024'], null)).toBe(false);
         });

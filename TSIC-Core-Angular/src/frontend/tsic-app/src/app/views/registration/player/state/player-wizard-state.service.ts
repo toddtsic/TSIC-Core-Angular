@@ -52,35 +52,44 @@ export class PlayerWizardStateService {
     /**
      * Single source of truth for "is this field visible for this player" across
      * render, validation, field-error display, and review. Resolves the recruiting
-     * gate context (List_RecruitingGradYears + the registered team's grad year) here
+     * gate context (List_RecruitingGradYears + the player's own grad year) here
      * so every caller gates identically — no per-call-site drift.
      */
     isFieldVisibleForPlayer(playerId: string, field: PlayerProfileFieldSchema): boolean {
         const wfn = this.jobCtx.waiverFieldNames();
         const tct = this.eligibility.teamConstraintType();
         const recruitingGradYears = this.jobCtx.recruitingGradYears();
-        const teamGradYear = this.resolveTeamGradYear(playerId, recruitingGradYears);
+        const playerGradYear = this.resolvePlayerGradYear(playerId);
         return this.playerForms.isFieldVisibleForPlayer(
-            playerId, field, wfn, tct, recruitingGradYears, teamGradYear,
+            playerId, field, wfn, tct, recruitingGradYears, playerGradYear,
         );
     }
 
     /**
-     * Grad year of the team the player is registering for, used to gate the
-     * College Recruiting fields. Returns the recruiting grad year the selected
-     * team's agegroup/name matches (e.g. "2028"), or null if none — which hides
-     * the recruiting fields. Reuses the same agegroup/team-name match the team
-     * filter uses for BYGRADYEAR (team.service.ts). Mirrors legacy
-     * AdjustRecruittingInfoVisibility (registration grad year, no job-type gate).
+     * The player's OWN grad year, used to gate the College Recruiting fields (AR-126).
+     * Mirrors legacy AdjustRecruittingInfoVisibility, which read the registrant's
+     * GradYear dropdown — never the team.
+     *
+     * Source: the form's `gradYear` field. On BYGRADYEAR jobs that field is hidden on the
+     * Forms step because the player already chose their grad year at the eligibility step;
+     * that pick is what PreSubmit writes into `gradYear` (buildPreSubmitFormValuesForPlayer),
+     * so it is the same value, captured earlier.
+     *
+     * Deliberately NOT derived from the agegroup/team name: on BYCLUBNAME jobs the team is
+     * chosen by club alone, so a team named without a year ("High School Red") hid the
+     * recruiting block from every player on it. Every recruiting job carries a public,
+     * required `gradYear` field (0 of 429 lack one, dev data 09-30), so a name fallback
+     * would never fire. Null (not yet chosen) hides the block until it is.
      */
-    private resolveTeamGradYear(playerId: string, recruitingGradYears: string[]): string | null {
-        if (recruitingGradYears.length === 0) return null;
-        const teamId = this.eligibility.selectedTeams()[playerId]?.[0];
-        if (!teamId) return null;
-        const team = this.teamService.getTeamById(teamId);
-        if (!team) return null;
-        const hay = `${team.agegroupName ?? ''} ${team.teamName ?? ''}`.toLowerCase();
-        return recruitingGradYears.find(yr => hay.includes(yr.toLowerCase())) ?? null;
+    private resolvePlayerGradYear(playerId: string): string | null {
+        const fromForm = this.playerForms.getPlayerFieldValue(playerId, 'gradYear');
+        const formYear = fromForm == null ? '' : String(fromForm).trim();
+        if (formYear) return formYear;
+        // The eligibility pick is a grad year ONLY on BYGRADYEAR jobs (BYCLUBNAME's is a club name).
+        if ((this.eligibility.teamConstraintType() || '').toUpperCase() !== 'BYGRADYEAR') return null;
+        const picked = this.eligibility.getEligibilityForPlayer(playerId);
+        const pickedYear = picked == null ? '' : String(picked).trim();
+        return pickedYear || null;
     }
 
     // ── Orchestrator-owned signals ────────────────────────────────────
