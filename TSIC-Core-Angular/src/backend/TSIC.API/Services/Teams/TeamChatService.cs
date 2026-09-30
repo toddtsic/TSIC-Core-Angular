@@ -213,6 +213,11 @@ public class TeamChatService : ITeamChatService
             var recipients = targets
                 .Where(t => !IsMuted(t, now))
                 .Where(t => !InQuietHours(t.QuietStartLocal, t.QuietEndLocal, nowTime))
+                // One push per phone. Siblings on one team hold a row each on the family phone;
+                // deduping AFTER mute/quiet means one muted sibling does not silence the other.
+                // The higher unread count wins the badge and the regId the tap opens as.
+                .GroupBy(t => t.Token)
+                .Select(g => g.MaxBy(t => t.UnreadCount)!)
                 .Select(t => new PushRecipient(t.Token, t.RegId, t.UnreadCount))
                 .ToList();
 

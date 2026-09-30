@@ -82,8 +82,13 @@ public class DeviceRepository : IDeviceRepository
     public async Task<bool> AddDeviceTeamIfNotExistsAsync(
         string deviceId, Guid teamId, Guid? registrationId, CancellationToken ct = default)
     {
+        // Keyed on the registration too. On (device, team) alone, a second child on the same
+        // team under one family login never got a row, so chat treated the phone as the first
+        // child's only: the parent was pushed their own posts as the second child, and that
+        // child's mute and quiet hours never applied.
         var exists = await _context.DeviceTeams
-            .AnyAsync(dt => dt.DeviceId == deviceId && dt.TeamId == teamId, ct);
+            .AnyAsync(dt => dt.DeviceId == deviceId && dt.TeamId == teamId
+                && dt.RegistrationId == registrationId, ct);
         if (exists) return false;
 
         _context.DeviceTeams.Add(new DeviceTeams
