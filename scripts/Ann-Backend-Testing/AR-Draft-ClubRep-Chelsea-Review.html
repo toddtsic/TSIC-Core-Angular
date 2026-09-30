@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Club Rep Registration review with Chelsea — draft AR items</title>
+<style>
+  body { font: 11pt/1.45 Segoe UI, Arial, sans-serif; color: #111; max-width: 8.5in; margin: 0 auto; padding: 0.5in; }
+  h1 { font-size: 20pt; margin: 0 0 6pt; }
+  h2 { font-size: 15pt; margin: 22pt 0 6pt; padding-top: 10pt; border-top: 2px solid #111; }
+  h3 { font-size: 12.5pt; margin: 16pt 0 4pt; }
+  p, li { margin: 3pt 0; }
+  ul { padding-left: 18pt; margin: 4pt 0; }
+  li.ind1 { margin-left: 14pt; }
+  blockquote { margin: 6pt 0; padding: 6pt 10pt; background: #f6f6f6; border-left: 3px solid #999; }
+  table { border-collapse: collapse; margin: 8pt 0; font-size: 10pt; width: 100%; }
+  th, td { border: 1px solid #999; padding: 4pt 7pt; vertical-align: top; }
+  th { background: #eee; }
+  tbody tr:nth-child(even) { background: #fafafa; }
+  code { font: 10pt Consolas, monospace; background: #f2f2f2; padding: 0 3pt; }
+  hr { border: 0; border-top: 1px solid #bbb; margin: 14pt 0; }
+  @media print {
+    body { padding: 0; max-width: none; }
+    h2, h3 { page-break-after: avoid; }
+    li, tr { page-break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head><body>
+<h1>DRAFT — Club Rep Registration review with Chelsea (2026-09-30)</h1>
+<p><strong>Working file, not the punchlist.</strong> Source: <code>AR Items for Team Reg Review with Chelsea.docx</code>. Draft IDs <code>D-01…</code> are temporary and carry no order — <strong>AR numbers get assigned when these are committed into <code>After-Release-Punchlist.md</code></strong>, so we can reorder freely until then.</p>
+<p><strong>None of these are researched.</strong> Every entry is the report as given, grouped and tightened — no code opened, no cause proposed, no feasibility judged.</p>
+<p><strong>How to use this:</strong> walk it one item at a time. Edit the wording in place, delete what should not be filed, and say when an item is ready. Items marked ❓ need a decision before they can be filed as written.</p>
+<p><strong>~30 notes → 32 items.</strong> What was merged is named under each item, so nothing is silently lost.</p>
+<hr>
+<h2>Where each group stands — as of 2026-09-30</h2>
+<table>
+<thead><tr><th style="text-align:left">Group</th><th style="text-align:right">Draft<br>items</th><th style="text-align:right">AR items<br>filed</th><th style="text-align:left">Which AR numbers</th><th style="text-align:left">Status</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><strong>A</strong> · Confirmation screens</td><td style="text-align:right">4</td><td style="text-align:right">2</td><td style="text-align:left">AR-119, AR-120</td><td style="text-align:left">✅ done</td></tr>
+<tr><td style="text-align:left"><strong>B</strong> · Registration Links and badges</td><td style="text-align:right">3</td><td style="text-align:right">0</td><td style="text-align:left"><em>folded into AR-121</em></td><td style="text-align:left">✅ done</td></tr>
+<tr><td style="text-align:left"><strong>C</strong> · Team counts</td><td style="text-align:right">1</td><td style="text-align:right">1</td><td style="text-align:left">AR-121 <em>(covers B too)</em></td><td style="text-align:left">✅ done</td></tr>
+<tr><td style="text-align:left"><strong>D</strong> · Club Team Library</td><td style="text-align:right">10</td><td style="text-align:right">0</td><td style="text-align:left">—</td><td style="text-align:left">🅿 parked — UX replaced</td></tr>
+<tr><td style="text-align:left"><strong>E</strong> · Registered Teams</td><td style="text-align:right">5</td><td style="text-align:right">0</td><td style="text-align:left">—</td><td style="text-align:left">🅿 parked — UX replaced</td></tr>
+<tr><td style="text-align:left"><strong>F</strong> · No role selected</td><td style="text-align:right">1</td><td style="text-align:right">0</td><td style="text-align:left">—</td><td style="text-align:left">⏳ on hold</td></tr>
+<tr><td style="text-align:left"><strong>G</strong> · Payment screen</td><td style="text-align:right">2</td><td style="text-align:right">3</td><td style="text-align:left">AR-122, AR-123, AR-124</td><td style="text-align:left">✅ done</td></tr>
+<tr><td style="text-align:left"><strong>H</strong> · Search</td><td style="text-align:right">2</td><td style="text-align:right">2</td><td style="text-align:left">AR-118, AR-125</td><td style="text-align:left">✅ done</td></tr>
+<tr><td style="text-align:left"><strong>I</strong> · Bugs and permissions</td><td style="text-align:right">4</td><td style="text-align:right">0</td><td style="text-align:left">—</td><td style="text-align:left">⏳ to do</td></tr>
+<tr><td style="text-align:left"><strong>TOTAL</strong></td><td style="text-align:right"><strong>32</strong></td><td style="text-align:right"><strong>8</strong></td><td style="text-align:left"><strong>AR-118 … AR-125</strong></td><td style="text-align:left"></td></tr>
+</tbody></table>
+<p>⚠ <strong>Two groups do not map one-to-one, by decision:</strong> <strong>B and C collapsed into a single item</strong> (seven draft items → AR-121 with five checks, because removing the badge content is what makes the bulletin labels and the counts go with it), and <strong>G produced more items than it started with</strong> (the overpayment question came out of D-25 as its own item).</p>
+<div style="page-break-after: always;"></div>
+<h2>Every item and where it landed</h2>
+<table>
+<thead><tr><th style="text-align:left">D</th><th style="text-align:left">Item</th><th style="text-align:left">Status</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"></td><td style="text-align:left"><strong>A · Confirmation screens</strong></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">D-01</td><td style="text-align:left">Team name = Age Group + Club + Team Name, both tables</td><td style="text-align:left">✅ <strong>AR-120</strong> (part 1)</td></tr>
+<tr><td style="text-align:left">D-02</td><td style="text-align:left">Summary table — totals row only for Owed</td><td style="text-align:left">✅ <strong>AR-120</strong> (part 2)</td></tr>
+<tr><td style="text-align:left">D-03</td><td style="text-align:left">Most Recent Transactions — show the time</td><td style="text-align:left">✅ <strong>AR-120</strong> (part 3)</td></tr>
+<tr><td style="text-align:left">D-04</td><td style="text-align:left">Paid total wrong with a Discount or Correction</td><td style="text-align:left">✅ <strong>AR-119</strong></td></tr>
+<tr><td style="text-align:left"></td><td style="text-align:left"><strong>B · Registration Links and badges</strong></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">D-05</td><td style="text-align:left">Badges back to previous content</td><td style="text-align:left">✅ <strong>AR-121</strong> (check 1)</td></tr>
+<tr><td style="text-align:left">D-06</td><td style="text-align:left">Badge size stays one third</td><td style="text-align:left">✅ <strong>AR-121</strong> (check 2)</td></tr>
+<tr><td style="text-align:left">D-07</td><td style="text-align:left">Bulletin labels wrong — remove</td><td style="text-align:left">✅ <strong>AR-121</strong> (check 3)</td></tr>
+<tr><td style="text-align:left"></td><td style="text-align:left"><strong>C · Team counts</strong></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">D-08</td><td style="text-align:left">Roles list count removed; fly-in count <strong>corrected</strong></td><td style="text-align:left">✅ <strong>AR-121</strong> (checks 4–5)</td></tr>
+<tr><td style="text-align:left"></td><td style="text-align:left"><strong>D · Club Team Library</strong></td><td style="text-align:left">🅿 <strong>not filed — UX replaced</strong></td></tr>
+<tr><td style="text-align:left">D-09</td><td style="text-align:left">Remove "Currently in"</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left">D-10</td><td style="text-align:left">Library reachable with no active role</td><td style="text-align:left">🅿 <em>recheck — capability</em></td></tr>
+<tr><td style="text-align:left">D-11</td><td style="text-align:left">Grad Year / LOP should not display</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left">D-12</td><td style="text-align:left">Archive model</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left">D-13</td><td style="text-align:left">Duplicate team names allowed</td><td style="text-align:left">🅿 <em>recheck — capability</em></td></tr>
+<tr><td style="text-align:left">D-14</td><td style="text-align:left">Age group for teams that have none</td><td style="text-align:left">🅿 <em>recheck — capability</em></td></tr>
+<tr><td style="text-align:left">D-15</td><td style="text-align:left">Colour circles on Registered Teams only</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left">D-16</td><td style="text-align:left">Register card — register fields only</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left">D-17</td><td style="text-align:left">Required-field treatment on Age Group / LOP</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left">D-18</td><td style="text-align:left">Dropped teams in the Library</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left"></td><td style="text-align:left"><strong>E · Registered Teams</strong></td><td style="text-align:left">🅿 <strong>not filed — UX replaced</strong></td></tr>
+<tr><td style="text-align:left">D-19</td><td style="text-align:left">Undo → Delete Registration</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left">D-20</td><td style="text-align:left">Renaming does not move age group</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left">D-21</td><td style="text-align:left">Cancel / Save Changes; "Level of Play"</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left">D-22</td><td style="text-align:left">Empty state needs the customer name</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left">D-23</td><td style="text-align:left">Column order and wrapping mirror the Library</td><td style="text-align:left">🅿</td></tr>
+<tr><td style="text-align:left"></td><td style="text-align:left"><strong>F · No role selected</strong></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">D-24</td><td style="text-align:left">Account menu available with no role</td><td style="text-align:left">⏳ <strong>on hold</strong></td></tr>
+<tr><td style="text-align:left"></td><td style="text-align:left"><strong>G · Payment screen</strong></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">D-25</td><td style="text-align:left">Team table shows at $0, payment card does not</td><td style="text-align:left">✅ <strong>AR-123</strong></td></tr>
+<tr><td style="text-align:left">D-26</td><td style="text-align:left">Columns and accounting figures</td><td style="text-align:left">✅ <strong>AR-122</strong></td></tr>
+<tr><td style="text-align:left">—</td><td style="text-align:left">Overpayment / negative amount due</td><td style="text-align:left">✅ <strong>AR-124</strong> <em>(split out of D-25)</em></td></tr>
+<tr><td style="text-align:left"></td><td style="text-align:left"><strong>H · Search</strong></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">D-27</td><td style="text-align:left">Remove summary amounts (Registrations + Teams)</td><td style="text-align:left">✅ <strong>AR-125</strong></td></tr>
+<tr><td style="text-align:left">D-28</td><td style="text-align:left">Inactive teams vanish with the Club filter</td><td style="text-align:left">✅ <strong>AR-118</strong></td></tr>
+<tr><td style="text-align:left"></td><td style="text-align:left"><strong>I · Bugs and permissions</strong></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">D-29</td><td style="text-align:left">Dropped team returns to Library, re-registers</td><td style="text-align:left">⏳ <em>check against new UX first</em></td></tr>
+<tr><td style="text-align:left">D-30</td><td style="text-align:left">60-minute delete window after Delete is off</td><td style="text-align:left">⏳</td></tr>
+<tr><td style="text-align:left">D-31</td><td style="text-align:left">Closed functions disabled with a reason</td><td style="text-align:left">⏳</td></tr>
+<tr><td style="text-align:left">D-32</td><td style="text-align:left">SuperUser can create a club rep registration</td><td style="text-align:left">⏳ <em>needs defect-or-policy</em></td></tr>
+</tbody></table>
+<p>⚠ <strong>These two tables are maintained by hand — they are only as current as the last item filed.</strong></p>
+<div style="page-break-after: always;"></div>
+<hr>
+<h2>A · Confirmation screens (email and online)</h2>
+<h3>D-01 · ✅ FILED IN AR-120 (09-30, part 1) · Team name format on both confirmation tables</h3>
+<p>Team name renders as <strong>Age Group + Team Name</strong>; it needs <strong>Age Group + Club + Team Name</strong>. Without the club, teams read as <code>2030 2030</code> or <code>2030 2030 Blue</code> instead of <code>2030 Test 2030 Blue</code>. Occurs in <strong>both tables</strong>.</p>
+<h3>D-02 · ✅ FILED IN AR-120 (09-30, part 2) · Registered Teams Summary — drop all totals except Owed</h3>
+<p>Remove the totals row for every column <strong>except Owed</strong>. Total Owed can move to the second column, which also frees the width needed for the longer team name in D-01.</p>
+<h3>D-03 · ✅ FILED IN AR-120 (09-30, part 3) · Most Recent Transactions — show the time</h3>
+<p>The Date column needs to show <strong>time as well as date</strong>.</p>
+<h3>D-04 · ✅ FILED AS AR-119 (09-30) · Paid total is wrong when a Discount or Correction is applied</h3>
+<p>The confirmation screen's <strong>Paid total does not incorporate the fee adjustment</strong>, so the figure shown is incorrect. A separate Fee-Adjust column is <strong>not</strong> wanted here — the total itself needs to be right.</p>
+<hr>
+<h2>B · Registration Links and badges (logged in as Club Rep)</h2>
+<h3>D-05 · ✅ FILED AS AR-121 (09-30, with D-06, D-07, D-08) · Badges return to their previous content</h3>
+<p>Only <strong>"Team Registration"</strong> and <strong>"Balance Due"</strong> belong in the badges. Remove: the number of teams registered; the sub-labels under Team Registration (<em>"Register more, rename, review fees"</em>); and the amount due under Pay Balance Due — which is also variable once processing fees are added.</p>
+<h3>D-06 · ✅ FILED IN AR-121 (09-30, check 2) · Badge size stays static</h3>
+<p>Badges must stay the size they were <strong>before logging in</strong> — one third size — rather than growing.</p>
+<h3>D-07 · ✅ FILED IN AR-121 (09-30, check 3) · Registration Links bulletin labels are wrong</h3>
+<p>The bulletin's labels misstate the <strong>number of teams</strong> and the <strong>amount owed</strong>. Remove them.</p>
+<hr>
+<h2>C · Team counts appear in three places and are wrong in all of them</h2>
+<h3>D-08 · ✅ FILED IN AR-121 (09-30, checks 4–5) · Counts: removed from the Roles list, CORRECTED in the fly-in</h3>
+<p>Counts appear in the <strong>Registration Links bulletin</strong>, the <strong>Club Rep Roles list</strong>, and the <strong>Club Rep teams fly-in</strong>. The fly-in number is <strong>wrong when teams have been dropped</strong> — it counts Waitlisted and Dropped teams. In all three places the count is misleading and does not belong there. <em>(Merged from three separate notes. Overlaps D-05 and D-07 — one of them should be the parent and the others cross-referenced.)</em></p>
+<hr>
+<h2>D · Club Team Library — 🅿 NOT FILED (Ann, 09-30)</h2>
+<blockquote><strong>Todd has completely changed the UX for this area, so these ten reports are against a screen that no longer exists.</strong> Left in the draft as a record of what was seen, not carried into the punchlist. <strong>Re-check them against the new UX before discarding</strong> — three of them below are capability asks rather than layout, and a redesign does not automatically deliver those.</blockquote>
+<h3>D-09 · Remove "Currently in" from the Library</h3>
+<p>This is the <strong>library only</strong> — the registration context does not belong on it.</p>
+<h3>D-10 · The Library must be reachable without an active role ❓</h3>
+<p>A club rep with <strong>no role selected</strong> — or with no active registrations, because they expired — cannot reach the Library at all. Club reps need to <strong>create an account and build their library outside an event</strong>; without that they are at a significant disadvantage when registration opens. <em>(Related to D-24, the same lockout on the account menu. File as one item with two parts, or as two linked items.)</em></p>
+<h3>D-11 · Grad Year and Level of Play should not display in the Library</h3>
+<p>They have <strong>no value once a team is in Registered Teams</strong> and no relationship to it — they matter <strong>before</strong> registration only.</p>
+<h3>D-12 · Archive model for the Library</h3>
+<p>One coherent change, assembled from four notes:</p>
+<ul>
+<li class="ind0">Move the <strong>pencil icon before the team name</strong>.</li>
+<li class="ind0">Add an <strong>archive</strong> action (trash-can icon) with a <strong>"Delete team?"</strong> confirm.</li>
+<li class="ind0"><strong>Archive is restorable.</strong> Archived teams show <strong>Level of Play</strong> and keep the <strong>edit pencil</strong>, so a team can be edited while archived and then restored.</li>
+<li class="ind0"><strong>Permanent delete happens from the Archive only</strong> — past registrations no longer matter there.</li>
+<li class="ind0">The <strong>Archive is collapsed</strong> by default; only available teams show in the Library.</li>
+</ul>
+<p>❓ One line reads <em>"Can't archive a team if it has a trash can"</em> — the rule it states is unclear.</p>
+<h3>D-13 · Duplicate team names must be allowed in the Library</h3>
+<p>Clubs <strong>reuse one team name across different age groups</strong> routinely. Creating a team with a name that already exists needs to work.</p>
+<h3>D-14 · Age group for teams that don't have one ❓</h3>
+<p><strong>High school teams have no single age group</strong>, so there is nothing correct to select in the Library. Options raised: an <strong>N/A</strong> choice, or making the field <strong>optional</strong>. <em>(Split from D-13 — a different question, likely ruled on separately.)</em></p>
+<h3>D-15 · Colour circles belong on Registered Teams, not the Library</h3>
+<p>The small colour circle should appear on the <strong>Registered Teams table only</strong>. On the Library table it <strong>pulls attention and distracts</strong>.</p>
+<h3>D-16 · Register card shows only the register fields</h3>
+<p>On the register card, <strong>remove the arrow</strong>, and remove the <strong>pencil</strong> and <strong>archive/trash</strong> icons — only the fields needed to register should be there.</p>
+<h3>D-17 · Age Group and Level of Play need the required-field treatment on registration</h3>
+<p><em>"Select the LOP and Age Group for this team"</em> needs the <strong>yellow border and yellow icon</strong>, <strong>even when it autofills</strong>. When it does autofill, a <strong>down arrow</strong> must show that other options exist. Yellow outlines apply to autofilled values too.</p>
+<h3>D-18 · Dropped teams in the Library ❓</h3>
+<p>A heading with nothing under it — <em>"Dropped Teams handling in library…"</em>. It sits beside D-29, the dropped-team bug. Needs content, or it folds into D-29.</p>
+<hr>
+<h2>E · Registered Teams (event side) — 🅿 NOT FILED (Ann, 09-30)</h2>
+<blockquote><strong>Superseded by Todd's UX change, same as group D.</strong> Kept as a record; not filed.</blockquote>
+<h3>D-19 · "Undo Registration" becomes "Delete Registration"</h3>
+<p>Rename to <strong>Delete Registration</strong>, as a <strong>red Delete button</strong>, permitted <strong>only when the team has no accounting activity</strong>. The same wording applies to the <strong>age-group toast</strong>, which currently says <em>"Undo this registration and register it again in the correct age group"</em> — that hyperlink should read <strong>Delete</strong>.</p>
+<h3>D-20 · Renaming does not move a team between age groups — confirm the wording</h3>
+<p>Editing a registered team does <strong>not</strong> change its age group; renaming does not move it. The toast that explains this is the one being reworded in D-19. ❓ The note opens as a question — <em>"Did edit of a registered team allow change in agegroups?"</em> If the <strong>behaviour</strong> should change rather than the wording, that is a separate item.</p>
+<h3>D-21 · Edit buttons should read Cancel and Save Changes</h3>
+<p>Not <em>"Rename…"</em>. The note asks directly: <strong>why not Save? what is the difference?</strong> Also <strong>"Level of Play"</strong> in any edit position — not <strong>"Level"</strong>.</p>
+<h3>D-22 · Empty-state text needs the customer name</h3>
+<p><em>"Press Register on a library team to register it for [Job Name]"</em> — add the <strong>Customer Name before the Job Name</strong>.</p>
+<h3>D-23 · Column order and wrapping should mirror the Library</h3>
+<p><strong>Team name must not wrap</strong>; column order (Team, Age Group, …) should match the Library. ❓ Open question from the notes: <em>"Should Registered Teams in the Library be collapsed to avoid confusion?"</em></p>
+<hr>
+<h2>F · Access when no role is selected</h2>
+<h3>D-24 · Account-maintenance menu items must be available with no role selected</h3>
+<p><strong>Whatever the account type</strong>, the menu items to update an account should be reachable when no role has been selected. An account with no active registrations is either a <strong>new registrant</strong> or one whose registrations have <strong>expired</strong> — neither should be locked out. <em>(Pairs with D-10.)</em></p>
+<hr>
+<h2>G · Payment screen</h2>
+<h3>D-25 · ✅ FILED AS AR-123 (09-30) · Payment screen when nothing is due</h3>
+<p>The team table is <strong>critical for review and must show for every registrant</strong>, including when the amount owed is <strong>$0</strong> — but the <strong>Credit Card Information card and payment fields should not</strong> appear for this subset of registrants.</p>
+<p>✅ <strong>Split into its own item — AR-124 (09-30):</strong> overpayment is not shown and should appear as a <strong>negative amount due</strong>, plus the open question <strong>how are overpaid amounts handled at the payment level?</strong></p>
+<h3>D-26 · ✅ FILED AS AR-122 (09-30) · Payment screen columns and accounting figures</h3>
+<ul>
+<li class="ind0">Club reps in the <strong>Deposit phase</strong>: add a column where <strong>Balance Due</strong> sits in the Final Balance phase, labelled <strong>Additional Fees</strong>.</li>
+<li class="ind0">Move <strong>Reg Date to the last column</strong> — it is lost behind the horizontal scroll, and moving it lets longer team names show.</li>
+<li class="ind0"><strong>Accounting table</strong>: <strong>Deposit Due</strong> and <strong>Balance Due</strong> should each show the <strong>fee base from LADT</strong>, and <strong>Processing Fees</strong> should show the amount owed <strong>for the payment phase in play</strong>.</li>
+<li class="ind0"><strong>Paid column total</strong> renders blue; it should be <strong>green</strong>.</li>
+</ul>
+<hr>
+<h2>H · Search</h2>
+<h3>D-27 · ✅ FILED AS AR-125 (09-30) · Search / Registrations + Teams — remove the summary amounts</h3>
+<p>Many head directors <strong>do not want subdirectors seeing these figures</strong> and are asking for removal. <strong>Customer Job Revenue exists for this purpose and is SuperDirector-only.</strong> Also, the <strong>sum of paid amounts includes Correction records</strong> — adjustments, not revenue — <strong>so the figure is misleading.</strong> <em>(Scope widened 09-30: Teams as well as Registrations.)</em></p>
+<h3>D-28 · ✅ FILED AS AR-118 (09-30) · BUG · Inactive teams disappear depending on how the filter is set</h3>
+<p>Search / Teams: selecting <strong>Club</strong>, then <strong>Inactive/Active</strong> or just <strong>Inactive</strong>, the inactive (dropped) teams <strong>do not show</strong>.</p>
+<hr>
+<h2>I · Bugs and permissions</h2>
+<h3>D-29 · BUG · A dropped team returns to the Library and can be re-registered repeatedly ❓</h3>
+<p>When a team is <strong>dropped from an event it reappears in the Club Teams Library</strong>, and can be used to register again, any number of times. ❓ Two open questions from the notes: <strong>is this correct behaviour?</strong> and <strong>do Team IDs change with each registration?</strong></p>
+<h3>D-30 · Club Rep Permissions — Delete stays available for 60 minutes after it is switched off</h3>
+<p>With <strong>Delete off</strong>, a newly created team is <strong>still deletable</strong> — the 60-minute delete window. Three asks:</p>
+<ul>
+<li class="ind0">It must be <strong>discussed explicitly with the Shoulbergs</strong> — this was not what she wanted, so she should be able to <strong>turn it off and on</strong> if persuaded it makes sense.</li>
+<li class="ind0">The <strong>description on the Teams permission must state</strong> that the window exists.</li>
+<li class="ind0">Also observed: <strong>Add and Delete were both ticked, and delete returned on a team after an hour</strong> — is <strong>Add coupled to Delete</strong>?</li>
+</ul>
+<h3>D-31 · Closed functions should be disabled with a reason, not removed</h3>
+<p>When the director has closed a function, the control should <strong>stay visible and disabled with an explanation</strong> rather than vanish:</p>
+<ul>
+<li class="ind0">Trash can → <strong>"Delete closed by the director"</strong></li>
+<li class="ind0">Add → icons <strong>faded</strong> so they read as unavailable, with <strong>"Add team closed by the director"</strong></li>
+<li class="ind0">The <strong>Register badge greys out</strong> rather than disappearing.</li>
+</ul>
+<h3>D-32 · SuperUser can create a club rep registration ❓</h3>
+<p>Recorded from the note <em>"can use Superuser to make a club rep registration"</em>, marked as something that should <strong>not</strong> be possible. Needs a steer on whether this is filed as a <strong>defect</strong> or a <strong>policy question</strong>.</p>
+<hr>
+<h2>Needs a decision before filing</h2>
+<table>
+<thead><tr><th style="text-align:left"></th><th style="text-align:left">What the note says</th><th style="text-align:left">What is needed</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><strong>❓ 1</strong></td><td style="text-align:left"><em>"Make a bank of teams"</em></td><td style="text-align:left">Unclear whether this is the Library by another name or something separate</td></tr>
+<tr><td style="text-align:left"><strong>❓ 2</strong></td><td style="text-align:left"><em>"Future testing: competition for spots, Add/Drop/Delete"</em></td><td style="text-align:left">Reads as a note-to-self about what to test next, not an item — confirm and it stays out</td></tr>
+<tr><td style="text-align:left"><strong>❓ 3</strong></td><td style="text-align:left"><em>"THE SCREEEN:"</em></td><td style="text-align:left">A heading with nothing under it</td></tr>
+</tbody></table>
+<h2>Redundancies collapsed — worth a check</h2>
+<table>
+<thead><tr><th style="text-align:left">Merged into</th><th style="text-align:left">From</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><strong>D-05</strong></td><td style="text-align:left">badge content + the "labels incorrect" line</td></tr>
+<tr><td style="text-align:left"><strong>D-08</strong></td><td style="text-align:left">all three team-count locations, from three separate notes</td></tr>
+<tr><td style="text-align:left"><strong>D-12</strong></td><td style="text-align:left">four separate notes on pencil / archive / restore / collapse</td></tr>
+<tr><td style="text-align:left"><strong>D-13</strong></td><td style="text-align:left">the duplicate-names note + <em>"Create team and add a team name already there"</em></td></tr>
+<tr><td style="text-align:left"><strong>D-15</strong></td><td style="text-align:left"><em>"Registered Teams needs to mirror Club Team Library. Small circle with colour"</em> + the later "colours distract" line</td></tr>
+<tr><td style="text-align:left"><strong>D-19</strong></td><td style="text-align:left">the Undo→Delete note + the Undo wording inside the age-group note</td></tr>
+<tr><td style="text-align:left"><strong>D-30</strong></td><td style="text-align:left">the permissions note + the Add/Delete observation an hour later</td></tr>
+</tbody></table>
+</body></html>
