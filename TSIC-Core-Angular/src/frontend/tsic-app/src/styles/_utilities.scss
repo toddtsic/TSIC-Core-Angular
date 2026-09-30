@@ -2027,6 +2027,14 @@ mark {
     padding-right: var(--space-3);
 }
 
+// Scope note under a tree-filter label (e.g. Club/A/D/T is active teams only)
+.tree-filter-note {
+    font-size: var(--font-size-xs);
+    font-style: italic;
+    color: var(--bs-secondary-color);
+    margin-bottom: var(--space-1);
+}
+
 .form-group-tree {
     .tree-scroll-container {
         max-height: 300px;
