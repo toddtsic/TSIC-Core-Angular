@@ -1622,6 +1622,10 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
     // "Returning" compares to the event's PREVIOUS SEASON ON RECORD, not year − 1: an event
     // that skipped a year is compared to the last time it ran. The oldest season has nothing
     // to compare against and says so.
+    //
+    // WAITLIST TEAMS ARE OUT (Todd, 2026-09-30): a team parked in a "WAITLIST - *" agegroup
+    // never played that season, so it is neither counted nor a "previous season" match. Keyed
+    // on the agegroup, not Final by Year's fee-or-players rule, which also drops unpaid shells.
     // =====================================================================
     private const int TournamentJobTypeId = 2;
 
@@ -1677,7 +1681,9 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         var memberIds = members.Select(m => m.JobId).ToList();
         var teams = await _context.Teams
             .AsNoTracking()
-            .Where(t => memberIds.Contains(t.JobId) && t.Active == true)
+            .Where(t => memberIds.Contains(t.JobId)
+                && t.Active == true
+                && !t.Agegroup.AgegroupName!.StartsWith(AgegroupConstants.WaitlistPrefix))
             .Select(t => new
             {
                 t.JobId,
