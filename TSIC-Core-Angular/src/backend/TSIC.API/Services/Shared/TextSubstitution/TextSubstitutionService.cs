@@ -668,12 +668,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private static string FormatPaymentMethod(string? paymentMethod, Guid paymentMethodId, string? adnCc4, Guid paymentMethodCreditCardId)
     {
-        var method = paymentMethod ?? string.Empty;
-        if (paymentMethodId == paymentMethodCreditCardId && !string.IsNullOrEmpty(adnCc4))
+        // Credit card reads "CC" (AR-120): the full "Credit Card Payment ending 1234" wrapped to
+        // three lines in the narrow Method column. Other methods keep their stored name.
+        if (paymentMethodId == paymentMethodCreditCardId)
         {
-            return $"{method} ending {adnCc4}";
+            return string.IsNullOrEmpty(adnCc4) ? "CC" : $"CC ending {adnCc4}";
         }
-        return method;
+        return paymentMethod ?? string.Empty;
     }
 
     private async Task<string> BuildAccountingTableHtmlAsync(List<Guid> registrationIds, Guid paymentMethodCreditCardId, bool emailMode)
@@ -848,11 +849,15 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
                 var activeLabel = (r.Active ?? false) ? "&#x2705;" : "&#x274C;";
 
-                // Payment rows are auto-stamped with "{JobName}:{AgeGroup}:{Team}" — pure noise
-                // next to the Team column. Suppress the auto-stamp; keep human-entered comments.
+                // Payment rows are auto-stamped — legacy "{JobName}:{AgeGroup}:{Team}", and
+                // PaymentService.BuildTeamChargeDescription's "{JobName} - Team Registration: …"
+                // (bare "Team Registration: …" when the job has no name). Pure noise next to the
+                // Team column. Suppress the auto-stamps; keep human-entered comments.
                 var comment = r.Comment ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(jobName) &&
-                    comment.StartsWith($"{jobName}:", StringComparison.OrdinalIgnoreCase))
+                if (comment.StartsWith("Team Registration:", StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrWhiteSpace(jobName) &&
+                     (comment.StartsWith($"{jobName}:", StringComparison.OrdinalIgnoreCase) ||
+                      comment.StartsWith($"{jobName.Trim()} - Team Registration:", StringComparison.OrdinalIgnoreCase))))
                 {
                     comment = string.Empty;
                 }
