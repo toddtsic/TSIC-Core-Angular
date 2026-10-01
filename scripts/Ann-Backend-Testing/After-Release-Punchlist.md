@@ -3467,7 +3467,7 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 
 - **Status**: 🔁 **BACK TO ANN (Todd, 10-01).** The wrong figures are fixed (`11de6ae4e`, `bda186379`, local commits, **not pushed, not deployed**, built clean, **not yet seen on screen**). **Ann to answer: with the figures right, does she still want the count and the amount removed — and if the processing-fee variance is the concern, label it or hide it?** Appearance changes (checks 1–2) and the fly-in fix (check 5) wait on her answer. ORIGINAL: 🔴 OPEN — filed 09-30 at Ann's instruction, UNRESEARCHED.
 
-### AR-122: 🔴 OPEN — filed 09-30 (Ann), UNRESEARCHED · [Payment screen / Club Rep] Column request and accounting figures — an Additional Fees column in the Deposit phase, Reg Date moved last, phase-correct fee bases, and a green Paid total
+### AR-122: 🔴 OPEN — 🔍 RESEARCHED 10-01: #1 #2 #4 easy; #3 is a design conflict (owed vs LADT fee), awaits Todd · [Payment screen / Club Rep] Column request and accounting figures — an Additional Fees column in the Deposit phase, Reg Date moved last, phase-correct fee bases, and a green Paid total
 
 - **Topic**: the **club-rep Payment screen** — its **columns** and the **figures in the accounting table**
 - **Reported by**: Ann, 09-30, from her **club-rep registration review with Chelsea**. **Filed as reported — NO research requested.** ⚠ **Nothing opened in code:** where each figure is sourced, and whether the fee base is already available to this screen, are **unestablished in this entry.**
@@ -3483,7 +3483,20 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 
 - ⚠ **CHANGE 3 IS NOT THE SAME KIND OF WORK AS THE OTHER THREE, AND ANN MARKED IT IMPORTANT HERSELF.** **1, 2 and 4 are column position, a new column and a colour. 3 is about WHICH FIGURE each cell reports** — **a wrong fee base or a processing fee from the wrong phase is a wrong number, not a layout issue.** 🎯 **If this item is ever split, 3 is the piece that splits out.**
 - ⚙ **Horizontal scroll on this screen is a repeat theme** — **AR-006 and AR-016 both turned on it**, and change 2 is another instance: the fix is making the important columns reachable rather than widening the table.
-- **Severity**: 🟡 **Rated on her report.** ⚠ **Change 3 could carry a money-accuracy consequence depending on what the cells source today** — **not established here.**
+- 🔍 **RESEARCHED (10-01).** All four live in the shared `registered-teams-grid.component.ts`; the figures come from `RegisteredTeamShaper.cs:145-148`.
+  - **#1 Additional Fees (Deposit phase) — EASY, no backend.** The figure already exists: in Deposit phase `AdditionalDue` = the structural LADT balance, sent on every row. The Payment step hides that column unless the phase is Final Balance (`showBalanceColumn`). Fix = show it in Deposit phase, labelled "Additional Fees".
+  - **#2 Reg Date last — EASY, Payment step only.** The Payment step is the ONLY host that shows Reg Date (club-rep fly-in and teams step hide it), so moving the column to the end changes nothing else.
+  - **#3 The figures — NOT A BUG, A DESIGN CONFLICT.** ⚠ Today the "Due" columns show what is **still owed, net of payments**:
+    - **Deposit phase:** Deposit Due = deposit still unpaid.
+    - **Final Balance phase:** Deposit Due = $0; Balance Due = everything still owed.
+    - Ann wants the **fixed LADT fee amounts** ($500 / $1,800) whether paid or not. **For an unpaid rep (STJSTARS) the two are identical**; they diverge once something is paid or a discount / late fee applies.
+    - ⛔ **The current behaviour was a deliberate fix:** the shaper comment records that re-deriving these figures showed phantom balances (**38 settled prod teams showed $10–57 Balance Due beside Owed $0**). The teams step also dropped price-list columns because "a price list read as a bill" (**AR-095 / CTL ruling 4**).
+    - ⚠ **$500 under "Deposit Due" after it is paid reads as money owed.** If fee amounts are shown, the headers must become "Deposit" / "Balance", not "Due".
+    - ✅ **Processing Fee already does what she asked:** it is the processing fee on what is owed now, for the selected payment method — so in Deposit phase it is the fee on the deposit.
+  - **#4 Paid total green — EASY, but it is not only her screen.** Every footer total in this grid style is blue (`--bs-primary`, `_syncfusion-density.scss`). Making Paid green also changes it on the director's club-rep fly-in, where the Paid cells above it are already green.
+  - ❓ **OPEN FOR TODD on #3:** show the fixed LADT fees (relabelled "Deposit" / "Balance"), or keep what's owed and tell Ann it is working as designed?
+- **Repro (dev):** `https://localhost:4200/lftc-summer-2027/registration/team`, log in `STJSTARS` / `dev123` (STARS — 2 teams, Deposit phase, owes $1,038, paid $0), go to the **Payment** step.
+- **Severity**: 🟡 **Rated on her report.** ✅ **Research found no wrong figure — #3 is a display-design choice (owed vs fee), not a money error.**
 - **Status**: 🔴 **OPEN — filed 09-30 at Ann's instruction, UNRESEARCHED.** **For Todd:** ⏳ **first question is change 3 — what Deposit Due, Balance Due and Processing Fees are sourced from on this screen today**, and whether the **LADT fee base** is already available to it. ⚙ **Changes 1, 2 and 4 are independent of that answer and of each other.** ⚠ **Canonical payment state applies — owed and processing figures go through the existing shapers rather than being recomputed for this screen.**
 
 ### AR-123: 🔴 OPEN — filed 09-30 (Ann), UNRESEARCHED · [Payment screen / Club Rep] When nothing is due, the team table must still show — only the payment fields should go
