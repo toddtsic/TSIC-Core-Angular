@@ -600,7 +600,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             tokens["!A-ACCOUNTING"] = await BuildAccountingAHtmlAsync(registrationId.Value, paymentMethodCreditCardId, first.JobName, emailMode);
 
         if (template.Contains("!F-ACCOUNTING-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!F-ACCOUNTING-TEAMS"] = await BuildAccountingTeamsHtmlAsync(registrationId.Value, paymentMethodCreditCardId, first.JobName, emailMode);
+            tokens["!F-ACCOUNTING-TEAMS"] = await BuildAccountingTeamsHtmlAsync(registrationId.Value, paymentMethodCreditCardId, emailMode);
 
         if (template.Contains("!F-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
         {
@@ -809,7 +809,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         return sb.ToString();
     }
 
-    private async Task<string> BuildAccountingTeamsHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, string? jobName, bool emailMode)
+    private async Task<string> BuildAccountingTeamsHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, bool emailMode)
     {
         var clubName = await _repo.GetClubNameAsync(registrationId) ?? string.Empty;
         var teams = await _repo.GetClubTeamsAsync(registrationId);
@@ -837,7 +837,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         var table = new HtmlTable(sb, emailMode, caption);
         table.HeaderRow("Active", "ID", "Team", "Method",
             HtmlTableBuilder.Num("Fees$"), HtmlTableBuilder.Num(PaidColumnHeader),
-            "Date", HtmlTableBuilder.Num("Owes$"), "Comment");
+            "Date", HtmlTableBuilder.Num("Owes$"));
         foreach (var (teamName, rows) in perTeamRows)
         {
             foreach (var r in rows)
@@ -849,19 +849,9 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
                 var activeLabel = (r.Active ?? false) ? "&#x2705;" : "&#x274C;";
 
-                // Payment rows are auto-stamped — legacy "{JobName}:{AgeGroup}:{Team}", and
-                // PaymentService.BuildTeamChargeDescription's "{JobName} - Team Registration: …"
-                // (bare "Team Registration: …" when the job has no name). Pure noise next to the
-                // Team column. Suppress the auto-stamps; keep human-entered comments.
-                var comment = r.Comment ?? string.Empty;
-                if (comment.StartsWith("Team Registration:", StringComparison.OrdinalIgnoreCase) ||
-                    (!string.IsNullOrWhiteSpace(jobName) &&
-                     (comment.StartsWith($"{jobName}:", StringComparison.OrdinalIgnoreCase) ||
-                      comment.StartsWith($"{jobName.Trim()} - Team Registration:", StringComparison.OrdinalIgnoreCase))))
-                {
-                    comment = string.Empty;
-                }
-
+                // No Comment column (AR-120): measured 10-01, ~70% of comments were auto-stamps
+                // and the typed rest were director bookkeeping ("credit per Matt", "Allocating
+                // Check #1929 as per JS") that must not reach the club rep.
                 table.Row(
                     HtmlTableBuilder.NoWrap(activeLabel),
                     HtmlTableBuilder.NoWrap(r.AId.ToString()),
@@ -871,8 +861,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                     HtmlTableBuilder.FormatCurrency(r.Payamt ?? 0m),
                     // Date-only: the timestamp is batch/sweep noise on a receipt.
                     HtmlTableBuilder.NoWrap(r.Createdate?.ToString("M/d/yyyy") ?? string.Empty),
-                    HtmlTableBuilder.FormatCurrency(owes),
-                    WebUtility.HtmlEncode(comment));
+                    HtmlTableBuilder.FormatCurrency(owes));
             }
         }
         table.End();
