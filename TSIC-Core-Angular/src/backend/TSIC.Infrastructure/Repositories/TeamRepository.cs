@@ -387,12 +387,12 @@ public class TeamRepository : ITeamRepository
         CancellationToken cancellationToken = default)
     {
         // Rep's own view: active, non-DROPPED teams belonging to the rep's registration.
-        var query = _context.Teams.Where(t =>
-            t.JobId == jobId
-            && t.Active == true
-            && t.Agegroup != null && !t.Agegroup!.AgegroupName!.Contains("DROPPED")
-            && _context.Registrations.Any(reg =>
-                reg.RegistrationId == t.ClubrepRegistrationid && reg.UserId == userId));
+        var query = _context.Teams
+            .Where(ClubRepTeamsOnTheBooks.Predicate)
+            .Where(t =>
+                t.JobId == jobId
+                && _context.Registrations.Any(reg =>
+                    reg.RegistrationId == t.ClubrepRegistrationid && reg.UserId == userId));
         return ProjectRegisteredTeamsAsync(query, cancellationToken);
     }
 
