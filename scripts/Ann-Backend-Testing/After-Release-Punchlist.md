@@ -3425,6 +3425,8 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 | **3** | **Most Recent Transactions — show the time** | The Date column needs **time as well as date** |
 
 - 🔗 **PARTS 1 AND 2 ARE COUPLED, AND THAT IS WHY THEY ARE ONE ITEM:** **dropping the totals row is what frees the width the longer team name in part 1 needs.** ⛔ **Doing part 1 without part 2 risks the name being squeezed or wrapped.**
+- ⚠ **CONSTRAINT (Todd, 09-30) — NOT EVERY TEAM HAS A `ClubrepRegistrationid`.** The club segment comes **only** from `Teams.ClubrepRegistrationid → Registrations.ClubName`. **No club rep = no club segment** — the label falls back to today's Age Group + Team Name. ⛔ **Never back-fill the name from the library (`Clubs.ClubName` / `ClubTeam.Club`) or by guessing from the team name.**
+- ✅ **FORMAT RULED (Todd, 09-30): `{ClubName}:{AgeGroupName}:{TeamName}`** — colon-separated, no spaces, NOT Ann's "Age Group + Club + Team" order. Blank club → `{AgeGroupName}:{TeamName}` (no leading colon). Applies to Registered Teams SUMMARY, Most Recent Transactions (club rep), and the free-event `!F-NO-MONEY-TEAMS` summary.
 - **Severity**: 🟡 **Presentation only — nothing is mis-saved and no figure is wrong here.** ⚙ **The wrong figure on this same screen is AR-119, filed separately.**
 - **Status**: 🔴 **OPEN — filed 09-30 at Ann's instruction, UNRESEARCHED.** **For Todd:** ⏳ **first question is whether the email and the online screen share a template**, since that decides whether this is one change or two. ⚙ **Sibling: AR-119** — **read together for the full scope, rule separately.**
 
