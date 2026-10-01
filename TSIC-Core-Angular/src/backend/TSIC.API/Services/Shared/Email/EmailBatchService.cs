@@ -12,16 +12,17 @@ using TSIC.Domain.Constants;
 namespace TSIC.API.Services.Shared.Email;
 
 /// <summary>
-/// SUPERSEDED — NOT REGISTERED. The previous engine, kept verbatim (class renamed only) as a revert
-/// point while <see cref="EmailBatchService"/> proves itself on a large prod send; delete after.
-/// To revert: register this class for IEmailBatchService in Program.cs and redeploy.
-///
 /// Generic batch-email orchestration engine (see <see cref="IEmailBatchService"/>). Singleton: it owns
 /// no scoped state and spawns background work. Pipeline: producer items -> N render workers (each its
-/// OWN DI scope/DbContext) -> bounded channel -> M send workers (rate-capped, retrying) -> SES.
-/// Render runs serial-within-worker so each worker's DbContext is never used concurrently.
+/// OWN DI scope/DbContext) -> bounded channel -> one dispatcher per batch -> SES.
+///
+/// SES enforces exactly one rate rule: at most MaxSendRate RECIPIENTS per second, across the account
+/// (every To/Cc/Bcc address counts). The dispatcher enforces that rule directly: each message draws its
+/// address count from a one-second budget SHARED BY EVERY BATCH in this process, and its send is STARTED
+/// without awaiting the SES reply — so throughput is set by the budget, not by SES round-trip latency.
+/// When the second's budget is spent, the dispatcher waits for the next second.
 /// </summary>
-public sealed class EmailBatchServiceOld : IEmailBatchService
+public sealed class EmailBatchService : IEmailBatchService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IEmailService _email;
@@ -29,19 +30,25 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
     private readonly IAmazonSimpleEmailService _ses;
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly IHostEnvironment _env;
-    private readonly ILogger<EmailBatchServiceOld> _logger;
+    private readonly ILogger<EmailBatchService> _logger;
     // Unsubscribe links must point at the environment that sent them — same rule as the
     // invite/password-reset links in TextSubstitutionService/AuthController.
     private readonly string _frontendBaseUrl;
 
-    public EmailBatchServiceOld(
+    // The per-second recipient budget. Instance state on a singleton = one budget for the whole app,
+    // so concurrent batches share MaxSendRate instead of each claiming all of it.
+    private readonly object _budgetLock = new();
+    private long _windowStart;
+    private int _windowUsed;
+
+    public EmailBatchService(
         IServiceScopeFactory scopeFactory,
         IEmailService email,
         IEmailBatchJobRegistry registry,
         IAmazonSimpleEmailService ses,
         IHostApplicationLifetime appLifetime,
         IHostEnvironment env,
-        ILogger<EmailBatchServiceOld> logger,
+        ILogger<EmailBatchService> logger,
         Microsoft.Extensions.Options.IOptions<TSIC.API.Configuration.FrontendSettings> frontendSettings)
     {
         _scopeFactory = scopeFactory;
@@ -155,15 +162,17 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
         // means a TEST request can never produce a real send even if the host env were misread.
         var simulate = options.SimulatedPerUnitDelayMs.HasValue;
         var sentAddresses = new ConcurrentQueue<string>();
+        var tally = new SendTally();
+        var clock = Stopwatch.StartNew();
 
         try
         {
-            var sendWorkers = await ResolveSendConcurrencyAsync(options, simulate, ct);
-            var pacer = new SendPacer(simulate ? double.MaxValue : await ResolveMaxSendRateAsync(ct));
+            // Recipients per second this batch may start. A simulated run never transmits, so it is unmetered.
+            var perSecond = simulate ? int.MaxValue : (int)Math.Max(1, Math.Floor(await ResolveMaxSendRateAsync(ct)));
 
             var itemChannel = Channel.CreateUnbounded<TItem>(new UnboundedChannelOptions { SingleReader = false, SingleWriter = true });
             var sendChannel = Channel.CreateBounded<(EmailMessageDto Message, TItem Item)>(
-                new BoundedChannelOptions(options.ChannelCapacity) { SingleReader = false, SingleWriter = false });
+                new BoundedChannelOptions(options.ChannelCapacity) { SingleReader = true, SingleWriter = false });
 
             // Feed all items, then close the item channel.
             foreach (var item in items) itemChannel.Writer.TryWrite(item);
@@ -182,17 +191,12 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
                 sendChannel.Writer.Complete();
             }, ct);
 
-            // Send workers.
-            var sendTasks = Enumerable.Range(0, sendWorkers)
-                .Select(_ => SendWorkerAsync(batchJobId, sendChannel.Reader, options, simulate, pacer, sentAddresses, ct))
-                .ToArray();
-
             // Periodic audit flush while the pipeline runs.
             using var flushCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             var flushTask = AuditFlushLoopAsync(batchJobId, emailId, sentAddresses, flushCts.Token);
 
+            await DispatchAsync(batchJobId, sendChannel.Reader, options, simulate, perSecond, sentAddresses, tally, ct);
             await renderCompletion;
-            await Task.WhenAll(sendTasks);
 
             await flushCts.CancelAsync();
             try { await flushTask; }
@@ -207,6 +211,12 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
         }
         finally
         {
+            var seconds = clock.Elapsed.TotalSeconds;
+            _logger.LogInformation(
+                "Batch email {BatchJobId} finished: {Messages} messages / {Addresses} addresses sent, {Failed} messages failed, in {Seconds:F1}s ({AddressesPerSecond:F0} addresses/s)",
+                batchJobId, tally.Messages, tally.Addresses, tally.Failed, seconds,
+                seconds > 0 ? tally.Addresses / seconds : 0);
+
             _registry.Complete(batchJobId);
             await FlushAuditAsync(emailId, batchJobId, sentAddresses, CancellationToken.None);
             await RunCompletionHookAsync(plan, batchJobId, CancellationToken.None);
@@ -289,39 +299,75 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
             """;
     }
 
-    private async Task SendWorkerAsync<TItem>(
+    /// <summary>
+    /// The send stage: one loop per batch. For each rendered message, draw its recipient count from the
+    /// shared per-second budget (waiting for the next second when it is spent), then START the send and
+    /// move on without awaiting SES. Returns once the channel is drained and every started send has finished.
+    /// </summary>
+    private async Task DispatchAsync<TItem>(
         Guid batchJobId,
         ChannelReader<(EmailMessageDto Message, TItem Item)> source,
         EmailBatchOptions options,
         bool simulate,
-        SendPacer pacer,
+        int perSecond,
         ConcurrentQueue<string> sentAddresses,
+        SendTally tally,
         CancellationToken ct)
     {
+        var inFlight = new List<Task>();
         await foreach (var (message, _) in source.ReadAllAsync(ct))
         {
-            var ok = await SendOneAsync(message, options, simulate, pacer, ct);
-            if (ok)
-            {
-                foreach (var addr in message.ToAddresses) sentAddresses.Enqueue(addr);
-                _registry.RecordResult(batchJobId, true, Array.Empty<string>());
-                // Read from the SAME list the enqueue above walked, AFTER SendOneAsync (which may have
-                // rewritten ToAddresses to the sandbox test inbox). That keeps the summaries' address
-                // count identical to the EmailLogs row by construction, rather than by coincidence.
-                _registry.RecordSentAddresses(batchJobId, message.ToAddresses.Count);
-            }
-            else
-            {
-                _registry.RecordResult(batchJobId, false, message.ToAddresses);
-            }
+            // Rewrite BEFORE counting, so the budget is charged for the addresses actually sent.
+            var deliverToTestInbox = ApplySandboxTestInbox(message, options);
+
+            if (!simulate) await TakeSendBudgetAsync(RecipientCount(message), perSecond, ct);
+            inFlight.Add(SendAndRecordAsync(batchJobId, message, options, simulate, deliverToTestInbox, perSecond, sentAddresses, tally, ct));
+
+            // Completed sends need not be held for the rest of a large batch.
+            if (inFlight.Count >= 1000) inFlight.RemoveAll(t => t.IsCompleted);
+        }
+        await Task.WhenAll(inFlight);
+    }
+
+    private async Task SendAndRecordAsync(
+        Guid batchJobId,
+        EmailMessageDto message,
+        EmailBatchOptions options,
+        bool simulate,
+        bool deliverToTestInbox,
+        int perSecond,
+        ConcurrentQueue<string> sentAddresses,
+        SendTally tally,
+        CancellationToken ct)
+    {
+        var ok = await SendOneAsync(message, options, simulate, deliverToTestInbox, perSecond, ct);
+        if (ok)
+        {
+            foreach (var addr in message.ToAddresses) sentAddresses.Enqueue(addr);
+            _registry.RecordResult(batchJobId, true, Array.Empty<string>());
+            // Read from the SAME list the enqueue above walked, AFTER any test-inbox rewrite. That keeps
+            // the summaries' address count identical to the EmailLogs row by construction, rather than by coincidence.
+            _registry.RecordSentAddresses(batchJobId, message.ToAddresses.Count);
+            Interlocked.Increment(ref tally.Messages);
+            Interlocked.Add(ref tally.Addresses, message.ToAddresses.Count);
+        }
+        else
+        {
+            _registry.RecordResult(batchJobId, false, message.ToAddresses);
+            Interlocked.Increment(ref tally.Failed);
         }
     }
 
+    /// <summary>
+    /// One message, up to MaxSendAttempts. The first attempt's budget was drawn by the dispatcher;
+    /// every retry draws again, since it is another send as far as SES's rate rule is concerned.
+    /// </summary>
     private async Task<bool> SendOneAsync(
         EmailMessageDto message,
         EmailBatchOptions options,
         bool simulate,
-        SendPacer pacer,
+        bool deliverToTestInbox,
+        int perSecond,
         CancellationToken ct)
     {
         if (simulate)
@@ -339,26 +385,10 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
             return true;
         }
 
-        // ── Sandbox test inbox (Staging invite testing) ──────────────────────────────────────────
-        // The invite modal exposes an editable "To (test inbox)" address ONLY in the Staging build.
-        // When that address rides the batch AND the host is sandboxed, we force a real SES send that
-        // would otherwise be suppressed and deliver every message to that single inbox — so the
-        // per-recipient token link can actually be received and clicked. Gated on IsSandbox(): in
-        // Production the field is never rendered and this branch never fires, so live mail is untouched.
-        var testInbox = options.SandboxTestRecipient?.Trim();
-        var deliverToTestInbox = _env.IsSandbox() && !string.IsNullOrWhiteSpace(testInbox) && testInbox.Contains('@');
-        if (deliverToTestInbox)
-        {
-            message.CcAddresses.Clear();
-            message.BccAddresses.Clear();
-            message.ToAddresses = new List<string> { testInbox! };
-        }
-        // ────────────────────────────────────────────────────────────────────────────────────────
-
         var attempts = Math.Max(1, options.MaxSendAttempts);
         for (var attempt = 1; attempt <= attempts; attempt++)
         {
-            await pacer.WaitAsync(ct);
+            if (attempt > 1) await TakeSendBudgetAsync(RecipientCount(message), perSecond, ct);
             try
             {
                 var ok = await _email.SendAsync(message, sendInDevelopment: deliverToTestInbox, ct);
@@ -374,6 +404,60 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// Sandbox test inbox (Staging invite testing). The invite modal exposes an editable "To (test inbox)"
+    /// address ONLY in the Staging build, and RegistrationSearchService passes it ONLY for invites. When it
+    /// rides the batch AND the host is sandboxed, we force a real SES send that would otherwise be suppressed
+    /// and deliver every message to that single inbox — so the per-recipient token link can actually be
+    /// received and clicked. Gated on IsSandbox(): in Production this never fires, so live mail is untouched.
+    /// Returns whether the send must be forced through the sandbox gate.
+    /// </summary>
+    private bool ApplySandboxTestInbox(EmailMessageDto message, EmailBatchOptions options)
+    {
+        var testInbox = options.SandboxTestRecipient?.Trim();
+        var deliverToTestInbox = _env.IsSandbox() && !string.IsNullOrWhiteSpace(testInbox) && testInbox.Contains('@');
+        if (deliverToTestInbox)
+        {
+            message.CcAddresses.Clear();
+            message.BccAddresses.Clear();
+            message.ToAddresses = new List<string> { testInbox! };
+        }
+        return deliverToTestInbox;
+    }
+
+    /// <summary>What SES charges against MaxSendRate for this message: every To, Cc and Bcc address.</summary>
+    private static int RecipientCount(EmailMessageDto message)
+        => (message.ToAddresses?.Count ?? 0) + (message.CcAddresses?.Count ?? 0) + (message.BccAddresses?.Count ?? 0);
+
+    /// <summary>
+    /// Draws <paramref name="recipients"/> from the shared one-second budget, waiting for the next second
+    /// when the current one cannot fit them. A message larger than the whole budget (only possible on the
+    /// 1/sec fallback) goes alone in a fresh second rather than waiting forever.
+    /// </summary>
+    private async Task TakeSendBudgetAsync(int recipients, int perSecond, CancellationToken ct)
+    {
+        while (true)
+        {
+            TimeSpan wait;
+            lock (_budgetLock)
+            {
+                var now = Stopwatch.GetTimestamp();
+                if (now - _windowStart >= Stopwatch.Frequency)
+                {
+                    _windowStart = now;
+                    _windowUsed = 0;
+                }
+                if (_windowUsed == 0 || _windowUsed + recipients <= perSecond)
+                {
+                    _windowUsed += recipients;
+                    return;
+                }
+                wait = TimeSpan.FromSeconds((double)(_windowStart + Stopwatch.Frequency - now) / Stopwatch.Frequency);
+            }
+            await Task.Delay(wait, ct);
+        }
     }
 
     private int _simCounter;
@@ -429,14 +513,6 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
         return entry.EmailId;
     }
 
-    private async Task<int> ResolveSendConcurrencyAsync(EmailBatchOptions options, bool simulate, CancellationToken ct)
-    {
-        if (simulate) return Math.Max(1, options.SendWorkers);
-        var rate = await ResolveMaxSendRateAsync(ct);
-        var cap = (int)Math.Max(1, Math.Floor(rate));
-        return Math.Clamp(options.SendWorkers, 1, cap);
-    }
-
     private async Task<double> ResolveMaxSendRateAsync(CancellationToken ct)
     {
         try
@@ -451,47 +527,11 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
         return 1.0; // conservative fallback
     }
 
-    /// <summary>
-    /// Paces send-starts to at most <c>maxPerSecond</c> across all send workers (token spacing).
-    /// </summary>
-    private sealed class SendPacer
+    /// <summary>Per-batch counters for the end-of-batch log line (fields, so Interlocked can update them).</summary>
+    private sealed class SendTally
     {
-        private readonly SemaphoreSlim _gate = new(1, 1);
-        private readonly long _intervalTicks;
-        private long _nextAllowed;
-
-        public SendPacer(double maxPerSecond)
-        {
-            if (double.IsInfinity(maxPerSecond) || maxPerSecond <= 0)
-            {
-                _intervalTicks = 0;
-            }
-            else
-            {
-                _intervalTicks = (long)(Stopwatch.Frequency / maxPerSecond);
-            }
-            _nextAllowed = Stopwatch.GetTimestamp();
-        }
-
-        public async Task WaitAsync(CancellationToken ct)
-        {
-            if (_intervalTicks == 0) return;
-            await _gate.WaitAsync(ct);
-            try
-            {
-                var now = Stopwatch.GetTimestamp();
-                if (_nextAllowed > now)
-                {
-                    var waitSeconds = (_nextAllowed - now) / (double)Stopwatch.Frequency;
-                    await Task.Delay(TimeSpan.FromSeconds(waitSeconds), ct);
-                    now = Stopwatch.GetTimestamp();
-                }
-                _nextAllowed = now + _intervalTicks;
-            }
-            finally
-            {
-                _gate.Release();
-            }
-        }
+        public int Messages;
+        public int Addresses;
+        public int Failed;
     }
 }
