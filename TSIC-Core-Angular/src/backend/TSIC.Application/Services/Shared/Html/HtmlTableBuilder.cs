@@ -5,9 +5,12 @@ namespace TSIC.Application.Services.Shared.Html;
 
 /// <summary>
 /// Dual-mode HTML emitters shared by every token builder. Web UI output uses the tsic-* CSS
-/// classes (styles/_tables.scss); email output carries full inline styles because email clients
-/// ignore stylesheets. Tables are written through <see cref="HtmlTable"/>, which owns section
-/// bookkeeping (thead/tbody/tfoot), zebra striping, and the single caption band — the caption is
+/// classes (styles/_tables.scss) — tables use the PRIVATE tsic-subst-* classes, which nothing
+/// else in the app carries, so restyling token tables can never leak onto app grids; email output
+/// carries full inline styles because email clients ignore stylesheets. Tables are written through <see cref="HtmlTable"/>, which owns section
+/// bookkeeping (thead/tbody/tfoot), zebra striping, and the single caption band. This file is the
+/// ONE place token-table density is set: the inline email styles below and the tsic-subst-* rules
+/// in styles/_tables.scss are a matched pair — change both together. The caption is
 /// emitted BEFORE the &lt;table&gt; tag in email mode because a &lt;div&gt; inside table markup
 /// gets hoisted unpredictably by email clients (the old dual div+caption emit rendered every
 /// table title twice, once as a stray row).
@@ -17,9 +20,10 @@ public static class HtmlTableBuilder
     /// <summary>
     /// A table cell carrying render hints. Plain strings passed to the row methods keep the
     /// historical contract (pre-encoded / raw HTML, left-aligned); wrap money and counts in a
-    /// numeric cell via <see cref="FormatCurrency"/> or <see cref="Num"/> to right-align them.
+    /// numeric cell via <see cref="FormatCurrency"/> or <see cref="Num"/> to right-align them, and
+    /// short fixed-width values (ids, dates, status flags) via <see cref="NoWrap"/>.
     /// </summary>
-    public readonly record struct Cell(string Html, bool Numeric)
+    public readonly record struct Cell(string Html, bool Numeric, bool NoWrap = false)
     {
         public override string ToString() => Html;
     }
@@ -29,6 +33,13 @@ public static class HtmlTableBuilder
 
     /// <summary>Encodes plain text into a right-aligned numeric cell (headers, counts).</summary>
     public static Cell Num(string text) => new(WebUtility.HtmlEncode(text), true);
+
+    /// <summary>
+    /// A left-aligned cell that never wraps — ids, dates, status flags. Breaking these mid-value
+    /// only steals height; the width they keep goes to the free-text columns. Same raw/pre-encoded
+    /// HTML contract as a plain string cell.
+    /// </summary>
+    public static Cell NoWrap(string html) => new(html, false, true);
 
     /// <summary>
     /// Wraps content in an amber warning callout (e.g. inactive player notice). Email styling
@@ -71,18 +82,21 @@ public static class HtmlTableBuilder
 /// <see cref="HeaderRow"/> emits a complete thead, the first <see cref="Row"/> opens tbody,
 /// <see cref="FooterRow"/> closes tbody and emits a complete tfoot, and <see cref="End"/>
 /// closes whatever is open. Email mode inline-styles every element (tinted header row, zebra
-/// body rows, footer band); web mode emits the tsic-* classes unchanged.
+/// body rows, footer band); web mode emits the private tsic-subst-* classes (styles/_tables.scss).
+/// Density (AR-120): 12px text and 4px cell padding in both modes, so the club-prefixed team
+/// labels and payment-method text get the width instead of whitespace.
 /// </summary>
 public sealed class HtmlTable
 {
     private const string FontStack = "font-family:Arial,Helvetica,sans-serif;";
     private const string CaptionStyle = FontStack + "font-size:14px;font-weight:700;color:#1f2937;padding:12px 2px 6px;";
-    private const string TableStyle = "border-collapse:collapse;width:100%;" + FontStack + "font-size:13px;color:#1f2937;margin:0 0 16px;";
-    private const string ThStyle = "background:#f1f5f9;color:#334155;text-align:left;padding:6px 8px;border:1px solid #cbd5e1;font-size:12px;";
-    private const string TdStyle = "padding:6px 8px;border:1px solid #e2e8f0;";
+    private const string TableStyle = "border-collapse:collapse;width:100%;" + FontStack + "font-size:12px;color:#1f2937;margin:0 0 16px;";
+    private const string ThStyle = "background:#f1f5f9;color:#334155;text-align:left;padding:4px;border:1px solid #cbd5e1;font-size:12px;";
+    private const string TdStyle = "padding:4px;border:1px solid #e2e8f0;";
     private const string TdZebra = "background:#f8fafc;";
-    private const string FootStyle = "background:#f1f5f9;font-weight:600;text-align:left;padding:6px 8px;border:1px solid #cbd5e1;";
+    private const string FootStyle = "background:#f1f5f9;font-weight:600;text-align:left;padding:4px;border:1px solid #cbd5e1;";
     private const string NumStyle = "text-align:right;white-space:nowrap;";
+    private const string NoWrapStyle = "white-space:nowrap;";
 
     private readonly StringBuilder _sb;
     private readonly bool _email;
@@ -101,9 +115,9 @@ public sealed class HtmlTable
         }
         else
         {
-            _sb.Append("<table class='tsic-grid' role='table'>");
+            _sb.Append("<table class='tsic-subst-table' role='table'>");
             if (!string.IsNullOrWhiteSpace(caption))
-                _sb.AppendFormat("<caption class='tsic-caption'>{0}</caption>", WebUtility.HtmlEncode(caption));
+                _sb.AppendFormat("<caption class='tsic-subst-caption'>{0}</caption>", WebUtility.HtmlEncode(caption));
         }
     }
 
@@ -113,11 +127,11 @@ public sealed class HtmlTable
         _sb.Append("<thead><tr>");
         foreach (var h in headers)
         {
-            var (html, numeric) = Normalize(h, encodePlainStrings: true);
+            var (html, numeric, noWrap) = Normalize(h, encodePlainStrings: true);
             if (_email)
-                _sb.AppendFormat("<th scope='col' style='{0}{1}'>{2}</th>", ThStyle, numeric ? NumStyle : string.Empty, html);
+                _sb.AppendFormat("<th scope='col' style='{0}{1}'>{2}</th>", ThStyle, EmailAlign(numeric, noWrap), html);
             else
-                _sb.AppendFormat("<th scope='col' class='tsic-grid-header{0}'>{1}</th>", numeric ? " tsic-cell-num" : string.Empty, html);
+                _sb.AppendFormat("<th scope='col' class='tsic-subst-th{0}'>{1}</th>", WebAlign(numeric, noWrap), html);
         }
         _sb.Append("</tr></thead>");
     }
@@ -135,11 +149,11 @@ public sealed class HtmlTable
         _sb.Append("<tr>");
         foreach (var c in cells)
         {
-            var (html, numeric) = Normalize(c, encodePlainStrings: false);
+            var (html, numeric, noWrap) = Normalize(c, encodePlainStrings: false);
             if (_email)
-                _sb.AppendFormat("<td style='{0}{1}{2}'>{3}</td>", TdStyle, zebra ? TdZebra : string.Empty, numeric ? NumStyle : string.Empty, html);
+                _sb.AppendFormat("<td style='{0}{1}{2}'>{3}</td>", TdStyle, zebra ? TdZebra : string.Empty, EmailAlign(numeric, noWrap), html);
             else
-                _sb.AppendFormat("<td class='tsic-grid-cell{0}'>{1}</td>", numeric ? " tsic-cell-num" : string.Empty, html);
+                _sb.AppendFormat("<td class='tsic-subst-td{0}'>{1}</td>", WebAlign(numeric, noWrap), html);
         }
         _sb.Append("</tr>");
     }
@@ -150,18 +164,18 @@ public sealed class HtmlTable
         if (cells.Length == 0) return;
         CloseBody();
         _sb.Append("<tfoot><tr>");
-        var (first, _) = Normalize(cells[0], encodePlainStrings: false);
+        var (first, _, _) = Normalize(cells[0], encodePlainStrings: false);
         if (_email)
             _sb.AppendFormat("<th scope='row' style='{0}'>{1}</th>", FootStyle, first);
         else
-            _sb.AppendFormat("<th scope='row' class='tsic-grid-footer-header'>{0}</th>", first);
+            _sb.AppendFormat("<th scope='row' class='tsic-subst-foot-th'>{0}</th>", first);
         for (int i = 1; i < cells.Length; i++)
         {
-            var (html, numeric) = Normalize(cells[i], encodePlainStrings: false);
+            var (html, numeric, noWrap) = Normalize(cells[i], encodePlainStrings: false);
             if (_email)
-                _sb.AppendFormat("<td style='{0}{1}'>{2}</td>", FootStyle, numeric ? NumStyle : string.Empty, html);
+                _sb.AppendFormat("<td style='{0}{1}'>{2}</td>", FootStyle, EmailAlign(numeric, noWrap), html);
             else
-                _sb.AppendFormat("<td class='tsic-grid-footer-cell{0}'>{1}</td>", numeric ? " tsic-cell-num" : string.Empty, html);
+                _sb.AppendFormat("<td class='tsic-subst-foot-td{0}'>{1}</td>", WebAlign(numeric, noWrap), html);
         }
         _sb.Append("</tr></tfoot>");
     }
@@ -182,11 +196,17 @@ public sealed class HtmlTable
         }
     }
 
-    private static (string Html, bool Numeric) Normalize(object? cell, bool encodePlainStrings) => cell switch
+    private static string EmailAlign(bool numeric, bool noWrap) =>
+        numeric ? NumStyle : noWrap ? NoWrapStyle : string.Empty;
+
+    private static string WebAlign(bool numeric, bool noWrap) =>
+        numeric ? " tsic-subst-num" : noWrap ? " tsic-subst-nowrap" : string.Empty;
+
+    private static (string Html, bool Numeric, bool NoWrap) Normalize(object? cell, bool encodePlainStrings) => cell switch
     {
-        null => (string.Empty, false),
-        HtmlTableBuilder.Cell c => (c.Html, c.Numeric),
-        string s => (encodePlainStrings ? WebUtility.HtmlEncode(s) : s, false),
-        _ => (WebUtility.HtmlEncode(cell.ToString() ?? string.Empty), false),
+        null => (string.Empty, false, false),
+        HtmlTableBuilder.Cell c => (c.Html, c.Numeric, c.NoWrap),
+        string s => (encodePlainStrings ? WebUtility.HtmlEncode(s) : s, false, false),
+        _ => (WebUtility.HtmlEncode(cell.ToString() ?? string.Empty), false, false),
     };
 }

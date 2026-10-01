@@ -692,11 +692,11 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             }
             var paid = row.Payamt ?? 0m; paidSum += paid;
             table.Row(
-                row.AId.ToString(),
+                HtmlTableBuilder.NoWrap(row.AId.ToString()),
                 WebUtility.HtmlEncode(row.RegistrantName ?? string.Empty),
                 WebUtility.HtmlEncode(FormatPaymentMethod(row, paymentMethodCreditCardId)),
                 // Date-only: the timestamp is ARB-sweep noise (4:00 AM) on a receipt.
-                row.Createdate?.ToString("M/d/yyyy") ?? string.Empty,
+                HtmlTableBuilder.NoWrap(row.Createdate?.ToString("M/d/yyyy") ?? string.Empty),
                 HtmlTableBuilder.FormatCurrency(paid));
         }
         table.FooterRow("Total", string.Empty, string.Empty, string.Empty, HtmlTableBuilder.FormatCurrency(paidSum));
@@ -722,7 +722,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             var status = (q.Active != true) ? "INACTIVE" : "ACTIVE";
             table.Row(
                 WebUtility.HtmlEncode(q.Person ?? string.Empty),
-                status,
+                HtmlTableBuilder.NoWrap(status),
                 WebUtility.HtmlEncode(assignment));
         }
         table.End();
@@ -795,7 +795,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
             feesSum += (r.Dueamt ?? 0m); discountSum += discount; paidSum += (r.Payamt ?? 0m); owesSum += owes;
             table.Row(
-                r.AId.ToString(),
+                HtmlTableBuilder.NoWrap(r.AId.ToString()),
                 WebUtility.HtmlEncode(r.RegistrantName ?? string.Empty),
                 WebUtility.HtmlEncode(FormatPaymentMethod(r, paymentMethodCreditCardId)),
                 HtmlTableBuilder.FormatCurrency(r.Dueamt ?? 0m),
@@ -858,14 +858,14 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 }
 
                 table.Row(
-                    activeLabel,
-                    r.AId.ToString(),
+                    HtmlTableBuilder.NoWrap(activeLabel),
+                    HtmlTableBuilder.NoWrap(r.AId.ToString()),
                     WebUtility.HtmlEncode(teamName),
                     WebUtility.HtmlEncode(FormatPaymentMethod(r, paymentMethodCreditCardId)),
                     HtmlTableBuilder.FormatCurrency(r.Dueamt ?? 0m),
                     HtmlTableBuilder.FormatCurrency(r.Payamt ?? 0m),
                     // Date-only: the timestamp is batch/sweep noise on a receipt.
-                    r.Createdate?.ToString("M/d/yyyy") ?? string.Empty,
+                    HtmlTableBuilder.NoWrap(r.Createdate?.ToString("M/d/yyyy") ?? string.Empty),
                     HtmlTableBuilder.FormatCurrency(owes),
                     WebUtility.HtmlEncode(comment));
             }
