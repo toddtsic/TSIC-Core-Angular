@@ -21,6 +21,10 @@ namespace TSIC.API.Services.Shared.Email;
 /// address count from a one-second budget SHARED BY EVERY BATCH in this process, and its send is STARTED
 /// without awaiting the SES reply — so throughput is set by the budget, not by SES round-trip latency.
 /// When the second's budget is spent, the dispatcher waits for the next second.
+///
+/// One attempt per message. The AWS SDK already retries every call itself (standard retry mode:
+/// transient errors and throttles, with backoff); a failure that reaches us is either one the SDK
+/// already retried or one that cannot succeed, and a further retry here would only risk a duplicate.
 /// </summary>
 public sealed class EmailBatchService : IEmailBatchService
 {
@@ -39,7 +43,7 @@ public sealed class EmailBatchService : IEmailBatchService
     // so concurrent batches share MaxSendRate instead of each claiming all of it.
     private readonly object _budgetLock = new();
     private long _windowStart;
-    private int _windowUsed;
+    private long _windowUsed;
 
     public EmailBatchService(
         IServiceScopeFactory scopeFactory,
@@ -321,7 +325,7 @@ public sealed class EmailBatchService : IEmailBatchService
             var deliverToTestInbox = ApplySandboxTestInbox(message, options);
 
             if (!simulate) await TakeSendBudgetAsync(RecipientCount(message), perSecond, ct);
-            inFlight.Add(SendAndRecordAsync(batchJobId, message, options, simulate, deliverToTestInbox, perSecond, sentAddresses, tally, ct));
+            inFlight.Add(SendAndRecordAsync(batchJobId, message, options, simulate, deliverToTestInbox, sentAddresses, tally, ct));
 
             // Completed sends need not be held for the rest of a large batch.
             if (inFlight.Count >= 1000) inFlight.RemoveAll(t => t.IsCompleted);
@@ -335,12 +339,11 @@ public sealed class EmailBatchService : IEmailBatchService
         EmailBatchOptions options,
         bool simulate,
         bool deliverToTestInbox,
-        int perSecond,
         ConcurrentQueue<string> sentAddresses,
         SendTally tally,
         CancellationToken ct)
     {
-        var ok = await SendOneAsync(message, options, simulate, deliverToTestInbox, perSecond, ct);
+        var ok = await SendOneAsync(message, options, simulate, deliverToTestInbox, ct);
         if (ok)
         {
             foreach (var addr in message.ToAddresses) sentAddresses.Enqueue(addr);
@@ -358,16 +361,12 @@ public sealed class EmailBatchService : IEmailBatchService
         }
     }
 
-    /// <summary>
-    /// One message, up to MaxSendAttempts. The first attempt's budget was drawn by the dispatcher;
-    /// every retry draws again, since it is another send as far as SES's rate rule is concerned.
-    /// </summary>
+    /// <summary>One message, one attempt (see the class summary for why there is no retry here).</summary>
     private async Task<bool> SendOneAsync(
         EmailMessageDto message,
         EmailBatchOptions options,
         bool simulate,
         bool deliverToTestInbox,
-        int perSecond,
         CancellationToken ct)
     {
         if (simulate)
@@ -385,25 +384,16 @@ public sealed class EmailBatchService : IEmailBatchService
             return true;
         }
 
-        var attempts = Math.Max(1, options.MaxSendAttempts);
-        for (var attempt = 1; attempt <= attempts; attempt++)
+        try
         {
-            if (attempt > 1) await TakeSendBudgetAsync(RecipientCount(message), perSecond, ct);
-            try
-            {
-                var ok = await _email.SendAsync(message, sendInDevelopment: deliverToTestInbox, ct);
-                if (ok) return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "SES send attempt {Attempt}/{Max} threw", attempt, attempts);
-            }
-            if (attempt < attempts)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), ct); // linear backoff
-            }
+            return await _email.SendAsync(message, sendInDevelopment: deliverToTestInbox, ct);
         }
-        return false;
+        catch (Exception ex)
+        {
+            // EmailService logs and swallows its own SES failures; this only catches what escapes it.
+            _logger.LogWarning(ex, "SES send threw");
+            return false;
+        }
     }
 
     /// <summary>
@@ -432,9 +422,11 @@ public sealed class EmailBatchService : IEmailBatchService
         => (message.ToAddresses?.Count ?? 0) + (message.CcAddresses?.Count ?? 0) + (message.BccAddresses?.Count ?? 0);
 
     /// <summary>
-    /// Draws <paramref name="recipients"/> from the shared one-second budget, waiting for the next second
-    /// when the current one cannot fit them. A message larger than the whole budget (only possible on the
-    /// 1/sec fallback) goes alone in a fresh second rather than waiting forever.
+    /// Draws <paramref name="recipients"/> from the shared one-second budget. One rule: a message may start
+    /// while the current second still has budget left, and is charged its full count; any overshoot is
+    /// carried into the following second(s). So over any stretch of time the recipients started never
+    /// exceed perSecond × seconds plus one message, and a message larger than a whole second's budget
+    /// simply uses up the seconds after it — no special case.
     /// </summary>
     private async Task TakeSendBudgetAsync(int recipients, int perSecond, CancellationToken ct)
     {
@@ -444,12 +436,15 @@ public sealed class EmailBatchService : IEmailBatchService
             lock (_budgetLock)
             {
                 var now = Stopwatch.GetTimestamp();
-                if (now - _windowStart >= Stopwatch.Frequency)
+                var elapsedSeconds = (now - _windowStart) / Stopwatch.Frequency;
+                if (elapsedSeconds > 0)
                 {
-                    _windowStart = now;
-                    _windowUsed = 0;
+                    // Each whole second that has passed repays one second's budget; windows stay on a
+                    // fixed one-second grid so the waits below never drift.
+                    _windowUsed = Math.Max(0L, _windowUsed - elapsedSeconds * perSecond);
+                    _windowStart += elapsedSeconds * Stopwatch.Frequency;
                 }
-                if (_windowUsed == 0 || _windowUsed + recipients <= perSecond)
+                if (_windowUsed < perSecond)
                 {
                     _windowUsed += recipients;
                     return;
