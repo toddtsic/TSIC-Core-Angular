@@ -19,6 +19,7 @@ using TSIC.Contracts.Repositories;
 using TSIC.Domain.Adults;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Data.SqlDbContext.Helpers;
 using TSIC.Infrastructure.Utilities;
@@ -353,6 +354,8 @@ public partial class RegistrationRepository : IRegistrationRepository
         string userId,
         CancellationToken cancellationToken = default)
     {
+        // Captured as a local so EF inlines it into the TeamCount subquery.
+        var onTheBooks = ClubRepTeamsOnTheBooks.Predicate;
         return await (
             from r in _context.Registrations
             join role in _context.AspNetRoles on r.RoleId equals role.Id
@@ -372,9 +375,9 @@ public partial class RegistrationRepository : IRegistrationRepository
                 JobPath = j.JobPath,
                 EventStartDate = j.EventStartDate,
                 EventEndDate = j.EventEndDate,
-                // Same population the pulse's MyClubRepTeamCount reports (every team tied to this
-                // registration), so the picker row and the landing card can never disagree.
-                TeamCount = _context.Teams.Count(t => t.ClubrepRegistrationid == r.RegistrationId)
+                // Same population the pulse's MyClubRepTeamCount and the payment step read
+                // (ClubRepTeamsOnTheBooks), so picker row, landing card and payment never disagree.
+                TeamCount = _context.Teams.Where(onTheBooks).Count(t => t.ClubrepRegistrationid == r.RegistrationId)
             }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }

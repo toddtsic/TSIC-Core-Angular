@@ -16,9 +16,10 @@ import type { RegistrationDto, RegistrationRoleDto } from '@core/api';
  *  still a live registration (balances, rosters). Ruling: Todd 2026-09-23. */
 export interface RoleRow extends RegistrationDto {
   title: string;
-  /** The colon-mashed tail (player name, age group, team) — never the date, which follows. */
+  /** The colon-mashed tail (player name, age group, team) — never the date/count, which follow. */
   detail: string;
   dateLabel: string;
+  teamLabel: string | null;
 }
 
 interface RoleGroupView {
@@ -90,8 +91,8 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
    * threshold, all of them render as typeaheads; otherwise all of them render as cards.
    *
    * Club Rep rows are ALWAYS cards, whatever their count (Todd 2026-09-24: "no longer loving
-   * the compact view, for club reps only"). A rep's rows carry dates that the one-line
-   * dropdown item squeezes; the card is the view that was designed for them. So a
+   * the compact view, for club reps only"). A rep's rows carry dates and team counts that the
+   * one-line dropdown item squeezes; the card is the view that was designed for them. So a
    * Director + Club Rep account can see a dropdown beside a card list. That is the ruling,
    * and it retires the older "never mix the two controls on one page" rule. Club Rep counts
    * are also left out of the threshold, so a rep's nine events never push a three-row
@@ -116,18 +117,21 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   /**
    * Split the colon-mashed displayText into title + detail. Player rows look like
    * "JobName:FirstName LastName:AgegroupName:TeamName"; admin rows are just "JobName".
-   * Then date the row from the event window. No team count on a Club Rep row (AR-121, Ann
-   * 2026-09-30): it is not this screen's job, and it counted dropped and waitlisted teams.
+   * Then date the row from the event window and, for a Club Rep, count its teams.
    */
-  private toRow(reg: RegistrationDto): RoleRow {
+  private toRow(reg: RegistrationDto, isClubRep: boolean): RoleRow {
     const parts = (reg.displayText ?? '').split(':');
     const title = parts[0]?.trim() ?? '';
     const detail = parts.slice(1).map(p => p.trim()).filter(Boolean).join(' • ');
+    const n = reg.teamCount;
     return {
       ...reg,
       title,
       detail,
       dateLabel: formatEventDates(reg.eventStartDate, reg.eventEndDate),
+      teamLabel: isClubRep && n !== null && n !== undefined
+        ? (n === 0 ? 'no teams yet' : `${n} ${n === 1 ? 'team' : 'teams'}`)
+        : null,
     };
   }
 
@@ -142,7 +146,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   readonly groups = computed<RoleGroupView[]>(() => {
     return this.registrations().map((g: RegistrationRoleDto) => {
       const isClubRep = g.roleName === 'Club Rep';
-      const all = g.roleRegistrations.map(r => this.toRow(r)).sort((a, b) =>
+      const all = g.roleRegistrations.map(r => this.toRow(r, isClubRep)).sort((a, b) =>
         a.title.localeCompare(b.title)
         || a.detail.localeCompare(b.detail));
       return { roleName: g.roleName, isClubRep, all };

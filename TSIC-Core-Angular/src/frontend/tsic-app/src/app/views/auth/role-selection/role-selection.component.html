@@ -65,8 +65,12 @@
                       <span class="item-text">
                         {{ data.displayText }}
                       </span>
-                      @if (data.dateLabel) {
-                      <span class="item-sub">{{ data.dateLabel }}</span>
+                      @if (data.dateLabel || data.teamLabel) {
+                      <span class="item-sub">
+                        @if (data.dateLabel) { {{ data.dateLabel }} }
+                        @if (data.dateLabel && data.teamLabel) { &middot; }
+                        @if (data.teamLabel) { {{ data.teamLabel }} }
+                      </span>
                       }
                     </span>
                   </div>
@@ -103,9 +107,10 @@
                   @if (reg.detail) {
                   <span class="role-card-detail">{{ reg.detail }}</span>
                   }
-                  @if (reg.dateLabel) {
+                  @if (reg.dateLabel || reg.teamLabel) {
                   <span class="role-card-meta">
-                    <span class="role-card-meta--date"><i class="bi bi-calendar3" aria-hidden="true"></i>{{ reg.dateLabel }}</span>
+                    @if (reg.dateLabel) { <span class="role-card-meta--date"><i class="bi bi-calendar3" aria-hidden="true"></i>{{ reg.dateLabel }}</span> }
+                    @if (reg.teamLabel) { <span [class.role-card-meta--warn]="reg.teamCount === 0"><i class="bi bi-people" aria-hidden="true"></i>{{ reg.teamLabel }}</span> }
                   </span>
                   }
                 </span>
