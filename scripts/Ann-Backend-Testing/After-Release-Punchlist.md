@@ -3518,7 +3518,7 @@ The UTC offset is included so a reader anywhere in the world can convert it with
   - ✅ **VERIFIED BY TODD ON DEV (10-02)** — 3 scenarios passed: `ericalax21` (paid in full), `IWLCAHGR` (all 8 waitlisted), `STJSTARS` (owes $1,038, payment fields unchanged). Original verify steps: `https://localhost:4200/lftc-summer-2027/registration/team`, log in `ericalax21` / `dev123` (Aces Elite — 8 teams, owes $0) → **Payment**: the team table shows above "No Balance"; no card or payment fields.
 - ⚙ **SPLIT OUT OF THIS ITEM AT ANN'S INSTRUCTION (09-30): AR-124** — the same note also said **overpayment is not shown and should appear as a negative amount due**, and asked **how overpaid amounts are handled at the payment level.** **Both now live in AR-124, which is the one to read next.**
 
-### AR-124: 🔴 OPEN — filed 09-30 (Ann), UNRESEARCHED · ❓ carries an open question · [Payment screen / Accounting] Overpayment is not shown at all — it needs to display as a negative amount due, and what happens to the credit is unanswered
+### AR-124: 🔴 OPEN — 🔍 RESEARCHED 10-02: ⛔ NOBODY OVERPAID (136/136 paid what was billed; fee dropped or team dropped afterwards) · ❓ policy question for Todd · [Payment screen / Accounting] Overpayment is not shown at all — it needs to display as a negative amount due, and what happens to the credit is unanswered
 
 - **Topic**: how the **Payment screen** represents a registrant who has **paid more than they owe**
 - **Reported by**: Ann, 09-30, from her **club-rep registration review with Chelsea**. **Split out of AR-123 at her instruction (09-30)** — it was one strand of the same note. **Filed as reported — NO research requested.** ⚠ **Nothing opened in code:** whether an overpaid balance is stored as a negative, floored at zero, or held somewhere else entirely is **unestablished in this entry.**
@@ -3534,8 +3534,20 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 
 - ⚠ **PART 2 MAY DECIDE PART 1, WHICH IS WHY THEY STAY TOGETHER.** **If an overpayment is floored at zero somewhere in the accounting path, there is no negative to display and part 1 is not a template change** — **it is whatever produces the figure in the first place.** ⛔ **Do not build the display before the behaviour is known.**
 - 🎯 **AND THE QUESTION IS NOT ONLY ABOUT A SCREEN:** **"handled at payment level" reads as what BECOMES of the money** — refund, credit against a later phase, or left sitting — **which is a policy answer before it is a code answer.**
+- 🔍 **RESEARCHED (10-02) — ⛔ THE PREMISE IS WRONG: NOBODY OVERPAID.** All **136** club-rep teams on live jobs with a negative `owed_total` were checked against their ledger rows. **In every case the rep paid exactly what they were billed at the time**; the balance went negative **afterwards**:
+
+  | What happened after payment | Teams | Credit |
+  |:--|--:|--:|
+  | Team **dropped**, fee zeroed | 134 | **-$112,527.40** |
+  | Team's **fee lowered** | 2 | -$152.50 |
+
+  - **Example, fee lowered — `signaturesports-laxclash-2026` / Broadneck 2034:** one card charge 8/31 of $1,449.00, `dueamt` = `payamt` (paid to the cent). Team modified 9/17; fee now $1,300 + $49 proc = $1,349. So the fee was $1,400 when paid and dropped $100 afterwards. **Who or what lowered it is not established** (director edit, age-group move, or an LADT fee change — the audit trail would say).
+  - **The one ledger mismatch is a refund, not an overpayment — `topthreat-falldraw-2026` / REV 33Heart:** $500 deposit 11/18, $1,552.50 on 8/11, **$1,552.50 refunded by an admin 8/13**, team dropped. The $500 deposit still sits on it.
+  - **Display today (reproduced by Todd on dev, `mhass11` / Broadneck 2034):** the Payment step shows Paid $1,449.00 and **every owed column $0.00**; there is no fee column, so the -$100 is invisible.
+  - 🎯 **THE REAL ISSUE, RESTATED:** *when a paid team's fee drops or the team is dropped, the money already paid sits there and nothing shows it.* **$112.7k across live jobs, almost all on DROPPED teams — which the Payment screen does not list at all**, so Ann's "show a negative amount due" would only ever reach the 2 fee-lowered teams.
+  - ❓ **OPEN FOR TODD — POLICY BEFORE DISPLAY:** what should become of money paid on a team whose fee later drops or that is dropped — refund, credit to another team, or left as is? (Ann's part 2, reframed.)
 - **Severity**: 🟡 **Rated on her report.** ⚠ **A credit that is invisible is a credit nobody claims** — **the consequence lands on the club rep, not on the ledger.**
-- **Status**: 🔴 **OPEN — filed 09-30 at Ann's instruction, UNRESEARCHED.** **For Todd:** ⏳ **answer part 2 first** — **what the system does with an overpayment today** — **then part 1 follows from it.** ⚙ **Siblings on the same screen: AR-123** (the table must show at $0) and **AR-122** (columns and accounting figures). ⚠ **Canonical payment state applies — whatever is displayed comes off the existing owed resolver rather than a second computation.**
+- **Status**: 🔴 **OPEN — RESEARCHED 10-02, premise corrected (no overpayments; post-payment fee drops and dropped teams).** ~~**For Todd:** ⏳ **answer part 2 first** — **what the system does with an overpayment today** — **then part 1 follows from it.** ⚙ **Siblings on the same screen: AR-123** (the table must show at $0) and **AR-122** (columns and accounting figures). ⚠ **Canonical payment state applies — whatever is displayed comes off the existing owed resolver rather than a second computation.**~~ *(superseded by the research above)*
 
 ### AR-125: 🔴 OPEN — 📣 GROUND 2 RULED 09-30 (Ann): adjustments are not revenue, same rule as AR-119; ground 1 (remove vs role-gate) still open · [Search / Registrations + Teams] Remove the summary amounts — head directors do not want subdirectors seeing them, and the paid figure is wrong anyway because it counts Corrections
 
