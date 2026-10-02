@@ -110,7 +110,30 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
             </div>
             <p class="text-muted mt-2 small mb-0">Loading your teams...</p>
           </div>
-        } @else if (!hasBalance()) {
+        } @else {
+          <!-- Registered-teams ledger — shown whether or not anything is owed (AR-123): it is
+               the rep's record of what they registered. Only the payment fields below are
+               gated on a balance. Aggregate footer carries running totals. -->
+          @if (registeredTeams().length) {
+            <section class="mb-3">
+              <app-registered-teams-grid
+                [teams]="registeredTeams()"
+                [paymentMethod]="gridMethod()"
+                [showProcessing]="showProcessing()"
+                [showCcOwed]="true"
+                [showCkOwed]="gridMethod() !== 'Check'"
+                [showAgeGroup]="false"
+                [showTotalFee]="false"
+                [showDeposit]="true"
+                [showBalance]="showBalanceColumn()"
+                [procFeeHeader]="procFeeHeaderLabel()"
+                [frozenTeamCol]="true"
+                [teamColWidth]="70"
+                [gridHeight]="'auto'" />
+            </section>
+          }
+
+        @if (!hasBalance()) {
           <!-- Waitlist-aware empty state: a waitlisted team owes $0 by design (fees
                apply at promotion), so "No Balance" alone reads as "registered for
                free" — say waitlisted explicitly instead. -->
@@ -218,25 +241,6 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
             </div>
           }
         } @else {
-          <!-- Registered-teams ledger. Aggregate footer carries running totals;
-               the old summary-pill row above used to duplicate the same numbers. -->
-          <section class="mb-3">
-            <app-registered-teams-grid
-              [teams]="registeredTeams()"
-              [paymentMethod]="gridMethod()"
-              [showProcessing]="showProcessing()"
-              [showCcOwed]="true"
-              [showCkOwed]="gridMethod() !== 'Check'"
-              [showAgeGroup]="false"
-              [showTotalFee]="false"
-              [showDeposit]="true"
-              [showBalance]="showBalanceColumn()"
-              [procFeeHeader]="procFeeHeaderLabel()"
-              [frozenTeamCol]="true"
-              [teamColWidth]="70"
-              [gridHeight]="'auto'" />
-          </section>
-
           <!-- Discount code -->
           @if (state.hasActiveDiscountCodes()) {
             <div class="d-flex gap-2 mb-3 align-items-end">
@@ -604,6 +608,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               {{ submitting() ? 'Processing...' : 'Complete Registration' }}
             </button>
           }
+        }
         }
 
         <!-- VI charge confirmation modal — outside the balance/no-balance split

@@ -3502,7 +3502,7 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 - **Severity**: 🟡 **Rated on her report.** ✅ **Research found no wrong figure — #3 is a display-design choice (owed vs fee), not a money error.**
 - **Status**: 🔴 **OPEN — filed 09-30 at Ann's instruction, UNRESEARCHED.** **For Todd:** ⏳ **first question is change 3 — what Deposit Due, Balance Due and Processing Fees are sourced from on this screen today**, and whether the **LADT fee base** is already available to it. ⚙ **Changes 1, 2 and 4 are independent of that answer and of each other.** ⚠ **Canonical payment state applies — owed and processing figures go through the existing shapers rather than being recomputed for this screen.**
 
-### AR-123: 🔴 OPEN — filed 09-30 (Ann), UNRESEARCHED · [Payment screen / Club Rep] When nothing is due, the team table must still show — only the payment fields should go
+### AR-123: 🔧 BUILT (Todd go, 10-02) — NOT YET VERIFIED · [Payment screen / Club Rep] When nothing is due, the team table must still show — only the payment fields should go
 
 - **Topic**: what the **Payment screen** renders for a registrant who **owes nothing**
 - **Reported by**: Ann, 09-30, from her **club-rep registration review with Chelsea**. **Filed as reported — NO research requested.** ⚠ **Nothing opened in code:** whether the table and the payment card are gated by one condition or two is **unestablished in this entry.**
@@ -3513,6 +3513,9 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 - ⚠ **"EVERY REGISTRANT" IS THE PART TO READ CAREFULLY** — **the ask is not limited to the $0 case; it is that the table always shows, with $0 named as the case where it currently does not.**
 - **Severity**: 🟡 **Nothing is mis-saved and no figure is wrong** — **a registrant with nothing owed cannot review what they registered from this screen.**
 - **Status**: 🔴 **OPEN — filed 09-30 at Ann's instruction, UNRESEARCHED.** **For Todd:** ⏳ **first question is whether the table and the payment card share one visibility condition.** ⚙ **Sibling: AR-122** — same screen, columns and accounting figures.
+- ✅ **RULED + BUILT (Todd, 10-02).** **Cause:** one "has a balance" check gated BOTH the team grid and the payment fields, so a rep who **owes nothing** (paid in full, all teams waitlisted, or a free event) saw only the "No Balance" message. **Fix:** the team grid now renders whenever the rep has teams; the payment fields stay gated on a balance. Template-only, `team/steps/payment-step.component.ts`. Same split the player wizard's Payment step already uses.
+  - ⛔ **Considered and dropped:** a Teams-step "Proceed to Review" / "Want to buy insurance?" redesign — more moving parts (insurance-offer state, a second Continue path) for the same outcome.
+  - **Verify (dev):** `https://localhost:4200/lftc-summer-2027/registration/team`, log in `ericalax21` / `dev123` (Aces Elite — 8 teams, owes $0) → **Payment**: the team table shows above "No Balance"; no card or payment fields.
 - ⚙ **SPLIT OUT OF THIS ITEM AT ANN'S INSTRUCTION (09-30): AR-124** — the same note also said **overpayment is not shown and should appear as a negative amount due**, and asked **how overpaid amounts are handled at the payment level.** **Both now live in AR-124, which is the one to read next.**
 
 ### AR-124: 🔴 OPEN — filed 09-30 (Ann), UNRESEARCHED · ❓ carries an open question · [Payment screen / Accounting] Overpayment is not shown at all — it needs to display as a negative amount due, and what happens to the credit is unanswered
