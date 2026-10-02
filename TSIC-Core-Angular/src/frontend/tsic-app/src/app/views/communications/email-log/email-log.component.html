@@ -110,7 +110,7 @@
                                     </span>
                                 </h6>
                                 <div class="recipient-list">
-                                    @for (recipient of recipients(); track recipient) {
+                                    @for (recipient of recipients(); track $index) {
                                         <span class="badge bg-primary-subtle text-primary-emphasis recipient-badge">
                                             {{ recipient }}
                                         </span>
