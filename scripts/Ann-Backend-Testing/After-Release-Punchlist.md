@@ -3809,7 +3809,7 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 2. **After the build:** the same case **succeeds**; **unflagged + blank** → still rejected; **unflagged + bad number** → still rejected; **one flagged + one unflagged team, blank** → still rejected. **Any other outcome = the build is wrong; it does not ship.**
 
 
-### AR-129: 🔴 OPEN — filed 09-30 (Ann), UNRESEARCHED · [Login / Role selection] Remove the event dates from the role-selection screen — the screen has one job, and for a multi-weekend tournament the dates are not even a single answer
+### AR-129: ⛔ CLOSED — WON'T DO (Todd, 10-02) — dates were added on purpose 09-23 (CTL Phase 3); a split-weekend range is accurate · [Login / Role selection] Remove the event dates from the role-selection screen — the screen has one job, and for a multi-weekend tournament the dates are not even a single answer
 
 - **Topic**: the **event dates** shown on the **role-selection** step of login (phase 1, username → role)
 - **Reported by**: Ann, 09-30. **Filed as reported — NO research requested.** ⚠ **Nothing opened in code:** where the dates come from and whether anything else on that screen depends on them is **unestablished in this entry.**
@@ -3821,7 +3821,12 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 - ⚙ **NOTE THE CONTRAST WITH AR-115, AND IT CUTS THE SAME WAY: that item asked to make the login job list easier to scan and was declined in favour of the typeahead.** ✅ **This one asks to REMOVE text from the same flow — no new mechanism, no per-user state, strictly less to render.** 🎯 **So the "keep login lean" reasoning behind AR-115's decline supports this rather than opposing it.**
 - ⏳ **ONE THING TO CHECK BEFORE DELETING: whether the same date line is the only thing distinguishing two same-named events in a role list.** ⚠ **If a user genuinely holds roles on `Event 2025` and `Event 2026` rendered identically, the dates may be doing disambiguation work nobody intended.** ✅ **If the event name carries the year — the usual convention here — there is nothing to preserve and the line just goes.**
 - **Severity**: 🟢 **Rated on her report — presentation, and she framed it as KIS.** ⚠ **Except the multi-weekend case, where the removed line was showing something untrue.**
-- **Status**: 🔴 **OPEN — filed 09-30 at Ann's instruction, UNRESEARCHED.** **For Todd:** ✅ **the cheapest item in this batch — one line off one screen.** ⏳ **Only question is the same-name disambiguation check above.** ⚙ **Related: AR-115** (login job dropdown, ⛔ won't do — typeahead), **AR-066 / AR-072** (earlier list-narrowing items on the same flow).
+- 🔍 **RESEARCHED (10-02) — the record contradicts the filing:**
+  - **The dates were added DELIBERATELY on Todd's ruling, 9 days before this report:** `085ba05bd` (09-23, CTL plan Phase 3 — "grouped + dated role selection"). Removing them would reverse that ruling.
+  - **"Two weekends" does not make the dates wrong:** a split-weekend event shows ONE range covering both (LFTC Summer 2027 "Jun 19 – 27, 2027") — true, it just includes the days between. Only **7 of 147** live jobs span more than 4 days, some season-long (Yellow Jackets Players 2027: a full year).
+  - **Half the rows show no date anyway:** only **73 of 147** live jobs have `EventStartDate` set.
+- ⛔ **RULED WON'T DO (Todd, 10-02).** The dates stay. ⚙ **For Ann:** they were added on purpose 09-23; a multi-weekend event shows one range covering both weekends, which is accurate.
+- **Status**: ⛔ **CLOSED — WON'T DO (Todd, 10-02).** ~~🔴 **OPEN — filed 09-30 at Ann's instruction, UNRESEARCHED.** **For Todd:** ✅ **the cheapest item in this batch — one line off one screen.** ⏳ **Only question is the same-name disambiguation check above.** ⚙ **Related: AR-115** (login job dropdown, ⛔ won't do — typeahead), **AR-066 / AR-072** (earlier list-narrowing items on the same flow).~~
 
 ### AR-130: 🔴 OPEN — filed 10-01 (Ann), UNRESEARCHED · 📎 THREE SCREENSHOTS IN THE REPO · [Chelsea navigation help] Long names are truncated on three surfaces — the expanded left menu, the Assignments column, and the fly-in Account Summary Event column
 
