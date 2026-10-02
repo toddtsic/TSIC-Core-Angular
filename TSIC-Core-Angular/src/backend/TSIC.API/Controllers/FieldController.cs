@@ -50,6 +50,7 @@ public class FieldController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "SuperUserOnly")]
     public async Task<ActionResult<FieldDto>> CreateField(
         [FromBody] CreateFieldRequest request, CancellationToken ct)
     {
@@ -79,6 +80,7 @@ public class FieldController : ControllerBase
     }
 
     [HttpDelete("{fieldId:guid}")]
+    [Authorize(Policy = "SuperUserOnly")]
     public async Task<ActionResult> DeleteField(Guid fieldId, CancellationToken ct)
     {
         var (_, _, _, error) = await ResolveContext();

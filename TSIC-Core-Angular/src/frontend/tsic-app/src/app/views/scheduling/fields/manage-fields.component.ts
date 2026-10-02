@@ -1,7 +1,8 @@
-import { Component, inject, input, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
+import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import {
     FieldManagementService,
@@ -26,8 +27,11 @@ export class ManageFieldsComponent {
     private readonly fieldService = inject(FieldManagementService);
     private readonly toast = inject(ToastService);
 
-    /** When false, hides New Field / Delete buttons (non-SuperUser context). */
-    readonly allowCreate = input(true);
+    private readonly auth = inject(AuthService);
+
+    /** Adding (and deleting) a field is SuperUser-only. Read here, not passed in, so every
+     *  entry point -- the hub tab and the standalone /scheduling/fields route -- gets it. */
+    readonly allowCreate = this.auth.isSuperuser;
 
     // ── Available panel (not assigned to this league-season) ──
     readonly availableFields = signal<FieldDto[]>([]);
