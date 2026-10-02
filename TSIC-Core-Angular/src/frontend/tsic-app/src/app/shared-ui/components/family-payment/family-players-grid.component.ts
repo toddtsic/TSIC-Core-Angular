@@ -56,8 +56,10 @@ import type { RegisteredPlayerLineDto } from '@core/api';
           </e-column>
 
           <!-- What the registration is FOR. Built from the row's own fields, so a registration
-               with no accounting records yet still labels correctly. -->
-          <e-column field="teamName" headerText="Event" width="170" [allowSorting]="false">
+               with no accounting records yet still labels correctly. Header "Assignment" (AR-130):
+               on team jobs the cell is age group · team, which "Event" misnamed; it matches
+               Search / Registrations' Assignment column showing the same thing. -->
+          <e-column field="teamName" headerText="Assignment" width="170" [allowSorting]="false">
             <ng-template #template let-data>
               <!-- Session and camp names routinely outrun this column ("Programs · STEPS Team
                    Cam…"), and the event is the whole point of the row. The full text is already
