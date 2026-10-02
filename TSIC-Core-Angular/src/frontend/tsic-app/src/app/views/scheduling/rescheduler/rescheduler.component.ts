@@ -104,9 +104,8 @@ export class ReschedulerComponent implements OnInit {
     readonly emailRecipientCount = signal<number | null>(null);
     readonly isEmailLoading = signal(false);
     readonly emailSent = signal(false);
-    readonly emailSentCount = signal(0);
-    readonly emailFailedCount = signal(0);
-    readonly emailOptedOut = signal(0);
+    readonly emailSentRecipients = signal(0);
+    readonly emailNotSent = signal<string[]>([]);
 
     // ── Computed helpers ──
     readonly gridColumns = computed(() => this.gridResponse()?.columns ?? []);
@@ -561,7 +560,7 @@ export class ReschedulerComponent implements OnInit {
 
     openEmailModal(): void {
         this.emailSent.set(false);
-        this.emailOptedOut.set(0);
+        this.emailNotSent.set([]);
         this.emailRecipientCount.set(null);
         this.emailFieldIds.set([...this.selectedFieldIds()]);
         this.showEmailModal.set(true);
@@ -611,9 +610,8 @@ export class ReschedulerComponent implements OnInit {
         }).subscribe({
             next: (status) => {
                 this.emailSent.set(true);
-                this.emailSentCount.set(status.sent);
-                this.emailFailedCount.set(status.failed);
-                this.emailOptedOut.set(status.optedOut);
+                this.emailSentRecipients.set(status.sentRecipients ?? 0);
+                this.emailNotSent.set(status.failedAddresses ?? []);
                 this.isEmailLoading.set(false);
             },
             error: () => this.isEmailLoading.set(false)

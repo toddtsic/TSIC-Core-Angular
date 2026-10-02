@@ -63,16 +63,14 @@
          sent twice (AR-039 part 4). -->
     @if (sendResult() && !showEmailDialog()) {
         <div class="alert mb-3"
-             [class.alert-success]="sendResult()!.failed === 0"
-             [class.alert-warning]="sendResult()!.failed > 0">
-            <strong>{{ sendResult()!.sent }}</strong> emails sent.
-            @if (sendResult()!.failed > 0) {
-                <strong>{{ sendResult()!.failed }}</strong> failed.
-                @if (sendResult()!.failedAddresses.length > 0) {
-                    <div class="mt-1">
-                        <small>Failed: {{ sendResult()!.failedAddresses.join(', ') }}</small>
-                    </div>
-                }
+             [class.alert-success]="sendResult()!.failedAddresses.length === 0"
+             [class.alert-warning]="sendResult()!.failedAddresses.length > 0">
+            Sent to <strong>{{ sendResult()!.sentRecipients }}</strong> email address(es).
+            @if (sendResult()!.failedAddresses.length > 0) {
+                <details class="mt-1">
+                    <summary>Not sent ({{ sendResult()!.failedAddresses.length }})</summary>
+                    <small>{{ sendResult()!.failedAddresses.join(', ') }}</small>
+                </details>
             }
         </div>
     }
@@ -378,7 +376,7 @@
                     Sending...
                 } @else {
                     <i class="bi bi-send me-1"></i>
-                    Send to {{ selectedCount() }} recipient(s)
+                    Send to {{ selectedCount() }} registration(s)
                 }
             </button>
         </div>

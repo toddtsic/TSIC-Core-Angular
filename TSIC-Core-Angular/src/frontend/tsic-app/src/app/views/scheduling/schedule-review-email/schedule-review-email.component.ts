@@ -6,6 +6,7 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
 import { RegistrationSearchService } from '@views/search/registrations/services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { batchSentMessage } from '@shared/utils/batch-email-result.util';
 import { JobService } from '@infrastructure/services/job.service';
 import { environment } from '@environments/environment';
 import { ScheduleReviewEmailService } from './schedule-review-email.service';
@@ -72,12 +73,9 @@ export class ScheduleReviewEmailComponent implements OnInit, OnDestroy {
     /** Everyone shown, including opt-outs — the engine drops those at send time. */
     protected readonly recipientIds = computed(() => this.recipients().map(r => r.registrationId));
 
-    /** What the send will actually deliver, so the button's count matches the outcome. */
+    /** Reps the send will attempt (opt-outs excluded). A rep with no address on file is still counted
+     *  here and lands in the result's "Not sent" list. */
     protected readonly deliverableCount = computed(() => this.recipients().filter(r => !r.emailOptOut).length);
-    protected readonly optedOutCount = computed(() => this.recipients().filter(r => r.emailOptOut).length);
-
-    /** A rep with no address on file cannot be reached; worth surfacing before the send, not after. */
-    protected readonly noEmailCount = computed(() => this.recipients().filter(r => !r.email?.trim()).length);
 
     /**
      * Teams covered by the reps who will actually be emailed. The headline number on a big
@@ -119,6 +117,14 @@ export class ScheduleReviewEmailComponent implements OnInit, OnDestroy {
     protected percentProcessed(s: EmailBatchJobStatus): number {
         if (!s.totalRecipients) return 0;
         return ((s.processed ?? 0) / s.totalRecipients) * 100;
+    }
+
+    protected percentLabel(s: EmailBatchJobStatus): string {
+        return `${Math.round(this.percentProcessed(s))}%`;
+    }
+
+    protected sentMessage(s: EmailBatchJobStatus): string {
+        return batchSentMessage(s);
     }
 
     protected displayName(r: ScheduleReviewRecipientDto): string {
@@ -226,9 +232,8 @@ export class ScheduleReviewEmailComponent implements OnInit, OnDestroy {
                     this.isSending.set(false);
                     this.batchJobId = null;
                     this.sendResult.set(s);
-                    const optedOutNote = s.optedOut > 0 ? `, ${s.optedOut} opted out` : '';
-                    const msg = `Emails sent: ${s.sent} of ${s.totalRecipients}${optedOutNote}`;
-                    if (s.failedAddresses.length > 0) this.toast.show(`${msg}. ${s.failedAddresses.length} failed.`, 'warning', 5000);
+                    const msg = batchSentMessage(s);
+                    if (s.failedAddresses.length > 0) this.toast.show(msg, 'warning', 5000);
                     else this.toast.show(msg, 'success', 3000);
                 } else {
                     this.pollTimer = setTimeout(() => this.pollStatus(jobId), 1000);

@@ -289,14 +289,14 @@
             </div>
             <div class="modal-body">
                 @if (emailSent()) {
-                    <div class="alert alert-success">
+                    <div class="alert" [class.alert-success]="emailNotSent().length === 0" [class.alert-warning]="emailNotSent().length > 0">
                         <i class="bi bi-check-circle me-1"></i>
-                        Email sent to <strong>{{ emailSentCount() }}</strong> recipients.
-                        @if (emailFailedCount() > 0) {
-                            <span class="text-danger ms-2">{{ emailFailedCount() }} failed.</span>
-                        }
-                        @if (emailOptedOut() > 0) {
-                            <span class="text-muted ms-2">{{ emailOptedOut() }} unsubscribed (skipped).</span>
+                        Sent to <strong>{{ emailSentRecipients() }}</strong> email address(es).
+                        @if (emailNotSent().length > 0) {
+                            <details class="mt-2">
+                                <summary class="text-danger">Not sent ({{ emailNotSent().length }})</summary>
+                                <ul class="mb-0 mt-1">@for (address of emailNotSent(); track address) { <li>{{ address }}</li> }</ul>
+                            </details>
                         }
                     </div>
                 } @else {
@@ -342,7 +342,7 @@
                         </button>
                         @if (emailRecipientCount() !== null) {
                             <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                ~{{ emailRecipientCount() }} recipients
+                                ~{{ emailRecipientCount() }} email addresses
                             </span>
                         }
                     </div>

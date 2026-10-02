@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { StoreService } from '../../../infrastructure/services/store.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-editor/email-body-editor.component';
+import { batchSentMessage } from '@shared/utils/batch-email-result.util';
 import type {
 	StoreCampaignKind,
 	StoreCampaignSetupDto,
@@ -210,11 +211,10 @@ export class StoreCampaignsTabComponent {
 				this.lastResult.set(status);
 
 				const failed = status.failedAddresses?.length ?? 0;
-				const optedOut = status.optedOut > 0 ? `, ${status.optedOut} opted out` : '';
-				const message = `Sent ${status.sent} of ${status.totalRecipients}${optedOut}`;
+				const message = batchSentMessage(status);
 
 				if (failed > 0) {
-					this.toast.show(`${message}. ${failed} failed.`, 'warning', 6000);
+					this.toast.show(message, 'warning', 6000);
 				} else {
 					this.toast.show(message, 'success', 4000);
 				}

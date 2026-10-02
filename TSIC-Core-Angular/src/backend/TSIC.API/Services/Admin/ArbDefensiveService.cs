@@ -270,17 +270,13 @@ public class ArbDefensiveService : IArbDefensiveService
                 // club's director instead, which is the one person who did not press anything.
                 if (!string.IsNullOrWhiteSpace(operatorEmail))
                 {
-                    // AR-087: emails (mailboxes) headline, registrant rows named as registrants — the same
-                    // units BatchCompletionReceipt and the EmailLogs row use. This receipt is hand-built
-                    // rather than going through that helper, so it has to be kept in step by hand.
+                    // One stat, the same one BatchCompletionReceipt and the EmailLogs row use. This receipt
+                    // is hand-built rather than going through that helper, so it has to be kept in step by hand.
                     var confirmBody = $@"Batch Email Complete
                         <br /><strong>Type:</strong> ARB Defensive ({flagType})
-                        <br /><strong>#Emails sent:</strong> {status.EmailsSent}
-                        <br /><strong>#Registrants mailed:</strong> {status.Sent}
-                        <br /><strong>#Registrants failed:</strong> {status.Failed}
-                        <br /><strong>#Registrants opted out:</strong> {status.OptedOut}"
+                        <br />Sent to <strong>{status.SentRecipients}</strong> email address(es)."
                         + (status.FailedAddresses.Count > 0
-                            ? $"<br /><strong>Failed:</strong> {string.Join(";", status.FailedAddresses)}"
+                            ? $"<br /><strong>Not sent ({status.FailedAddresses.Count}):</strong> {string.Join("; ", status.FailedAddresses)}"
                             : "")
                         + $"<hr />{subject}";
 
@@ -288,7 +284,7 @@ public class ArbDefensiveService : IArbDefensiveService
                     {
                         FromName = "TEAMSPORTSINFO.COM",
                         ToAddresses = new List<string> { operatorEmail },
-                        Subject = $"ARB Defensive Email Batch Complete — {status.EmailsSent} email(s) sent",
+                        Subject = $"ARB Defensive Email Batch Complete — sent to {status.SentRecipients} email address(es)",
                         HtmlBody = confirmBody
                     }, cancellationToken: token);
                 }

@@ -45,14 +45,14 @@ public sealed record EmailBatchJobStatus
     public required IReadOnlyList<string> FailedAddresses { get; init; }
 
     /// <summary>
-    /// Mailboxes actually mailed. <see cref="Sent"/> counts MESSAGES (one per registrant); this counts
-    /// the addresses those messages carried, so it exceeds Sent whenever a family fans out to two parent
-    /// mailboxes. It is the same figure the EmailLogs audit row stores in Count/SendTo (AR-086), which is
-    /// why the sender-facing summaries quote this and not Sent (AR-087).
+    /// Every address on every email SES accepted, repeats included: a parent with three players counts
+    /// three times. <see cref="Sent"/> counts MESSAGES (one per registrant). This is the ONE figure every
+    /// batch screen and summary shows ("Sent to N email addresses") and the one the EmailLogs audit row
+    /// stores in Count/SendTo (AR-086).
     /// Not <c>required</c> on purpose: only the registry snapshot sets it, and a hand-built status
     /// (tests, a plan constructing one) legitimately defaults it to 0.
     /// </summary>
-    public int EmailsSent { get; init; }
+    public int SentRecipients { get; init; }
 
     /// <summary>Recipients processed so far (sent + failed) — drives the progress bar.</summary>
     public int Processed => Sent + Failed;

@@ -6,6 +6,7 @@ import { EmailBodyEditorComponent } from '@shared-ui/components/email-body-edito
 import { ToastService } from '@shared-ui/toast.service';
 import { MyRosterService } from './my-roster.service';
 import type { EmailBatchJobStatus } from '@core/api/models/EmailBatchJobStatus';
+import { batchSentMessage } from '@shared/utils/batch-email-result.util';
 
 @Component({
     selector: 'app-my-roster-email-dialog',
@@ -25,7 +26,7 @@ import type { EmailBatchJobStatus } from '@core/api/models/EmailBatchJobStatus';
 
         <div class="modal-body">
           <div class="mb-3">
-            <label class="field-label">Recipients ({{ recipients().length }})</label>
+            <label class="field-label">Registrations ({{ recipients().length }})</label>
             <div class="recipients-box">
               @if (recipients().length === 0) {
                 <span class="text-body-secondary">No teammates have an email address on file.</span>
@@ -138,13 +139,7 @@ export class MyRosterEmailDialogComponent {
             next: (status) => {
                 this.isSending.set(false);
                 const failedCount = status.failedAddresses?.length ?? 0;
-                const note = status.optedOut > 0 ? `, ${status.optedOut} opted out` : '';
-                const msg = `Emails sent: ${status.sent} of ${status.totalRecipients}${note}`;
-                if (failedCount > 0) {
-                    this.toast.show(`${msg}. ${failedCount} failed.`, 'warning', 5000);
-                } else {
-                    this.toast.show(msg, 'success', 3000);
-                }
+                this.toast.show(batchSentMessage(status), failedCount > 0 ? 'warning' : 'success', failedCount > 0 ? 5000 : 3000);
                 this.sent.emit(status);
             },
             error: (err) => {

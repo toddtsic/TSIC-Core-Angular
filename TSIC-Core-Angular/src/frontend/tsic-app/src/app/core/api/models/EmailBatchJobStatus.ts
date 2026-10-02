@@ -10,7 +10,7 @@ export type EmailBatchJobStatus = {
     optedOut: number;
     done: boolean;
     failedAddresses: Array<string>;
-    emailsSent?: number;
+    sentRecipients?: number;
     processed?: number;
 };
 

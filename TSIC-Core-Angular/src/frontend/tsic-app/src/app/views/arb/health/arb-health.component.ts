@@ -132,7 +132,7 @@ export class ArbHealthComponent {
     readonly notifyDirectors = signal(true);
     readonly substitutionVars = signal<ArbSubstitutionVariableDto[]>([]);
     readonly isSending = signal(false);
-    readonly sendResult = signal<{ sent: number; failed: number; failedAddresses: string[] } | null>(null);
+    readonly sendResult = signal<{ sentRecipients: number; failedAddresses: string[] } | null>(null);
 
     // A send failure is reported INSIDE the composer, not on the page behind it: the dialog
     // stays open so the director's typed message survives, and a page-level alert they cannot
@@ -356,8 +356,7 @@ export class ArbHealthComponent {
         this.arbService.sendEmailsAndAwait(request).subscribe({
             next: status => {
                 this.sendResult.set({
-                    sent: status.sent ?? 0,
-                    failed: status.failed ?? 0,
+                    sentRecipients: status.sentRecipients ?? 0,
                     failedAddresses: status.failedAddresses ?? []
                 });
                 this.isSending.set(false);
@@ -395,8 +394,7 @@ export class ArbHealthComponent {
         this.arbService.sendEmailsAndAwait(request).subscribe({
             next: status => {
                 this.sendResult.set({
-                    sent: status.sent ?? 0,
-                    failed: status.failed ?? 0,
+                    sentRecipients: status.sentRecipients ?? 0,
                     failedAddresses: status.failedAddresses ?? []
                 });
                 this.isSending.set(false);
