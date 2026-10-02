@@ -3858,12 +3858,24 @@ The UTC offset is included so a reader anywhere in the world can convert it with
   3. **Player fly-in → Account Summary — NO WRAP; header renamed "Event" → "Assignment".** 💡 **Reminder for Ann: the full text is ALREADY a hover tooltip** (`[attr.title]`, `family-players-grid.component.ts`). The "Event" header (since 09-17, `f787a3bac`) was named for camp/session jobs; on team jobs the cell is age group · team, so "Event" misnamed it. "Assignment" matches Search / Registrations. 💡 **Also remind Ann: the fly-in itself can be WIDENED with its drag bar**, which gives this column more room. 🔧 **BUILT 10-02, not yet verified.**
 - **Status**: 🔴 **OPEN — ruled 10-02; #3 header built, #1 menu wrap not built, #2 no change.** ~~🔴 **OPEN — filed 10-01 at Ann's instruction, UNRESEARCHED.** **For Todd:** ⏳ **first question is whether the two grids already support resizing and tooltips as configuration** — **if they do, parts 2 and 3 are near-free and part 1 is the only real decision.** ⚠ **Settle the hover accessibility point before building any reveal-on-demand.** ⚙ **Related: AR-016** (fly-in opening width as a percentage of the viewport — same family of "the panel is too narrow for its content").~~
 
-### AR-131: 🔴 OPEN — filed 10-02 (Ann), UNRESEARCHED · [Club Rep / Teams step → Club Teams Library] Editing a library team's Level of Play or Grad Year MINTS A SECOND LIBRARY TEAM instead of updating the one you picked — the name should be the identity
+### AR-131: ⚪ WON'T DO — researched 10-02, WORKS AS DESIGNED (edit = Club Team Library page; add row creates) · [Club Rep / Teams step → Club Teams Library] Editing a library team's Level of Play or Grad Year MINTS A SECOND LIBRARY TEAM instead of updating the one you picked — the name should be the identity
 
 - **Topic**: what happens to the **Club Teams Library** when a club rep picks an existing library team during **team registration** and then edits its **Level of Play** or **Grad Year**
 - **Reported by**: Ann, 10-02. **Filed as reported — NO research requested.** ⚠ **Nothing opened in code:** what key the library upsert matches on today, and whether the duplicate is written on edit or on submit, are **unestablished in this entry.**
 
 **ANN'S REPORT, IN HER WORDS.** *"Under the Teams screen for Club Rep registration: When entering a new library/registering a team. If you pick for example 2028 Test team and it has N.A. for info on LOP and GY, then you edit those fields, it should NOT create a new library team, only edit the one there. Team name should be the determiner otherwise the list will be way too long and redundant."*
+
+**✅ RESEARCHED + RULED (Todd, 10-02): WORKS AS DESIGNED — no change.** The analysis below the line was written before the code was read; these findings supersede it.
+
+- **Two different actions, two different jobs.** The **add row on the Teams step** picks a library team and REGISTERS it; it never edits the library. The **Club Team Library page** (header menu → *Club Team Library*, `club/library`) is where a team's name, grad year and level of play are EDITED — all three editable, no lock (Todd 09-24, `TeamRegistrationService.cs:1265`). Editing rewrites the same library row; no twin is created.
+- **Grad year changed in the add row → a NEW library team. Intended** (Todd 09-28: name + grad year is the library's identity). The row says so before Add is pressed: *"New library team 2028 Test · 2028 — 2028 Test · N.A. stays as it is."* (`team-add-row.component.ts:196`, `:639-640`). The backend never creates a row when a picked team's id is sent.
+- ⛔ **Level of Play changed in the add row → does NOT create a library team.** The row still matches the same library team (name + grad year); the picked level is saved on THIS event's registration only (`team-add-row.component.ts:484-489`). **Ann's report is wrong on this part.**
+- **💡 Answer for Ann:** to fill in a team's missing grad year or level, edit it on the **Club Team Library** page. The Teams-step add row only registers.
+- **Repro (dev, `ClubRep1` / `dev123`):** `https://localhost:4200/ctwloo-atxzebraopen-2026/club/library` → find **2028 Test · N.A.** → Edit → Grad 2028 → Save → one row, *2028 Test · 2028*.
+- ⚙ **Not built, optional:** on a team WITH past events, editing N.A. → a year shows *"Looks like a different team?"*, because N.A. counts as a real year (`library-team-form.ts:55`). *"No, I'm fixing it"* dismisses it and the edit saves on the same row. One-line fix if ever wanted.
+- **Data note:** dev has 112 same-name library pairs where one row is N.A. and its twin has a real year. Data, not a code defect; not cleaned.
+
+---
 
 **🎯 THIS IS AN IDENTITY QUESTION, NOT A FORM BUG — AND THAT IS WHY IT NEEDS A RULING AND NOT JUST A FIX.** **The only question is what makes two library rows *the same team*.** ⛔ **Today's behaviour implies the identity includes Level of Play and Grad Year, so changing either produces a different team.** ✅ **Ann's ruling: the identity is the NAME.**
 
