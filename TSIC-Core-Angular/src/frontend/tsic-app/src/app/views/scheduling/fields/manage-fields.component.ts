@@ -10,6 +10,7 @@ import {
     LeagueSeasonFieldDto,
 } from './services/field-management.service';
 import { ChecklistBackLinkComponent } from '../shared/components/checklist-back-link/checklist-back-link.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
 type SortDir = 'asc' | 'desc' | null;
 type AvailableSortCol = keyof FieldDto | null;
@@ -18,7 +19,7 @@ type AssignedSortCol = keyof LeagueSeasonFieldDto | null;
 @Component({
     selector: 'app-manage-fields',
     standalone: true,
-    imports: [CommonModule, FormsModule, ChecklistBackLinkComponent],
+    imports: [CommonModule, FormsModule, ChecklistBackLinkComponent, ConfirmDialogComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './manage-fields.component.html',
     styleUrl: './manage-fields.component.scss'
@@ -392,6 +393,7 @@ export class ManageFieldsComponent {
             if (!field) return;
 
             const updatedDto: FieldDto = {
+                ...field,
                 fieldId: field.fieldId,
                 fName: this.editName().trim(),
                 address: this.editAddress() || undefined,
@@ -421,8 +423,17 @@ export class ManageFieldsComponent {
         }
     }
 
-    deleteField() {
-        const field = this.selectedField();
+    // ── Delete (SuperUser; never-used, non-"*" fields only -- the server sets isDeletable) ──
+
+    readonly pendingDelete = signal<FieldDto | null>(null);
+
+    requestDelete(field: FieldDto) {
+        this.pendingDelete.set(field);
+    }
+
+    confirmDelete() {
+        const field = this.pendingDelete();
+        this.pendingDelete.set(null);
         if (!field) return;
 
         this.isDeleting.set(true);
@@ -430,7 +441,7 @@ export class ManageFieldsComponent {
             next: () => {
                 this.toast.show(`${field.fName} deleted.`, 'success', 2000);
                 this.isDeleting.set(false);
-                this.selectedField.set(null);
+                if (this.selectedField()?.fieldId === field.fieldId) this.selectedField.set(null);
                 this.availableFields.set(this.availableFields().filter(f => f.fieldId !== field.fieldId));
                 this.assignedFields.set(this.assignedFields().filter(f => f.fieldId !== field.fieldId));
             },

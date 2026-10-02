@@ -88,7 +88,7 @@ public class FieldController : ControllerBase
 
         var deleted = await _fieldService.DeleteFieldAsync(fieldId, ct);
         if (!deleted)
-            return Conflict(new { message = "Field is referenced by league-seasons, schedules, or timeslots and cannot be deleted." });
+            return Conflict(new { message = "Only a field that has never been used, and is not an address (*) row, can be deleted." });
 
         return NoContent();
     }
