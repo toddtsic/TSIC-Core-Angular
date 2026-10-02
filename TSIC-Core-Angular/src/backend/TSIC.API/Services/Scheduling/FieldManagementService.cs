@@ -54,8 +54,8 @@ public sealed class FieldManagementService : IFieldManagementService
             leagueId, season, directorJobIds, isSuperUser, eventLocationName, ct);
 
         // Deleting from the global bank is SuperUser-only; directors never get the flag.
-        var unreferencedIds = isSuperUser
-            ? await _fieldRepo.GetUnreferencedFieldIdsAsync(ct)
+        var referencedIds = isSuperUser
+            ? await _fieldRepo.GetReferencedFieldIdsAsync(ct)
             : [];
 
         var assignedRecords = await _fieldRepo.GetLeagueSeasonFieldsAsync(leagueId, season, ct);
@@ -93,8 +93,9 @@ public sealed class FieldManagementService : IFieldManagementService
                 Longitude = f.Longitude,
                 IsPseudoField = EventLocationFieldNaming.IsPseudoField(f.FName),
                 IsEventLocation = EventLocationFieldNaming.IsEventLocationFor(f.FName, jobPath),
-                IsDeletable = !EventLocationFieldNaming.IsPseudoField(f.FName)
-                           && unreferencedIds.Contains(f.FieldId)
+                IsDeletable = isSuperUser
+                           && !EventLocationFieldNaming.IsPseudoField(f.FName)
+                           && !referencedIds.Contains(f.FieldId)
             }).ToList(),
             AssignedFields = enrichedAssigned,
             EventLocationFieldName = eventLocationName,
