@@ -218,6 +218,18 @@
     margin: var(--space-1) 0 var(--space-1) var(--space-5);
     padding-left: var(--space-2);
     border-left: 2px solid rgba(var(--bs-primary-rgb), 0.12);
+
+    // AR-130: long item names wrap onto a second line instead of ending in an ellipsis.
+    // Scoped to the side menu's expanded list; the panel width is unchanged, and the
+    // collapsed flyout and top-menu dropdowns (which share the child-row renderer) keep
+    // their single-line rows.
+    .dropdown-panel__item-text {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        overflow-wrap: break-word;
+        line-height: 1.3;
+    }
 }
 
 
