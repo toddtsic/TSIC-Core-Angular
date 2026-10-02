@@ -80,7 +80,7 @@ public static class PlayerHtmlGenerator
 
             table.Row(
                 WebUtility.HtmlEncode(q.Person ?? string.Empty),
-                status,
+                HtmlTableBuilder.NoWrap(status),
                 WebUtility.HtmlEncode(q.Assignment ?? string.Empty),
                 HtmlTableBuilder.FormatCurrency(fees),
                 HtmlTableBuilder.FormatCurrency(paid),
@@ -144,9 +144,9 @@ public static class PlayerHtmlGenerator
 
             table.Row(
                 WebUtility.HtmlEncode(q.Person ?? string.Empty),
-                q.AdnSubscriptionId ?? string.Empty,
+                HtmlTableBuilder.NoWrap(q.AdnSubscriptionId ?? string.Empty),
                 WebUtility.HtmlEncode(ArbStatusLabel(q.AdnSubscriptionStatus)),
-                q.AdnSubscriptionStartDate?.ToString("d") ?? string.Empty,
+                HtmlTableBuilder.NoWrap(q.AdnSubscriptionStartDate?.ToString("d") ?? string.Empty),
                 HtmlTableBuilder.Num((q.AdnSubscriptionBillingOccurences ?? 0).ToString()),
                 $"every {q.AdnSubscriptionIntervalLength} {intervalLabel}",
                 HtmlTableBuilder.FormatCurrency(q.AdnSubscriptionAmountPerOccurence ?? 0m),

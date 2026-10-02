@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { PlayerFormsService } from './player-forms.service';
+import { PlayerFormsService, hasRecruitingEnvelope } from './player-forms.service';
 import { FormSchemaService } from '@views/registration/player/services/form-schema.service';
 import type { PlayerProfileFieldSchema } from '../types/player-wizard.types';
 
@@ -261,8 +261,8 @@ describe('PlayerFormsService', () => {
             expect(service.isFieldVisibleForPlayer('p1', field, [], null)).toBe(false);
         });
 
-        // ── Recruiting field gating (SP-040) ─────────────────────────
-        // Gated by jsonOptions.List_RecruitingGradYears vs the registered team's grad
+        // ── Recruiting field gating (AR-126) ─────────────────────────
+        // Gated by jsonOptions.List_RecruitingGradYears vs the PLAYER's own grad
         // year (NCAA contact rules) — no job-type gate. No list configured → hidden.
         it('recruiting field hidden when no list configured (empty = not a recruiting event)', () => {
             // PL-021 (b6b240028): an empty List_RecruitingGradYears IS the "not a recruiting event"
@@ -273,27 +273,44 @@ describe('PlayerFormsService', () => {
             expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, [], '2026')).toBe(false);
         });
 
-        it('height and weight are NOT recruiting fields — no grad-years gate (e876a5ab7)', () => {
-            // They answer to the profile editor's per-job `visibility` alone. Empty grad years,
-            // no team grad year: still visible. Regression guard on both RECRUITING_FIELD_NAMES
-            // and RECRUITING_ORDER, which must stay in lockstep.
+        it('height and weight are plain fields on a job without a recruiting envelope (AR-127)', () => {
+            // The Players Series: no recruiting fields on the form, height required. Empty grad
+            // years, no player grad year: still visible.
             const height = mkField({ name: 'heightInches', label: 'Height (in inches)' });
             const weight = mkField({ name: 'weightLbs', label: 'Weight (in lbs)' });
-            expect(service.isFieldVisibleForPlayer('p1', height, [], null, [], null)).toBe(true);
-            expect(service.isFieldVisibleForPlayer('p1', weight, [], null, [], null)).toBe(true);
+            expect(service.isFieldVisibleForPlayer('p1', height, [], null, [], null, false)).toBe(true);
+            expect(service.isFieldVisibleForPlayer('p1', weight, [], null, ['2029'], '2034', false)).toBe(true);
         });
 
-        it('recruiting field hidden when team grad year not in list', () => {
+        it('height and weight gate like recruiting fields on a job with a recruiting envelope (AR-127)', () => {
+            const height = mkField({ name: 'heightInches', label: 'Height (in inches)' });
+            const weight = mkField({ name: 'weightLbs', label: 'Weight (in lbs)' });
+            expect(service.isFieldVisibleForPlayer('p1', height, [], null, ['2029'], '2029', true)).toBe(true);
+            expect(service.isFieldVisibleForPlayer('p1', weight, [], null, ['2029'], '2034', true)).toBe(false);
+            expect(service.isFieldVisibleForPlayer('p1', height, [], null, ['2029'], null, true)).toBe(false);
+            expect(service.isFieldVisibleForPlayer('p1', weight, [], null, [], '2029', true)).toBe(false);
+        });
+
+        it('recruiting envelope = at least one public recruiting field on the form (AR-127)', () => {
+            const height = mkField({ name: 'heightInches', label: 'Height (in inches)' });
+            const gpa = mkField({ name: 'gpa', label: 'GPA' });
+            const hiddenGpa = mkField({ name: 'gpa', label: 'GPA', visibility: 'hidden' });
+            expect(hasRecruitingEnvelope([height, gpa])).toBe(true);
+            expect(hasRecruitingEnvelope([height, hiddenGpa])).toBe(false);
+            expect(hasRecruitingEnvelope([height])).toBe(false);
+        });
+
+        it('recruiting field hidden when player grad year not in list', () => {
             const gpa = mkField({ name: 'gpa', label: 'GPA' });
             expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, ['2024', '2025'], '2030')).toBe(false);
         });
 
-        it('recruiting field visible when team grad year matches list', () => {
+        it('recruiting field visible when player grad year matches list', () => {
             const gpa = mkField({ name: 'gpa', label: 'GPA' });
             expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, ['2024', '2025', '2026'], '2025')).toBe(true);
         });
 
-        it('recruiting field hidden when team grad year is null', () => {
+        it('recruiting field hidden when player grad year is null', () => {
             const sat = mkField({ name: 'satMath', label: 'SAT Math' });
             expect(service.isFieldVisibleForPlayer('p1', sat, [], null, ['2024'], null)).toBe(false);
         });

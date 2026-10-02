@@ -1383,7 +1383,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             SyntheticFailEveryN = simulating ? 13 : null,
             // Staging-only test inbox from the invite modal. Honored only in a sandbox host
             // (the send step re-checks IsSandbox()); harmless/ignored everywhere else.
-            SandboxTestRecipient = request.SandboxTestRecipient,
+            // INVITES ONLY: a plain batch on a sandbox host must transmit nothing, so the test
+            // inbox (which forces a real SES send) is dropped unless this request is an invite.
+            SandboxTestRecipient = request.InviteLinkTargetJobId.HasValue ? request.SandboxTestRecipient : null,
             // Render parallelism. Each worker now owns a fresh DI scope/DbContext PER ITEM, so N>1 is
             // safe (no shared-context concurrency) — the old "serial by construction" default for real
             // sends was an unnecessary footgun, not a safety requirement. The TEST run renders the full

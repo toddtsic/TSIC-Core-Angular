@@ -92,6 +92,15 @@
                           <span class="badge bg-warning-subtle text-body-secondary ms-1"
                                 title="An address row, not a playing field. Assign one to give this event an insurance location.">Address</span>
                         }
+                        @if (field.isDeletable) {
+                          <button class="btn btn-sm btn-outline-danger swap-btn ms-1"
+                                  [disabled]="isDeleting()"
+                                  (click)="$event.stopPropagation(); requestDelete(field)"
+                                  title="Never used -- delete this field"
+                                  [attr.aria-label]="'Delete ' + field.fName">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        }
                       </td>
                       <td class="text-nowrap">{{ field.city }}</td>
                       <td class="text-nowrap">{{ field.state }}</td>
@@ -350,10 +359,10 @@
           </div>
         </div>
         <div class="detail-footer">
-          @if (!isCreating() && allowCreate()) {
+          @if (!isCreating() && selectedField()?.isDeletable) {
             <button class="btn btn-sm btn-outline-danger me-auto"
                     [disabled]="isDeleting()"
-                    (click)="deleteField()">
+                    (click)="requestDelete(selectedField()!)">
               @if (isDeleting()) {
                 <span class="spinner-border spinner-border-sm me-1"></span>
               }
@@ -377,5 +386,15 @@
       </div>
     }
 
+  }
+
+  @if (pendingDelete(); as field) {
+    <confirm-dialog
+        title="Delete Field?"
+        [message]="'Permanently delete \'' + field.fName + '\'? It has never been used by any event.'"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        (confirmed)="confirmDelete()"
+        (cancelled)="pendingDelete.set(null)" />
   }
 </div>

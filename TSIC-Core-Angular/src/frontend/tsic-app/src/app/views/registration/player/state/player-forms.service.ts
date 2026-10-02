@@ -11,21 +11,30 @@ import type {
 
 // Recruiting field names (lowercase, exact match on schema field name).
 // Canonical list = PP20.cshtml's `<div class="recruittinginfo">` block.
-// Gated by JsonOptions.List_RecruitingGradYears vs the registered team's grad year
-// (NCAA), regardless of job type. No list configured → hidden.
-//
-// heightInches/weightLbs are deliberately NOT here. They are sizing and matchup data a
-// director of ANY event legitimately collects — legacy PP35.cshtml carried them as plain
-// always-visible fields, outside the recruitinginfo div. Sweeping them in with GPA/SAT made
-// the recruiting list the only lever for them, so a job wanting height had to declare itself
-// a recruiting event and drag the whole academic block along (they were invisible on
-// tps-fall144showcase-2026 for exactly this reason). They now answer to the profile editor's
-// per-job `visibility` alone. Do not re-add them.
+// Gated by JsonOptions.List_RecruitingGradYears vs the PLAYER's own grad year
+// (NCAA, AR-126), regardless of job type. No list configured → hidden.
 const RECRUITING_FIELD_NAMES = new Set<string>([
     'gpa', 'classrank', 'act',
     'sat', 'satmath', 'satverbal', 'satwriting',
     'bcollegecommit', 'collegecommit',
 ]);
+
+// heightInches/weightLbs belong to the recruiting envelope ONLY on a job whose form carries
+// a public recruiting field (AR-127). Legacy nested them inside the recruitinginfo div on
+// every form that had one (PP07/20/22/28/37/38/39/40/41/43/49/52), and as plain fields on
+// forms without one (PP35/53/55). The Players Series (every job: PP35, no recruiting fields,
+// Height required) is the reason for the second half: they collect height/weight from every
+// player, and must keep seeing them regardless of grad year. The job's own form decides —
+// never the profile name, customer, or job type (a job-type rule was checked and rejected:
+// 167 showcases nest them).
+export const RECRUITING_SIZING_FIELD_NAMES = new Set<string>(['heightinches', 'weightlbs']);
+
+/** True when the job's form carries at least one public recruiting field (AR-127). */
+export function hasRecruitingEnvelope(fields: readonly PlayerProfileFieldSchema[]): boolean {
+    return fields.some(f =>
+        RECRUITING_FIELD_NAMES.has(f.name.toLowerCase())
+        && f.visibility !== 'hidden' && f.visibility !== 'adminOnly');
+}
 
 /**
  * Player Forms Service — owns per-player form values, validation,
@@ -360,15 +369,18 @@ export class PlayerFormsService {
     // ── Visibility ────────────────────────────────────────────────────
     /**
      * Central visibility logic. waiverFieldNames + teamConstraintType come from JobContextService.
-     * Recruiting field gating (SP-040): recruiting fields are shown only when the grad
-     * year of the TEAM being registered for ∈ recruitingGradYears (NCAA contact rules).
-     * The gating year is the team's division/agegroup grad year — not the player's
-     * self-reported academic grad year, and NOT gated by job type. When the job has no
+     * Recruiting field gating: recruiting fields are shown only when the PLAYER's own grad
+     * year (the `gradYear` field, or the BYGRADYEAR eligibility pick) ∈ recruitingGradYears
+     * (NCAA contact rules), NOT gated by job type. AR-126 (Todd, 09-30) replaced SP-040's
+     * team-name match: on BYCLUBNAME jobs a team named without a year hid the block from
+     * every player on it. Resolved in PlayerWizardStateService.resolvePlayerGradYear. When the job has no
      * List_RecruitingGradYears configured (recruitingGradYears empty), the fields are
      * HIDDEN — the empty list IS the "not a recruiting event" declaration (PL-021,
      * b6b240028). This rule was briefly inverted (02894891, show-on-empty) and reverted
      * five weeks later because it leaked GPA/SAT onto club festivals. Do not invert it
      * again: a job that needs the block declares its Recruiting Grad Years.
+     * heightInches/weightLbs join the same gate only when `jobHasRecruitingEnvelope`
+     * (see hasRecruitingEnvelope, AR-127); otherwise they are plain fields.
      */
     isFieldVisibleForPlayer(
         playerId: string,
@@ -376,7 +388,8 @@ export class PlayerFormsService {
         waiverFieldNames: string[],
         teamConstraintType: string | null,
         recruitingGradYears: string[] = [],
-        teamGradYear: string | null = null,
+        playerGradYear: string | null = null,
+        jobHasRecruitingEnvelope = false,
     ): boolean {
         if (field.visibility === 'hidden' || field.visibility === 'adminOnly') return false;
         if (waiverFieldNames.includes(field.name)) return false;
@@ -389,16 +402,16 @@ export class PlayerFormsService {
         if (tctype === 'BYAGEGROUP' && (hasAllParts(lname, ['age', 'group']) || hasAllParts(llabel, ['age', 'group']))) return false;
         if (tctype === 'BYAGERANGE' && (hasAllParts(lname, ['age', 'range']) || hasAllParts(llabel, ['age', 'range']))) return false;
         if (tctype === 'BYCLUBNAME' && (hasAllParts(lname, ['club']) || hasAllParts(llabel, ['club']))) return false;
-        if (RECRUITING_FIELD_NAMES.has(lname)) {
+        if (RECRUITING_FIELD_NAMES.has(lname)
+            || (jobHasRecruitingEnvelope && RECRUITING_SIZING_FIELD_NAMES.has(lname))) {
             // The List_RecruitingGradYears list IS the source of truth for "is this a recruiting
             // event." Empty ⇒ NOT a recruiting event ⇒ hide the recruiting fields (they were
             // leaking onto non-recruiting jobs like festivals, PL-021). When it IS configured, gate
-            // to the matching team grad year. Config invariant: a genuine recruiting job (e.g. PP35/
-            // PP27 with required recruiting fields) MUST have its grad years valued — otherwise its
-            // required recruiting fields are hidden here and won't collect.
+            // to the player's own grad year. Config invariant: a genuine recruiting job MUST have
+            // its grad years valued — otherwise its recruiting fields are hidden here and won't collect.
             if (recruitingGradYears.length === 0) return false;
-            if (!teamGradYear) return false;
-            return recruitingGradYears.includes(teamGradYear);
+            if (!playerGradYear) return false;
+            return recruitingGradYears.includes(playerGradYear);
         }
         if (!field.condition) return true;
         const otherVal = this.getPlayerFieldValue(playerId, field.condition.field);

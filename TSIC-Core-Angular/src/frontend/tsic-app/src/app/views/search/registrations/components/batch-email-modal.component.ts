@@ -466,8 +466,9 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
       inviteExpiryHours: this.requiresInviteLink() ? this.selectedInviteExpiryHours() : undefined,
       simulatedPerUnitDelayMs: simulatedPerUnitDelayMs ?? undefined,
       // Staging-only: deliver every send to the tester's inbox so the token link is receivable.
-      // Never sent from any other build; the backend also re-gates on IsSandbox().
-      sandboxTestRecipient: this.isStaging ? (this.sandboxTestRecipient().trim() || undefined) : undefined
+      // Never sent from any other build, nor on a plain (non-invite) batch, which must send nothing
+      // on Staging; the backend also re-gates on IsSandbox() and on the request being an invite.
+      sandboxTestRecipient: this.isStaging && this.inviteMode() ? (this.sandboxTestRecipient().trim() || undefined) : undefined
     }).subscribe({
       next: (handle) => {
         this.batchJobId.set(handle.jobId);

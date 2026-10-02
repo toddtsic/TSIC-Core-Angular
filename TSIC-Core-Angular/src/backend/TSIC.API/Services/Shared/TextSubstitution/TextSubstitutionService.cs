@@ -600,7 +600,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             tokens["!A-ACCOUNTING"] = await BuildAccountingAHtmlAsync(registrationId.Value, paymentMethodCreditCardId, first.JobName, emailMode);
 
         if (template.Contains("!F-ACCOUNTING-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!F-ACCOUNTING-TEAMS"] = await BuildAccountingTeamsHtmlAsync(registrationId.Value, paymentMethodCreditCardId, first.JobName, emailMode);
+            tokens["!F-ACCOUNTING-TEAMS"] = await BuildAccountingTeamsHtmlAsync(registrationId.Value, paymentMethodCreditCardId, emailMode);
 
         if (template.Contains("!F-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
         {
@@ -668,12 +668,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private static string FormatPaymentMethod(string? paymentMethod, Guid paymentMethodId, string? adnCc4, Guid paymentMethodCreditCardId)
     {
-        var method = paymentMethod ?? string.Empty;
-        if (paymentMethodId == paymentMethodCreditCardId && !string.IsNullOrEmpty(adnCc4))
+        // Credit card reads "CC" (AR-120): the full "Credit Card Payment ending 1234" wrapped to
+        // three lines in the narrow Method column. Other methods keep their stored name.
+        if (paymentMethodId == paymentMethodCreditCardId)
         {
-            return $"{method} ending {adnCc4}";
+            return string.IsNullOrEmpty(adnCc4) ? "CC" : $"CC ending {adnCc4}";
         }
-        return method;
+        return paymentMethod ?? string.Empty;
     }
 
     private async Task<string> BuildAccountingTableHtmlAsync(List<Guid> registrationIds, Guid paymentMethodCreditCardId, bool emailMode)
@@ -692,11 +693,11 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             }
             var paid = row.Payamt ?? 0m; paidSum += paid;
             table.Row(
-                row.AId.ToString(),
+                HtmlTableBuilder.NoWrap(row.AId.ToString()),
                 WebUtility.HtmlEncode(row.RegistrantName ?? string.Empty),
                 WebUtility.HtmlEncode(FormatPaymentMethod(row, paymentMethodCreditCardId)),
                 // Date-only: the timestamp is ARB-sweep noise (4:00 AM) on a receipt.
-                row.Createdate?.ToString("M/d/yyyy") ?? string.Empty,
+                HtmlTableBuilder.NoWrap(row.Createdate?.ToString("M/d/yyyy") ?? string.Empty),
                 HtmlTableBuilder.FormatCurrency(paid));
         }
         table.FooterRow("Total", string.Empty, string.Empty, string.Empty, HtmlTableBuilder.FormatCurrency(paidSum));
@@ -722,7 +723,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             var status = (q.Active != true) ? "INACTIVE" : "ACTIVE";
             table.Row(
                 WebUtility.HtmlEncode(q.Person ?? string.Empty),
-                status,
+                HtmlTableBuilder.NoWrap(status),
                 WebUtility.HtmlEncode(assignment));
         }
         table.End();
@@ -795,7 +796,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
             feesSum += (r.Dueamt ?? 0m); discountSum += discount; paidSum += (r.Payamt ?? 0m); owesSum += owes;
             table.Row(
-                r.AId.ToString(),
+                HtmlTableBuilder.NoWrap(r.AId.ToString()),
                 WebUtility.HtmlEncode(r.RegistrantName ?? string.Empty),
                 WebUtility.HtmlEncode(FormatPaymentMethod(r, paymentMethodCreditCardId)),
                 HtmlTableBuilder.FormatCurrency(r.Dueamt ?? 0m),
@@ -808,7 +809,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         return sb.ToString();
     }
 
-    private async Task<string> BuildAccountingTeamsHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, string? jobName, bool emailMode)
+    private async Task<string> BuildAccountingTeamsHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, bool emailMode)
     {
         var clubName = await _repo.GetClubNameAsync(registrationId) ?? string.Empty;
         var teams = await _repo.GetClubTeamsAsync(registrationId);
@@ -836,7 +837,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         var table = new HtmlTable(sb, emailMode, caption);
         table.HeaderRow("Active", "ID", "Team", "Method",
             HtmlTableBuilder.Num("Fees$"), HtmlTableBuilder.Num(PaidColumnHeader),
-            "Date", HtmlTableBuilder.Num("Owes$"), "Comment");
+            "Date", HtmlTableBuilder.Num("Owes$"));
         foreach (var (teamName, rows) in perTeamRows)
         {
             foreach (var r in rows)
@@ -848,26 +849,19 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
                 var activeLabel = (r.Active ?? false) ? "&#x2705;" : "&#x274C;";
 
-                // Payment rows are auto-stamped with "{JobName}:{AgeGroup}:{Team}" — pure noise
-                // next to the Team column. Suppress the auto-stamp; keep human-entered comments.
-                var comment = r.Comment ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(jobName) &&
-                    comment.StartsWith($"{jobName}:", StringComparison.OrdinalIgnoreCase))
-                {
-                    comment = string.Empty;
-                }
-
+                // No Comment column (AR-120): measured 10-01, ~70% of comments were auto-stamps
+                // and the typed rest were director bookkeeping ("credit per Matt", "Allocating
+                // Check #1929 as per JS") that must not reach the club rep.
                 table.Row(
-                    activeLabel,
-                    r.AId.ToString(),
+                    HtmlTableBuilder.NoWrap(activeLabel),
+                    HtmlTableBuilder.NoWrap(r.AId.ToString()),
                     WebUtility.HtmlEncode(teamName),
                     WebUtility.HtmlEncode(FormatPaymentMethod(r, paymentMethodCreditCardId)),
                     HtmlTableBuilder.FormatCurrency(r.Dueamt ?? 0m),
                     HtmlTableBuilder.FormatCurrency(r.Payamt ?? 0m),
                     // Date-only: the timestamp is batch/sweep noise on a receipt.
-                    r.Createdate?.ToString("M/d/yyyy") ?? string.Empty,
-                    HtmlTableBuilder.FormatCurrency(owes),
-                    WebUtility.HtmlEncode(comment));
+                    HtmlTableBuilder.NoWrap(r.Createdate?.ToString("M/d/yyyy") ?? string.Empty),
+                    HtmlTableBuilder.FormatCurrency(owes));
             }
         }
         table.End();

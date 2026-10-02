@@ -53,6 +53,11 @@ public sealed class FieldManagementService : IFieldManagementService
         var availableFields = await _fieldRepo.GetAvailableFieldsAsync(
             leagueId, season, directorJobIds, isSuperUser, eventLocationName, ct);
 
+        // Deleting from the global bank is SuperUser-only; directors never get the flag.
+        var unreferencedIds = isSuperUser
+            ? await _fieldRepo.GetUnreferencedFieldIdsAsync(ct)
+            : [];
+
         var assignedRecords = await _fieldRepo.GetLeagueSeasonFieldsAsync(leagueId, season, ct);
 
         // Enrich assigned fields with scheduled game counts
@@ -87,7 +92,9 @@ public sealed class FieldManagementService : IFieldManagementService
                 Latitude = f.Latitude,
                 Longitude = f.Longitude,
                 IsPseudoField = EventLocationFieldNaming.IsPseudoField(f.FName),
-                IsEventLocation = EventLocationFieldNaming.IsEventLocationFor(f.FName, jobPath)
+                IsEventLocation = EventLocationFieldNaming.IsEventLocationFor(f.FName, jobPath),
+                IsDeletable = !EventLocationFieldNaming.IsPseudoField(f.FName)
+                           && unreferencedIds.Contains(f.FieldId)
             }).ToList(),
             AssignedFields = enrichedAssigned,
             EventLocationFieldName = eventLocationName,
@@ -173,6 +180,10 @@ public sealed class FieldManagementService : IFieldManagementService
 
         var field = await _fieldRepo.GetFieldTrackedAsync(fieldId, ct);
         if (field == null)
+            return false;
+
+        // Address ("*") rows are never deleted, used or not.
+        if (EventLocationFieldNaming.IsPseudoField(field.FName))
             return false;
 
         _fieldRepo.Remove(field);

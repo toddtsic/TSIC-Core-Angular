@@ -337,7 +337,7 @@
                 @if (activeTool()) {
                     <div class="tool-embedded">
                         @switch (activeTool()) {
-                            @case ('fields') { <app-manage-fields [allowCreate]="isSuperUser()" /> }
+                            @case ('fields') { <app-manage-fields /> }
                             @case ('pairings') { <app-manage-pairings /> }
                             @case ('timeslots') { <app-manage-timeslots /> }
                             @case ('pools') { <app-pool-assignment /> }

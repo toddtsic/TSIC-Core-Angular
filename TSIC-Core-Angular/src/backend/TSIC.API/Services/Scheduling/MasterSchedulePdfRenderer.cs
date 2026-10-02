@@ -515,11 +515,11 @@ internal static class MasterSchedulePdfRenderer
             _headerCache[(text, textW)] = h;
             return h;
         }
-    }
 
-    // Stored names are "club:team" — the colon prints as a space.
-    private static string TeamLabel(string name) =>
-        Caps(Whitespace.Replace(name.Replace(':', ' '), " ").Trim());
+        // Stored names are "club:team" — the colon prints as a space.
+        private static string TeamLabel(string name) =>
+            Caps(Whitespace.Replace(name.Replace(':', ' '), " ").Trim());
+    }
 
     private static string Caps(string s) => s.ToUpper(CultureInfo.InvariantCulture);
 

@@ -6,6 +6,7 @@ export type FieldDto = {
     fieldId: string;
     isPseudoField?: boolean;
     isEventLocation?: boolean;
+    isDeletable?: boolean;
     fName: string;
     address?: string | null;
     city?: string | null;

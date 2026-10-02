@@ -12,6 +12,10 @@ public record FieldDto
     /// <summary>This row carries the name derived from this job's own jobPath -- the row the
     /// event would ideally use. Any attached pseudo-field will serve; this one wins ties.</summary>
     public bool IsEventLocation { get; init; }
+
+    /// <summary>SuperUser only: the field has never been used anywhere and is not an address
+    /// ("*") row, so it may be deleted from the global field bank.</summary>
+    public bool IsDeletable { get; init; }
     public required string FName { get; init; }
     public string? Address { get; init; }
     public string? City { get; init; }

@@ -163,19 +163,28 @@ public class FieldRepository : IFieldRepository
 
     public async Task<bool> IsFieldReferencedAsync(Guid fieldId, CancellationToken ct = default)
     {
-        var inLeagueSeason = await _context.FieldsLeagueSeason
-            .AnyAsync(fls => fls.FieldId == fieldId, ct);
-        if (inLeagueSeason) return true;
-
-        var inSchedule = await _context.Schedule
-            .AnyAsync(s => s.FieldId == fieldId, ct);
-        if (inSchedule) return true;
-
-        var inTimeslots = await _context.TimeslotsLeagueSeasonFields
-            .AnyAsync(t => t.FieldId == fieldId, ct);
-
-        return inTimeslots;
+        return !await UnreferencedFields().AnyAsync(f => f.FieldId == fieldId, ct);
     }
+
+    public async Task<HashSet<Guid>> GetUnreferencedFieldIdsAsync(CancellationToken ct = default)
+    {
+        var ids = await UnreferencedFields().Select(f => f.FieldId).ToListAsync(ct);
+        return ids.ToHashSet();
+    }
+
+    // One definition of "never used", shared by the per-row deletable flag and the delete guard,
+    // so the trash button can never offer a delete the server will refuse. Covers every FK into
+    // Fields -- missing one turns a delete into an FK-violation 500.
+    private IQueryable<Fields> UnreferencedFields() =>
+        _context.Fields
+            .AsNoTracking()
+            .Where(f => !f.FieldsLeagueSeason.Any()
+                     && !f.Schedule.Any()
+                     && !f.TimeslotsLeagueSeasonFields.Any()
+                     && !f.FieldOverridesStartTimeMaxMinGames.Any()
+                     && !f.TeamsFieldId1Navigation.Any()
+                     && !f.TeamsFieldId2Navigation.Any()
+                     && !f.TeamsFieldId3Navigation.Any());
 
     public async Task AssignFieldsToLeagueSeasonAsync(
         Guid leagueId,

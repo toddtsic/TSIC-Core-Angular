@@ -4,6 +4,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Subject } from 'rxjs';
 import { debounceTime, mergeMap, switchMap, takeUntil, filter, catchError } from 'rxjs/operators';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
+import { hasRecruitingEnvelope, RECRUITING_SIZING_FIELD_NAMES } from '../state/player-forms.service';
 import { TeamService } from '@views/registration/player/services/team.service';
 import { UsLaxValidationService } from '@infrastructure/services/uslax-validation.service';
 import { colorClassForIndex } from '@views/registration/shared/utils/color-class.util';
@@ -17,10 +18,13 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
 // Must stay in lockstep with RECRUITING_FIELD_NAMES in player-forms.service.ts — that one
 // decides whether a recruiting field is visible, this one decides where it renders. A name in
 // only one of the two either renders outside the fieldset while still gated, or lands in the
-// fieldset while ungated. heightInches/weightLbs were removed from both together.
+// fieldset while ungated. weightlbs/heightinches sit where legacy PP20/37/41 put them, and are
+// dropped from the order on jobs without a recruiting envelope (hasRecruitingEnvelope, AR-127),
+// where they are plain fields and render at their editor position.
 const RECRUITING_ORDER: readonly string[] = [
     'gpa', 'classrank', 'act',
     'sat', 'satmath', 'satverbal', 'satwriting',
+    'weightlbs', 'heightinches',
     'bcollegecommit', 'collegecommit',
 ];
 
@@ -767,6 +771,8 @@ export class PlayerFormsStepComponent implements OnDestroy {
      * rendered in canonical PP20 order regardless of editor order. Recruiting fields
      * only reach `visible` when gated in (see visibleFields), so no job-type guard
      * is needed here — if none are present this is a no-op (single plain group).
+     * The anchor is the first of the nine academic fields, never height/weight, so a job
+     * whose editor lists height before GPA keeps its fieldset where it always was.
      */
     visibleFieldGroups(playerId: string): FieldGroup[] {
         const visible = this.visibleFields(playerId);
@@ -774,11 +780,18 @@ export class PlayerFormsStepComponent implements OnDestroy {
         const visibleByLName = new Map<string, PlayerProfileFieldSchema>();
         for (const f of visible) visibleByLName.set(f.name.toLowerCase(), f);
 
-        const recruitingPresent = RECRUITING_ORDER.filter(n => visibleByLName.has(n));
+        const envelope = hasRecruitingEnvelope(this.state.jobCtx.profileFieldSchemas());
+        const order = envelope
+            ? RECRUITING_ORDER
+            : RECRUITING_ORDER.filter(n => !RECRUITING_SIZING_FIELD_NAMES.has(n));
+        const recruitingPresent = order.filter(n => visibleByLName.has(n));
         if (recruitingPresent.length === 0) return [{ kind: 'plain', fields: visible }];
 
         const recruitingSet = new Set(recruitingPresent);
-        const anchorIndex = visible.findIndex(f => recruitingSet.has(f.name.toLowerCase()));
+        const anchorIndex = visible.findIndex(f => {
+            const n = f.name.toLowerCase();
+            return recruitingSet.has(n) && !RECRUITING_SIZING_FIELD_NAMES.has(n);
+        });
         if (anchorIndex < 0) return [{ kind: 'plain', fields: visible }];
 
         const recruitingFields = recruitingPresent.map(n => visibleByLName.get(n)!);

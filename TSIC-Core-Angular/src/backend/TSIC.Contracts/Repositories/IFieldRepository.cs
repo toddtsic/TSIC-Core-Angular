@@ -73,10 +73,16 @@ public interface IFieldRepository
     void Remove(Fields field);
 
     /// <summary>
-    /// Check if a field is referenced in FieldsLeagueSeason, Schedule, or TimeslotsLeagueSeasonFields.
-    /// If true, the field cannot be deleted from the global library.
+    /// Check if a field has ever been used: assigned to any league-season, scheduled, given
+    /// timeslots or a start-time override, or set as a team home field. If true, the field cannot be
+    /// deleted from the global library.
     /// </summary>
     Task<bool> IsFieldReferencedAsync(Guid fieldId, CancellationToken ct = default);
+
+    /// <summary>
+    /// IDs of every field that has never been used (the inverse of <see cref="IsFieldReferencedAsync"/>).
+    /// </summary>
+    Task<HashSet<Guid>> GetUnreferencedFieldIdsAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Assign fields to a league-season by creating FieldsLeagueSeason junction records.

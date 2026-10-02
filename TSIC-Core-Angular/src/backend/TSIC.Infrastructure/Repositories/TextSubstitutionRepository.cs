@@ -391,13 +391,17 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
     {
         return await (from t in _context.Teams
                       join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+                      join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId
                       where t.ClubrepRegistrationid == clubRepRegistrationId
                             && ag.AgegroupName != "Dropped Teams"
                             && t.TeamName != "Club Teams"
                       select new ClubTeamInfo
                       {
                           TeamId = t.TeamId,
-                          TeamName = ag.AgegroupName + " " + t.TeamName
+                          // AR-120: {Club}:{AgeGroup}:{Team}; the club segment is dropped when the rep's ClubName is blank.
+                          TeamName = (r.ClubName == null || r.ClubName.Trim() == "")
+                              ? ag.AgegroupName + ":" + t.TeamName
+                              : r.ClubName.Trim() + ":" + ag.AgegroupName + ":" + t.TeamName
                       }).ToListAsync(cancellationToken);
     }
 
@@ -438,7 +442,10 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       {
                           TeamId = t.TeamId,
                           JobId = t.JobId,
-                          TeamName = ag.AgegroupName + " " + t.TeamName,
+                          // AR-120: {Club}:{AgeGroup}:{Team}; the club segment is dropped when the rep's ClubName is blank.
+                          TeamName = (r.ClubName == null || r.ClubName.Trim() == "")
+                              ? ag.AgegroupName + ":" + t.TeamName
+                              : r.ClubName.Trim() + ":" + ag.AgegroupName + ":" + t.TeamName,
                           FeeTotal = t.FeeTotal,
                           PaidTotal = t.PaidTotal,
                           OwedTotal = t.OwedTotal,
@@ -457,7 +464,10 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       orderby ag.AgegroupName, t.TeamName
                       select new SimpleTeamRow
                       {
-                          TeamName = ag.AgegroupName + " " + t.TeamName,
+                          // AR-120: {Club}:{AgeGroup}:{Team}; the club segment is dropped when the rep's ClubName is blank.
+                          TeamName = (r.ClubName == null || r.ClubName.Trim() == "")
+                              ? ag.AgegroupName + ":" + t.TeamName
+                              : r.ClubName.Trim() + ":" + ag.AgegroupName + ":" + t.TeamName,
                           ClubName = r.ClubName
                       }).ToListAsync(cancellationToken);
     }

@@ -8,7 +8,7 @@ namespace TSIC.Contracts.Services;
 /// <summary>
 /// Orchestration layer ABOVE <see cref="IEmailService"/> (the SES transport, which stays thin).
 /// Runs a mass batch as a background job: producer -> render workers (each own DI scope) ->
-/// bounded channel -> send workers (rate-capped, retrying) -> SES. Returns immediately with a
+/// bounded channel -> dispatcher (SES MaxSendRate recipients/sec, shared app-wide) -> SES. Returns immediately with a
 /// job handle; callers poll <see cref="IEmailBatchJobRegistry"/> for progress + final summary.
 ///
 /// Generic over <typeparamref name="TItem"/> so any batch path (registration-search first; roster,
@@ -129,13 +129,19 @@ public sealed record EmailBatchOptions
     /// <summary>Render-stage parallelism. Default 1 (serial; render-wins keep it fast enough).</summary>
     public int RenderWorkers { get; init; } = 1;
 
-    /// <summary>Send-stage parallelism. Clamped to SES MaxSendRate at runtime.</summary>
+    /// <summary>
+    /// Send-stage parallelism for EmailBatchServiceOld ONLY (superseded, unregistered). The current engine
+    /// has no send workers: it paces by a shared per-second recipient budget of SES MaxSendRate.
+    /// </summary>
     public int SendWorkers { get; init; } = 8;
 
     /// <summary>Bounded channel capacity between render and send (caps in-flight rendered bodies).</summary>
     public int ChannelCapacity { get; init; } = 256;
 
-    /// <summary>Max SES send attempts per message (incl. first). Backoff between attempts.</summary>
+    /// <summary>
+    /// Max SES send attempts per message (incl. first), for EmailBatchServiceOld ONLY. The current engine
+    /// makes one attempt and leaves retrying to the AWS SDK, which already retries every call.
+    /// </summary>
     public int MaxSendAttempts { get; init; } = 3;
 
     /// <summary>

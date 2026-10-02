@@ -1248,8 +1248,10 @@ public class JobRepository : IJobRepository
 
         if (string.Equals(role, "Club Rep", StringComparison.OrdinalIgnoreCase))
         {
+            // Same set the payment step charges — never a dropped team's count or balance.
             var teams = await _context.Teams
                 .AsNoTracking()
+                .Where(ClubRepTeamsOnTheBooks.Predicate)
                 .Where(t => t.ClubrepRegistrationid == regId)
                 .Select(t => new { t.TeamId, t.OwedTotal, t.PaidTotal, t.ViPolicyId, t.AdnSubscriptionId, AgegroupName = t.Agegroup.AgegroupName })
                 .ToListAsync(cancellationToken);
