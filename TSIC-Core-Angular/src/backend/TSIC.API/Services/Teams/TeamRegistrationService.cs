@@ -783,67 +783,75 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         // Resolve placement (may redirect to waitlist if agegroup is full)
         TeamPlacementResult placement;
-        try
+        Domain.Entities.Teams team;
+
+        // Capacity count -> team save runs one registration at a time per age group, so the next
+        // rep counts after this team exists (stress test 2026-10-03: 2029 oversold 46/44 when 52
+        // reps hit at once). In-process lock, see KeyedLocks; other age groups never wait.
+        using (await KeyedLocks.AcquireAsync($"reg:{request.AgeGroupId}"))
         {
-            placement = await _placement.ResolvePlacementAsync(
-                jobId, request.AgeGroupId, teamName, userId: userId);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning(ex, "Agegroup placement failed for team {TeamName} in agegroup {AgeGroupId}", teamName, request.AgeGroupId);
-            return new RegisterTeamResponse
+            try
             {
-                Success = false,
-                TeamId = Guid.Empty,
-                Message = ex.Message,
-                IsWaitlisted = false
-            };
-        }
-
-        // A full age group redirects to its WAITLIST twin — the same name rule applies where the team lands.
-        if (placement.AgegroupId != request.AgeGroupId)
-            await EnsureNameFreeInAgegroupAsync(jobId, placement.AgegroupId, clubRepRegistration.RegistrationId, teamName);
-
-        // Create team registration. Fee fields start at zero; non-waitlisted teams get
-        // the full Team → Agegroup → Job cascade (including modifiers + net-base processing
-        // fee) applied by ApplyNewTeamFeesAsync below. Waitlisted teams stay at zero until
-        // promoted to a real agegroup.
-        var team = new Domain.Entities.Teams
-        {
-            TeamId = Guid.NewGuid(),
-            JobId = jobId,
-            LeagueId = placement.LeagueId,
-            AgegroupId = placement.AgegroupId,
-            DivId = placement.DivisionId,
-            TeamName = teamName,
-            LevelOfPlay = levelOfPlay,
-            ClubTeamId = clubTeamId,
-            ClubrepRegistrationid = clubRepRegistration.RegistrationId,
-            FeeBase = 0,
-            FeeProcessing = 0,
-            FeeDiscount = 0,
-            FeeLatefee = 0,
-            FeeDonation = 0,
-            PaidTotal = 0,
-            Active = true,
-            Createdate = DateTime.Now,
-            Modified = DateTime.Now,
-            LebUserId = userId
-        };
-        _teams.Add(team);
-
-        if (!placement.IsWaitlisted)
-        {
-            var feeCtx = new TeamFeeApplicationContext
+                placement = await _placement.ResolvePlacementAsync(
+                    jobId, request.AgeGroupId, teamName, userId: userId);
+            }
+            catch (InvalidOperationException ex)
             {
-                AddProcessingFees = jobSettings.BAddProcessingFees ?? false,
-                ApplyProcessingFeesToDeposit = jobSettings.BApplyProcessingFeesToTeamDeposit ?? false,
-                ProcessingFeePercent = processingRate
-            };
-            await _feeService.ApplyNewTeamFeesAsync(team, jobId, placement.AgegroupId, feeCtx);
-        }
+                _logger.LogWarning(ex, "Agegroup placement failed for team {TeamName} in agegroup {AgeGroupId}", teamName, request.AgeGroupId);
+                return new RegisterTeamResponse
+                {
+                    Success = false,
+                    TeamId = Guid.Empty,
+                    Message = ex.Message,
+                    IsWaitlisted = false
+                };
+            }
 
-        await _teams.SaveChangesAsync();
+            // A full age group redirects to its WAITLIST twin — the same name rule applies where the team lands.
+            if (placement.AgegroupId != request.AgeGroupId)
+                await EnsureNameFreeInAgegroupAsync(jobId, placement.AgegroupId, clubRepRegistration.RegistrationId, teamName);
+
+            // Create team registration. Fee fields start at zero; non-waitlisted teams get
+            // the full Team → Agegroup → Job cascade (including modifiers + net-base processing
+            // fee) applied by ApplyNewTeamFeesAsync below. Waitlisted teams stay at zero until
+            // promoted to a real agegroup.
+            team = new Domain.Entities.Teams
+            {
+                TeamId = Guid.NewGuid(),
+                JobId = jobId,
+                LeagueId = placement.LeagueId,
+                AgegroupId = placement.AgegroupId,
+                DivId = placement.DivisionId,
+                TeamName = teamName,
+                LevelOfPlay = levelOfPlay,
+                ClubTeamId = clubTeamId,
+                ClubrepRegistrationid = clubRepRegistration.RegistrationId,
+                FeeBase = 0,
+                FeeProcessing = 0,
+                FeeDiscount = 0,
+                FeeLatefee = 0,
+                FeeDonation = 0,
+                PaidTotal = 0,
+                Active = true,
+                Createdate = DateTime.Now,
+                Modified = DateTime.Now,
+                LebUserId = userId
+            };
+            _teams.Add(team);
+
+            if (!placement.IsWaitlisted)
+            {
+                var feeCtx = new TeamFeeApplicationContext
+                {
+                    AddProcessingFees = jobSettings.BAddProcessingFees ?? false,
+                    ApplyProcessingFeesToDeposit = jobSettings.BApplyProcessingFeesToTeamDeposit ?? false,
+                    ProcessingFeePercent = processingRate
+                };
+                await _feeService.ApplyNewTeamFeesAsync(team, jobId, placement.AgegroupId, feeCtx);
+            }
+
+            await _teams.SaveChangesAsync();
+        }
 
         // Re-aggregate the rep registration row from the new team's financials. Without
         // this, clubRep.OwedTotal drifts from its teams whenever a rep registers a team

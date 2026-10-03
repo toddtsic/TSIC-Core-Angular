@@ -140,13 +140,22 @@ public class ClubTeamRepository : IClubTeamRepository
         var idList = clubTeamIds.ToList();
         if (idList.Count == 0) return new HashSet<int>();
 
-        var scheduled = await (
-            from t in _context.Teams.AsNoTracking()
-            where t.ClubTeamId != null
-                && idList.Contains(t.ClubTeamId.Value)
-                && _context.Schedule.Any(s => s.T1Id == t.TeamId || s.T2Id == t.TeamId)
-            select t.ClubTeamId!.Value
-        ).Distinct().ToListAsync(cancellationToken);
+        // Home side and away side as two joins, combined with UNION. The single
+        // "Any(s => s.T1Id == t.TeamId || s.T2Id == t.TeamId)" form made SQL Server rescan the whole
+        // schedule per team (no index on T1_ID/T2_ID): ~930 ms for a 272-team library vs ~30-67 ms
+        // this way, and it timed out at 30 s under the 2026-10-03 reopen stress test.
+        var asHome =
+            from s in _context.Schedule.AsNoTracking()
+            join t in _context.Teams.AsNoTracking() on s.T1Id equals (Guid?)t.TeamId
+            where t.ClubTeamId != null && idList.Contains(t.ClubTeamId.Value)
+            select t.ClubTeamId!.Value;
+        var asAway =
+            from s in _context.Schedule.AsNoTracking()
+            join t in _context.Teams.AsNoTracking() on s.T2Id equals (Guid?)t.TeamId
+            where t.ClubTeamId != null && idList.Contains(t.ClubTeamId.Value)
+            select t.ClubTeamId!.Value;
+
+        var scheduled = await asHome.Union(asAway).ToListAsync(cancellationToken);
 
         return scheduled.ToHashSet();
     }

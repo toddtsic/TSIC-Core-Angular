@@ -107,21 +107,36 @@ public class TeamPlacementService : ITeamPlacementService
         };
     }
 
-    private async Task<Agegroups> FindOrCreateWaitlistAgegroupAsync(
+    private Task<Agegroups> FindOrCreateWaitlistAgegroupAsync(
         Agegroups sourceAg, string waitlistName, string? userId,
         CancellationToken cancellationToken)
     {
+        return CreateOnceAsync(
+            $"ag:{sourceAg.LeagueId}:{waitlistName.ToUpperInvariant()}",
+            () => FindWaitlistAgegroupAsync(sourceAg.LeagueId, waitlistName, cancellationToken),
+            () => CreateWaitlistAgegroupAsync(sourceAg, waitlistName, userId, cancellationToken),
+            cancellationToken);
+    }
+
+    private async Task<Agegroups?> FindWaitlistAgegroupAsync(
+        Guid leagueId, string waitlistName, CancellationToken cancellationToken)
+    {
         // Search siblings (untracked) for existing mirror
-        var siblings = await _agegroupRepo.GetByLeagueIdAsync(sourceAg.LeagueId, cancellationToken);
+        var siblings = await _agegroupRepo.GetByLeagueIdAsync(leagueId, cancellationToken);
         var existing = siblings.Find(s =>
             string.Equals(s.AgegroupName, waitlistName, StringComparison.OrdinalIgnoreCase));
 
-        if (existing != null)
-        {
-            // Return tracked entity for potential downstream use
-            return await _agegroupRepo.GetByIdAsync(existing.AgegroupId, cancellationToken) ?? existing;
-        }
+        if (existing == null)
+            return null;
 
+        // Return tracked entity for potential downstream use
+        return await _agegroupRepo.GetByIdAsync(existing.AgegroupId, cancellationToken) ?? existing;
+    }
+
+    private async Task<Agegroups> CreateWaitlistAgegroupAsync(
+        Agegroups sourceAg, string waitlistName, string? userId,
+        CancellationToken cancellationToken)
+    {
         var waitlistAg = new Agegroups
         {
             AgegroupId = Guid.NewGuid(),
@@ -256,22 +271,53 @@ public class TeamPlacementService : ITeamPlacementService
 
     // ── Find-or-create helpers ──
 
+    // Concurrent registrations hitting a just-filled agegroup each found no WAITLIST twin and each
+    // minted one (stress test 2026-10-03: four "WAITLIST - 2029" in 64 ms). The find runs first
+    // without a lock, so the common case (row exists) never waits; only a miss takes the key's
+    // lock (KeyedLocks), finds again, then creates. Each create saves before returning, so the
+    // next waiter's find sees the row.
+    private static async Task<T> CreateOnceAsync<T>(
+        string key, Func<Task<T?>> find, Func<Task<T>> create,
+        CancellationToken cancellationToken) where T : class
+    {
+        var found = await find();
+        if (found != null)
+            return found;
+
+        using (await KeyedLocks.AcquireAsync(key, cancellationToken))
+        {
+            return await find() ?? await create();
+        }
+    }
+
     /// <summary>
     /// Find a division by name within an agegroup, or create it if absent.
     /// Serves both the "Unassigned" holding division (normal placement) and the
     /// "WAITLIST - ..." mirror divisions (overflow placement).
     /// </summary>
-    private async Task<Divisions> FindOrCreateDivisionAsync(
+    private Task<Divisions> FindOrCreateDivisionAsync(
         Guid agegroupId, string divName, string? userId,
         CancellationToken cancellationToken)
     {
+        return CreateOnceAsync(
+            $"div:{agegroupId}:{divName.ToUpperInvariant()}",
+            () => FindDivisionAsync(agegroupId, divName, cancellationToken),
+            () => CreateDivisionAsync(agegroupId, divName, userId, cancellationToken),
+            cancellationToken);
+    }
+
+    private async Task<Divisions?> FindDivisionAsync(
+        Guid agegroupId, string divName, CancellationToken cancellationToken)
+    {
         var divisions = await _divisionRepo.GetByAgegroupIdAsync(agegroupId, cancellationToken);
-        var existing = divisions.Find(d =>
+        return divisions.Find(d =>
             string.Equals(d.DivName, divName, StringComparison.OrdinalIgnoreCase));
+    }
 
-        if (existing != null)
-            return existing;
-
+    private async Task<Divisions> CreateDivisionAsync(
+        Guid agegroupId, string divName, string? userId,
+        CancellationToken cancellationToken)
+    {
         var division = new Divisions
         {
             DivId = Guid.NewGuid(),
