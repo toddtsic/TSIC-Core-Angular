@@ -494,7 +494,7 @@ public class JobCloneServiceTests
         src.BRestrictPublicRosters = false;
         src.BSignalRschedule = true;
         src.BClubRepAllowEdit = false;
-        src.BClubRepAllowDelete = false;
+        src.BClubRepAllowDelete = true;
         src.BClubRepAllowAdd = false;
         await ctx.SaveChangesAsync();
 
@@ -514,7 +514,7 @@ public class JobCloneServiceTests
         j.BRestrictPublicRosters.Should().BeTrue();
         j.BSignalRschedule.Should().BeFalse();
         j.BClubRepAllowEdit.Should().BeTrue();
-        j.BClubRepAllowDelete.Should().BeTrue();
+        j.BClubRepAllowDelete.Should().BeFalse();
         j.BClubRepAllowAdd.Should().BeTrue();
     }
 

@@ -108,10 +108,12 @@ public static class JobCloneResetRules
         job.BenableStp = false;
         job.BRestrictPublicRosters = true;         // forced restrictive
         job.BSignalRschedule = false;              // DEAD property — zero out
-        // ClubRep edit/delete/add forced ON (lifecycle reset — source may be locked down
+        // ClubRep edit/add forced ON (lifecycle reset — source may be locked down
         // post-schedule; a new clone starts at the pre-schedule registration phase).
+        // Delete forced OFF (Todd 10-03, AR-132): the one unrecoverable permission is
+        // re-granted deliberately at build time, never handed to a new event by default.
         job.BClubRepAllowEdit = true;
-        job.BClubRepAllowDelete = true;
+        job.BClubRepAllowDelete = false;
         job.BClubRepAllowAdd = true;
 
         // ── RETIRED COLUMNS ZEROED (Todd-decided 08-02, = status-quo clone output) ──
