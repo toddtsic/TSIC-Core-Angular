@@ -57,21 +57,15 @@ public static class BatchCompletionReceipt
 
         if (to.Count == 0) return;
 
-        var failed = status.FailedAddresses.Count > 0
-            ? $"<br /><strong>Emails NOT sent:</strong> {string.Join("; ", status.FailedAddresses)}"
+        var notSent = status.FailedAddresses.Count > 0
+            ? $"<br /><strong>Not sent ({status.FailedAddresses.Count}):</strong> {string.Join("; ", status.FailedAddresses)}"
             : "";
 
-        // AR-087: the headline is EMAILS SENT — mailboxes, the same unit the EmailLogs row for this send
-        // records (AR-086). "#Recipients" used to head a REGISTRANT count, so one send reported two
-        // different figures depending on whether you read the log or this receipt. Every line now names
-        // its own unit instead of leaving the reader to guess which one a bare number is in.
+        // One stat, what we did: every address on every email SES accepted, repeats included — the same
+        // figure the EmailLogs row for this send records (AR-086) and every batch screen shows.
         var body = $@"Batch Email Complete
             <br /><strong>Subject:</strong> {System.Net.WebUtility.HtmlEncode(subject)}
-            <br /><strong>#Emails sent:</strong> {status.EmailsSent}
-            <br /><strong>#Registrants selected:</strong> {status.TotalRecipients}
-            <br /><strong>#Registrants mailed:</strong> {status.Sent}
-            <br /><strong>#Registrants failed:</strong> {status.Failed}
-            <br /><strong>#Registrants opted out:</strong> {status.OptedOut}{failed}
+            <br />Sent to <strong>{status.SentRecipients}</strong> email address(es).{notSent}
             <hr />{messageHtml}";
 
         var email = sp.GetRequiredService<IEmailService>();
@@ -80,7 +74,7 @@ public static class BatchCompletionReceipt
             FromName = string.IsNullOrWhiteSpace(fromName) ? "TEAMSPORTSINFO.COM" : fromName,
             ToAddresses = to,
             CcAddresses = cc,
-            Subject = $"Batch Email Complete — {status.EmailsSent} email(s) sent: {subject}",
+            Subject = $"Batch Email Complete — sent to {status.SentRecipients} email address(es): {subject}",
             HtmlBody = body
         }, cancellationToken: ct);
     }

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { AuthService } from '@infrastructure/services/auth.service';
+import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { ToastService } from '@shared-ui/toast.service';
 import {
     FieldManagementService,
@@ -29,6 +30,7 @@ export class ManageFieldsComponent {
     private readonly toast = inject(ToastService);
 
     private readonly auth = inject(AuthService);
+    private readonly fieldData = inject(FormFieldDataService);
 
     /** Adding (and deleting) a field is SuperUser-only. Read here, not passed in, so every
      *  entry point -- the hub tab and the standalone /scheduling/fields route -- gets it. */
@@ -89,6 +91,15 @@ export class ManageFieldsComponent {
     readonly editDirections = signal('');
     readonly editLatitude = signal<number | null>(null);
     readonly editLongitude = signal<number | null>(null);
+
+    // reference.States via the shared service -- computed, so it picks up the fetch landing.
+    readonly stateOptions = computed(() => this.fieldData.getOptionsForDataSource('states'));
+    /** A stored value that is not a canonical code (legacy free text like "New Jersey") is
+     *  still shown, flagged, rather than silently blanked by the select. */
+    readonly editStateIsLegacy = computed(() => {
+        const s = this.editState();
+        return !!s && !this.stateOptions().some(o => o.value === s);
+    });
 
     // ── General ──
     readonly isLoading = signal(false);

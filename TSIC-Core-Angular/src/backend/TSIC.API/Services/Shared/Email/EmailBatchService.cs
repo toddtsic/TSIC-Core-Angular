@@ -113,8 +113,8 @@ public sealed class EmailBatchService : IEmailBatchService
 
         var message = new EmailMessageDto
         {
-            // Emails, not registrants (AR-087) — the same unit the Email Log row reports for this send.
-            Subject = $"Batch email summary — {status.EmailsSent} email(s) sent",
+            // The one figure every batch display shows — the same one the Email Log row records.
+            Subject = $"Batch email summary — sent to {status.SentRecipients} email address(es)",
             HtmlBody = BuildSummaryHtml(status),
             ToAddresses = new List<string> { toEmail.Trim() }
         };
@@ -126,27 +126,17 @@ public sealed class EmailBatchService : IEmailBatchService
 
     private static string BuildSummaryHtml(EmailBatchJobStatus s)
     {
-        // The list is of ADDRESSES, while the Failed row above counts registrants, so it is labelled as
-        // addresses — the two can legitimately differ and must not read as the same tally (AR-087).
-        var failedBlock = s.FailedAddresses.Count == 0
-            ? "<p style=\"color:#2e7d32;\">No failures.</p>"
-            : $"<p><strong>{s.FailedAddresses.Count}</strong> address(es) not delivered:</p><ul>{string.Join("", s.FailedAddresses.Select(a => $"<li>{System.Net.WebUtility.HtmlEncode(a)}</li>"))}</ul>";
+        // One stat, what we did: every address on every email SES accepted, repeats included. Anything
+        // not sent is listed, without a reason breakdown — not sent is not sent.
+        var notSentBlock = s.FailedAddresses.Count == 0
+            ? ""
+            : $"<p>Not sent ({s.FailedAddresses.Count}):</p><ul>{string.Join("", s.FailedAddresses.Select(a => $"<li>{System.Net.WebUtility.HtmlEncode(a)}</li>"))}</ul>";
 
-        // AR-087: every row states its own unit. "Emails sent" leads because it is the number the sender
-        // asked for and the one the Email Log records; the registrant rows keep their real unit rather
-        // than being silently converted to a figure the engine cannot know (a registrant that never
-        // rendered has no addresses, so there is no honest address total for the selection).
         return $"""
             <div style="font-family:Arial,sans-serif; font-size:14px; color:#222;">
                 <h2 style="margin:0 0 12px;">Batch Email Summary</h2>
-                <table style="border-collapse:collapse;">
-                    <tr><td style="padding:2px 12px 2px 0;">Emails sent</td><td><strong>{s.EmailsSent}</strong></td></tr>
-                    <tr><td style="padding:2px 12px 2px 0;">Registrants selected</td><td><strong>{s.TotalRecipients}</strong></td></tr>
-                    <tr><td style="padding:2px 12px 2px 0;">Registrants mailed</td><td><strong>{s.Sent}</strong></td></tr>
-                    <tr><td style="padding:2px 12px 2px 0;">Registrants failed</td><td><strong>{s.Failed}</strong></td></tr>
-                    <tr><td style="padding:2px 12px 2px 0;">Registrants opted out</td><td><strong>{s.OptedOut}</strong></td></tr>
-                </table>
-                <div style="margin-top:12px;">{failedBlock}</div>
+                <p>Sent to <strong>{s.SentRecipients}</strong> email address(es).</p>
+                <div style="margin-top:12px;">{notSentBlock}</div>
             </div>
             """;
     }
@@ -477,9 +467,9 @@ public sealed class EmailBatchService : IEmailBatchService
             // Count is EMAILS SENT, not registrants (AR-086). snap.Sent ticks once per message, and
             // one message carries a whole family's addresses, so it under-reported every fan-out;
             // sentAddresses is what fills SendTo on the same row, so the two columns now agree.
-            // snap.Sent still counts registrants and still drives the progress bar; the sender-facing
-            // summaries moved to the registry's address tally (EmailsSent) in AR-087, so this row and
-            // those emails now quote the same figure for the same send.
+            // snap.Sent still counts registrants and still drives the progress bar; every batch display
+            // quotes the registry's address tally (SentRecipients), so this row and those displays show
+            // the same figure for the same send.
             var addresses = string.Join(";", sentAddresses);
             await repo.UpdateProgressAsync(emailId, sentAddresses.Count, addresses, ct);
         }

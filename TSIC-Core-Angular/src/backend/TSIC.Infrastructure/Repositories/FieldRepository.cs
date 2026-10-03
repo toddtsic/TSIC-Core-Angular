@@ -163,28 +163,30 @@ public class FieldRepository : IFieldRepository
 
     public async Task<bool> IsFieldReferencedAsync(Guid fieldId, CancellationToken ct = default)
     {
-        return !await UnreferencedFields().AnyAsync(f => f.FieldId == fieldId, ct);
+        return await ReferencedFieldIds().AnyAsync(id => id == fieldId, ct);
     }
 
-    public async Task<HashSet<Guid>> GetUnreferencedFieldIdsAsync(CancellationToken ct = default)
+    public async Task<HashSet<Guid>> GetReferencedFieldIdsAsync(CancellationToken ct = default)
     {
-        var ids = await UnreferencedFields().Select(f => f.FieldId).ToListAsync(ct);
+        var ids = await ReferencedFieldIds().ToListAsync(ct);
         return ids.ToHashSet();
     }
 
-    // One definition of "never used", shared by the per-row deletable flag and the delete guard,
-    // so the trash button can never offer a delete the server will refuse. Covers every FK into
-    // Fields -- missing one turns a delete into an FK-violation 500.
-    private IQueryable<Fields> UnreferencedFields() =>
-        _context.Fields
-            .AsNoTracking()
-            .Where(f => !f.FieldsLeagueSeason.Any()
-                     && !f.Schedule.Any()
-                     && !f.TimeslotsLeagueSeasonFields.Any()
-                     && !f.FieldOverridesStartTimeMaxMinGames.Any()
-                     && !f.TeamsFieldId1Navigation.Any()
-                     && !f.TeamsFieldId2Navigation.Any()
-                     && !f.TeamsFieldId3Navigation.Any());
+    // One definition of "used", shared by the per-row deletable flag and the delete guard, so the
+    // trash button can never offer a delete the server will refuse. Covers every FK into Fields --
+    // missing one turns a delete into an FK-violation 500.
+    //
+    // Deliberately a flat UNION of the FK columns, never correlated against reference.Fields:
+    // none of these columns is indexed, and the NOT EXISTS-per-field shape ran 35-39 s on dev
+    // (the UNION alone is ~30 ms). The "never used" set difference is done by the caller in memory.
+    private IQueryable<Guid> ReferencedFieldIds() =>
+        _context.FieldsLeagueSeason.Select(x => x.FieldId)
+            .Union(_context.Schedule.Where(x => x.FieldId != null).Select(x => x.FieldId!.Value))
+            .Union(_context.TimeslotsLeagueSeasonFields.Select(x => x.FieldId))
+            .Union(_context.FieldOverridesStartTimeMaxMinGames.Where(x => x.FieldId != null).Select(x => x.FieldId!.Value))
+            .Union(_context.Teams.Where(x => x.FieldId1 != null).Select(x => x.FieldId1!.Value))
+            .Union(_context.Teams.Where(x => x.FieldId2 != null).Select(x => x.FieldId2!.Value))
+            .Union(_context.Teams.Where(x => x.FieldId3 != null).Select(x => x.FieldId3!.Value));
 
     public async Task AssignFieldsToLeagueSeasonAsync(
         Guid leagueId,

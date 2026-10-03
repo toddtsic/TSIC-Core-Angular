@@ -79,7 +79,7 @@ public sealed class EmailBatchJobRegistry : IEmailBatchJobRegistry
                 JobId = e.JobId,
                 TotalRecipients = e.Total,
                 Sent = e.Sent,
-                EmailsSent = e.SentAddresses,
+                SentRecipients = e.SentAddresses,
                 Failed = e.Failed,
                 OptedOut = e.OptedOut,
                 Done = e.Done,

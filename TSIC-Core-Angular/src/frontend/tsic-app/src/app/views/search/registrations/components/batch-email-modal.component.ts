@@ -7,6 +7,7 @@ import type { EmailBatchJobStatus, JobOptionDto, RegistrationSearchRequest } fro
 import { environment } from '@environments/environment';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { batchSentMessage } from '@shared/utils/batch-email-result.util';
 import { AuthService } from '@infrastructure/services/auth.service';
 import {
   EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, EMAIL_BASE_TOKENS, USLAX_VALID_THROUGH_TOKEN, SUBSCRIPTION_TOKENS,
@@ -226,14 +227,14 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     const inviteNote = this.requiresInviteLink()
       ? '<p>Each email will include a personalized invite link for the selected event.</p>'
       : '';
-    return `<p>You are about to send an email to <strong>${count}</strong> recipient(s).</p>`
+    return `<p>You are about to send an email to <strong>${count}</strong> registration(s).</p>`
       + inviteNote
       + '<p>Please verify the subject and body are correct. This action cannot be undone.</p>';
   });
 
   /** The confirm button restates the count: the dialog covers the Send button that named it, so
    *  it has to be self-contained. */
-  readonly confirmSendLabel = computed(() => `Yes, Send to ${this.recipientCount().toLocaleString()} Recipient(s)`);
+  readonly confirmSendLabel = computed(() => `Yes, Send to ${this.recipientCount().toLocaleString()} Registration(s)`);
 
   /** The active invite kind — its link token and wording feed the guidance panel and pickers. */
   readonly inviteKind = computed(() => {
@@ -507,10 +508,8 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     this.isSending.set(false);
     this.batchJobId.set(null);
     this.sendResult.set(s);
-    const optedOutNote = s.optedOut > 0 ? `, ${s.optedOut} opted out` : '';
-    const msg = `Emails sent: ${s.sent} of ${s.totalRecipients}${optedOutNote}`;
-    if (s.failedAddresses.length > 0) { this.toast.show(`${msg}. ${s.failedAddresses.length} failed.`, 'warning', 5000); }
-    else { this.toast.show(msg, 'success', 3000); }
+    const msg = batchSentMessage(s);
+    this.toast.show(msg, s.failedAddresses.length > 0 ? 'warning' : 'success', s.failedAddresses.length > 0 ? 5000 : 3000);
     this.sent.emit(s);
   }
 

@@ -220,6 +220,22 @@
     border-left: 2px solid rgba(var(--bs-primary-rgb), 0.12);
 }
 
+// AR-130: long item names in the LEFT menu wrap onto a second line instead of ending in
+// an ellipsis — the expanded accordion, the collapsed-rail flyout (rendered inside
+// .admin-rail), and the mobile offcanvas rail. Widths are unchanged (the flyout keeps
+// its 240–320px bounds). The top-menu (.pill-nav) dropdowns share the child-row
+// renderer but are outside both containers, so they keep their single-line rows.
+.admin-rail,
+.offcanvas-rail {
+    .dropdown-panel__item-text {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        overflow-wrap: break-word;
+        line-height: 1.3;
+    }
+}
+
 
 // ─── Horizontal Pill Navigation Bar ─────────────────────────────────────────
 // The alternate (familiar) top layout. Uses position:fixed dropdown panels to

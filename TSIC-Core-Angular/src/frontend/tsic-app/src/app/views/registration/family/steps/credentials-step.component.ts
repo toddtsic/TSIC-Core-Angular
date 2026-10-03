@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
 import { RouterLink } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { FamilyStateService } from '../state/family-state.service';
+import { USERNAME_PATTERN } from '@shared-ui/validators/username.validators';
 
 /**
  * Family wizard v2 — Account step (unified create/edit).
@@ -48,7 +49,7 @@ import { FamilyStateService } from '../state/family-state.service';
               <div class="field-error">
                 @if (form.controls.username.errors['required']) { <span>Required</span> }
                 @if (form.controls.username.errors['minlength']) { <span>Min 3 characters</span> }
-                @if (form.controls.username.errors['pattern']) { <span>Letters, numbers, dot, underscore, hyphen only</span> }
+                @if (form.controls.username.errors['pattern']) { <span>Letters, numbers, spaces and - ! . _ &#64; + / only</span> }
               </div>
             }
           </div>
@@ -117,7 +118,7 @@ export class CredentialsStepComponent {
     readonly showConfirm = signal(false);
 
     readonly form = this.fb.group({
-        username: [this.state.username(), [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-z0-9._-]+$/)]],
+        username: [this.state.username(), [Validators.required, Validators.minLength(3), Validators.pattern(USERNAME_PATTERN)]],
         password: [this.state.password(), [Validators.required, Validators.minLength(6)]],
         confirmPassword: ['', [Validators.required]],
     }, {

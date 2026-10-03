@@ -323,10 +323,17 @@
             </div>
             <div class="col-md-2">
               <label class="form-label small fw-semibold">State</label>
-              <input type="text" class="form-control form-control-sm"
-                     [ngModel]="editState()"
-                     (ngModelChange)="editState.set($event)"
-                     maxlength="2" />
+              <select class="form-select form-select-sm"
+                      [ngModel]="editState()"
+                      (ngModelChange)="editState.set($event)">
+                <option value="">Select</option>
+                @if (editStateIsLegacy()) {
+                  <option [value]="editState()">{{ editState() }} (not a valid state)</option>
+                }
+                @for (s of stateOptions(); track s.value) {
+                  <option [value]="s.value">{{ s.label }}</option>
+                }
+              </select>
             </div>
             <div class="col-md-2">
               <label class="form-label small fw-semibold">ZIP</label>

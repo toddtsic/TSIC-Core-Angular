@@ -1,6 +1,6 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, OnInit, output, signal, computed, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, catchError, tap, map } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { ClubService } from '@infrastructure/services/club.service';
@@ -9,6 +9,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { TosContentComponent } from '../../shared/components/tos-content.component';
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { USERNAME_PATTERN } from '@shared-ui/validators/username.validators';
 import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdateRequest, ClubSearchResult } from '@core/api';
 
 /**
@@ -254,7 +255,8 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                 <input #clubNameInput class="field-input field-input--hero" formControlName="clubName"
                        placeholder="Start typing your club name..."
                        autocomplete="off"
-                       [class.is-invalid]="submitted() && form.controls.clubName.invalid" />
+                       [class.is-invalid]="showError('clubName')" />
+                @if (errorText('clubName'); as msg) { <div class="field-error">{{ msg }}</div> }
               </div>
 
               <!-- Loading -->
@@ -438,8 +440,10 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                       <input class="field-input" formControlName="username"
                              placeholder="Username" autocomplete="off"
                              [class.is-required]="!form.controls.username.value?.trim()"
-                             [class.is-invalid]="(submitted() && form.controls.username.invalid) || usernameStatus() === 'taken'" />
-                      @if (usernameStatus() === 'checking') {
+                             [class.is-invalid]="showError('username') || usernameStatus() === 'taken'" />
+                      @if (errorText('username'); as msg) {
+                        <div class="field-error">{{ msg }}</div>
+                      } @else if (usernameStatus() === 'checking') {
                         <div class="small text-muted mt-1"><span class="spinner-border spinner-border-sm me-1"></span>Checking availability…</div>
                       } @else if (usernameStatus() === 'taken') {
                         <div class="field-error">That username is already taken — choose another.</div>
@@ -450,31 +454,32 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                         <input [type]="showPassword() ? 'text' : 'password'" class="field-input pe-5" formControlName="password"
                                placeholder="Password" autocomplete="new-password"
                                [class.is-required]="!form.controls.password.value"
-                               [class.is-invalid]="submitted() && form.controls.password.invalid" />
+                               [class.is-invalid]="showError('password')" />
                         <button type="button" class="password-toggle"
                                 (click)="showPassword.set(!showPassword())"
                                 [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
                           <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
                         </button>
                       </div>
+                      @if (errorText('password'); as msg) { <div class="field-error">{{ msg }}</div> }
                     </div>
                     <div class="col-6">
                       <div class="position-relative">
                         <input [type]="showConfirm() ? 'text' : 'password'" class="field-input pe-5" formControlName="confirmPassword"
                                placeholder="Confirm Password" autocomplete="new-password"
-                               [class.is-invalid]="submitted() && passwordMismatch()" />
+                               [class.is-invalid]="showError('confirmPassword') || showMismatch()" />
                         <button type="button" class="password-toggle"
                                 (click)="showConfirm.set(!showConfirm())"
                                 [attr.aria-label]="showConfirm() ? 'Hide password' : 'Show password'" tabindex="-1">
                           <i class="bi" [class.bi-eye]="!showConfirm()" [class.bi-eye-slash]="showConfirm()"></i>
                         </button>
                       </div>
+                      @if (errorText('confirmPassword'); as msg) {
+                        <div class="field-error">{{ msg }}</div>
+                      } @else if (showMismatch()) {
+                        <div class="field-error">Passwords do not match</div>
+                      }
                     </div>
-                    @if (submitted() && passwordMismatch()) {
-                      <div class="col-12">
-                        <div class="field-error">Passwords do not match.</div>
-                      </div>
-                    }
                   </div>
 
                   <hr class="form-divider my-2">
@@ -486,13 +491,15 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                     <input #firstNameInput class="field-input" formControlName="firstName"
                            placeholder="First Name"
                            [class.is-required]="!form.controls.firstName.value?.trim()"
-                           [class.is-invalid]="submitted() && form.controls.firstName.invalid" />
+                           [class.is-invalid]="showError('firstName')" />
+                    @if (errorText('firstName'); as msg) { <div class="field-error">{{ msg }}</div> }
                   </div>
                   <div class="col-6">
                     <input class="field-input" formControlName="lastName"
                            placeholder="Last Name"
                            [class.is-required]="!form.controls.lastName.value?.trim()"
-                           [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
+                           [class.is-invalid]="showError('lastName')" />
+                    @if (errorText('lastName'); as msg) { <div class="field-error">{{ msg }}</div> }
                   </div>
                 </div>
                 @if (!isEdit()) {
@@ -500,11 +507,12 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                     <div class="col-12">
                       <select class="field-select" formControlName="gender"
                               [class.is-required]="!form.controls.gender.value"
-                              [class.is-invalid]="submitted() && form.controls.gender.invalid">
+                              [class.is-invalid]="showError('gender')">
                         <option value="">Gender</option>
                         <option value="M">Male</option>
                         <option value="F">Female</option>
                       </select>
+                      @if (errorText('gender'); as msg) { <div class="field-error">{{ msg }}</div> }
                     </div>
                   </div>
                 }
@@ -513,13 +521,16 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                     <input type="email" class="field-input" formControlName="email"
                            placeholder="Email"
                            [class.is-required]="!form.controls.email.value?.trim()"
-                           [class.is-invalid]="submitted() && form.controls.email.invalid" />
+                           [class.is-invalid]="showError('email')" />
+                    @if (errorText('email'); as msg) { <div class="field-error">{{ msg }}</div> }
                   </div>
                   <div class="col-5">
                     <input type="tel" inputmode="numeric" class="field-input"
                            formControlName="cellphone" (input)="digitsOnly('cellphone', $event)"
                            placeholder="Phone (digits only)"
-                           [class.is-required]="!form.controls.cellphone.value?.trim()" />
+                           [class.is-required]="!form.controls.cellphone.value?.trim()"
+                           [class.is-invalid]="showError('cellphone')" />
+                    @if (errorText('cellphone'); as msg) { <div class="field-error">{{ msg }}</div> }
                   </div>
                 </div>
                 <div class="row g-2 mb-2">
@@ -528,7 +539,8 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                            autocomplete="address-line1"
                            placeholder="Street Address"
                            [class.is-required]="!form.controls.streetAddress.value?.trim()"
-                           [class.is-invalid]="submitted() && form.controls.streetAddress.invalid" />
+                           [class.is-invalid]="showError('streetAddress')" />
+                    @if (errorText('streetAddress'); as msg) { <div class="field-error">{{ msg }}</div> }
                   </div>
                 </div>
                 <div class="row g-2 mb-2">
@@ -537,25 +549,28 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                            autocomplete="address-level2"
                            placeholder="City"
                            [class.is-required]="!form.controls.city.value?.trim()"
-                           [class.is-invalid]="submitted() && form.controls.city.invalid" />
+                           [class.is-invalid]="showError('city')" />
+                    @if (errorText('city'); as msg) { <div class="field-error">{{ msg }}</div> }
                   </div>
                   <div class="col-4">
                     <select class="field-select" formControlName="state"
                             autocomplete="address-level1"
                             [class.is-required]="!form.controls.state.value"
-                            [class.is-invalid]="submitted() && form.controls.state.invalid">
+                            [class.is-invalid]="showError('state')">
                       <option value="">State</option>
                       @for (s of stateOptions(); track s.value) {
                         <option [value]="s.value">{{ s.label }}</option>
                       }
                     </select>
+                    @if (errorText('state'); as msg) { <div class="field-error">{{ msg }}</div> }
                   </div>
                   <div class="col-3">
                     <input class="field-input" formControlName="postalCode"
                            autocomplete="postal-code"
                            placeholder="Zip"
                            [class.is-required]="!form.controls.postalCode.value?.trim()"
-                           [class.is-invalid]="submitted() && form.controls.postalCode.invalid" />
+                           [class.is-invalid]="showError('postalCode')" />
+                    @if (errorText('postalCode'); as msg) { <div class="field-error">{{ msg }}</div> }
                   </div>
                 </div>
 
@@ -566,7 +581,7 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                 @if (!isEdit()) {
                   <div class="tos-acceptance-row">
                     <input id="clubRepTosAccept" type="checkbox" formControlName="agreeToTos"
-                           [class.is-invalid]="submitted() && form.controls.agreeToTos.invalid" />
+                           [class.is-invalid]="showError('agreeToTos')" />
                     <label for="clubRepTosAccept">
                       I have read and agree to the
                       <button type="button" class="tos-link-btn"
@@ -579,6 +594,7 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                       </button>.
                     </label>
                   </div>
+                  @if (errorText('agreeToTos'); as msg) { <div class="field-error">{{ msg }}</div> }
                   @if (tosExpanded()) {
                     <div id="clubRepTosPanel" class="tos-inline-panel">
                       <div class="tos-inline-scroll">
@@ -704,18 +720,51 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         city: ['', Validators.required],
         state: ['', Validators.required],
         postalCode: ['', [Validators.required, Validators.pattern(/^\d{5}(-\d{4})?$/)]],
-        username: ['', [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-z0-9._-]+$/)]],
+        username: ['', [Validators.required, Validators.minLength(3), Validators.pattern(USERNAME_PATTERN)]],
         password: ['', [Validators.required, Validators.minLength(6)]],
         confirmPassword: ['', Validators.required],
         agreeToTos: [false, Validators.requiredTrue],
+    }, {
+        // Cross-field: confirmPassword must match password. A group validator, not a
+        // computed() — form-control values aren't signals, so a computed froze at false.
+        validators: (group: AbstractControl): ValidationErrors | null => {
+            const pw = group.get('password')?.value;
+            const cpw = group.get('confirmPassword')?.value;
+            return pw && cpw && pw !== cpw ? { passwordMismatch: true } : null;
+        },
     });
 
-    /** Cross-field: confirmPassword must match password */
-    readonly passwordMismatch = computed(() => {
-        const pw = this.form.controls.password.value;
-        const cpw = this.form.controls.confirmPassword.value;
-        return !!pw && !!cpw && pw !== cpw;
-    });
+    passwordMismatch(): boolean {
+        return !!this.form.errors?.['passwordMismatch'];
+    }
+
+    /** Mismatch shows once the confirm field has been typed in or left. */
+    showMismatch(): boolean {
+        const c = this.form.controls.confirmPassword;
+        return this.passwordMismatch() && (c.dirty || c.touched || this.submitted());
+    }
+
+    /** A field shows its error once typed in or left — never only after submit, because
+     *  Create Account is disabled while the form is invalid and submit can't happen. */
+    showError(name: string): boolean {
+        const c = this.form.get(name);
+        return !!c && c.invalid && (c.dirty || c.touched || this.submitted());
+    }
+
+    errorText(name: string): string | null {
+        if (!this.showError(name)) return null;
+        const errors = this.form.get(name)?.errors ?? {};
+        if (name === 'agreeToTos') return 'You must agree to the Terms of Service';
+        if (errors['required']) return 'Required';
+        if (errors['minlength']) return `Min ${errors['minlength'].requiredLength} characters`;
+        if (errors['email']) return 'Invalid email';
+        if (errors['pattern']) {
+            return name === 'username'
+                ? 'Letters, numbers, spaces and - ! . _ @ + / only'
+                : 'Must be 12345 or 12345-6789';
+        }
+        return 'Invalid';
+    }
 
     constructor() {
         // Live search — keep prior results visible while typing to avoid stutter.

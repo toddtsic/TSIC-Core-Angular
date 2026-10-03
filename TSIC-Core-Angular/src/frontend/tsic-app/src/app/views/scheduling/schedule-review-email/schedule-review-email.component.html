@@ -46,15 +46,6 @@
     }
 
     @if (!isLoading() && !loadFailed() && recipients().length > 0) {
-        @if (optedOutCount() > 0 || noEmailCount() > 0) {
-            <p class="sre-note">
-                <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
-                @if (optedOutCount() > 0) { {{ optedOutCount() }} opted out of email. }
-                @if (noEmailCount() > 0) { {{ noEmailCount() }} have no address on file. }
-                They stay listed below so the totals make sense, but will not be sent to.
-            </p>
-        }
-
         <!-- A dropdown, not a table: a large tournament has hundreds of club reps, and a
              row-per-rep pushes the letter itself off the screen. The totals are what the
              director actually decides on; the list is for spot-checking one name. -->
@@ -112,10 +103,14 @@
                 <div class="progress-bar" [style.width.%]="percentProcessed(s)"></div>
             </div>
             <p class="sre-progress__text">
-                {{ s.processed ?? 0 }} of {{ s.totalRecipients }} processed &middot; {{ s.sent }} sent
-                @if (s.failed > 0) { &middot; {{ s.failed }} failed }
-                @if (s.optedOut > 0) { &middot; {{ s.optedOut }} opted out }
+                @if (s.done) { {{ sentMessage(s) }} } @else { {{ percentLabel(s) }} }
             </p>
+            @if (s.done && s.failedAddresses.length > 0) {
+                <details class="sre-not-sent">
+                    <summary>Not sent ({{ s.failedAddresses.length }})</summary>
+                    <ul>@for (address of s.failedAddresses; track address) { <li>{{ address }}</li> }</ul>
+                </details>
+            }
         </div>
     }
 

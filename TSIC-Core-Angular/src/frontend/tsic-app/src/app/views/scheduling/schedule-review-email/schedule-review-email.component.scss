@@ -38,12 +38,6 @@
     font-weight: var(--font-weight-bold);
 }
 
-.sre-note {
-    margin-bottom: var(--space-3);
-    color: var(--brand-text-muted);
-    font-size: var(--font-size-sm);
-}
-
 // The headline the director decides on. Reads a size up from the surrounding notes
 // because it is the answer to "who is this going to", not a caveat about it.
 .sre-summary {
@@ -103,6 +97,32 @@
     margin: var(--space-2) 0 0;
     color: var(--brand-text-muted);
     font-size: var(--font-size-sm);
+}
+
+.sre-not-sent {
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    background: var(--bs-danger-bg-subtle);
+    border: 1px solid var(--bs-danger-border-subtle);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+
+    summary {
+        font-weight: 600;
+        color: var(--bs-danger-text-emphasis);
+        cursor: pointer;
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+    }
+
+    ul {
+        margin: var(--space-2) 0 0;
+        padding-left: var(--space-4);
+        color: var(--bs-danger-text-emphasis);
+    }
 }
 
 @media (max-width: 575px) {

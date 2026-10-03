@@ -103,7 +103,7 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
         var message = new EmailMessageDto
         {
             // Emails, not registrants (AR-087) — the same unit the Email Log row reports for this send.
-            Subject = $"Batch email summary — {status.EmailsSent} email(s) sent",
+            Subject = $"Batch email summary — {status.SentRecipients} email(s) sent",
             HtmlBody = BuildSummaryHtml(status),
             ToAddresses = new List<string> { toEmail.Trim() }
         };
@@ -129,7 +129,7 @@ public sealed class EmailBatchServiceOld : IEmailBatchService
             <div style="font-family:Arial,sans-serif; font-size:14px; color:#222;">
                 <h2 style="margin:0 0 12px;">Batch Email Summary</h2>
                 <table style="border-collapse:collapse;">
-                    <tr><td style="padding:2px 12px 2px 0;">Emails sent</td><td><strong>{s.EmailsSent}</strong></td></tr>
+                    <tr><td style="padding:2px 12px 2px 0;">Emails sent</td><td><strong>{s.SentRecipients}</strong></td></tr>
                     <tr><td style="padding:2px 12px 2px 0;">Registrants selected</td><td><strong>{s.TotalRecipients}</strong></td></tr>
                     <tr><td style="padding:2px 12px 2px 0;">Registrants mailed</td><td><strong>{s.Sent}</strong></td></tr>
                     <tr><td style="padding:2px 12px 2px 0;">Registrants failed</td><td><strong>{s.Failed}</strong></td></tr>

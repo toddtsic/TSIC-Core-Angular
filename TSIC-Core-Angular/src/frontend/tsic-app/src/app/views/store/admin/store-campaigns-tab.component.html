@@ -273,14 +273,11 @@
 				<i class="bi bi-check2-circle me-2"></i>Last send
 			</div>
 			<dl class="result-grid">
-				<dt>Recipients</dt><dd>{{ result.totalRecipients }}</dd>
-				<dt>Sent</dt><dd>{{ result.sent }}</dd>
-				<dt>Failed</dt><dd>{{ result.failed }}</dd>
-				<dt>Opted out</dt><dd>{{ result.optedOut }}</dd>
+				<dt>Sent to</dt><dd>{{ (result.sentRecipients ?? 0).toLocaleString() }} email address(es)</dd>
 			</dl>
 			@if (result.failedAddresses.length > 0) {
 				<div class="failed-block">
-					<span class="failed-label">Not delivered</span>
+					<span class="failed-label">Not sent ({{ result.failedAddresses.length }})</span>
 					<div class="failed-list">
 						@for (address of result.failedAddresses; track address) {
 							<span class="failed-chip">{{ address }}</span>

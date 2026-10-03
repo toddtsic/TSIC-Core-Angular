@@ -80,9 +80,9 @@ public interface IFieldRepository
     Task<bool> IsFieldReferencedAsync(Guid fieldId, CancellationToken ct = default);
 
     /// <summary>
-    /// IDs of every field that has never been used (the inverse of <see cref="IsFieldReferencedAsync"/>).
+    /// IDs of every field that has been used anywhere (the set <see cref="IsFieldReferencedAsync"/> tests).
     /// </summary>
-    Task<HashSet<Guid>> GetUnreferencedFieldIdsAsync(CancellationToken ct = default);
+    Task<HashSet<Guid>> GetReferencedFieldIdsAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Assign fields to a league-season by creating FieldsLeagueSeason junction records.
