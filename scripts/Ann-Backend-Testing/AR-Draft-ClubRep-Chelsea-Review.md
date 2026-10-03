@@ -325,3 +325,263 @@ that should **not** be possible. Needs a steer on whether this is filed as a **d
 | **D-15** | *"Registered Teams needs to mirror Club Team Library. Small circle with colour"* + the later "colours distract" line |
 | **D-19** | the Undo→Delete note + the Undo wording inside the age-group note |
 | **D-30** | the permissions note + the Add/Delete observation an hour later |
+
+---
+
+# ROUND 2 — Team Reg review with Chelsea (2026-10-03)
+
+**Source:** `AR Items for Team Reg Review with Chelsea (2).docx`, saved 2026-10-03. **Same rules as
+above:** nothing researched, no code opened, no cause proposed. Draft IDs continue at **D-33** so
+nothing above renumbers.
+
+**8 notes → 18 items.** One note was already filed, so **7 notes produced the 18.** Where a note
+carried several asks, each is its own item — what was split is named under each entry.
+
+⭐ **Ann starred two notes in the source** (she prefixed them `***`): the **DOB on the player form**
+note and the **Edit Family Account** note. Both are marked ⭐ below.
+
+> ✅ **Already filed — not re-drafted.** The first note in this document — *"Enter new
+> library/registration team… it should not create a new library entry, only edit the one there as
+> the team name is the same"* — was filed on **2026-10-02 as AR-131** and is with Todd. It is listed
+> here only so the count reconciles against the source.
+
+## Where round 2 stands
+
+| Group | Draft items | Status |
+|:--|--:|:--|
+| **J** · DOB on the player form ⭐ | 2 | ✅ **filed as AR-134** (both items, merged) |
+| **K** · Family account editing ⭐ | 4 | ✅ **filed as AR-135** (all four, one item) |
+| **L** · Saved changes not reflected | 2 | ⏳ to review |
+| **M** · Player selection screen | 2 | ⏳ to review |
+| **N** · Optional-field validation | 2 | ⏳ to review |
+| **O** · Coach registration | 4 | ✅ **filed — AR-136, AR-137, AR-138, AR-139** |
+| **P** · Coach USA Lacrosse number | 2 | ✅ **filed — AR-140, AR-141** |
+| **TOTAL** | **18** | |
+
+| D | Item | Note |
+|:--|:--|:--|
+| | **J · DOB on the player form** ⭐ | |
+| D-33 | DOB at the date-entry field — **top, after the player’s name, on the left** *(placement revised on filing)* | ✅ **AR-134** |
+| D-34 | Edit Family Account / Players link in the same header | ✅ **AR-134** *(merged with D-33)* |
+| | **K · Family account editing** ⭐ | |
+| D-35 | Family must be able to edit a player’s **name, DOB and gender** | ✅ **AR-135** (point 1) |
+| D-36 | Edit reaches **every event — it is Family Account data** | ✅ **AR-135** (point 2) |
+| D-37 | The **pencils next to pick players** must edit too | ✅ **AR-135** (point 3) |
+| D-38 | **Admin editing consistent across the account** *(recast 10-03)* | ✅ **AR-135** (point 4) |
+| | **L · Saved changes not reflected** | |
+| D-39 | **General sweep**: a save should display immediately, without leaving and returning | |
+| D-40 | USA Lacrosse validation runs against the **old** number after it is changed | 🔴 wrong result |
+| | **M · Player selection screen** | |
+| D-41 | Lock icon has no hover and no explanation | |
+| D-42 | Show a trash can **only** for players not registered elsewhere | |
+| | **N · Optional-field validation** | |
+| D-43 | Email accepts **any text** — no validation | |
+| D-44 | Phone rejects the hyphenated form **the system itself produced** | 🔴 defect |
+| | **O · Coach registration** (no USA # validation) | |
+| D-45 | Add **Edit Staff Account** to the upper-right menu | ✅ **AR-136** |
+| D-46 | A coach must be able to edit **their own name** | ✅ **AR-137** |
+| D-47 | Put the editable fields on the **first data screen**, review above the team cards | ✅ **AR-138** |
+| D-48 | Coach USA Lacrosse — no **admin-side lookup / reconcile** | ✅ **AR-139** |
+| | **P · Coach USA Lacrosse number** | |
+| D-49 | **Remove** the one-time emailed code | ✅ **AR-140** |
+| D-50 | `424242424242` must validate for **SuperUser** on **prod and staging** | ✅ **AR-141** |
+
+---
+
+## J · DOB on the player form ⭐
+
+### D-33 · ✅ FILED AS AR-134 (10-03, merged with D-34, placement REVISED to "after the player’s name on the left") · DOB must appear at the date-entry field on the family form
+*"Need DOB appearing on family form date entry field due to USA Lacrosse failures for this
+mismatch. Put DOB at top next to player's name and then justify right."*
+
+The reason given is **USA Lacrosse validation failing on a DOB mismatch** — so this is not a layout
+preference. The person entering the date cannot see the DOB they are matching against.
+
+Placement as specified: **top, next to the player's name, right-justified.**
+
+### D-34 · ✅ FILED IN AR-134 (10-03, merged with D-33) · Edit Family Account / Players link in the header
+*"…then justify right, the link for Edit Family Account/Players in the header as well."*
+
+❓ **Check against AR-112 before filing.** That item added **"Edit Family Account" to the Family/Player
+upper-right menu** and it is verified on prod. This note asks for the link **in the header** of this
+form — which may be the same thing already built, or a second placement on the registration form
+itself. **Needs one word from Ann: is the existing menu entry enough here?**
+
+**📣 ANN'S ANSWER, 10-03 — ADD IT.** *"Second link here as not intuitive to look in upper right when you want to edit something in that field."*
+
+🎯 **So this is NOT a duplicate of AR-112 and the two co-exist**: the upper-right menu is the route you take when editing is your *errand*; this link is for when you are **already standing in the field you want to change** and should not have to go hunting elsewhere. ✅ **Ready to file.**
+
+---
+
+## K · Family account editing ⭐
+
+### D-35 · ✅ FILED IN AR-135 (10-03, point 1; merged with D-36…D-38) · Name, DOB and gender must be editable by the family
+*"The DOB field under edit a player, has a toast that doesn't allow name, DOB and gender are not
+editable. This cannot be the case. The reason this information is changed is because there is an
+actual error and this needs to be corrected… It is only done when needed, not abused."*
+
+The argument as given: these fields are edited **because they are wrong**, so refusing the edit
+preserves the error. The current behaviour is a **toast that blocks it**.
+
+### D-36 · ✅ FILED IN AR-135 (10-03, point 2) · An edit must propagate across every event
+*"…this needs to be corrected across any and all events when edited… the new changes appear in any
+registration."*
+
+Split out from D-35 deliberately — **allowing the edit and propagating it are different pieces of
+work**, and propagation is the one with reach beyond this screen.
+
+### D-37 · ✅ FILED IN AR-135 (10-03, point 3) · The pencils beside "pick players" do not allow editing either
+*"Also, the pencils next to pick payers also doesn't allow editing. This needs to be fixed!"*
+
+A **second surface with the same refusal**, named separately in the note. Recorded as its own item
+so it is not lost if D-35 is fixed on the edit form alone.
+
+### D-38 · ✅ FILED IN AR-135 (10-03, point 4 — RECAST as admin CONSISTENCY at Ann’s instruction; ⛔ AR-094 NOT reopened) · Admin side: player info yes, parents’ names no
+*"However, the Director CAN change this information, but not the parents' names. All of this info
+should be editable by family and Admin."*
+
+❓ **This touches AR-094, which is a POLICY ruling marked NOT TO BE REOPENED** — parent/contact names
+are parent-owned, and the only sanctioned operation there is replace, by the parent. **As written
+this note agrees with that** (Director may change player info, *not* parents' names), so it likely
+needs no ruling — **but it should be read against AR-094 and AR-069 before filing**, because those
+two set how admin-side name editing is allowed to work at all.
+
+**📣 ANN'S ANSWER, 10-03 — FILE IT, AND LEAVE AR-094 ALONE.** *"In its own way it is challenging AR-094 but no need to reopen."*
+
+✅ **She has read the tension and ruled on it: the item goes in scoped to PLAYER information — name, DOB, gender — and AR-094's parent/contact policy stands untouched.** ⛔ **Do not read this item as a reopen of AR-094, and do not let it be declined on AR-094's grounds.** ✅ **Ready to file.**
+
+---
+
+## L · Saved changes not reflected until you leave and come back
+
+### D-39 · General sweep — a save should display immediately
+*"Many entries should have the ability to update the information without leaving and returning… under
+Configure/Job Settings/General changing the Event Name… It should immediately display updates upon
+Save, but it doesn't… the Event Name in the dropdown of roles requires a complete refresh.
+Encountering many examples of this type of behavior that is confusing in thinking something hasn't
+been done. Can you do a general look for this?"*
+
+Two examples given — **the General settings screen**, and the **Event Name in the roles dropdown**,
+which needs a full refresh. ⚠ **The ask is explicitly a sweep, not a single fix**, and the cost named
+is **a user who thinks the save failed** and does it again.
+
+### D-40 · USA Lacrosse validation uses the old number 🔴
+*"Another example, is USA Lacrosse number changing in player details doesn't look for the new
+information when validating. The validation is incorrect in this circumstance."*
+
+**Split out of D-39 on purpose.** The others are a stale *display*; this one produces a **wrong
+validation result** against a number the user has already corrected. Same root cause possibly, very
+different consequence.
+
+---
+
+## M · Player selection for registration
+
+### D-41 · The lock icon explains nothing
+*"Lock icon is present but no hover to explain what it is."*
+
+⚠ Worth filing alongside **AR-130**, which carries the same hover question on three other surfaces —
+**and the accessibility point applies here too**: hover alone is unavailable on touch and to keyboard
+users, so whatever explains the lock needs to be reachable without a mouse.
+
+### D-42 · Trash cans only for players not registered elsewhere
+*"Better to not show a trash can and that's it. Just show trash cans for those not registered
+elsewhere."*
+
+Reads as: **the control's presence should encode whether the action is possible**, rather than
+offering it and then refusing. ⚠ **Note the tension with D-31 above** (*closed functions should be
+disabled with a reason, not removed*) — **this note asks for the opposite treatment**, so a ruling
+should say which rule wins where.
+
+---
+
+## N · Validation on optional player fields
+
+### D-43 · Email accepts any text
+*"If you change the email it allows any text changes."*
+
+### D-44 · Phone rejects the format the system produced 🔴
+*"…but says that phone needs to be digits only. Phone was entered digits only and converted to
+correct hyphen form by system."*
+
+🔴 **The validator is rejecting its own formatter's output.** The user typed digits, the system
+hyphenated them, and the system then refused the result — so the field cannot be satisfied by doing
+exactly what the message asks. Recorded with D-43 because both are the same screen, but **this half
+is a defect and the other half is a gap**.
+
+---
+
+## O · Coach registration (without USA # validation)
+
+### D-45 · ✅ FILED AS AR-136 (10-03) — Ann resolved the open question by filing it as its OWN item · Edit Staff Account in the upper-right menu
+*"Upper right Edit Staff Account menu should be added."*
+
+❓ **Third time this pattern has come up** — AR-106 and AR-112 were both "the screen exists, it is the
+user's own data, and there is no front door." **Worth filing as its own item or as the coach
+instance of that pattern — Ann's call.**
+
+### D-46 · ✅ FILED AS AR-137 (10-03) · A coach must be able to edit their own name
+*"Coach needs to be able to edit their own name! Their names appear on rosters and are exported;
+also they get married, have errors. Needs to be editable and the main reason is that it is needed
+for USA Lax validation."*
+
+Three reasons given, and the **last is the operative one**: the name is matched during **USA Lacrosse
+validation**, so a wrong name blocks the coach. ⚙ **Same shape as D-35** — an edit refused on data
+that has to be right for an external check to pass.
+
+### D-47 · ✅ FILED AS AR-138 (10-03) · Edit on the first data screen, review above the team cards
+*"Coach/first screen with data should be where editable fields occur, not Edit Your Info to another
+screen. Instead place the noneditable review screen at the top of the team selection cards. This
+would be after the info was entered/edited."*
+
+A **flow change, not a field change**: edit where the data first appears, and let the read-only
+review sit above the team selection cards once the editing is done.
+
+### D-48 · ✅ FILED AS AR-139 (10-03) — Ann supplied the missing detail: it is the ADMIN-side coach lookup/reconcile that is absent · Coach USA Lacrosse testing menus not available
+*"Coach USA Lacrosse # testing menus not available???"*
+
+❓ **Her own three question marks.** Not enough to file — **needs a sentence on what she expected to
+find and where.** ⚙ Possibly related to **AR-113**, which gated the USA Lacrosse menu behind
+`usLaxRequired`; if this coach job does not carry that flag the menu would be absent by design.
+
+---
+
+## P · Coach USA Lacrosse number
+
+### D-49 · ✅ FILED AS AR-140 (10-03) · Remove the one-time emailed code
+*"One-time code to email needs to be removed. NOT needed. Already verifying and approving, and a
+fraud will change the email address so not helpful and another hoop to jump through."*
+
+The argument is that the code **adds friction without adding assurance** — the approval step already
+verifies, and an impostor controls the email address anyway. ⚠ **This removes a verification step, so
+it should be ruled on explicitly rather than filed as housekeeping**, even though the reasoning is
+sound as stated.
+
+### D-50 · ✅ FILED AS AR-141 (10-03 — expanded on filing: `424242424242`, validated on BOTH prod and staging) · The test number must work for SuperUser
+*"Also, 4242… needs to be available for testing by SuperUser."*
+
+A **testing affordance**, scoped to SuperUser.
+
+---
+
+## Round 2 — needs a decision before filing
+
+| | Item | What is needed |
+|:--|:--|:--|
+| ✅ **1** | **D-34** | **ANSWERED (Ann, 10-03): YES — add the second link here.** *"Not intuitive to look in upper right when you want to edit something in that field."* **Ready to file.** |
+| ✅ **2** | **D-38** | **ANSWERED (Ann, 10-03): it does challenge AR-094 *"in its own way"* — ⛔ but NO REOPEN.** File scoped to **player** info; **AR-094 stands untouched.** **Ready to file.** |
+| ✅ **3** | **D-45** | **RESOLVED (Ann, 10-03): filed as its OWN item — AR-136.** |
+| ✅ **4** | **D-48** | **RESOLVED (Ann, 10-03): the gap is the ADMIN-side coach lookup / reconcile — player side works and is the spec. Filed as AR-139.** |
+| ⏳ **5** | **D-42 vs D-31** | **Ann, 10-03: she will look at it when editing.** |
+
+## Round 2 — what was split, so nothing is lost
+
+| Split into | From the single note |
+|:--|:--|
+| **D-33 + D-34** | the DOB note — placement, and the header link |
+| **D-35 … D-38** | the Edit Family Account note — the refusal, propagation, the second surface, and the admin side |
+| **D-39 + D-40** | the refresh note — stale display, and a wrong validation result |
+| **D-41 + D-42** | the player-selection note — the lock icon, and the trash cans |
+| **D-43 + D-44** | the optional-fields note — email unvalidated, phone wrongly rejected |
+| **D-45 … D-48** | the coach note — her own four numbered parts, kept as four |
+| **D-49 + D-50** | the coach USAL note — remove the emailed code, and the SuperUser test number |
