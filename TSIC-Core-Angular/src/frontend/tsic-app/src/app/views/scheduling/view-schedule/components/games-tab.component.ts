@@ -204,6 +204,8 @@ type ScheduleRow =
                                 <span class="team-name">{{ n1.team }}</span>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
+                            <!-- Winner trophy: LAST on line one → flush right, at the score edge. -->
+                            @if (isT1Winner(game)) { <i class="bi bi-trophy-fill win-trophy" title="Winner" aria-hidden="true"></i> }
                             @if (n1.club || r1) { <br> }
                             @if (n1.club && game.t1Id) {
                                 <span class="team-name tn-team team-link" role="button" tabindex="0"
@@ -292,6 +294,9 @@ type ScheduleRow =
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                 </button>
                             }
+                            <!-- Winner trophy: FIRST on line one (after the at-rest zero-width star) →
+                                 flush left, at the score edge. Mirror of home. -->
+                            @if (isT2Winner(game)) { <i class="bi bi-trophy-fill win-trophy" title="Winner" aria-hidden="true"></i> }
                             @if (n2.club && game.t2Id) {
                                 <span class="team-name tn-club club-trigger" role="button" tabindex="0" aria-haspopup="menu"
                                       [attr.aria-expanded]="clubMenu()?.key === game.gid + ':2'"
@@ -1195,6 +1200,25 @@ type ScheduleRow =
             font-weight: 600;
             color: var(--bs-emphasis-color);
         }
+
+        /* Winner trophy (2026-10-04, 4th try). Earlier trophies were glued to the name (moved
+           with every name's length) or sat in the score cell (widened both score tracks on
+           every row). Here it rides the CLUB line at the score-side edge — last on home's
+           right-aligned line, first on away's left-aligned one — so it lands in one fixed
+           column per side, directly above the record pill, and costs no track width. Gold is
+           the only use of --winner-gold on the row. The team link's aria-label already says
+           ", winner", so the glyph is aria-hidden. text-indent: 0 on the icon and its ::before
+           box: away's hanging indent is inherited otherwise (the old empty-badge bug). */
+        .win-trophy,
+        .win-trophy::before {
+            text-indent: 0;
+        }
+        .win-trophy {
+            color: var(--winner-gold);
+            font-size: var(--font-size-xs);
+        }
+        .cell-home .win-trophy { margin-inline-start: var(--space-1); }
+        .cell-away .win-trophy { margin-inline-end: var(--space-1); }
 
         /* Club name → club menu. NOT the dotted underline: that affordance is the team link's
            alone (it opens one team; this opens a list). The always-visible caret is the cue,
