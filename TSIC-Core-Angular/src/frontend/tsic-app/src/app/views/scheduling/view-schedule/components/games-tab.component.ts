@@ -1291,9 +1291,9 @@ type ScheduleRow =
         /* Score pencil — the sole entry point to score entry, sitting in the dash's track.
            Sized to the dash it replaces so the centre spine holds its position whether a row
            is scorable or not, and so a director's ledger has the same column geometry as a
-           parent's. Quiet at rest (secondary ink, no border): 300+ of these run down the
-           middle of the ledger, and a bordered button on every row would out-shout the
-           scores. It lights up on hover/focus, like the date/time edit trigger. */
+           parent's. Secondary ink at rest: 300+ of these run down the middle of the
+           ledger. Framed as a button (2026-10-04): a hairline border on the body
+           surface so it reads as a control, not a stray glyph. Lights up on hover/focus. */
         .score-pencil {
             appearance: none;
             display: inline-flex;
@@ -1302,19 +1302,20 @@ type ScheduleRow =
             width: 22px;
             height: 22px;
             padding: 0;
-            border: none;
+            border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-sm);
-            background: transparent;
+            background: var(--bs-body-bg);
             color: var(--bs-secondary-color);
             font-size: var(--font-size-2xs);
             line-height: 1;
             cursor: pointer;
-            transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s;
         }
 
         .score-pencil:hover {
             opacity: 1;
             background: var(--bs-primary-bg-subtle);
+            border-color: var(--bs-primary);
             color: var(--bs-primary);
         }
 
@@ -1324,24 +1325,11 @@ type ScheduleRow =
             box-shadow: var(--shadow-focus);
         }
 
-        /* Quiet at rest, full strength on row hover — the same bargain as the follow stars,
-           and gated the same way. (hover: hover) is load bearing, not decoration: a touch
-           device never fires row hover, so an ungated dim would leave the ONLY route into
-           score entry permanently faded on a tablet. That is a real case — this grid shows
-           from 768px up, which includes every landscape tablet a director scores from.
-           Pointer devices get the calm ledger; touch devices get a pencil at full strength.
-           Opacity only, never display/visibility: the button must stay focusable. */
-        @media (hover: hover) {
-            .game-row .score-pencil { opacity: 0.55; }
-            .game-row:hover .score-pencil,
-            .game-row .score-pencil:focus-visible { opacity: 1; }
-        }
-
         @media (prefers-reduced-motion: reduce) {
             .score-pencil { transition: none !important; }
         }
 
-                /* base/600, stepped down from lg/700.
+        /* base/600, stepped down from lg/700.
            At lg the score ran 1.5x the body of the row (most cells are xs) and 1.29x the
            team names, with a 300-point weight step on top — two channels pushed at once. It
            earned that while it carried the win cue and was the result-bearing element; the
