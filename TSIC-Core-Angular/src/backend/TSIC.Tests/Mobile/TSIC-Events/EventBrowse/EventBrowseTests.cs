@@ -47,6 +47,49 @@ public class EventBrowseTests
         result[0].JobName.Should().Be("Active");
     }
 
+    [Fact(DisplayName = "Expired job with a game in the past 9 months still listed")]
+    public async Task GetActiveEvents_IncludesExpiredWithRecentGame()
+    {
+        var (svc, b, _) = CreateService();
+        var job = b.AddJob("Finished Cup", "finished-cup", expiry: DateTime.Now.AddDays(-1));
+        AddGameOn(b, job.JobId, DateTime.Now.AddMonths(-8));
+        await b.SaveAsync();
+
+        var result = await svc.GetActiveEventsAsync();
+
+        result.Should().ContainSingle(e => e.JobName == "Finished Cup");
+    }
+
+    [Fact(DisplayName = "Expired job whose last game is older than 9 months excluded")]
+    public async Task GetActiveEvents_ExcludesExpiredWithOldGames()
+    {
+        var (svc, b, _) = CreateService();
+        var job = b.AddJob("Old Cup", "old-cup", expiry: DateTime.Now.AddDays(-1));
+        AddGameOn(b, job.JobId, DateTime.Now.AddMonths(-10));
+        await b.SaveAsync();
+
+        var result = await svc.GetActiveEventsAsync();
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName = "Recent past event still hidden when suspended from the app")]
+    public async Task GetActiveEvents_RecentPastEventSuspended_Excluded()
+    {
+        var (svc, b, _) = CreateService();
+        var job = b.AddJob("Opted Out", "opted-out", expiry: DateTime.Now.AddDays(-1), suspended: true);
+        AddGameOn(b, job.JobId, DateTime.Now.AddMonths(-1));
+        await b.SaveAsync();
+
+        var result = await svc.GetActiveEventsAsync();
+
+        result.Should().BeEmpty();
+    }
+
+    private static void AddGameOn(MobileDataBuilder b, Guid jobId, DateTime gDate) =>
+        b.AddGame(jobId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), gDate);
+
     [Fact(DisplayName = "Suspended job excluded")]
     public async Task GetActiveEvents_ExcludesSuspended()
     {

@@ -29,7 +29,8 @@ public class EventBrowseController : ControllerBase
     }
 
     /// <summary>
-    /// List all active public events (not expired, not suspended, public schedule access enabled).
+    /// List public events for the TSIC-Events app: not suspended, public schedule access enabled, and
+    /// either not expired or last game within the past 9 months.
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(List<EventListingDto>), 200)]
