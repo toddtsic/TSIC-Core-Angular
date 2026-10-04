@@ -745,8 +745,10 @@ type ScheduleRow =
         }
 
         /* Cell common */
+        /* ONE text size for every object in the desktop row: -xs. Hierarchy comes from
+           weight and ink, not size. */
         .cell {
-            font-size: var(--font-size-sm);
+            font-size: var(--font-size-xs);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -1057,8 +1059,6 @@ type ScheduleRow =
         .cell-away {
             display: block;
             min-width: 0;
-            /* Team names at -xs, the age-group label's size (.cell is -sm). */
-            font-size: var(--font-size-xs);
             line-height: 1.35;
             /* MUST be normal, and must stay that way. .cell sets nowrap + overflow: hidden +
                text-overflow: ellipsis for the single-line cells; inheriting that nowrap here
@@ -1309,12 +1309,12 @@ type ScheduleRow =
            min-width equalises the two tracks' min-content contributions, so they stay the
            same width even when (say) every home score is one digit and every away score is
            two — otherwise the 3-track span's geometric centre drifts off the dash and takes
-           the centred "Score" header with it. Two digits at --font-size-base monospace is
-           ~1.2rem and the score sheet caps entry at 99, so 1.75rem is the ceiling plus
-           slack. A floor rather than a fixed width so the tracks still size to their own
-           content when a column happens to be narrower. */
+           the centred "Score" header with it. The score sheet caps entry at 99 and the cell
+           is monospace, so 2ch is exactly two digits at whatever size the cell runs (-xs
+           now). A floor rather than a fixed width so a cell carrying a bracket badge still
+           sizes to badge + gap + number. */
         .cell-t1-score,
-        .cell-t2-score { min-width: 1.75rem; }
+        .cell-t2-score { min-width: 2ch; }
         .cell-t1-score { justify-content: flex-end; }
         .cell-t2-score { justify-content: flex-start; }
 
@@ -1327,6 +1327,7 @@ type ScheduleRow =
         .cell-t2-score .seed-tag {
             margin: 0;
             font-family: var(--bs-body-font-family);
+            font-size: var(--font-size-xs);
         }
         .cell-t1-score .seed-tag { margin-inline-end: auto; }
         .cell-t2-score .seed-tag { margin-inline-start: auto; }
@@ -1410,10 +1411,11 @@ type ScheduleRow =
            changing. base also matches .card-team-score, so the same datum is finally one
            size across both layouts.
 
-           Still the row's numeric focal point: base (1rem) outranks the names at sm and the
-           rest at xs. Weight is the knob to reach for first if it needs more or less. */
+           Now the same -xs as everything else in the row (one size, see .cell). Weight 600 +
+           strong ink keep it the row's numeric focal point; weight is the knob to reach
+           for first if it needs more or less. */
         .score-val {
-            font-size: var(--font-size-base);
+            font-size: var(--font-size-xs);
             font-weight: 600;
             font-variant-numeric: tabular-nums;
             color: var(--score-strong);
@@ -1421,7 +1423,7 @@ type ScheduleRow =
 
         .score-dash {
             color: var(--score-muted);
-            font-size: var(--font-size-sm);
+            font-size: var(--font-size-xs);
         }
 
 
@@ -1440,7 +1442,7 @@ type ScheduleRow =
             flex-shrink: 0;
             border-radius: var(--radius-sm);
             font-family: var(--bs-font-sans-serif, inherit);
-            font-size: var(--font-size-2xs);
+            font-size: var(--font-size-xs);
             font-weight: 700;
             line-height: 1;
             cursor: default;
