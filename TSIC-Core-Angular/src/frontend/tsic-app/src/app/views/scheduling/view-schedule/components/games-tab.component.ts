@@ -38,7 +38,11 @@ type ScheduleRow =
             <!-- ═══════════════════════════════════════════════════════
                  DESKTOP GRID (≥768px) — subgrid "table"; DOM order = visual order.
                  ═══════════════════════════════════════════════════════ -->
-            <div class="games-grid desktop-view" role="table" aria-label="Games schedule">
+            <div class="games-grid desktop-view" role="table" aria-label="Games schedule"
+                 [class.has-seeds]="hasSeeds()">
+                <!-- Bracket badge tracks exist only when some game in the list has a slot
+                     label; every aria-colindex past the home name shifts by sx. -->
+                @let sx = hasSeeds() ? 1 : 0;
                 <!-- Header -->
                 <div class="grid-header" role="row">
                     <span class="hdr hdr-dt" role="columnheader">Date / Time</span>
@@ -158,12 +162,9 @@ type ScheduleRow =
                              name itself (.team-name.is-winner), which is why this cell no
                              longer needs a marker child on either side.
 
-                             The seed tag is NOT part of the run: it is the run's sibling at the
-                             score edge (last here, first on the away side), so both tags hold a
-                             fixed column against the score — "S1 │ 5 – 3 │ S4" — however the
-                             name wraps. See .team-run in the styles. -->
+                             The bracket badge is not in here: it has its own track between the
+                             name and the score (.cell-seed). -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
-                            <span class="team-run">
                             @if (game.t1Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t1Id)"
@@ -184,15 +185,20 @@ type ScheduleRow =
                                 <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</span>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
-                            </span>
-                            @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                         </span>
+
+                        <!-- Home bracket badge — own track (only when the list has any). -->
+                        @if (sx) {
+                            <span class="cell cell-seed" role="cell" aria-colindex="6">
+                                @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
+                            </span>
+                        }
 
                         <!-- Score — three real columns so home/away numbers each stack on
                              their own right edge and the dash sits isolated in the centre
                              track, unable to nudge either number. -->
                         <!-- Home score -->
-                        <span class="cell cell-t1-score" role="cell" aria-colindex="6">
+                        <span class="cell cell-t1-score" role="cell" [attr.aria-colindex]="6 + sx">
                             @if (hasScore(game)) {
                                 <span class="score-val">{{ game.t1Score }}</span>
                             }
@@ -205,7 +211,7 @@ type ScheduleRow =
                              and the pencil then means nothing.
                              The glyph occupies the dash's own isolated min-content track, so
                              swapping one for the other cannot nudge either number. -->
-                        <span class="cell cell-dash" role="cell" aria-colindex="7">
+                        <span class="cell cell-dash" role="cell" [attr.aria-colindex]="7 + sx">
                             @if (canScore()) {
                                 <button type="button" class="score-pencil"
                                         [attr.title]="'Enter score for game #' + game.gid"
@@ -218,7 +224,7 @@ type ScheduleRow =
                             }
                         </span>
                         <!-- Away score -->
-                        <span class="cell cell-t2-score" role="cell" aria-colindex="8">
+                        <span class="cell cell-t2-score" role="cell" [attr.aria-colindex]="8 + sx">
                             @if (hasScore(game)) {
                                 <span class="score-val">{{ game.t2Score }}</span>
                             }
@@ -239,9 +245,13 @@ type ScheduleRow =
                              on the first line, so first-line wins: "the star precedes the
                              team name" is one rule for both sides, and the star is invisible
                              at rest anyway unless the team is followed. -->
-                        <span class="cell cell-away" role="cell" aria-colindex="9">
-                            @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
-                            <span class="team-run">
+                        <!-- Away bracket badge — own track, mirror of the home one. -->
+                        @if (sx) {
+                            <span class="cell cell-seed" role="cell" aria-colindex="10">
+                                @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
+                            </span>
+                        }
+                        <span class="cell cell-away" role="cell" [attr.aria-colindex]="9 + 2 * sx">
                             @if (game.t2Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t2Id)"
@@ -262,11 +272,10 @@ type ScheduleRow =
                                 <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</span>
                             }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
-                            </span>
                         </span>
 
                         <!-- Away season record — own cell, outboard of the name (see home). -->
-                        <span class="cell cell-away-rec" role="cell" aria-colindex="10">
+                        <span class="cell cell-away-rec" role="cell" [attr.aria-colindex]="10 + 2 * sx">
                             @if (game.t2Record && game.t2Id) {
                                 <button type="button" class="record-btn"
                                         [attr.title]="'View ' + game.t2Name + ' results'"
@@ -276,7 +285,7 @@ type ScheduleRow =
                         </span>
 
                         <!-- Status chip -->
-                        <span class="cell cell-status" role="cell" aria-colindex="11">
+                        <span class="cell cell-status" role="cell" [attr.aria-colindex]="11 + 2 * sx">
                             @if (showStatusBadge(game)) {
                                 <span class="status-chip"
                                       [attr.title]="game.gStatusText"
@@ -522,6 +531,29 @@ type ScheduleRow =
             margin: 0 var(--space-2);
         }
 
+        /* Bracket badge tracks, one each side of the score, sized to the widest badge in
+           the list. Every badge then sits centred in a fixed column and every name ends
+           (home) / starts (away) on one line, whether the row's badge is "Q1", "X11" or
+           absent (round-robin rows in a mixed list). Added only when some game carries a
+           slot label: an empty track still costs a column-gap, which would push every
+           round-robin-only list's names away from the score for nothing. */
+        .games-grid.has-seeds {
+            grid-template-columns:
+                max-content             /* date/time   */
+                minmax(0, max-content)  /* location    */
+                max-content             /* pool        */
+                max-content                 /* home record */
+                fit-content(var(--name-col))/* home →      */
+                max-content                 /* home badge  */
+                max-content                 /* home score  */
+                min-content                 /* dash        */
+                max-content                 /* away score  */
+                max-content                 /* away badge  */
+                fit-content(var(--name-col))/* ← away      */
+                max-content                 /* away record */
+                max-content;                /* status      */
+        }
+
         /* Each row inherits parent column sizing via subgrid.
 
            align-items: BASELINE, not center. Cells in this row are not all one line tall:
@@ -577,6 +609,10 @@ type ScheduleRow =
         .hdr-score  { grid-column: span 3; text-align: center; }
         .hdr-away   { grid-column: span 2; text-align: left; }
         .cell-away  { text-align: left; }
+        /* With badge tracks, each side's header also spans its badge. */
+        .has-seeds .hdr-home,
+        .has-seeds .hdr-away { grid-column: span 3; }
+        .cell-seed  { text-align: center; }
         .hdr-status,.cell-status{ text-align: center; }
 
         /* The record pill owns a TRACK of its own, on the OUTER side of each name.
@@ -953,10 +989,11 @@ type ScheduleRow =
 
         /* Bracket slot marker (e.g. "X1", "Q8") so a seeded or still-unresolved bracket slot
            doesn't read like a round-robin game. Neutral + palette-responsive; null slotLabel
-           (round-robin/consolation) renders nothing. In the desktop grid it sits at the score
-           edge of each team cell (see .team-run); in the mobile cards it leads the name.
+           (round-robin/consolation) renders nothing. In the desktop grid it has its own
+           track each side of the score (.cell-seed); in the mobile cards it leads the name.
            text-indent: 0 because an inline-block inherits its parent's text-indent — the away
            cell's hanging indent once pushed the label text out of its own border. */
+        .cell-seed .seed-tag { margin-right: 0; }
         .seed-tag {
             text-indent: 0;
             display: inline-block;
@@ -1028,17 +1065,9 @@ type ScheduleRow =
             .record-btn { transition: none !important; }
         }
 
-        /* Each team cell is a two-item flex row: the seed tag at the SCORE edge, and
-           .team-run filling the rest. The tag never joins the text: inside the run it wrapped
-           onto a line of its own beneath long home names, and drifted to the far end of line
-           one when it led them. As a flex sibling on the cell's FLUSH edge (right for home,
-           left for away) it holds a fixed column against the score however the name wraps —
-           the one place a flex sibling is the right tool (see below for why the star is not).
-           first-baseline alignment sits the tag on the name's first line.
-
-           Inside .team-run: ONE INLINE TEXT RUN, not a flex row. Star, name and annotation
-           flow and wrap together as text. (The record pill is NOT in here; it has its own
-           track. See .cell-home-rec.)
+        /* ONE INLINE TEXT RUN, not a flex row. Star, name and annotation flow and wrap
+           together as text. (The record pill and the bracket badge are NOT in here; each has
+           its own track. See .cell-home-rec and .games-grid.has-seeds.)
 
            Flex was the wrong container the moment names started wrapping, and it failed twice
            the same way. A flex item anchors to the NAME ELEMENT's edge, but a wrapped name's
@@ -1064,9 +1093,7 @@ type ScheduleRow =
            it reading low on the baseline, which is the reason flex was reached for. */
         .cell-home,
         .cell-away {
-            display: flex;
-            align-items: first baseline;
-            gap: var(--space-1);
+            display: block;
             min-width: 0;
             /* Team names at -xs, the age-group label's size (.cell is -sm). */
             font-size: var(--font-size-xs);
@@ -1087,18 +1114,6 @@ type ScheduleRow =
             text-overflow: clip;
         }
 
-        .team-run {
-            display: block;
-            flex: 1 1 auto;
-            min-width: 0;
-        }
-
-        .cell-home .seed-tag,
-        .cell-away .seed-tag {
-            flex: none;
-            margin: 0;
-        }
-
         /* HANGING INDENT — away side only.
 
            The star is the first thing in this cell, so it occupies the start of line one.
@@ -1115,10 +1130,9 @@ type ScheduleRow =
            is already flush on the right and the star simply extends line one further left —
            which is what a ragged left edge is supposed to do.
 
-           Applied to the RUN, not the cell, so the seed tag (outside the run) is untouched by
-           it. One known imperfection, rare and better than the outdent: an unresolved feed
+           One known imperfection, rare and better than the outdent: an unresolved feed
            renders no star at all, leaving its line one outdented by the footprint. */
-        .cell-away .team-run {
+        .cell-away {
             /* .team-star is an 18px box with margin: 0 4px */
             --star-footprint: 26px;
             padding-inline-start: var(--star-footprint);
@@ -1712,6 +1726,9 @@ export class GamesTabComponent {
 
     // ── Derived ──
     private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
+
+    /** Any bracket game in the list → the grid gets its two badge tracks (.has-seeds). */
+    readonly hasSeeds = computed(() => this.games().some(g => !!g.t1SlotLabel || !!g.t2SlotLabel));
 
     /** Games interleaved with day datelines — the Broadsheet grouping (see ScheduleRow).
      *  Two passes: count games per day, then emit a `day` row at each date change. */
