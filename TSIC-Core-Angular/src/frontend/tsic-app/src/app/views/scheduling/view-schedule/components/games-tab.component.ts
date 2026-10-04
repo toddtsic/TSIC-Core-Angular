@@ -156,9 +156,12 @@ type ScheduleRow =
 
                              The win cue is not here at all — it is a gold underline on the
                              name itself (.team-name.is-winner), which is why this cell no
-                             longer needs a marker child on either side. -->
+                             longer needs a marker child on either side.
+
+                             The seed tag comes LAST here (first on the away side): the cell is
+                             right-aligned, so the end of the run is the score edge, and the two
+                             tags then sit either side of the score as a pair — "S1 │ 5 – 3 │ S4". -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
-                            @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             @if (game.t1Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t1Id)"
@@ -179,6 +182,7 @@ type ScheduleRow =
                                 <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ teamLabel(game.t1Name) }}</span>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
+                            @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                         </span>
 
                         <!-- Score — three real columns so home/away numbers each stack on
@@ -942,9 +946,15 @@ type ScheduleRow =
             min-width: 0;
         }
 
-        /* Bracket slot marker (e.g. "X1", "Q8") shown before the team name so a seeded or
-           still-unresolved bracket slot doesn't read like a round-robin game. Neutral +
-           palette-responsive; null slotLabel (round-robin/consolation) renders nothing. */
+        /* Bracket slot marker (e.g. "X1", "Q8") on the score side of each team name so a
+           seeded or still-unresolved bracket slot doesn't read like a round-robin game, and
+           the two slots read as a pair across the score. Neutral + palette-responsive; null
+           slotLabel (round-robin/consolation) renders nothing. Home trails its name, so its
+           gap goes on the left; away (and the mobile cards) lead, so theirs is on the right. */
+        .cell-home .seed-tag {
+            margin-right: 0;
+            margin-left: var(--space-1);
+        }
         .seed-tag {
             display: inline-block;
             padding: 0 var(--space-1);
