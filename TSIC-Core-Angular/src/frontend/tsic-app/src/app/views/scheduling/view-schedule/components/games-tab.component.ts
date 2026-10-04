@@ -508,8 +508,15 @@ type ScheduleRow =
                have traded a layout problem for a data-loss one.
 
                Raise it to widen the ledger and wrap fewer names; lower it to tighten the
-               band and wrap more. Nothing else depends on the value. */
-            --name-col: 17rem;
+               band and wrap more. Nothing else depends on the value.
+
+               RE-MEASURED 2026-10-04 for the two-line name (club over team + record pill) at
+               -xs: 3,236 distinct 2026 names, widest LINE = max(club, team + ~7 for the pill):
+               p50 = 21 characters, p75 = 26, p90 = 31, p99 = 37, max = 48. At -xs (~6px a
+               character) the old 17rem held ~45 characters and so never bound — the track
+               grew to the longest name in the list and the slack pooled left of every home
+               name. 11rem holds ~29 characters, about the 85th percentile; longer lines wrap. */
+            --name-col: 11rem;
             grid-template-columns:
                 max-content             /* date/time   */
                 minmax(0, max-content)  /* location    */
