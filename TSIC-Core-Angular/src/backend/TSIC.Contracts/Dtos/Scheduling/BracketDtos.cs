@@ -67,13 +67,6 @@ public record TeamSeedIdentity
     public required Guid? ClubrepRegistrationid { get; init; }
 }
 
-/// <summary>Target division for a dev-only bracket exercise action.</summary>
-public record BracketDevActionRequest
-{
-    public required Guid AgegroupId { get; init; }
-    public required Guid DivId { get; init; }
-}
-
 /// <summary>Target agegroup for a dev-only agegroup-scope revert.</summary>
 public record AgegroupScopeRequest
 {

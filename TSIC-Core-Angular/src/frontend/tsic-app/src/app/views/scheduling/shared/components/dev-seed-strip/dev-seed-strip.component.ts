@@ -20,8 +20,8 @@ export interface DevStripAction {
 }
 
 /**
- * Presentational DEV strip shared by the division panel (bracket-dev-tools) and the
- * reseeding-event panel (event-seed-tools) — the same tool at two scopes. Owns the shell,
+ * Presentational DEV strip for the View Schedule age-group seed tools (event-seed-tools).
+ * Owns the shell,
  * the busy spinner, and the destructive-action confirm; the parent owns the async calls,
  * passes busy/result/error state down, and receives the action key back through (action).
  * The lead paragraph is projected so each parent supplies its own rich-text copy.

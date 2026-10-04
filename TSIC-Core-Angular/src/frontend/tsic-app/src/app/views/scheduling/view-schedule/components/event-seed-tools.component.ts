@@ -1,6 +1,6 @@
 import { Component, ChangeDetectionStrategy, computed, inject, input, output, signal } from '@angular/core';
 import { environment } from '@environments/environment';
-import { BracketDevToolsService } from '../../bracket-dev-tools/services/bracket-dev-tools.service';
+import { BracketDevToolsService } from '../services/bracket-dev-tools.service';
 import { DevSeedStripComponent, type DevStripAction } from '../../shared/components/dev-seed-strip/dev-seed-strip.component';
 import type { BracketDevActionResult } from '@core/api';
 

@@ -164,14 +164,6 @@ public interface IScheduleRepository
     Task<List<Schedule>> GetGamesByIdsAsync(List<int> gids, CancellationToken ct = default);
 
     /// <summary>
-    /// All games in a single division (tracked for batch mutation). Unlike the
-    /// grid/filter reads this does not require a scheduled date — used by dev-only
-    /// bracket exercise tools that clear/auto-score a whole division.
-    /// </summary>
-    Task<List<Schedule>> GetDivisionGamesTrackedAsync(
-        Guid jobId, Guid agegroupId, Guid divId, CancellationToken ct = default);
-
-    /// <summary>
     /// All games in a single agegroup — every pool across its divisions plus its
     /// championship (bracket) games (tracked for batch mutation). Used by dev-only
     /// scope-revert to reset an agegroup back to unplayed.

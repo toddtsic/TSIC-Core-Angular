@@ -124,7 +124,6 @@ export type { BatchShiftRequest } from './models/BatchShiftRequest';
 export type { BatchUpdateBulletinStatusRequest } from './models/BatchUpdateBulletinStatusRequest';
 export type { BatchUpdateStatusRequest } from './models/BatchUpdateStatusRequest';
 export type { BillingTypeRefDto } from './models/BillingTypeRefDto';
-export type { BracketDevActionRequest } from './models/BracketDevActionRequest';
 export type { BracketDevActionResult } from './models/BracketDevActionResult';
 export type { BracketMatchDto } from './models/BracketMatchDto';
 export type { BracketQaFinding } from './models/BracketQaFinding';

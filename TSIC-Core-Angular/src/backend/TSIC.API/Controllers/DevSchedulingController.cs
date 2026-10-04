@@ -63,33 +63,6 @@ public class DevSchedulingController : ControllerBase
 
     // ── Bracket exercise tools (sandbox-only; never reachable in live Production) ──
 
-    /// <summary>POST /api/dev-scheduling/bracket/clear-scores — wipe a division back to
-    /// "pools scheduled, brackets empty" so seeding can be re-run from scratch.</summary>
-    [HttpPost("bracket/clear-scores")]
-    [ProducesResponseType<BracketDevActionResult>(200)]
-    public Task<ActionResult<BracketDevActionResult>> BracketClearScores(
-        [FromBody] BracketDevActionRequest req, CancellationToken ct) =>
-        RunBracketToolAsync((jobId, userId) =>
-            _bracketDevTools.ClearDivisionScoresAsync(jobId, req.AgegroupId, req.DivId, userId, ct));
-
-    /// <summary>POST /api/dev-scheduling/bracket/auto-score-pool — decisively score every
-    /// unscored pool game so completed pools lock standings and seeds resolve.</summary>
-    [HttpPost("bracket/auto-score-pool")]
-    [ProducesResponseType<BracketDevActionResult>(200)]
-    public Task<ActionResult<BracketDevActionResult>> BracketAutoScorePool(
-        [FromBody] BracketDevActionRequest req, CancellationToken ct) =>
-        RunBracketToolAsync((jobId, userId) =>
-            _bracketDevTools.AutoScorePoolAsync(jobId, req.AgegroupId, req.DivId, userId, ct));
-
-    /// <summary>POST /api/dev-scheduling/bracket/auto-score-round — decisively score every
-    /// ready bracket game so winners advance one round.</summary>
-    [HttpPost("bracket/auto-score-round")]
-    [ProducesResponseType<BracketDevActionResult>(200)]
-    public Task<ActionResult<BracketDevActionResult>> BracketAutoScoreRound(
-        [FromBody] BracketDevActionRequest req, CancellationToken ct) =>
-        RunBracketToolAsync((jobId, userId) =>
-            _bracketDevTools.AutoScoreBracketRoundAsync(jobId, req.AgegroupId, req.DivId, userId, ct));
-
     /// <summary>POST /api/dev-scheduling/bracket/auto-score-pool-job — score every unscored
     /// pool game in the event. Each score fires job-wide seed resolution, so completing the
     /// pools reseeds the championship agegroups automatically (reseeding-tournament flow).</summary>
@@ -127,8 +100,6 @@ public class DevSchedulingController : ControllerBase
             _bracketDevTools.AutoScoreBracketRoundAgegroupAsync(jobId, req.AgegroupId, userId, ct));
 
     // ── Scope-ascending revert (reset-to-unplayed) ──
-    // Division scope is the existing bracket/clear-scores endpoint (now also resets
-    // the agegroup's championship games per the cross-pool seed caveat).
 
     /// <summary>POST /api/dev-scheduling/bracket/revert-agegroup — reset an entire
     /// agegroup (all pools + championship games) to unplayed.</summary>

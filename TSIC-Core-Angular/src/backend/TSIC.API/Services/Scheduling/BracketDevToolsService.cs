@@ -50,22 +50,6 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
     private static bool IsPoolGame(Schedule g) =>
         g.T1Type == GameRoundTypes.RoundRobin && g.T2Type == GameRoundTypes.RoundRobin;
 
-    public async Task<BracketDevActionResult> ClearDivisionScoresAsync(
-        Guid jobId, Guid agegroupId, Guid divId, string userId, CancellationToken ct = default)
-    {
-        // A division revert must ALSO reset the agegroup's championship games: those
-        // seed cross-pool from this division, so leaving them scored would strand
-        // teams seeded off the standings we're erasing. Fetch the whole agegroup and
-        // reset this division's games plus every bracket game in the agegroup.
-        var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
-        var scope = games.Where(g => g.DivId == divId || IsBracketGame(g)).ToList();
-        var affected = await ResetGamesAsync(scope, userId, ct);
-        _logger.LogWarning(
-            "DEV revert (division) — job {JobId} div {DivId}: {N} game(s) reset (incl. agegroup brackets).",
-            jobId, divId, affected);
-        return BuildRevertResult(affected, "division");
-    }
-
     public async Task<BracketDevActionResult> ClearAgegroupScoresAsync(
         Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default)
     {
@@ -167,52 +151,6 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
             ? $"Nothing to clear — {scope} already unplayed."
             : $"Reset {affected} game(s) to unplayed; bracket slots blanked, ready to re-seed."
     };
-
-    public async Task<BracketDevActionResult> AutoScorePoolAsync(
-        Guid jobId, Guid agegroupId, Guid divId, string userId, CancellationToken ct = default)
-    {
-        var games = await _scheduleRepo.GetDivisionGamesTrackedAsync(jobId, agegroupId, divId, ct);
-        var targets = games
-            .Where(g => IsPoolGame(g)
-                     && g.T1Id != null && g.T2Id != null
-                     && (g.T1Score == null || g.T2Score == null))
-            .ToList();
-
-        var scored = await ScoreEachAsync(jobId, userId, targets, ct);
-        _logger.LogWarning(
-            "DEV bracket auto-score-pool — job {JobId} div {DivId}: {N} game(s) scored.", jobId, divId, scored);
-
-        return new BracketDevActionResult
-        {
-            GamesAffected = scored,
-            Message = scored == 0
-                ? "No unscored pool games in this division."
-                : $"Auto-scored {scored} pool game(s) with random scores. Completed pools lock standings → bracket seeds resolve."
-        };
-    }
-
-    public async Task<BracketDevActionResult> AutoScoreBracketRoundAsync(
-        Guid jobId, Guid agegroupId, Guid divId, string userId, CancellationToken ct = default)
-    {
-        var games = await _scheduleRepo.GetDivisionGamesTrackedAsync(jobId, agegroupId, divId, ct);
-        var targets = games
-            .Where(g => IsBracketGame(g)
-                     && g.T1Id != null && g.T2Id != null
-                     && (g.T1Score == null || g.T2Score == null))
-            .ToList();
-
-        var scored = await ScoreEachAsync(jobId, userId, targets, ct);
-        _logger.LogWarning(
-            "DEV bracket auto-score-round — job {JobId} div {DivId}: {N} game(s) scored.", jobId, divId, scored);
-
-        return new BracketDevActionResult
-        {
-            GamesAffected = scored,
-            Message = scored == 0
-                ? "No bracket games are ready — seed the pools first (auto-score pool)."
-                : $"Auto-scored {scored} ready bracket game(s) with random decisive scores. Winners advanced to the next round."
-        };
-    }
 
     public async Task<BracketDevActionResult> AutoScorePoolJobAsync(
         Guid jobId, string userId, CancellationToken ct = default)

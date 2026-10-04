@@ -628,14 +628,6 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ToListAsync(ct);
     }
 
-    public async Task<List<Domain.Entities.Schedule>> GetDivisionGamesTrackedAsync(
-        Guid jobId, Guid agegroupId, Guid divId, CancellationToken ct = default)
-    {
-        return await _context.Schedule
-            .Where(s => s.JobId == jobId && s.AgegroupId == agegroupId && s.DivId == divId)
-            .ToListAsync(ct);
-    }
-
     public async Task<List<Domain.Entities.Schedule>> GetAgegroupGamesTrackedAsync(
         Guid jobId, Guid agegroupId, CancellationToken ct = default)
     {

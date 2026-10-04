@@ -44,7 +44,6 @@ import { ManagePairingsComponent } from '../pairings/manage-pairings.component';
 import { ManageTimeslotsComponent } from '../timeslots/manage-timeslots.component';
 import { PoolAssignmentComponent } from '../../ladt/pool-assignment/pool-assignment.component';
 import { BracketSeedsComponent } from '../bracket-seeds/bracket-seeds.component';
-import { BracketDevToolsComponent } from '../bracket-dev-tools/bracket-dev-tools.component';
 import { MasterScheduleComponent } from '../master-schedule/master-schedule.component';
 import { QaResultsComponent } from '../qa-results/qa-results.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
@@ -65,7 +64,7 @@ const AUTO_SEED_FROM_PRIOR_ON_INIT = false;
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, BracketDevToolsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent, ChecklistBackLinkComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent,MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent, ChecklistBackLinkComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
