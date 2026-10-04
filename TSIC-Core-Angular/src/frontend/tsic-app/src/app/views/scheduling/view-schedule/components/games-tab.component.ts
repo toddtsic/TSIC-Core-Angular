@@ -163,13 +163,14 @@ type ScheduleRow =
                             }
                             @if (game.t1Id) {
                                 <span class="team-name team-link" role="button" tabindex="0"
+                                      [class.tn-club]="!!n1.club"
                                       [attr.title]="'View ' + game.t1Name + ' results'"
                                       [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t1Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t1Id!)"
                                       (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ n1.club ?? n1.team }}</span>
                             } @else {
-                                <span class="team-name">{{ n1.club ?? n1.team }}</span>
+                                <span class="team-name" [class.tn-club]="!!n1.club">{{ n1.club ?? n1.team }}</span>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                             @if (n1.club || r1) { <br> }
@@ -253,13 +254,14 @@ type ScheduleRow =
                             }
                             @if (game.t2Id) {
                                 <span class="team-name team-link" role="button" tabindex="0"
+                                      [class.tn-club]="!!n2.club"
                                       [attr.title]="'View ' + game.t2Name + ' results'"
                                       [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t2Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t2Id!)"
                                       (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ n2.club ?? n2.team }}</span>
                             } @else {
-                                <span class="team-name">{{ n2.club ?? n2.team }}</span>
+                                <span class="team-name" [class.tn-club]="!!n2.club">{{ n2.club ?? n2.team }}</span>
                             }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             @if (n2.club || r2) { <br> }
@@ -1088,6 +1090,16 @@ type ScheduleRow =
            teamParts) → line one is the whole name, line two only the pill. */
         .tn-team {
             color: var(--bs-secondary-color);
+        }
+
+        /* Club line (2026-10-04): semibold in emphasis ink — --bs-emphasis-color flips
+           near-black / near-white with the theme, so the club stands a step above the
+           secondary-ink team line in both modes with no per-theme rule. Bound only when the
+           name actually split (n.club), so a club-less name never wears club styling.
+           Bold is free for this since the win cue was retired. */
+        .tn-club {
+            font-weight: 600;
+            color: var(--bs-emphasis-color);
         }
 
         /* Team name → team-results modal, the same viewTeamResults target the record
