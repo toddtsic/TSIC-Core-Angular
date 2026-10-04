@@ -1762,18 +1762,24 @@ export class GamesTabComponent {
      * screen readers, and anyone matching against what the club typed still see it verbatim.
      * Fixing it in the data would touch every consumer of T1Name (brackets, standings, team
      * results) and rewrite what directors entered; this stays in the one view that suffers.
+     *
+     * Each part is also trimmed. Legacy rows were composed from club names carrying a
+     * trailing space ("Prime Time :2029"); the write path trims now (ComposeTeamLabel in
+     * ScheduleRepository), but the stored legacy text still has it.
      */
     teamLabel(name: string | null | undefined, slotLabel?: string | null): string {
-        const raw = this.stripSlotSuffix(name ?? '', slotLabel);
+        const raw = this.stripSlotSuffix(name ?? '', slotLabel).trim();
         const sep = raw.indexOf(':');
         if (sep <= 0) return raw;
-        const club = raw.slice(0, sep);
-        const team = raw.slice(sep + 1);
-        if (!team.toLowerCase().startsWith(club.toLowerCase())) return raw;
+        const club = raw.slice(0, sep).trim();
+        const team = raw.slice(sep + 1).trim();
+        if (!club) return team;
+        if (!team) return club;
+        if (!team.toLowerCase().startsWith(club.toLowerCase())) return `${club}:${team}`;
         // Drop the echoed club plus whatever joins it to the real name ("-", " ", "/", ":").
         const rest = team.slice(club.length).replace(/^[\s\-–—:_/|]+/, '').trim();
-        // Team named EXACTLY after its club has nothing left to show — keep it verbatim.
-        return rest ? `${club}:${rest}` : raw;
+        // Team named EXACTLY after its club has nothing left to show — keep it as stored.
+        return `${club}:${rest || team}`;
     }
 
     /**
