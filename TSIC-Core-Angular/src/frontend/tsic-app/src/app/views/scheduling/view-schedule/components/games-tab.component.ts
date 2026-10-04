@@ -773,7 +773,8 @@ type ScheduleRow =
         }
 
         .dt-date {
-            font-weight: 600;
+            /* Regular weight: bold in the row is reserved for the winner. */
+            font-weight: 400;
             font-size: var(--font-size-xs);
             color: var(--bs-body-color);
         }
@@ -908,7 +909,8 @@ type ScheduleRow =
             text-overflow: ellipsis;
             white-space: nowrap;
             font-size: var(--font-size-xs);
-            font-weight: 600;
+            /* Regular weight: bold in the row is reserved for the winner. */
+            font-weight: 400;
         }
 
         /* Mobile card: dot + label travel together inside the card's top row. */
@@ -1269,8 +1271,9 @@ type ScheduleRow =
         .cell-t1-score,
         .cell-dash,
         .cell-t2-score {
+            /* Body face, not monospace — tabular-nums already gives equal-width digits,
+               and bold monospace read as a lone typewriter face in the row. */
             font-variant-numeric: tabular-nums;
-            font-family: var(--bs-font-monospace);
             white-space: nowrap;
             line-height: 1.1;
             display: flex;
@@ -1631,7 +1634,6 @@ type ScheduleRow =
             font-size: var(--font-size-base);
             font-weight: 700;
             font-variant-numeric: tabular-nums;
-            font-family: var(--bs-font-monospace);
             min-width: 2ch;
             text-align: center;
             color: var(--score-strong);
