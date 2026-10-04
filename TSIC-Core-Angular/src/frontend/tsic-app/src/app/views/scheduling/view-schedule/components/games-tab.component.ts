@@ -141,14 +141,11 @@ type ScheduleRow =
                              stranding the star ~90px away. Inline content has no element edge
                              to anchor to.
 
-                             Win cue: the winning club name is semibold (.team-name.is-winner),
-                             paired with the bold winning score.
-
                              The bracket badge is not in here: it rides in the score cell, on
                              the name side (see Score below).
 
-                             TWO LINES (see .tn-team): line one is the club — the link, carrying
-                             the win cue; line two is the team, then the season-record pill at
+                             TWO LINES (see .tn-team): line one is the club — the link; line
+                             two is the team, then the season-record pill at
                              the score-side edge (flush right here, flush left on away). With no
                              club to split off, line one is the whole name and line two holds
                              only the pill. The pill sits OUTSIDE the link span: a button inside
@@ -166,14 +163,13 @@ type ScheduleRow =
                             }
                             @if (game.t1Id) {
                                 <span class="team-name team-link" role="button" tabindex="0"
-                                      [class.is-winner]="isT1Winner(game)"
                                       [attr.title]="'View ' + game.t1Name + ' results'"
                                       [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t1Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t1Id!)"
                                       (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ n1.club ?? n1.team }}</span>
                             } @else {
-                                <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ n1.club ?? n1.team }}</span>
+                                <span class="team-name">{{ n1.club ?? n1.team }}</span>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                             @if (n1.club || r1) { <br> }
@@ -193,15 +189,12 @@ type ScheduleRow =
                              Each score cell also carries its team's bracket badge, on the
                              OUTER edge: flush left for home, flush right for away. Badges and
                              numbers then read as one matchup block — "Q1  4 – 7  Q8" — with
-                             each badge in a straight column against its team's name.
-
-                             A decided game shows the winning number bold, the losing one at
-                             regular weight in secondary ink (.score-val.is-won / .is-lost). -->
+                             each badge in a straight column against its team's name. -->
                         <!-- Home score -->
                         <span class="cell cell-t1-score" role="cell" aria-colindex="5">
                             @if (game.t1SlotLabel) { <span class="seed-tag"><span class="visually-hidden">slot </span>{{ game.t1SlotLabel }}</span> }
                             @if (hasScore(game)) {
-                                <span class="score-val" [class.is-won]="isT1Winner(game)" [class.is-lost]="isT2Winner(game)">{{ game.t1Score }}</span>
+                                <span class="score-val">{{ game.t1Score }}</span>
                             }
                         </span>
                         <!-- Centre track — the dash for everyone, a PENCIL for anyone who can
@@ -227,7 +220,7 @@ type ScheduleRow =
                         <!-- Away score -->
                         <span class="cell cell-t2-score" role="cell" aria-colindex="7">
                             @if (hasScore(game)) {
-                                <span class="score-val" [class.is-won]="isT2Winner(game)" [class.is-lost]="isT1Winner(game)">{{ game.t2Score }}</span>
+                                <span class="score-val">{{ game.t2Score }}</span>
                             }
                             @if (game.t2SlotLabel) { <span class="seed-tag"><span class="visually-hidden">slot </span>{{ game.t2SlotLabel }}</span> }
                         </span>
@@ -260,14 +253,13 @@ type ScheduleRow =
                             }
                             @if (game.t2Id) {
                                 <span class="team-name team-link" role="button" tabindex="0"
-                                      [class.is-winner]="isT2Winner(game)"
                                       [attr.title]="'View ' + game.t2Name + ' results'"
                                       [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t2Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t2Id!)"
                                       (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ n2.club ?? n2.team }}</span>
                             } @else {
-                                <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ n2.club ?? n2.team }}</span>
+                                <span class="team-name">{{ n2.club ?? n2.team }}</span>
                             }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             @if (n2.club || r2) { <br> }
@@ -342,9 +334,7 @@ type ScheduleRow =
                         <div class="card-teams">
                         <div class="card-teams-rows">
 
-                        <!-- Team 1 (Home): full-width row, score right-aligned.
-                             The win cue matches the desktop grid (one language across both
-                             layouts): winner bold, loser's score muted. -->
+                        <!-- Team 1 (Home): full-width row, score right-aligned. -->
                         <div class="card-team-row">
                             <span class="card-team-name">
                                 @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
@@ -358,12 +348,11 @@ type ScheduleRow =
                                 }
                                 @if (game.t1Id) {
                                     <button type="button" class="team-name team-link"
-                                            [class.is-winner]="isT1Winner(game)"
                                             [attr.title]="'View ' + game.t1Name + ' results'"
                                             [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
                                             (click)="viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</button>
                                 } @else {
-                                    <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</span>
+                                    <span class="team-name">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</span>
                                 }
                                 @if (game.t1Record && game.t1Id) {
                                     <button type="button" class="record-btn"
@@ -373,7 +362,7 @@ type ScheduleRow =
                                 }
                                 @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                             </span>
-                            <span class="card-team-score" [class.is-won]="isT1Winner(game)" [class.is-lost]="isT2Winner(game)">
+                            <span class="card-team-score">
                                 {{ hasScore(game) ? game.t1Score : '' }}
                             </span>
                         </div>
@@ -392,12 +381,11 @@ type ScheduleRow =
                                 }
                                 @if (game.t2Id) {
                                     <button type="button" class="team-name team-link"
-                                            [class.is-winner]="isT2Winner(game)"
                                             [attr.title]="'View ' + game.t2Name + ' results'"
                                             [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
                                             (click)="viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</button>
                                 } @else {
-                                    <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</span>
+                                    <span class="team-name">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</span>
                                 }
                                 @if (game.t2Record && game.t2Id) {
                                     <button type="button" class="record-btn"
@@ -407,7 +395,7 @@ type ScheduleRow =
                                 }
                                 @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             </span>
-                            <span class="card-team-score" [class.is-won]="isT2Winner(game)" [class.is-lost]="isT1Winner(game)">
+                            <span class="card-team-score">
                                 {{ hasScore(game) ? game.t2Score : '' }}
                             </span>
                         </div>
@@ -650,25 +638,6 @@ type ScheduleRow =
             min-height: 36px;
         }
 
-        /* ── Win cue: WEIGHT + INK, the results-table convention ──
-           Winner: bold score in strong ink, club name semibold. Loser: score at regular
-           weight in secondary ink (still fully legible — muted, not hidden); name unchanged.
-           Tie or unplayed: both sides identical.
-
-           Tried and dropped on the way here (2026-10-04): a gold trophy glued to the name
-           (position moved with every name's length), a trophy beside the score (widened both
-           score tracks on every row, tied and unplayed included), a gold tile behind the
-           winning score (a tint that vanished on dark rows). Weight and theme ink tokens
-           cost no width and hold in both themes.
-
-           The name's aria-label (", winner") carries the result for screen readers; the
-           digits carry it in greyscale. */
-        .score-val.is-won,
-        .card-team-score.is-won { font-weight: 700; color: var(--score-strong); }
-        .score-val.is-lost,
-        .card-team-score.is-lost { font-weight: 400; color: var(--bs-secondary-color); }
-        .team-name.is-winner { font-weight: 600; }
-
         .row-even       { --row-surface: var(--bs-tertiary-bg); }
         .game-row:hover { --row-surface: var(--bs-secondary-bg); }
         .row-dimmed     { opacity: 0.5; }
@@ -773,7 +742,7 @@ type ScheduleRow =
         }
 
         .dt-date {
-            /* Regular weight: bold in the row is reserved for the winner. */
+            /* Regular weight (2026-10-04). */
             font-weight: 400;
             font-size: var(--font-size-xs);
             color: var(--bs-body-color);
@@ -909,7 +878,7 @@ type ScheduleRow =
             text-overflow: ellipsis;
             white-space: nowrap;
             font-size: var(--font-size-xs);
-            /* Regular weight: bold in the row is reserved for the winner. */
+            /* Regular weight (2026-10-04). */
             font-weight: 400;
         }
 
@@ -977,7 +946,7 @@ type ScheduleRow =
                The pill border already marks it as its own object. */
             font-weight: 400;
             line-height: 1.5;
-            /* Always muted, for BOTH teams — deliberately not inheriting is-won. The record
+            /* Always muted, for BOTH teams — never bold. The record
                is a season stat and a control; it says nothing about who won this game, so
                it stays out of the winner's ink budget. The border keeps the affordance. */
             color: var(--score-muted);
@@ -1109,7 +1078,7 @@ type ScheduleRow =
         }
 
         /* Two-line name (desktop grid): club on line one in body ink — it is the link span,
-           carrying the underline and the win cue; team on line two in secondary ink, outside
+           carrying the underline; team on line two in secondary ink, outside
            the link, followed (home) or preceded (away) by the record pill. The row is already
            two lines tall (date over time), so the second line costs no height, and the name
            track only has to fit the longer line instead of club + ":" + team.
@@ -1156,11 +1125,6 @@ type ScheduleRow =
             box-shadow: var(--shadow-focus);
             border-radius: var(--radius-sm);
         }
-
-        /* Result typography is BACK (2026-10-04) as the sole win cue: bold winning score and
-           semibold winning club name, muted losing score — see "Win cue" further up. It
-           replaced a run of gold marks (underline, trophy, tile) that either moved with
-           name length, cost width, or vanished in dark mode. */
 
         /* Team star — follow/unfollow shortcut. Black-tie: the filled (followed) state
            is strong ink (black in light, white in dark — --score-strong flips with the
@@ -1377,10 +1341,7 @@ type ScheduleRow =
             .score-pencil { transition: none !important; }
         }
 
-        /* Resting score (tie / unplayed / no result): weight 600, strong ink. A decided game
-           steps the winner up to 700 and the loser down to 400 secondary ink
-           (.score-val.is-won / .is-lost, "Win cue" further up). */
-        /* base/600, stepped down from lg/700.
+                /* base/600, stepped down from lg/700.
            At lg the score ran 1.5x the body of the row (most cells are xs) and 1.29x the
            team names, with a 300-point weight step on top — two channels pushed at once. It
            earned that while it carried the win cue and was the result-bearing element; the
@@ -1626,9 +1587,7 @@ type ScheduleRow =
             min-width: 0;
         }
 
-        /* Bold strong figure at rest. The win cue is the same as the desktop grid — one
-           language across both layouts: a decided game keeps the winner bold and drops the
-           loser to regular weight in secondary ink (.card-team-score.is-lost). */
+        /* Bold strong figure. No win cue — both scores identical. */
         .card-team-score {
             flex-shrink: 0;
             font-size: var(--font-size-base);
