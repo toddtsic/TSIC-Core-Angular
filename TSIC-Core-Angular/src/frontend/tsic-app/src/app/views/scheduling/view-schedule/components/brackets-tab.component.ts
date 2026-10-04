@@ -52,7 +52,7 @@ interface BracketNode {
     locationTime: string | null;
     fieldId: string | null;
     roundType: string;
-    isPlaceholder?: boolean;
+    isBye?: boolean;
 }
 
 @Component({
@@ -612,31 +612,34 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
             locationTime: m.locationTime ?? null,
             fieldId: m.fieldId ?? null,
             roundType: m.roundType,
-            isPlaceholder: false
+            isBye: false
         }));
 
-        // ── Inject placeholder nodes for balanced tree layout (legacy algorithm) ──
-        // For each parent with only 1 child, unshift a blank sibling to the front
-        // so it renders ABOVE the real game in the tree (exactly like legacy)
+        // ── Inject bye nodes for balanced tree layout (legacy algorithm) ──
+        // A parent with only 1 child has a team that advanced without playing. Unshift a
+        // synthetic sibling ABOVE the real game (exactly like legacy) and render it as that
+        // team's bye card (like TSIC-Events) rather than a blank box.
         const gamesClone = [...games];
         for (const g of gamesClone) {
             if (g.parentGid == null) continue;
             const siblings = games.filter(s => s.parentGid === g.parentGid);
             if (siblings.length === 1) {
+                const parent = gamesClone.find(p => p.gid === g.parentGid);
+                const bye = parent ? this.byeTeamOf(parent, g) : { name: '', id: null };
                 games.unshift({
                     gid: -g.parentGid,
                     parentGid: g.parentGid,
-                    t1Name: '', t2Name: '',
-                    t1Id: null, t2Id: null,
+                    t1Name: bye.name, t2Name: 'BYE',
+                    t1Id: bye.id, t2Id: null,
                     t1Score: null, t2Score: null,
                     t1Css: 'pending', t2Css: 'pending',
                     locationTime: null, fieldId: null, roundType: '',
-                    isPlaceholder: true
+                    isBye: true
                 });
             }
         }
 
-        // ── Compute dynamic height from leaf count (including placeholders) ──
+        // ── Compute dynamic height from leaf count (including byes) ──
         const nodeHeight = 80;
         const verticalSpacing = 16;
         const parentGids = new Set(games.map(g => g.parentGid).filter(Boolean));
@@ -728,11 +731,23 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
                 const data = node.data as BracketNode | undefined;
                 if (!data) return;
 
-                // Placeholder: empty card that reserves layout space (like legacy)
-                if (data.isPlaceholder) {
+                // Bye: the advancing team on one line with a BYE tag where the score sits
+                // (like TSIC-Events). No location, no score, no pencil — nothing was played.
+                if (data.isBye) {
+                    const byeBold = data.t1Id && this.followedSet().has(data.t1Id) ? 'font-weight:700;' : '';
+                    const byeNameHtml = data.t1Id
+                        ? `<span data-team-id="${data.t1Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;${byeBold}">${this.escapeHtml(data.t1Name)}</span>`
+                        : `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;${byeBold}">${this.escapeHtml(data.t1Name)}</span>`;
                     node.shape = {
                         type: 'HTML',
-                        content: `<div style="background:var(--bs-body-bg);border:1px dashed var(--bs-border-color);border-radius:6px;width:100%;height:100%;box-sizing:border-box;opacity:0.4;"></div>`
+                        content: `
+                            <div style="background:${cardBg};border:1px solid var(--bs-border-color);border-left:5px solid ${stripeColor};border-radius:6px;overflow:hidden;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:6px 8px 6px 6px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 4px;color:var(--bs-body-color);">
+                                    ${byeNameHtml}
+                                    <span style="flex-shrink:0;font-size:10px;font-weight:600;letter-spacing:0.04em;color:var(--bs-secondary-color);">BYE</span>
+                                </div>
+                            </div>
+                        `
                     };
                     return;
                 }
@@ -815,6 +830,23 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
     }
 
     // ── Helpers ──
+
+    /**
+     * The team in `parent` that did NOT come out of its single feeder game. Matched by team id
+     * rather than assuming slot t1 (legacy/TSIC-Events assume t1): if the feeder's winner is
+     * already placed, the bye team is the other slot. Before the feeder is played its slot
+     * carries no team id, so the one slot that has an id is the bye team. Only when neither
+     * slot is resolved does it fall back to t1's label.
+     */
+    private byeTeamOf(parent: BracketNode, feeder: BracketNode): { name: string; id: string | null } {
+        const feederIds = [feeder.t1Id, feeder.t2Id].filter((id): id is string => !!id);
+        const t1 = { name: parent.t1Name, id: parent.t1Id };
+        const t2 = { name: parent.t2Name, id: parent.t2Id };
+        if (parent.t1Id && feederIds.includes(parent.t1Id)) return t2;
+        if (parent.t2Id && feederIds.includes(parent.t2Id)) return t1;
+        if (parent.t2Id && !parent.t1Id) return t2;
+        return t1;
+    }
 
     private escapeHtml(text: string): string {
         return text
