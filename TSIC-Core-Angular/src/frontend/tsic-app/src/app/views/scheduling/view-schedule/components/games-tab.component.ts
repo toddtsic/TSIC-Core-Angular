@@ -144,8 +144,8 @@ type ScheduleRow =
                              The bracket badge is not in here: it rides in the score cell, on
                              the name side (see Score below).
 
-                             TWO LINES (see .tn-team): line one is the club — the link; line
-                             two is the team, then the season-record pill at
+                             TWO LINES (see .tn-team): line one is the club, plain text; line
+                             two is the team — the link — then the season-record pill at
                              the score-side edge (flush right here, flush left on away). With no
                              club to split off, line one is the whole name and line two holds
                              only the pill. The pill sits OUTSIDE the link span: a button inside
@@ -161,20 +161,30 @@ type ScheduleRow =
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                 </button>
                             }
-                            @if (game.t1Id) {
+                            @if (n1.club) {
+                                <span class="team-name tn-club">{{ n1.club }}</span>
+                            } @else if (game.t1Id) {
                                 <span class="team-name team-link" role="button" tabindex="0"
-                                      [class.tn-club]="!!n1.club"
                                       [attr.title]="'View ' + game.t1Name + ' results'"
                                       [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t1Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t1Id!)"
-                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ n1.club ?? n1.team }}</span>
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ n1.team }}</span>
                             } @else {
-                                <span class="team-name" [class.tn-club]="!!n1.club">{{ n1.club ?? n1.team }}</span>
+                                <span class="team-name">{{ n1.team }}</span>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                             @if (n1.club || r1) { <br> }
-                            @if (n1.club) { <span class="tn-team">{{ n1.team }}</span> }
+                            @if (n1.club && game.t1Id) {
+                                <span class="team-name tn-team team-link" role="button" tabindex="0"
+                                      [attr.title]="'View ' + game.t1Name + ' results'"
+                                      [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
+                                      (click)="viewTeamResults.emit(game.t1Id!)"
+                                      (keydown.enter)="viewTeamResults.emit(game.t1Id!)"
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ n1.team }}</span>
+                            } @else if (n1.club) {
+                                <span class="team-name tn-team">{{ n1.team }}</span>
+                            }
                             @if (r1) {
                                 <button type="button" class="record-btn"
                                         [attr.title]="'View ' + game.t1Name + ' results'"
@@ -252,16 +262,17 @@ type ScheduleRow =
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                 </button>
                             }
-                            @if (game.t2Id) {
+                            @if (n2.club) {
+                                <span class="team-name tn-club">{{ n2.club }}</span>
+                            } @else if (game.t2Id) {
                                 <span class="team-name team-link" role="button" tabindex="0"
-                                      [class.tn-club]="!!n2.club"
                                       [attr.title]="'View ' + game.t2Name + ' results'"
                                       [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t2Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t2Id!)"
-                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ n2.club ?? n2.team }}</span>
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ n2.team }}</span>
                             } @else {
-                                <span class="team-name" [class.tn-club]="!!n2.club">{{ n2.club ?? n2.team }}</span>
+                                <span class="team-name">{{ n2.team }}</span>
                             }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             @if (n2.club || r2) { <br> }
@@ -272,7 +283,16 @@ type ScheduleRow =
                                         [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + r2"
                                         (click)="viewTeamResults.emit(game.t2Id!)">{{ r2 }}</button>
                             }
-                            @if (n2.club) { <span class="tn-team">{{ n2.team }}</span> }
+                            @if (n2.club && game.t2Id) {
+                                <span class="team-name tn-team team-link" role="button" tabindex="0"
+                                      [attr.title]="'View ' + game.t2Name + ' results'"
+                                      [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
+                                      (click)="viewTeamResults.emit(game.t2Id!)"
+                                      (keydown.enter)="viewTeamResults.emit(game.t2Id!)"
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ n2.team }}</span>
+                            } @else if (n2.club) {
+                                <span class="team-name tn-team">{{ n2.team }}</span>
+                            }
                         </span>
 
                         <!-- Status chip -->
@@ -1079,23 +1099,26 @@ type ScheduleRow =
             overflow-wrap: break-word;
         }
 
-        /* Two-line name (desktop grid): club on line one in body ink — it is the link span,
-           carrying the underline; team on line two in secondary ink, outside
-           the link, followed (home) or preceded (away) by the record pill. The row is already
-           two lines tall (date over time), so the second line costs no height, and the name
+        /* Two-line name (desktop grid): club on line one, plain text (.tn-club); team on line
+           two in secondary ink — THE link (dotted underline → team results), since the team,
+           not the club, is what the link opens — followed (home) or preceded (away) by the
+           record pill. The row is already two lines tall (date over time), so the second line costs no height, and the name
            track only has to fit the longer line instead of club + ":" + team.
 
            The split is a <br> inside the inline run, so the star stays on line one and the
            away hanging indent puts line two under the club's first character. No club (see
            teamParts) → line one is the whole name, line two only the pill. */
-        .tn-team {
+        /* .team-link sets color: inherit; this keeps the linked team line in secondary ink at
+           rest. Declared BEFORE .team-link:hover so hover/focus still promote to primary. */
+        .tn-team,
+        .tn-team.team-link {
             color: var(--bs-secondary-color);
         }
 
         /* Club line (2026-10-04): semibold in emphasis ink — --bs-emphasis-color flips
            near-black / near-white with the theme, so the club stands a step above the
-           secondary-ink team line in both modes with no per-theme rule. Bound only when the
-           name actually split (n.club), so a club-less name never wears club styling.
+           secondary-ink team line in both modes with no per-theme rule. Rendered only when the
+           name actually split (n.club); never a link.
            Bold is free for this since the win cue was retired. */
         .tn-club {
             font-weight: 600;
