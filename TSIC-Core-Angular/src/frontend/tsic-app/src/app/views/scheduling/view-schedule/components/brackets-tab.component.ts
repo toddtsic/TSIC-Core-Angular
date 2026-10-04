@@ -87,26 +87,61 @@ interface LadderCard extends BracketNode {
                 }
             </div>
 
-            <!-- Ladder: cards positioned by bracket-layout.ts over one SVG of elbow connectors.
-                 Scrolls horizontally when wider than the page. Absent for consolation-only divisions. -->
+            <!-- Ladder: cards positioned by bracket-layout.ts over one SVG of elbow connectors, in a
+                 window-height box that scrolls both ways. Opens fitted (see fitToView); zoom is the
+                 toolbar, Ctrl+wheel / trackpad pinch, or two-finger pinch; a mouse drags to pan.
+                 Absent for consolation-only divisions. -->
             @if (hasLadder()) {
-                <div class="ladder-scroll">
+                <div class="ladder-toolbar">
+                    <button type="button" class="ladder-zoom" title="Zoom out" aria-label="Zoom out"
+                            (click)="zoomBy(1 / ZOOM_STEP)"><i class="bi bi-dash-lg" aria-hidden="true"></i></button>
+                    <button type="button" class="ladder-zoom ladder-zoom--fit" title="Fit to view"
+                            (click)="fitToView()">Fit</button>
+                    <button type="button" class="ladder-zoom" title="Zoom in" aria-label="Zoom in"
+                            (click)="zoomBy(ZOOM_STEP)"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+                    <span class="ladder-zoom-pct" aria-live="polite">{{ zoomPct() }}%</span>
+                </div>
+                <div class="ladder-scroll" #scroll
+                     [class.is-dragging]="dragging()"
+                     (pointerdown)="onPointerDown($event)"
+                     (wheel)="onWheel($event)"
+                     (touchstart)="onTouchStart($event)"
+                     (touchmove)="onTouchMove($event)"
+                     (touchend)="onTouchEnd($event)"
+                     (touchcancel)="onTouchEnd($event)">
+                    <!-- Round headers stay pinned while the ladder scrolls up beneath them. Scaled
+                         with the canvas, and overlaid on the band the layout reserves for them. -->
+                    <div class="ladder-rounds"
+                         [style.width.px]="layout().width * scale()"
+                         [style.height.px]="headerH * scale()">
+                        <div class="ladder-rounds__strip"
+                             [style.width.px]="layout().width"
+                             [style.height.px]="headerH"
+                             [style.transform]="'scale(' + scale() + ')'">
+                            @for (col of layout().columns; track col.x) {
+                                <div class="ladder-round"
+                                     [style.left.px]="col.x"
+                                     [style.width.px]="cardW"
+                                     [style.height.px]="headerH">{{ col.label }}</div>
+                            }
+                        </div>
+                    </div>
+                    <!-- sizer: gives native scrolling the SCALED extent (a transform does not change
+                         layout size, so without it the scroll range would ignore the zoom) -->
+                    <div class="ladder-sizer"
+                         [style.width.px]="layout().width * scale()"
+                         [style.height.px]="layout().height * scale()"
+                         [style.margin-top.px]="-headerH * scale()">
                     <div class="ladder-canvas" #canvas
                          [style.width.px]="layout().width"
-                         [style.height.px]="layout().height">
+                         [style.height.px]="layout().height"
+                         [style.transform]="'scale(' + scale() + ')'">
                         <svg class="ladder-connectors" aria-hidden="true"
                              [attr.width]="layout().width" [attr.height]="layout().height">
                             @for (d of layout().connectors; track $index) {
                                 <path [attr.d]="d" />
                             }
                         </svg>
-
-                        @for (col of layout().columns; track col.x) {
-                            <div class="ladder-round"
-                                 [style.left.px]="col.x"
-                                 [style.width.px]="cardW"
-                                 [style.height.px]="headerH">{{ col.label }}</div>
-                        }
 
                         @for (card of ladderCards(); track card.gid) {
                             <div class="br-card"
@@ -161,6 +196,7 @@ interface LadderCard extends BracketNode {
                                 }
                             </div>
                         }
+                    </div>
                     </div>
                 </div>
             }
@@ -346,18 +382,85 @@ interface LadderCard extends BracketNode {
 
         /* ── Ladder ── */
 
-        /* Native horizontal scroll is the pan: a bracket wider than the page scrolls; the page
-           itself scrolls vertically, since the canvas is as tall as the ladder. */
-        .ladder-scroll {
+        .ladder-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: var(--space-1);
+            padding: var(--space-1) var(--space-2);
             border: 1px solid var(--bs-border-color);
             border-top: none;
-            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+            border-bottom: none;
             background: var(--bs-body-bg);
-            overflow-x: auto;
         }
 
-        /* Size comes from the layout (template bindings); cards are positioned inside it. */
-        .ladder-canvas { position: relative; }
+        .ladder-zoom {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2rem;
+            height: 2rem;
+            padding: 0 var(--space-2);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+        }
+        .ladder-zoom:hover { background: var(--bs-secondary-bg); }
+        .ladder-zoom--fit { font-weight: 600; }
+
+        .ladder-zoom-pct {
+            min-width: 3rem;
+            text-align: right;
+            font-size: var(--font-size-xs);
+            color: var(--bs-secondary-color);
+        }
+
+        /* Capped at the window so BOTH scrollbars are always on screen; native two-axis scroll
+           is the pan (a mouse also drags — see onPointerDown). touch-action keeps a pinch here
+           from zooming the page: the component turns it into a ladder zoom instead. Text never
+           starts a selection, because a press may become a drag. */
+        .ladder-scroll {
+            max-height: 80dvh;
+            border: 1px solid var(--bs-border-color);
+            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+            background: var(--bs-body-bg);
+            overflow: auto;
+            touch-action: pan-x pan-y;
+            user-select: none;
+            cursor: grab;
+        }
+        .ladder-scroll.is-dragging { cursor: grabbing; }
+
+        /* Pinned above the ladder; the cards scroll up beneath it. In flow (sticky), so the
+           sizer's negative margin lays the canvas's own header band underneath it. */
+        .ladder-rounds {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: var(--bs-body-bg);
+        }
+        .ladder-rounds__strip {
+            position: relative;
+            transform-origin: 0 0;
+        }
+
+        .ladder-sizer { position: relative; }
+
+        /* Size comes from the layout (template bindings); scaled from the top-left corner. */
+        .ladder-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+        }
+
+        .ladder-zoom:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
 
         .ladder-connectors {
             position: absolute;
@@ -370,7 +473,7 @@ interface LadderCard extends BracketNode {
             stroke-width: 1.5;
         }
 
-        /* One header per round, in the band the layout reserves above the cards. */
+        /* One header per round, over the band the layout reserves above the cards. */
         .ladder-round {
             position: absolute;
             top: 0;
@@ -807,6 +910,165 @@ export class BracketsTabComponent implements OnChanges {
     readonly cardW = BRACKET_CARD_W;
     readonly headerH = BRACKET_HEADER_H;
 
+    // ── Zoom + pan ──
+
+    readonly ZOOM_STEP = 1.25;
+    readonly scroll = viewChild<ElementRef<HTMLDivElement>>('scroll');
+    readonly scale = signal(1);
+    readonly zoomPct = computed(() => Math.round(this.scale() * 100));
+    readonly dragging = signal(false);
+
+    /** set when a different ladder is shown; drained by the next measure pass */
+    private fitPending = true;
+    /** the scale that shows the WHOLE ladder; zoom-out may always reach it */
+    private fitAllScale = 1;
+
+    /**
+     * Desktop opens fitted to WIDTH, never below DESKTOP_MIN_FIT (names stay readable; a wider
+     * ladder scrolls instead) and never above 1. A touch device opens fitted to the whole ladder,
+     * like TSIC-Events — an overview to pinch into. Resets the scroll to the top-left.
+     */
+    fitToView(): void {
+        const el = this.scroll()?.nativeElement;
+        const { width, height } = this.layout();
+        if (!el || !width || !height || !el.clientWidth) return;
+        // The box is capped at a share of the window; fit against the cap, not the box's current
+        // height, which is the ladder's height whenever the ladder is shorter.
+        const capH = parseFloat(getComputedStyle(el).maxHeight) || el.clientHeight;
+        this.fitAllScale = Math.min(el.clientWidth / width, capH / height, 1);
+        const touch = matchMedia('(pointer: coarse)').matches;
+        this.scale.set(touch
+            ? this.fitAllScale
+            : Math.min(1, Math.max(DESKTOP_MIN_FIT, el.clientWidth / width)));
+        el.scrollLeft = 0;
+        el.scrollTop = 0;
+    }
+
+    /** Toolbar zoom, about the centre of the visible area. */
+    zoomBy(factor: number): void {
+        const el = this.scroll()?.nativeElement;
+        if (!el) return;
+        this.zoomAt(this.scale() * factor, el.clientWidth / 2, el.clientHeight / 2);
+    }
+
+    /**
+     * Zoom to `target`, keeping the ladder point under (cx, cy) — viewport coordinates — still.
+     * Scroll offsets scale with the content; they are applied after the render that resizes
+     * the sizer, since the new scroll range does not exist until then.
+     */
+    private zoomAt(target: number, cx: number, cy: number): void {
+        const el = this.scroll()?.nativeElement;
+        if (!el) return;
+        const next = this.clampScale(target);
+        const factor = next / this.scale();
+        if (factor === 1) return;
+        const left = (el.scrollLeft + cx) * factor - cx;
+        const top = (el.scrollTop + cy) * factor - cy;
+        this.scale.set(next);
+        this.scrollAfterRender(left, top);
+    }
+
+    private clampScale(s: number): number {
+        return Math.min(MAX_SCALE, Math.max(Math.min(MIN_SCALE, this.fitAllScale), s));
+    }
+
+    private scrollAfterRender(left: number, top: number): void {
+        afterNextRender(() => {
+            const el = this.scroll()?.nativeElement;
+            if (!el) return;
+            el.scrollLeft = left;
+            el.scrollTop = top;
+        }, { injector: this.injector });
+    }
+
+    /** Ctrl+wheel — and a trackpad pinch, which browsers deliver as one — zooms the ladder,
+     *  not the page. A plain wheel scrolls natively. */
+    onWheel(e: WheelEvent): void {
+        if (!e.ctrlKey) return;
+        const el = this.scroll()?.nativeElement;
+        if (!el) return;
+        e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        this.zoomAt(this.scale() * Math.exp(-e.deltaY * WHEEL_ZOOM_RATE),
+            e.clientX - rect.left, e.clientY - rect.top);
+    }
+
+    // Two-finger pinch (touch). One finger stays native scroll. Ported from TSIC-Events: the
+    // zoom is computed from the gesture's START state, so it never drifts mid-pinch.
+    private pinch: { dist: number; scale: number; midX: number; midY: number; left: number; top: number } | null = null;
+
+    onTouchStart(e: TouchEvent): void {
+        const el = this.scroll()?.nativeElement;
+        if (e.touches.length !== 2 || !el) return;
+        const rect = el.getBoundingClientRect();
+        this.pinch = {
+            dist: touchDist(e),
+            scale: this.scale(),
+            midX: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left,
+            midY: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top,
+            left: el.scrollLeft,
+            top: el.scrollTop
+        };
+    }
+
+    onTouchMove(e: TouchEvent): void {
+        const p = this.pinch;
+        if (!p || e.touches.length !== 2) return;
+        e.preventDefault(); // two fingers zoom; they must not also scroll
+        const next = this.clampScale(p.scale * touchDist(e) / p.dist);
+        const factor = next / p.scale;
+        this.scale.set(next);
+        this.scrollAfterRender((p.left + p.midX) * factor - p.midX, (p.top + p.midY) * factor - p.midY);
+    }
+
+    onTouchEnd(e: TouchEvent): void {
+        if (e.touches.length < 2) this.pinch = null;
+    }
+
+    // Mouse drag-to-pan. A press becomes a drag only past DRAG_THRESHOLD, so a click on a team
+    // name, the field link or the pencil still clicks. Touch is excluded: it already scrolls.
+    private drag: { x: number; y: number; left: number; top: number; moved: boolean } | null = null;
+
+    onPointerDown(e: PointerEvent): void {
+        const el = this.scroll()?.nativeElement;
+        if (!el || e.pointerType !== 'mouse' || e.button !== 0) return;
+        // a press on the box's own scrollbar drives the scrollbar, not a drag
+        if (e.target === el && (e.offsetX >= el.clientWidth || e.offsetY >= el.clientHeight)) return;
+        this.drag = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop, moved: false };
+        window.addEventListener('pointermove', this.onDragMove);
+        window.addEventListener('pointerup', this.onDragEnd, { once: true });
+    }
+
+    private readonly onDragMove = (e: PointerEvent): void => {
+        const d = this.drag;
+        const el = this.scroll()?.nativeElement;
+        if (!d || !el) return;
+        const dx = e.clientX - d.x;
+        const dy = e.clientY - d.y;
+        if (!d.moved) {
+            if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+            d.moved = true;
+            this.dragging.set(true);
+        }
+        el.scrollLeft = d.left - dx;
+        el.scrollTop = d.top - dy;
+    };
+
+    private readonly onDragEnd = (): void => {
+        window.removeEventListener('pointermove', this.onDragMove);
+        const moved = this.drag?.moved;
+        this.drag = null;
+        if (!moved) return;
+        this.dragging.set(false);
+        // The release lands as a click on whatever is under the cursor. Swallow that one click
+        // (capture, before it reaches a team name or link); drop the guard if it never comes.
+        const el = this.scroll()?.nativeElement;
+        if (!el) return;
+        const swallow = (ev: MouseEvent) => { ev.stopPropagation(); ev.preventDefault(); };
+        el.addEventListener('click', swallow, { capture: true, once: true });
+        setTimeout(() => el.removeEventListener('click', swallow, { capture: true }), 0);
+    };
+
     emitLadderScoreEdit(gid: number): void {
         const match = this.activeBracket()?.matches.find(m => m.gid === gid);
         if (!match) return;
@@ -823,11 +1085,18 @@ export class BracketsTabComponent implements OnChanges {
     constructor() {
         // A web font that lands after first paint changes how names wrap; measure again then.
         void document.fonts?.ready.then(() => this.scheduleMeasure());
-        this.destroyRef.onDestroy(() => (this.destroyed = true));
+        this.destroyRef.onDestroy(() => {
+            this.destroyed = true;
+            window.removeEventListener('pointermove', this.onDragMove);
+            window.removeEventListener('pointerup', this.onDragEnd);
+        });
     }
 
     ngOnChanges(changes: SimpleChanges): void {
-        if (changes['brackets']) this.activeTabIndex.set(0);
+        if (changes['brackets']) {
+            this.activeTabIndex.set(0);
+            this.fitPending = true;
+        }
         // Every input can change a card's content (names, pencil, bold) and so its height.
         this.scheduleMeasure();
     }
@@ -835,6 +1104,7 @@ export class BracketsTabComponent implements OnChanges {
     selectTab(index: number): void {
         if (index === this.activeTabIndex()) return;
         this.activeTabIndex.set(index);
+        this.fitPending = true;
         this.scheduleMeasure();
     }
 
@@ -866,8 +1136,29 @@ export class BracketsTabComponent implements OnChanges {
             const unchanged = measured.size === current.size
                 && [...measured].every(([gid, h]) => current.get(gid) === h);
             if (!unchanged) this.cardHeights.set(measured);
+            // Fit once the heights are in: the fit depends on the ladder's real height, and
+            // layout() recomputes from the heights just written.
+            if (this.fitPending && this.scroll()) {
+                this.fitPending = false;
+                this.fitToView();
+            }
         }, { injector: this.injector });
     }
+}
+
+/** Desktop's opening fit never shrinks below this; past it the ladder scrolls instead. */
+const DESKTOP_MIN_FIT = 0.75;
+/** zoom-out floor (or the fit-all scale, when that is smaller) and zoom-in ceiling */
+const MIN_SCALE = 0.35;
+const MAX_SCALE = 2;
+/** per unit of wheel deltaY: a mouse notch (~100) ≈ 18%, a trackpad pinch step a few % */
+const WHEEL_ZOOM_RATE = 0.002;
+/** px a mouse press must travel before it is a drag rather than a click */
+const DRAG_THRESHOLD = 5;
+
+function touchDist(e: TouchEvent): number {
+    return Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY);
 }
 
 /** Column headers, by GameRoundTypes ladder letter. */
