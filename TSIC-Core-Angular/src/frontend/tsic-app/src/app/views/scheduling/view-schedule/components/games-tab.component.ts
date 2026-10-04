@@ -141,8 +141,8 @@ type ScheduleRow =
                              stranding the star ~90px away. Inline content has no element edge
                              to anchor to.
 
-                             The win cue is the gold trophy glued to the name (.winner-glyph):
-                             left of the name here, right of it on the away side.
+                             The win cue is not here: it is the gold trophy in the score cell
+                             (.winner-glyph).
 
                              The bracket badge is not in here: it rides in the score cell, on
                              the name side (see Score below).
@@ -164,10 +164,6 @@ type ScheduleRow =
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                 </button>
                             }
-                            <!-- Winner trophy, LEFT of the home name (outer side). No whitespace
-                                 between it and the name (Angular strips the newline), so there is
-                                 no line-break opportunity: it cannot strand from the text. -->
-                            @if (isT1Winner(game)) {<i class="bi bi-trophy-fill winner-glyph" aria-hidden="true"></i>}
                             @if (game.t1Id) {
                                 <span class="team-name team-link" role="button" tabindex="0"
                                       [class.is-winner]="isT1Winner(game)"
@@ -197,10 +193,15 @@ type ScheduleRow =
                              Each score cell also carries its team's bracket badge, on the
                              OUTER edge: flush left for home, flush right for away. Badges and
                              numbers then read as one matchup block — "Q1  4 – 7  Q8" — with
-                             each badge in a straight column against its team's name. -->
+                             each badge in a straight column against its team's name.
+
+                             The winner's gold trophy sits on the number's OUTER side (left of
+                             the home score, right of the away score), so trophies form a fixed
+                             band either side of the score spine — "🏆10 – 2", "4 – 10🏆". -->
                         <!-- Home score -->
                         <span class="cell cell-t1-score" role="cell" aria-colindex="5">
                             @if (game.t1SlotLabel) { <span class="seed-tag"><span class="visually-hidden">slot </span>{{ game.t1SlotLabel }}</span> }
+                            @if (isT1Winner(game)) {<i class="bi bi-trophy-fill winner-glyph" aria-hidden="true"></i>}
                             @if (hasScore(game)) {
                                 <span class="score-val">{{ game.t1Score }}</span>
                             }
@@ -230,6 +231,7 @@ type ScheduleRow =
                             @if (hasScore(game)) {
                                 <span class="score-val">{{ game.t2Score }}</span>
                             }
+                            @if (isT2Winner(game)) {<i class="bi bi-trophy-fill winner-glyph" aria-hidden="true"></i>}
                             @if (game.t2SlotLabel) { <span class="seed-tag"><span class="visually-hidden">slot </span>{{ game.t2SlotLabel }}</span> }
                         </span>
 
@@ -270,8 +272,6 @@ type ScheduleRow =
                             } @else {
                                 <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ n2.club ?? n2.team }}</span>
                             }
-                            <!-- Winner trophy, RIGHT of the away name; glued like home's. -->
-                            @if (isT2Winner(game)) {<i class="bi bi-trophy-fill winner-glyph" aria-hidden="true"></i>}
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             @if (n2.club || r2) { <br> }
                             <!-- Mirror of home: pill FIRST on line two, at the score-side edge. -->
@@ -655,12 +655,11 @@ type ScheduleRow =
            stay neutral (the old gold underline on the winning name is retired — two marks
            for one fact). No trophy on either side = a tie or unplayed.
 
-           Desktop: left of the home name, right of the away name — the outer side, where
-           the trophy precedes / follows the name's text. An earlier trophy stranded because
-           it was a BOX beside ragged, wrapping text. This one is glued: the template puts no
-           whitespace between the glyph and the name, and an icon glyph next to letters
-           offers no line-break opportunity, so it always stays on the name's line.
-           Mobile cards: left of the winning score, exactly as Events does.
+           Desktop: in the score cell, on the number's outer side — left of the home score,
+           right of the away score. The numbers hug the dash, so every trophy lands in the
+           same narrow band beside the score spine and a day's winners scan in one pass down
+           the middle. (Glued to the name it moved with each name's length.) The cell's flex
+           gap spaces it from the number. Mobile cards: left of the winning score, as Events.
 
            The digits and the name's aria-label (", winner") carry the result for screen
            readers and in greyscale; the glyph is aria-hidden. */
@@ -668,8 +667,6 @@ type ScheduleRow =
             color: var(--winner-gold);
             line-height: 1;
         }
-        .cell-home .winner-glyph { margin-inline-end: var(--space-1); }
-        .cell-away .winner-glyph { margin-inline-start: var(--space-1); }
 
         .row-even       { --row-surface: var(--bs-tertiary-bg); }
         .game-row:hover { --row-surface: var(--bs-secondary-bg); }
@@ -1380,7 +1377,7 @@ type ScheduleRow =
 
         /* Both scores are plain bold strong figures — SAME weight and ink for winner and
            loser, and now with NO decoration on either. The result is carried entirely by the
-           gold trophy beside the winning team's name (.winner-glyph, further up), which
+           gold trophy beside the winning score (.winner-glyph, further up), which
            leaves the digits as pure data. Muting the loser would be a second, redundant
            channel — the retired scheme's whole failure mode — and the losing score is real
            information that deserves full legibility. */
