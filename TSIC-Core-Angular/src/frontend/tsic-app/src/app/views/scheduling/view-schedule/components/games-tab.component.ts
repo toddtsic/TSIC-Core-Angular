@@ -141,9 +141,8 @@ type ScheduleRow =
                              stranding the star ~90px away. Inline content has no element edge
                              to anchor to.
 
-                             The win cue is not here at all — it is a gold underline on the
-                             name itself (.team-name.is-winner), which is why this cell no
-                             longer needs a marker child on either side.
+                             The win cue is the gold trophy glued to the name (.winner-glyph):
+                             left of the name here, right of it on the away side.
 
                              The bracket badge is not in here: it rides in the score cell, on
                              the name side (see Score below).
@@ -165,6 +164,10 @@ type ScheduleRow =
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                 </button>
                             }
+                            <!-- Winner trophy, LEFT of the home name (outer side). No whitespace
+                                 between it and the name (Angular strips the newline), so there is
+                                 no line-break opportunity: it cannot strand from the text. -->
+                            @if (isT1Winner(game)) {<i class="bi bi-trophy-fill winner-glyph" aria-hidden="true"></i>}
                             @if (game.t1Id) {
                                 <span class="team-name team-link" role="button" tabindex="0"
                                       [class.is-winner]="isT1Winner(game)"
@@ -267,6 +270,8 @@ type ScheduleRow =
                             } @else {
                                 <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ n2.club ?? n2.team }}</span>
                             }
+                            <!-- Winner trophy, RIGHT of the away name; glued like home's. -->
+                            @if (isT2Winner(game)) {<i class="bi bi-trophy-fill winner-glyph" aria-hidden="true"></i>}
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             @if (n2.club || r2) { <br> }
                             <!-- Mirror of home: pill FIRST on line two, at the score-side edge. -->
@@ -341,9 +346,9 @@ type ScheduleRow =
                         <div class="card-teams-rows">
 
                         <!-- Team 1 (Home): full-width row, score right-aligned.
-                             The win cue is the gold dotted underline on the NAME, identical
-                             to the desktop grid — same property, same values, one language
-                             across both layouts. -->
+                             The win cue is the gold trophy, the same mark as the desktop grid
+                             (one language across both layouts); here it sits left of the
+                             winning score, as in TSIC-Events. -->
                         <div class="card-team-row">
                             <span class="card-team-name">
                                 @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
@@ -372,6 +377,8 @@ type ScheduleRow =
                                 }
                                 @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                             </span>
+                            <!-- Winner trophy left of the winning score, as TSIC-Events does. -->
+                            @if (isT1Winner(game)) {<i class="bi bi-trophy-fill winner-glyph" aria-hidden="true"></i>}
                             <span class="card-team-score">
                                 {{ hasScore(game) ? game.t1Score : '' }}
                             </span>
@@ -406,6 +413,7 @@ type ScheduleRow =
                                 }
                                 @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             </span>
+                            @if (isT2Winner(game)) {<i class="bi bi-trophy-fill winner-glyph" aria-hidden="true"></i>}
                             <span class="card-team-score">
                                 {{ hasScore(game) ? game.t2Score : '' }}
                             </span>
@@ -642,53 +650,26 @@ type ScheduleRow =
             min-height: 36px;
         }
 
-        /* ── Win cue: the winner's NAME is underlined gold and SOLID ──
-           This reverses the old black-tie rule that names never carry the result. That rule
-           produced six separate marks over time (bold/mute, trophy, dot, star, superscript,
-           offset underline, edge bar, caret) because every one of them was a BOX that had to
-           be positioned next to ragged, wrapping text — and boxes strand. A text decoration
-           is not a box. It is the text. It cannot detach, cannot be ordered wrong, needs no
-           left/right variant, and one rule covers both sides.
+        /* ── Win cue: a gold TROPHY, the sole winner mark (TSIC-Events model) ──
+           Matches the Events app's schedule card: the gold trophy alone says who won; names
+           stay neutral (the old gold underline on the winning name is retired — two marks
+           for one fact). No trophy on either side = a tie or unplayed.
 
-           COLOUR ONLY — the pattern is identical to the resting affordance (.team-link:
-           dotted, 1px, 2px offset). The winner's rule is the same rule in gold. Keep it that
-           way: a thicker or solid variant reads as a different object and shouts over a
-           ledger where every other name is already underlined.
+           Desktop: left of the home name, right of the away name — the outer side, where
+           the trophy precedes / follows the name's text. An earlier trophy stranded because
+           it was a BOX beside ragged, wrapping text. This one is glued: the template puts no
+           whitespace between the glyph and the name, and an icon glyph next to letters
+           offers no line-break opportunity, so it always stays on the name's line.
+           Mobile cards: left of the winning score, exactly as Events does.
 
-           Known trade-off, accepted deliberately: hue is then the sole channel separating
-           "clickable" from "won", so the cue does not survive greyscale or colour-blindness.
-           The digits beside it still state the result unambiguously, so nothing is lost that
-           was only available here.
-
-           Values are duplicated from .team-link rather than inherited because .team-name is
-           also used bare — an unresolved bracket slot renders a plain span with no link
-           affordance, and it still deserves the cue. */
-        /* PRESENCE LADDER — tune here, one line, in this order. Currently at degree 2.
-             1  dotted 1px   (identical to the affordance but gold; where this started)
-             2  dotted 2px   <-- here
-             3  dashed 2px   (same ink, longer strokes, reads more deliberate)
-             4  solid  2px   (no longer a "pattern"; loudest before touching the name itself)
-           Past 4 the next lever is the NAME, not the rule -- font-weight 600 -- but that
-           starts competing with the score for the row's emphasis, so try 3 first.
-
-           Offset moves with thickness: at 2px the rule sits close enough to clip descenders
-           in names like "LI Top Guns" or "Lacrosse", which reads as a rendering bug rather
-           than emphasis. 3px clears them. */
-        .team-name.is-winner {
-            text-decoration: underline dotted;
-            text-decoration-color: var(--winner-gold);
-            text-decoration-thickness: 2px;
-            text-underline-offset: 3px;
+           The digits and the name's aria-label (", winner") carry the result for screen
+           readers and in greyscale; the glyph is aria-hidden. */
+        .winner-glyph {
+            color: var(--winner-gold);
+            line-height: 1;
         }
-
-        /* Hover promotes dotted → solid exactly as it does for any other name; this only
-           holds the gold, which .team-link:hover would otherwise repaint to currentColor.
-           A longhand at higher specificity beats the shorthand's implied value, so the
-           promotion still happens — only the hue is pinned. */
-        .team-name.is-winner:hover,
-        .team-name.is-winner:focus-visible {
-            text-decoration-color: var(--winner-gold);
-        }
+        .cell-home .winner-glyph { margin-inline-end: var(--space-1); }
+        .cell-away .winner-glyph { margin-inline-start: var(--space-1); }
 
         .row-even       { --row-surface: var(--bs-tertiary-bg); }
         .game-row:hover { --row-surface: var(--bs-secondary-bg); }
@@ -1178,8 +1159,8 @@ type ScheduleRow =
 
         /* Result typography is RETIRED (was: bold winner name / muted loser name).
            Black-tie doctrine (ported from TSIC-Events-2025 visual-refresh): color means
-           age-group identity, gold means WON — the gold underline under the winning score
-           is the sole result cue. Names stay at constant weight and body color so a run of
+           age-group identity, gold means WON — the gold trophy (.winner-glyph) is the sole
+           result cue. Names stay at constant weight and body color so a run of
            rows reads as an even, formal ledger; the eye finds winners by scanning for
            gold, not by comparing font weights. Ties/unplayed: no gold anywhere. */
 
@@ -1399,8 +1380,8 @@ type ScheduleRow =
 
         /* Both scores are plain bold strong figures — SAME weight and ink for winner and
            loser, and now with NO decoration on either. The result is carried entirely by the
-           gold underline on the winning team's NAME (.team-name.is-winner, further up),
-           which leaves the digits as pure data. Muting the loser would be a second, redundant
+           gold trophy beside the winning team's name (.winner-glyph, further up), which
+           leaves the digits as pure data. Muting the loser would be a second, redundant
            channel — the retired scheme's whole failure mode — and the losing score is real
            information that deserves full legibility. */
         /* base/600, stepped down from lg/700.
@@ -1656,8 +1637,8 @@ type ScheduleRow =
            gives each team its own line, so the number IS that team's line) but it meant one
            product had two visual languages for the same fact, and a parent who checks the
            schedule on a phone and again on a laptop had to learn both. Whatever the local
-           argument, that cost is not worth paying: the cue is now the same gold dotted rule
-           on the NAME in both layouts, from the same .team-name.is-winner declaration.
+           argument, that cost is not worth paying: the cue is now the same gold trophy in
+           both layouts (.winner-glyph) — beside the winning score here, as TSIC-Events does.
 
            The digits stay full-strength for winner and loser alike. Muting the loser would be
            a second, redundant channel — the retired scheme's whole failure mode — and the
