@@ -1,24 +1,21 @@
 import {
-  AfterViewChecked,
+  afterNextRender,
   ChangeDetectionStrategy, Component, computed,
-  ElementRef, input, OnChanges, OnDestroy,
+  DestroyRef, ElementRef, inject, Injector, input, OnChanges,
   signal,
   SimpleChanges,
   output,
   viewChild
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import type { DivisionBracketResponse } from '@core/api';
-import {
-    Diagram, DiagramTools, SnapConstraints,
-    HierarchicalTree, DataBinding
-} from '@syncfusion/ej2-diagrams';
-import { DataManager } from '@syncfusion/ej2-data';
 import { contrastText, agBg, formatTime } from '../../shared/utils/scheduling-helpers';
 import { AgeGroupPickerComponent, type AgePickerItem } from '../../shared/components/age-group-picker/age-group-picker.component';
+import { BRACKET_CARD_W, BRACKET_HEADER_H, layoutBracket, type BracketLayoutGame } from './bracket-layout';
 
 // A game that is NOT part of the single-elimination ladder: the bronze (3rd-place) match, which
 // has no parent to advance into, and consolation (placement) games, which were never in the tree.
-// Both are rendered as flat cards in a strip beneath the diagram.
+// Both are rendered as flat cards in a strip beneath the ladder.
 interface OutsideCard {
     kind: 'Bronze' | 'Consolation';
     gid: number;
@@ -35,30 +32,31 @@ interface OutsideCard {
     t2Win: boolean;
 }
 
-// Register Syncfusion modules for imperative Diagram creation
-Diagram.Inject(HierarchicalTree, DataBinding);
-
-interface BracketNode {
-    gid: number;
-    parentGid: number | null;
+// A ladder game (or a synthesized bye) as the layout and the card template see it.
+interface BracketNode extends BracketLayoutGame {
     t1Name: string;
     t2Name: string;
     t1Id: string | null;
     t2Id: string | null;
     t1Score: number | null;
     t2Score: number | null;
-    t1Css: string;
-    t2Css: string;
     locationTime: string | null;
     fieldId: string | null;
     roundType: string;
-    isBye?: boolean;
+    isBye: boolean;
+}
+
+interface LadderCard extends BracketNode {
+    x: number;
+    y: number;
+    t1Win: boolean;
+    t2Win: boolean;
 }
 
 @Component({
     selector: 'app-brackets-tab',
     standalone: true,
-    imports: [AgeGroupPickerComponent],
+    imports: [AgeGroupPickerComponent, NgTemplateOutlet],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (isLoading()) {
@@ -89,10 +87,95 @@ interface BracketNode {
                 }
             </div>
 
-            <!-- Diagram rendered imperatively. Hidden for consolation-only divisions (no ladder). -->
-            <div class="diagram-container" [class.is-hidden]="!hasLadder()">
-                <div #diagramHost></div>
-            </div>
+            <!-- Ladder: cards positioned by bracket-layout.ts over one SVG of elbow connectors.
+                 Scrolls horizontally when wider than the page. Absent for consolation-only divisions. -->
+            @if (hasLadder()) {
+                <div class="ladder-scroll">
+                    <div class="ladder-canvas" #canvas
+                         [style.width.px]="layout().width"
+                         [style.height.px]="layout().height">
+                        <svg class="ladder-connectors" aria-hidden="true"
+                             [attr.width]="layout().width" [attr.height]="layout().height">
+                            @for (d of layout().connectors; track $index) {
+                                <path [attr.d]="d" />
+                            }
+                        </svg>
+
+                        @for (col of layout().columns; track col.x) {
+                            <div class="ladder-round"
+                                 [style.left.px]="col.x"
+                                 [style.width.px]="cardW"
+                                 [style.height.px]="headerH">{{ col.label }}</div>
+                        }
+
+                        @for (card of ladderCards(); track card.gid) {
+                            <div class="br-card"
+                                 [attr.data-gid]="card.gid"
+                                 [style.left.px]="card.x"
+                                 [style.top.px]="card.y"
+                                 [style.width.px]="cardW"
+                                 [style.background]="cardBg()"
+                                 [style.border-left-color]="stripeColor()">
+                                @if (card.isBye) {
+                                    <!-- Bye: the advancing team and a BYE tag where the score sits.
+                                         Nothing was played, so no location, score or pencil. -->
+                                    <div class="br-card__row">
+                                        <ng-container *ngTemplateOutlet="teamName; context: { name: card.t1Name, id: card.t1Id }" />
+                                        <span class="br-card__bye">BYE</span>
+                                    </div>
+                                } @else {
+                                    @if (canScore()) {
+                                        <button type="button" class="br-card__edit"
+                                                title="Edit Score"
+                                                (click)="emitLadderScoreEdit(card.gid)">
+                                            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                        </button>
+                                    }
+                                    <div class="br-card__loc" [class.br-card__loc--edit]="canScore()">
+                                        @if (card.locationTime) {
+                                            @if (card.fieldId) {
+                                                <button type="button" class="br-card__link"
+                                                        (click)="viewFieldInfo.emit(card.fieldId!)">{{ card.locationTime }}</button>
+                                            } @else {
+                                                {{ card.locationTime }}
+                                            }
+                                        }
+                                    </div>
+                                    <!-- Black-tie: the gold trophy is the sole winner cue. The glyph
+                                         slot is always rendered so scores align. -->
+                                    <div class="br-card__row">
+                                        <ng-container *ngTemplateOutlet="teamName; context: { name: card.t1Name, id: card.t1Id }" />
+                                        <span class="br-card__glyph" aria-hidden="true">
+                                            @if (card.t1Win) { <i class="bi bi-trophy-fill"></i> }
+                                        </span>
+                                        <span class="br-card__score">{{ card.t1Score }}</span>
+                                    </div>
+                                    <div class="br-card__divider"></div>
+                                    <div class="br-card__row">
+                                        <ng-container *ngTemplateOutlet="teamName; context: { name: card.t2Name, id: card.t2Id }" />
+                                        <span class="br-card__glyph" aria-hidden="true">
+                                            @if (card.t2Win) { <i class="bi bi-trophy-fill"></i> }
+                                        </span>
+                                        <span class="br-card__score">{{ card.t2Score }}</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- A team name: opens the team's results when it resolves to a team; bold when followed.
+                 Names WRAP rather than truncate — the card grows to fit and the layout re-centres. -->
+            <ng-template #teamName let-name="name" let-id="id">
+                @if (id) {
+                    <button type="button" class="br-card__team"
+                            [class.followed]="isFollowed(id)"
+                            (click)="viewTeamResults.emit(id)">{{ name }}</button>
+                } @else {
+                    <span class="br-card__team">{{ name }}</span>
+                }
+            </ng-template>
 
             <!-- Games outside the ladder: bronze (no parent) + consolation (never in the tree) -->
             @if (outsideCards().length > 0) {
@@ -261,18 +344,132 @@ interface BracketNode {
             }
         }
 
-        /* ── Diagram container ── */
+        /* ── Ladder ── */
 
-        .diagram-container {
+        /* Native horizontal scroll is the pan: a bracket wider than the page scrolls; the page
+           itself scrolls vertically, since the canvas is as tall as the ladder. */
+        .ladder-scroll {
             border: 1px solid var(--bs-border-color);
             border-top: none;
             border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-            overflow: hidden;
             background: var(--bs-body-bg);
+            overflow-x: auto;
         }
 
-        /* Consolation-only divisions have no ladder — collapse the empty diagram box. */
-        .diagram-container.is-hidden { display: none; }
+        /* Size comes from the layout (template bindings); cards are positioned inside it. */
+        .ladder-canvas { position: relative; }
+
+        .ladder-connectors {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .ladder-connectors path {
+            fill: none;
+            stroke: var(--bs-secondary-color);
+            stroke-width: 1.5;
+        }
+
+        /* One header per round, in the band the layout reserves above the cards. */
+        .ladder-round {
+            position: absolute;
+            top: 0;
+            display: flex;
+            align-items: flex-end;
+            padding-left: var(--space-2);
+            font-size: var(--font-size-xs);
+            font-weight: 700;
+            color: var(--bs-secondary-color);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* No height: the card sizes to its content, and the component measures it back into
+           the layout so positions account for the real heights. */
+        .br-card {
+            position: absolute;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 1px solid var(--bs-border-color);
+            border-left: 5px solid var(--bs-border-color);
+            border-radius: var(--radius-sm);
+            padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+        }
+
+        /* Centred over both rows; padded on both sides when the pencil is present so the
+           text stays centred and clear of it. */
+        .br-card__loc {
+            min-height: 1.2em;
+            margin-bottom: var(--space-1);
+            text-align: center;
+            font-size: var(--font-size-2xs);
+            line-height: 1.2;
+            color: var(--bs-secondary-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .br-card__loc--edit { padding-inline: var(--space-6); }
+
+        .br-card__row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: calc(var(--space-1) / 2) var(--space-1);
+            color: var(--bs-body-color);
+            font-size: var(--font-size-xs);
+            line-height: 1.3;
+        }
+
+        .br-card__team {
+            flex: 1;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            text-align: left;
+            background: none;
+            border: none;
+            padding: 0;
+            color: inherit;
+            font: inherit;
+        }
+        .br-card__team.followed { font-weight: 700; }
+        button.br-card__team { cursor: pointer; text-decoration: underline; }
+
+        .br-card__glyph {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            flex-shrink: 0;
+            font-size: var(--font-size-2xs);
+            color: var(--winner-gold);
+        }
+
+        .br-card__score {
+            flex-shrink: 0;
+            min-width: 1.2rem;
+            text-align: right;
+            font-weight: 700;
+        }
+
+        .br-card__divider {
+            height: 1px;
+            background: var(--bs-border-color);
+            margin: calc(var(--space-1) / 2) 0;
+        }
+
+        .br-card__bye {
+            flex-shrink: 0;
+            font-size: var(--font-size-2xs);
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: var(--bs-secondary-color);
+        }
 
         /* ── Outside-the-ladder strip (bronze + consolation) ── */
 
@@ -368,7 +565,8 @@ interface BracketNode {
             text-align: right;
         }
 
-        .ol-card__link {
+        .ol-card__link,
+        .br-card__link {
             background: none;
             border: none;
             padding: 0;
@@ -378,7 +576,8 @@ interface BracketNode {
             cursor: pointer;
         }
 
-        .ol-card__edit {
+        .ol-card__edit,
+        .br-card__edit {
             position: absolute;
             top: 3px;
             right: 3px;
@@ -397,13 +596,20 @@ interface BracketNode {
 
         .ol-card__team:focus-visible,
         .ol-card__link:focus-visible,
-        .ol-card__edit:focus-visible {
+        .ol-card__edit:focus-visible,
+        .br-card__team:focus-visible,
+        .br-card__link:focus-visible,
+        .br-card__edit:focus-visible {
             outline: none;
             box-shadow: var(--shadow-focus);
         }
     `]
 })
-export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDestroy {
+export class BracketsTabComponent implements OnChanges {
+    private readonly injector = inject(Injector);
+    private readonly destroyRef = inject(DestroyRef);
+    private destroyed = false;
+
     brackets = input<DivisionBracketResponse[]>([]);
     canScore = input<boolean>(false);
     isLoading = input<boolean>(false);
@@ -426,14 +632,13 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
     readonly viewTeamResults = output<string>();
     readonly viewFieldInfo = output<string>();
 
-    // Optional, not required: the host div lives inside the @else branch, so it is absent
-    // while loading and when the job has no brackets. required() throws NG0951 on read.
-    readonly diagramHost = viewChild<ElementRef<HTMLDivElement>>('diagramHost');
+    // Optional, not required: the canvas lives inside the @else/@if branches, so it is absent
+    // while loading, when the job has no brackets, and for consolation-only divisions.
+    // required() throws NG0951 on read.
+    readonly canvas = viewChild<ElementRef<HTMLDivElement>>('canvas');
 
     // ── Tab state ──
     readonly activeTabIndex = signal(0);
-    private diagramInstance: Diagram | null = null;
-    private clickListener: ((e: MouseEvent) => void) | null = null;
 
     readonly tabItems = computed(() => {
         const data = this.brackets();
@@ -456,7 +661,7 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
         return data[idx] ?? null;
     });
 
-    // Agegroup tint for the active division — shared by the diagram cards and the strip cards.
+    // Agegroup tint for the active division — shared by the ladder cards and the strip cards.
     private readonly activeAgColor = computed(() =>
         this.agegroupColors()[this.activeBracket()?.agegroupName ?? ''] ?? null);
     readonly cardBg = computed(() => agBg(this.activeAgColor()));
@@ -526,35 +731,111 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
         };
     }
 
-    // The diagram is imperative Syncfusion DOM, not a template binding, so it is rebuilt
-    // from an explicit request rather than reactively. Requests come from exactly two
-    // places: an input changing (ngOnChanges) and the user picking a tab (selectTab).
-    // The build itself waits for ngAfterViewChecked because #diagramHost lives inside the
-    // template's @else branch and does not exist until the view has been rendered.
-    private rebuildPending = false;
+    // ── Ladder (the single-elimination tree) ──
+
+    // Ladder games for the active division, plus a synthesized bye for every parent with a
+    // single feeder: the tree stays balanced and the advancing team is shown in its slot
+    // (legacy placement — the bye sits ABOVE the real game). Bronze is excluded: it has no
+    // parent to advance into, so it would become a second, disconnected root; it lives in
+    // the strip below instead.
+    private readonly ladderGames = computed<BracketNode[]>(() => {
+        const b = this.activeBracket();
+        if (!b) return [];
+
+        const real: BracketNode[] = b.matches
+            .filter(m => m.roundType !== 'B')
+            .map(m => ({
+                gid: m.gid,
+                // legacy: Pgid == 0 ? null : Pgid
+                parentGid: (m.parentGid && m.parentGid !== 0) ? m.parentGid : null,
+                roundLabel: ROUND_LABELS[m.roundType] ?? '',
+                t1Name: m.t1Name,
+                t2Name: m.t2Name,
+                t1Id: m.t1Id ?? null,
+                t2Id: m.t2Id ?? null,
+                t1Score: m.t1Score ?? null,
+                t2Score: m.t2Score ?? null,
+                locationTime: m.locationTime ?? null,
+                fieldId: m.fieldId ?? null,
+                roundType: m.roundType,
+                isBye: false
+            }));
+
+        const games = [...real];
+        for (const g of real) {
+            if (g.parentGid == null) continue;
+            if (real.filter(s => s.parentGid === g.parentGid).length !== 1) continue;
+            const parent = real.find(p => p.gid === g.parentGid);
+            const bye = parent ? byeTeamOf(parent, g) : { name: '', id: null };
+            games.unshift({
+                gid: -g.parentGid,
+                parentGid: g.parentGid,
+                roundLabel: g.roundLabel,
+                t1Name: bye.name,
+                t2Name: 'BYE',
+                t1Id: bye.id,
+                t2Id: null,
+                t1Score: null,
+                t2Score: null,
+                locationTime: null,
+                fieldId: null,
+                roundType: g.roundType,
+                isBye: true
+            });
+        }
+        return games;
+    });
+
+    /** Measured card heights by gid. Names wrap, so the DOM is the only honest source. */
+    private readonly cardHeights = signal(new Map<number, number>());
+
+    readonly layout = computed(() =>
+        layoutBracket(this.ladderGames(), gid => this.cardHeights().get(gid) ?? 0));
+
+    readonly ladderCards = computed<LadderCard[]>(() =>
+        this.layout().cards.map(({ game, x, y }) => {
+            const bothScored = game.t1Score != null && game.t2Score != null;
+            return {
+                ...game,
+                x,
+                y,
+                t1Win: bothScored && game.t1Score! > game.t2Score!,
+                t2Win: bothScored && game.t2Score! > game.t1Score!
+            };
+        }));
+
+    readonly cardW = BRACKET_CARD_W;
+    readonly headerH = BRACKET_HEADER_H;
+
+    emitLadderScoreEdit(gid: number): void {
+        const match = this.activeBracket()?.matches.find(m => m.gid === gid);
+        if (!match) return;
+        this.editBracketScore.emit({
+            gid: match.gid,
+            t1Name: match.t1Name,
+            t2Name: match.t2Name,
+            t1Score: match.t1Score ?? null,
+            t2Score: match.t2Score ?? null,
+            roundType: match.roundType
+        });
+    }
+
+    constructor() {
+        // A web font that lands after first paint changes how names wrap; measure again then.
+        void document.fonts?.ready.then(() => this.scheduleMeasure());
+        this.destroyRef.onDestroy(() => (this.destroyed = true));
+    }
 
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['brackets']) this.activeTabIndex.set(0);
-
-        if (changes['brackets'] || changes['canScore'] || changes['agegroupColors']) {
-            this.rebuildPending = true;
-        }
-    }
-
-    ngAfterViewChecked(): void {
-        if (!this.rebuildPending) return;
-        this.rebuildPending = false;
-        this.buildDiagram(this.activeBracket());
-    }
-
-    ngOnDestroy(): void {
-        this.destroyDiagram();
+        // Every input can change a card's content (names, pencil, bold) and so its height.
+        this.scheduleMeasure();
     }
 
     selectTab(index: number): void {
         if (index === this.activeTabIndex()) return;
         this.activeTabIndex.set(index);
-        this.rebuildPending = true;
+        this.scheduleMeasure();
     }
 
     /** Mobile dropdown feed — same age groups as the pill strip, id = tab index. */
@@ -566,293 +847,48 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
         this.selectTab(Number(id));
     }
 
-    private destroyDiagram(): void {
-        const diagramHost = this.diagramHost();
-        if (this.clickListener && diagramHost?.nativeElement) {
-            diagramHost.nativeElement.removeEventListener('click', this.clickListener);
-            this.clickListener = null;
-        }
-        if (this.diagramInstance) {
-            this.diagramInstance.destroy();
-            this.diagramInstance = null;
-        }
-    }
-
-    private buildDiagram(bracket: DivisionBracketResponse | null): void {
-        this.destroyDiagram();
-
-        const diagramHost = this.diagramHost();
-        // Bronze is rendered in the strip, never in the tree — exclude it before anything else so
-        // it can't become a second root or throw off the leaf-count/height math below.
-        const ladderMatches = bracket ? bracket.matches.filter(m => m.roundType !== 'B') : [];
-        if (!bracket || ladderMatches.length === 0 || !diagramHost) return;
-
-        const host = diagramHost.nativeElement;
-        // Clear any previous content and create a fresh div
-        host.innerHTML = '<div id="bracket-diagram"></div>';
-        const container = host.querySelector('#bracket-diagram') as HTMLElement;
-
-        // Resolve agegroup color for card tinting (12% over body-bg) + left stripe
-        const agColor = this.agegroupColors()[bracket.agegroupName] ?? null;
-        const cardBg = agBg(agColor);
-        const stripeColor = agColor ?? 'var(--bs-border-color)';
-
-        // Normalize parentGid: 0 → null (legacy: Pgid == 0 ? null : Pgid)
-        const games: BracketNode[] = ladderMatches.map(m => ({
-            gid: m.gid,
-            parentGid: (m.parentGid && m.parentGid !== 0) ? m.parentGid : null,
-            t1Name: m.t1Name,
-            t2Name: m.t2Name,
-            t1Id: m.t1Id ?? null,
-            t2Id: m.t2Id ?? null,
-            t1Score: m.t1Score ?? null,
-            t2Score: m.t2Score ?? null,
-            t1Css: m.t1Css,
-            t2Css: m.t2Css,
-            locationTime: m.locationTime ?? null,
-            fieldId: m.fieldId ?? null,
-            roundType: m.roundType,
-            isBye: false
-        }));
-
-        // ── Inject bye nodes for balanced tree layout (legacy algorithm) ──
-        // A parent with only 1 child has a team that advanced without playing. Unshift a
-        // synthetic sibling ABOVE the real game (exactly like legacy) and render it as that
-        // team's bye card (like TSIC-Events) rather than a blank box.
-        const gamesClone = [...games];
-        for (const g of gamesClone) {
-            if (g.parentGid == null) continue;
-            const siblings = games.filter(s => s.parentGid === g.parentGid);
-            if (siblings.length === 1) {
-                const parent = gamesClone.find(p => p.gid === g.parentGid);
-                const bye = parent ? this.byeTeamOf(parent, g) : { name: '', id: null };
-                games.unshift({
-                    gid: -g.parentGid,
-                    parentGid: g.parentGid,
-                    t1Name: bye.name, t2Name: 'BYE',
-                    t1Id: bye.id, t2Id: null,
-                    t1Score: null, t2Score: null,
-                    t1Css: 'pending', t2Css: 'pending',
-                    locationTime: null, fieldId: null, roundType: '',
-                    isBye: true
-                });
-            }
-        }
-
-        // ── Compute dynamic height from leaf count (including byes) ──
-        const nodeHeight = 80;
-        const verticalSpacing = 16;
-        const parentGids = new Set(games.map(g => g.parentGid).filter(Boolean));
-        const leafCount = games.filter(g => !parentGids.has(g.gid)).length;
-        const diagramHeight = Math.max(300, leafCount * (nodeHeight + verticalSpacing) + 60);
-
-        // ── Resolve palette colors for SVG connectors ──
-        const connectorColor = getComputedStyle(document.documentElement)
-            .getPropertyValue('--bs-secondary-color').trim() || '#78716c';
-
-        // ── DOM delegation for all click interactions ──
-        // Syncfusion strips inline onclick from HTML node content,
-        // but data-* attributes survive. DOM delegation on the host works.
-        const matchesRef = bracket.matches;
-        this.clickListener = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-
-            // Field name click → Field Directions
-            const fieldEl = target.closest('[data-field-id]') as HTMLElement | null;
-            if (fieldEl) {
-                const fieldId = fieldEl.getAttribute('data-field-id');
-                if (fieldId) {
-                    this.viewFieldInfo.emit(fieldId);
-                }
-                return;
-            }
-
-            // Team name click → Game History modal
-            const teamEl = target.closest('[data-team-id]') as HTMLElement | null;
-            if (teamEl) {
-                const teamId = teamEl.getAttribute('data-team-id');
-                if (teamId) {
-                    this.viewTeamResults.emit(teamId);
-                }
-                return;
-            }
-
-            // Pencil icon click → Score Edit modal
-            const scoreEl = target.closest('[data-score-gid]') as HTMLElement | null;
-            if (scoreEl) {
-                const gid = parseInt(scoreEl.getAttribute('data-score-gid')!, 10);
-                if (gid > 0) {
-                    const match = matchesRef.find(m => m.gid === gid);
-                    if (match) {
-                        this.editBracketScore.emit({
-                            gid: match.gid,
-                            t1Name: match.t1Name,
-                            t2Name: match.t2Name,
-                            t1Score: match.t1Score ?? null,
-                            t2Score: match.t2Score ?? null,
-                            roundType: match.roundType
-                        });
-                    }
-                }
-            }
-        };
-        host.addEventListener('click', this.clickListener);
-
-        // Create diagram using vanilla Syncfusion JS API
-        const diagram = new Diagram({
-            width: '100%',
-            height: diagramHeight,
-            snapSettings: { constraints: SnapConstraints.None },
-
-            dataSourceSettings: {
-                id: 'gid',
-                parentId: 'parentGid',
-                dataSource: new DataManager(games as any)
-            },
-
-            tool: DiagramTools.ZoomPan,
-
-            layout: {
-                type: 'HierarchicalTree',
-                orientation: 'RightToLeft',
-                horizontalSpacing: 40,
-                verticalSpacing: verticalSpacing,
-                enableAnimation: true
-            },
-
-            getNodeDefaults: (obj: any) => {
-                obj.shape = { type: 'HTML' };
-                obj.width = 260;
-                obj.height = nodeHeight;
-                return obj;
-            },
-
-            setNodeTemplate: (node: any) => {
-                const data = node.data as BracketNode | undefined;
-                if (!data) return;
-
-                // Bye: the advancing team on one line with a BYE tag where the score sits
-                // (like TSIC-Events). No location, no score, no pencil — nothing was played.
-                if (data.isBye) {
-                    const byeBold = data.t1Id && this.followedSet().has(data.t1Id) ? 'font-weight:700;' : '';
-                    const byeNameHtml = data.t1Id
-                        ? `<span data-team-id="${data.t1Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;${byeBold}">${this.escapeHtml(data.t1Name)}</span>`
-                        : `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;${byeBold}">${this.escapeHtml(data.t1Name)}</span>`;
-                    node.shape = {
-                        type: 'HTML',
-                        content: `
-                            <div style="background:${cardBg};border:1px solid var(--bs-border-color);border-left:5px solid ${stripeColor};border-radius:6px;overflow:hidden;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:6px 8px 6px 6px;">
-                                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 4px;color:var(--bs-body-color);">
-                                    ${byeNameHtml}
-                                    <span style="flex-shrink:0;font-size:10px;font-weight:600;letter-spacing:0.04em;color:var(--bs-secondary-color);">BYE</span>
-                                </div>
-                            </div>
-                        `
-                    };
-                    return;
-                }
-
-                const t1Score = data.t1Score != null ? data.t1Score : '';
-                const t2Score = data.t2Score != null ? data.t2Score : '';
-                const loc = data.locationTime ? this.escapeHtml(data.locationTime) : '';
-
-                // Black-tie winner cue: a gold trophy beside the winning score is the
-                // SOLE result signal (retired: green/red scores + bold/dim rows). The
-                // glyph slot is rendered on BOTH rows so the scores stay aligned.
-                const bothScored = data.t1Score != null && data.t2Score != null;
-                const t1Wins = bothScored && data.t1Score! > data.t2Score!;
-                const t2Wins = bothScored && data.t2Score! > data.t1Score!;
-                // bootstrap-icons trophy-fill, inlined because this HTML lives inside a
-                // Syncfusion diagram node (no Angular template, no icon font guarantees).
-                const trophySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="var(--winner-gold)" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5.5A.5.5 0 0 1 3 0h10a.5.5 0 0 1 .5.5q0 .807-.034 1.536a3 3 0 1 1-1.133 5.89c-.79 1.865-1.878 2.777-2.833 3.011v2.173l1.425.356c.194.048.377.135.537.255L13.3 15.1a.5.5 0 0 1-.3.9H3a.5.5 0 0 1-.3-.9l1.838-1.379c.16-.12.343-.207.537-.255L6.5 13.11v-2.173c-.955-.234-2.043-1.146-2.833-3.012a3 3 0 1 1-1.132-5.89A33 33 0 0 1 2.5.5m.099 2.54a2 2 0 0 0 .72 3.935c-.333-1.05-.588-2.346-.72-3.935m10.083 3.935a2 2 0 0 0 .72-3.935c-.133 1.59-.388 2.885-.72 3.935"/></svg>`;
-                const glyphSlot = (won: boolean) =>
-                    `<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;flex-shrink:0;margin-left:6px;">${won ? trophySvg : ''}</span>`;
-
-                // Team name spans — clickable via DOM delegation when team ID exists.
-                // Bold weight applied when the team is in the user's followed set.
-                const followed = this.followedSet();
-                const t1Bold = data.t1Id && followed.has(data.t1Id) ? 'font-weight:700;' : '';
-                const t2Bold = data.t2Id && followed.has(data.t2Id) ? 'font-weight:700;' : '';
-                const t1NameHtml = data.t1Id
-                    ? `<span data-team-id="${data.t1Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;${t1Bold}">${this.escapeHtml(data.t1Name)}</span>`
-                    : `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;${t1Bold}">${this.escapeHtml(data.t1Name)}</span>`;
-
-                const t2NameHtml = data.t2Id
-                    ? `<span data-team-id="${data.t2Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;${t2Bold}">${this.escapeHtml(data.t2Name)}</span>`
-                    : `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;${t2Bold}">${this.escapeHtml(data.t2Name)}</span>`;
-
-                // Location line — clickable link to field directions when fieldId exists
-                const locHtml = data.fieldId && loc
-                    ? `<span data-field-id="${data.fieldId}" style="text-decoration:underline;cursor:pointer;">${loc}</span>`
-                    : loc;
-
-                // Pencil icon — boxed button, top-right corner, only for authenticated admins
-                const canClick = this.canScore();
-                const pencilSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/></svg>`;
-                const pencilHtml = canClick
-                    ? `<span data-score-gid="${data.gid}" style="position:absolute;top:3px;right:3px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;background:var(--bs-secondary-bg);border:1px solid var(--bs-border-color);color:var(--bs-primary);line-height:1;" title="Edit Score">${pencilSvg}</span>`
-                    : '';
-
-                node.shape = {
-                    type: 'HTML',
-                    content: `
-                        <div style="position:relative;background:${cardBg};border:1px solid var(--bs-border-color);border-left:5px solid ${stripeColor};border-radius:6px;overflow:hidden;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:6px 8px 6px 6px;">
-                            ${pencilHtml}
-                            <div style="text-align:center;font-size:10px;color:var(--bs-secondary-color);margin-bottom:3px;line-height:1.2;">${locHtml}</div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;color:var(--bs-body-color);">
-                                ${t1NameHtml}
-                                ${glyphSlot(t1Wins)}
-                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;">${t1Score}</span>
-                            </div>
-                            <div style="height:1px;background:var(--bs-border-color);margin:2px 0;"></div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;color:var(--bs-body-color);">
-                                ${t2NameHtml}
-                                ${glyphSlot(t2Wins)}
-                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;">${t2Score}</span>
-                            </div>
-                        </div>
-                    `
-                };
-            },
-
-            getConnectorDefaults: (obj: any) => {
-                obj.targetDecorator = { shape: 'None' };
-                obj.type = 'Orthogonal';
-                obj.constraints = 0;
-                obj.cornerRadius = 5;
-                obj.style = { strokeColor: connectorColor, strokeWidth: 1.5 };
-                return obj;
-            }
-        });
-
-        diagram.appendTo(container);
-        this.diagramInstance = diagram;
-    }
-
-    // ── Helpers ──
-
     /**
-     * The team in `parent` that did NOT come out of its single feeder game. Matched by team id
-     * rather than assuming slot t1 (legacy/TSIC-Events assume t1): if the feeder's winner is
-     * already placed, the bye team is the other slot. Before the feeder is played its slot
-     * carries no team id, so the one slot that has an id is the bye team. Only when neither
-     * slot is resolved does it fall back to t1's label.
+     * Measure every ladder card after the next render and feed the heights back into the
+     * layout. Height is content-driven and does NOT depend on position, so one pass settles
+     * it: re-positioning cannot change how tall a card is. The equality check skips the
+     * write (and the extra render) when nothing changed.
      */
-    private byeTeamOf(parent: BracketNode, feeder: BracketNode): { name: string; id: string | null } {
-        const feederIds = [feeder.t1Id, feeder.t2Id].filter((id): id is string => !!id);
-        const t1 = { name: parent.t1Name, id: parent.t1Id };
-        const t2 = { name: parent.t2Name, id: parent.t2Id };
-        if (parent.t1Id && feederIds.includes(parent.t1Id)) return t2;
-        if (parent.t2Id && feederIds.includes(parent.t2Id)) return t1;
-        if (parent.t2Id && !parent.t1Id) return t2;
-        return t1;
+    private scheduleMeasure(): void {
+        if (this.destroyed) return;
+        afterNextRender(() => {
+            const el = this.canvas()?.nativeElement;
+            if (!el) return;
+            const measured = new Map<number, number>();
+            el.querySelectorAll<HTMLElement>('[data-gid]').forEach(node => {
+                measured.set(Number(node.dataset['gid']), node.offsetHeight);
+            });
+            const current = this.cardHeights();
+            const unchanged = measured.size === current.size
+                && [...measured].every(([gid, h]) => current.get(gid) === h);
+            if (!unchanged) this.cardHeights.set(measured);
+        }, { injector: this.injector });
     }
+}
 
-    private escapeHtml(text: string): string {
-        return text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
+/** Column headers, by GameRoundTypes ladder letter. */
+const ROUND_LABELS: Record<string, string> = {
+    Z: 'Round of 64', Y: 'Round of 32', X: 'Round of 16',
+    Q: 'Quarterfinals', S: 'Semifinals', F: 'Final'
+};
+
+/**
+ * The team in `parent` that did NOT come out of its single feeder game. Matched by team id
+ * rather than assuming slot t1 (legacy/TSIC-Events assume t1): if the feeder's winner is
+ * already placed, the bye team is the other slot. Before the feeder is played its slot
+ * carries no team id, so the one slot that has an id is the bye team. Only when neither
+ * slot is resolved does it fall back to t1's label.
+ */
+function byeTeamOf(parent: BracketNode, feeder: BracketNode): { name: string; id: string | null } {
+    const feederIds = [feeder.t1Id, feeder.t2Id].filter((id): id is string => !!id);
+    const t1 = { name: parent.t1Name, id: parent.t1Id };
+    const t2 = { name: parent.t2Name, id: parent.t2Id };
+    if (parent.t1Id && feederIds.includes(parent.t1Id)) return t2;
+    if (parent.t2Id && feederIds.includes(parent.t2Id)) return t1;
+    if (parent.t2Id && !parent.t1Id) return t2;
+    return t1;
 }
