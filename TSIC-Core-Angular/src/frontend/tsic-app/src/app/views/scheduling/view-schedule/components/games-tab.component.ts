@@ -1068,6 +1068,8 @@ type ScheduleRow =
             align-items: first baseline;
             gap: var(--space-1);
             min-width: 0;
+            /* Team names at -xs, the age-group label's size (.cell is -sm). */
+            font-size: var(--font-size-xs);
             line-height: 1.35;
             /* MUST be normal, and must stay that way. .cell sets nowrap + overflow: hidden +
                text-overflow: ellipsis for the single-line cells; inheriting that nowrap here
