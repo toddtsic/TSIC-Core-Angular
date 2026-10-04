@@ -51,10 +51,18 @@ interface ResultGroup {
                                 <span class="ag-label">{{ response()?.agegroupName }}</span>
                             </span>
                         }
-                        <h3 class="panel-title">{{ response()?.teamName || 'Team Schedule' }}</h3>
+                        <!-- Club over team — the same order as the games grid's two-line name.
+                             "2031 Blue" alone names nothing (most clubs field one); the club is
+                             the identifying part, so it is the heading and the team sits under
+                             it in semibold body ink (the subject, not demoted to grey). The
+                             heading's accessible name carries both. No club → the team is the
+                             heading and the sub-line holds only the record. -->
+                        @let club = response()?.clubName;
+                        <h3 class="panel-title"
+                            [attr.aria-label]="club ? club + ', ' + response()?.teamName : null">{{ club || response()?.teamName || 'Team Schedule' }}</h3>
                         <div class="title-sub">
-                            @if (response()?.clubName) {
-                                <span class="club-name">{{ response()?.clubName }}</span>
+                            @if (club) {
+                                <span class="team-sub">{{ response()?.teamName }}</span>
                             }
                             @if (headerRecord()) {
                                 <span class="record-chip"
@@ -225,9 +233,10 @@ interface ResultGroup {
             min-width: 0;
         }
 
-        .club-name {
-            font-size: var(--font-size-sm);
-            color: var(--bs-secondary-color);
+        .team-sub {
+            font-size: var(--font-size-base);
+            font-weight: 600;
+            color: var(--bs-body-color);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
