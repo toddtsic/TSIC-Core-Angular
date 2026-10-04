@@ -189,7 +189,7 @@ type ScheduleRow =
 
                         <!-- Home bracket badge — own track (only when the list has any). -->
                         @if (sx) {
-                            <span class="cell cell-seed" role="cell" aria-colindex="6">
+                            <span class="cell cell-seed cell-seed-home" role="cell" aria-colindex="6">
                                 @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             </span>
                         }
@@ -247,7 +247,7 @@ type ScheduleRow =
                              at rest anyway unless the team is followed. -->
                         <!-- Away bracket badge — own track, mirror of the home one. -->
                         @if (sx) {
-                            <span class="cell cell-seed" role="cell" aria-colindex="10">
+                            <span class="cell cell-seed cell-seed-away" role="cell" aria-colindex="10">
                                 @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
                             </span>
                         }
@@ -532,7 +532,7 @@ type ScheduleRow =
         }
 
         /* Bracket badge tracks, one each side of the score, sized to the widest badge in
-           the list. Every badge then sits centred in a fixed column and every name ends
+           the list. Every badge then sits against the score in a fixed column and every name ends
            (home) / starts (away) on one line, whether the row's badge is "Q1", "X11" or
            absent (round-robin rows in a mixed list). Added only when some game carries a
            slot label: an empty track still costs a column-gap, which would push every
@@ -612,7 +612,9 @@ type ScheduleRow =
         /* With badge tracks, each side's header also spans its badge. */
         .has-seeds .hdr-home,
         .has-seeds .hdr-away { grid-column: span 3; }
-        .cell-seed  { text-align: center; }
+        /* Badges hug the score: home right, away left, so both sit one column-gap from it. */
+        .cell-seed-home { text-align: right; }
+        .cell-seed-away { text-align: left; }
         .hdr-status,.cell-status{ text-align: center; }
 
         /* The record pill owns a TRACK of its own, on the OUTER side of each name.
