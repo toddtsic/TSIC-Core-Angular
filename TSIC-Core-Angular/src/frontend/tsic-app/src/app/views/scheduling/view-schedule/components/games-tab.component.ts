@@ -158,10 +158,12 @@ type ScheduleRow =
                              name itself (.team-name.is-winner), which is why this cell no
                              longer needs a marker child on either side.
 
-                             The seed tag comes LAST here (first on the away side): the cell is
-                             right-aligned, so the end of the run is the score edge, and the two
-                             tags then sit either side of the score as a pair — "S1 │ 5 – 3 │ S4". -->
+                             The seed tag is NOT part of the run: it is the run's sibling at the
+                             score edge (last here, first on the away side), so both tags hold a
+                             fixed column against the score — "S1 │ 5 – 3 │ S4" — however the
+                             name wraps. See .team-run in the styles. -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
+                            <span class="team-run">
                             @if (game.t1Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t1Id)"
@@ -177,11 +179,12 @@ type ScheduleRow =
                                       [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t1Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t1Id!)"
-                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name) }}</span>
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</span>
                             } @else {
-                                <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ teamLabel(game.t1Name) }}</span>
+                                <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</span>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
+                            </span>
                             @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                         </span>
 
@@ -238,6 +241,7 @@ type ScheduleRow =
                              at rest anyway unless the team is followed. -->
                         <span class="cell cell-away" role="cell" aria-colindex="9">
                             @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
+                            <span class="team-run">
                             @if (game.t2Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t2Id)"
@@ -253,11 +257,12 @@ type ScheduleRow =
                                       [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t2Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t2Id!)"
-                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name) }}</span>
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</span>
                             } @else {
-                                <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ teamLabel(game.t2Name) }}</span>
+                                <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</span>
                             }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
+                            </span>
                         </span>
 
                         <!-- Away season record — own cell, outboard of the name (see home). -->
@@ -351,9 +356,9 @@ type ScheduleRow =
                                             [class.is-winner]="isT1Winner(game)"
                                             [attr.title]="'View ' + game.t1Name + ' results'"
                                             [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
-                                            (click)="viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name) }}</button>
+                                            (click)="viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</button>
                                 } @else {
-                                    <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ teamLabel(game.t1Name) }}</span>
+                                    <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</span>
                                 }
                                 @if (game.t1Record && game.t1Id) {
                                     <button type="button" class="record-btn"
@@ -385,9 +390,9 @@ type ScheduleRow =
                                             [class.is-winner]="isT2Winner(game)"
                                             [attr.title]="'View ' + game.t2Name + ' results'"
                                             [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
-                                            (click)="viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name) }}</button>
+                                            (click)="viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</button>
                                 } @else {
-                                    <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ teamLabel(game.t2Name) }}</span>
+                                    <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</span>
                                 }
                                 @if (game.t2Record && game.t2Id) {
                                     <button type="button" class="record-btn"
@@ -946,16 +951,14 @@ type ScheduleRow =
             min-width: 0;
         }
 
-        /* Bracket slot marker (e.g. "X1", "Q8") on the score side of each team name so a
-           seeded or still-unresolved bracket slot doesn't read like a round-robin game, and
-           the two slots read as a pair across the score. Neutral + palette-responsive; null
-           slotLabel (round-robin/consolation) renders nothing. Home trails its name, so its
-           gap goes on the left; away (and the mobile cards) lead, so theirs is on the right. */
-        .cell-home .seed-tag {
-            margin-right: 0;
-            margin-left: var(--space-1);
-        }
+        /* Bracket slot marker (e.g. "X1", "Q8") so a seeded or still-unresolved bracket slot
+           doesn't read like a round-robin game. Neutral + palette-responsive; null slotLabel
+           (round-robin/consolation) renders nothing. In the desktop grid it sits at the score
+           edge of each team cell (see .team-run); in the mobile cards it leads the name.
+           text-indent: 0 because an inline-block inherits its parent's text-indent — the away
+           cell's hanging indent once pushed the label text out of its own border. */
         .seed-tag {
+            text-indent: 0;
             display: inline-block;
             padding: 0 var(--space-1);
             margin-right: var(--space-1);
@@ -1025,9 +1028,17 @@ type ScheduleRow =
             .record-btn { transition: none !important; }
         }
 
-        /* ONE INLINE TEXT RUN, not a flex row. Everything in these cells — seed tag, star,
-           name, annotation — flows and wraps together as text. (The record pill is NOT in
-           here; it has its own track. See .cell-home-rec.)
+        /* Each team cell is a two-item flex row: the seed tag at the SCORE edge, and
+           .team-run filling the rest. The tag never joins the text: inside the run it wrapped
+           onto a line of its own beneath long home names, and drifted to the far end of line
+           one when it led them. As a flex sibling on the cell's FLUSH edge (right for home,
+           left for away) it holds a fixed column against the score however the name wraps —
+           the one place a flex sibling is the right tool (see below for why the star is not).
+           first-baseline alignment sits the tag on the name's first line.
+
+           Inside .team-run: ONE INLINE TEXT RUN, not a flex row. Star, name and annotation
+           flow and wrap together as text. (The record pill is NOT in here; it has its own
+           track. See .cell-home-rec.)
 
            Flex was the wrong container the moment names started wrapping, and it failed twice
            the same way. A flex item anchors to the NAME ELEMENT's edge, but a wrapped name's
@@ -1053,7 +1064,9 @@ type ScheduleRow =
            it reading low on the baseline, which is the reason flex was reached for. */
         .cell-home,
         .cell-away {
-            display: block;
+            display: flex;
+            align-items: first baseline;
+            gap: var(--space-1);
             min-width: 0;
             line-height: 1.35;
             /* MUST be normal, and must stay that way. .cell sets nowrap + overflow: hidden +
@@ -1072,6 +1085,18 @@ type ScheduleRow =
             text-overflow: clip;
         }
 
+        .team-run {
+            display: block;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .cell-home .seed-tag,
+        .cell-away .seed-tag {
+            flex: none;
+            margin: 0;
+        }
+
         /* HANGING INDENT — away side only.
 
            The star is the first thing in this cell, so it occupies the start of line one.
@@ -1088,11 +1113,10 @@ type ScheduleRow =
            is already flush on the right and the star simply extends line one further left —
            which is what a ragged left edge is supposed to do.
 
-           Two known imperfections, both rare and both better than the outdent: a bracket row
-           with a seed tag puts an extra token on line one, so continuation lines sit slightly
-           left of that row's first character; and an unresolved feed renders no star at all,
-           leaving its line one outdented by the footprint. */
-        .cell-away {
+           Applied to the RUN, not the cell, so the seed tag (outside the run) is untouched by
+           it. One known imperfection, rare and better than the outdent: an unresolved feed
+           renders no star at all, leaving its line one outdented by the footprint. */
+        .cell-away .team-run {
             /* .team-star is an 18px box with margin: 0 4px */
             --star-footprint: 26px;
             padding-inline-start: var(--star-footprint);
@@ -1739,8 +1763,8 @@ export class GamesTabComponent {
      * Fixing it in the data would touch every consumer of T1Name (brackets, standings, team
      * results) and rewrite what directors entered; this stays in the one view that suffers.
      */
-    teamLabel(name: string | null | undefined): string {
-        const raw = name ?? '';
+    teamLabel(name: string | null | undefined, slotLabel?: string | null): string {
+        const raw = this.stripSlotSuffix(name ?? '', slotLabel);
         const sep = raw.indexOf(':');
         if (sep <= 0) return raw;
         const club = raw.slice(0, sep);
@@ -1750,6 +1774,22 @@ export class GamesTabComponent {
         const rest = team.slice(club.length).replace(/^[\s\-–—:_/|]+/, '').trim();
         // Team named EXACTLY after its club has nothing left to show — keep it verbatim.
         return rest ? `${club}:${rest}` : raw;
+    }
+
+    /**
+     * Legacy-written bracket rows store the slot inside the name — "Capital Lacrosse
+     * Club:2029 Orange  (S1)" — and the row's seed tag already says S1, so the grid read it
+     * twice. Drop the suffix only when it is EXACTLY this row's own slot label (a stale
+     * "(Q1)" on an S game stays visible: that is a data fact, not a repeat). Display only,
+     * like the club-echo collapse above. A name that is nothing but the suffix is kept.
+     */
+    private stripSlotSuffix(name: string, slotLabel?: string | null): string {
+        if (!slotLabel) return name;
+        const suffix = `(${slotLabel})`;
+        const trimmed = name.trimEnd();
+        if (!trimmed.toUpperCase().endsWith(suffix.toUpperCase())) return name;
+        const rest = trimmed.slice(0, -suffix.length).trimEnd();
+        return rest || name;
     }
 
     // ══════════════════════════════════════════════════════════════════
