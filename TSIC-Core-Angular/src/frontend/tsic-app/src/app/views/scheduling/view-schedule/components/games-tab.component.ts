@@ -1289,12 +1289,26 @@ type ScheduleRow =
            Gated on (hover: hover) so a touch device — which never fires row hover — keeps
            them visible, and scoped to .game-row so the mobile cards are untouched.
            Opacity only, never display/visibility: the button must stay focusable, and
-           :focus-visible brings it back for keyboard users mid-tab-order. */
+           :focus-visible brings it back for keyboard users mid-tab-order.
+
+           An invisible star also takes NO SPACE at rest: zero width and margin, so the away
+           name sits against its badge instead of 26px of empty box. It opens back up on row
+           hover / keyboard focus (the name steps aside to make room) and stays open for a
+           followed team. The away hanging indent tracks the same states via
+           --star-footprint, or wrapped lines would indent under a star that isn't there. */
         @media (hover: hover) {
             .game-row .team-star { opacity: 0; }
+            .game-row .team-star:not(.is-on) { width: 0; margin: 0; overflow: hidden; }
+            .game-row:hover .team-star,
+            .game-row .team-star:focus-visible { width: 18px; margin: 0 4px; }
             .game-row:hover .team-star,
             .game-row .team-star:focus-visible,
             .game-row .team-star.is-on { opacity: 1; }
+
+            .game-row .cell-away { --star-footprint: 0px; }
+            .game-row:hover .cell-away,
+            .game-row .cell-away:has(.team-star.is-on),
+            .game-row .cell-away:has(.team-star:focus-visible) { --star-footprint: 26px; }
         }
 
         /* Wraps internally for the same reason the name does: it is the other
