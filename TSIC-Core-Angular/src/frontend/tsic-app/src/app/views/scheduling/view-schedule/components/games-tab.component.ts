@@ -612,9 +612,11 @@ type ScheduleRow =
         /* With badge tracks, each side's header also spans its badge. */
         .has-seeds .hdr-home,
         .has-seeds .hdr-away { grid-column: span 3; }
-        /* Badges hug the score: home right, away left, so both sit one column-gap from it. */
-        .cell-seed-home { text-align: right; }
-        .cell-seed-away { text-align: left; }
+        /* Badges hug the score: home right, away left. The negative margin eats into the
+           column-gap on the score side only (as .cell-dash does), so badge-to-score is
+           --space-1 on both sides instead of a full --space-2. */
+        .cell-seed-home { text-align: right; margin-inline-end: calc(var(--space-1) - var(--space-2)); }
+        .cell-seed-away { text-align: left;  margin-inline-start: calc(var(--space-1) - var(--space-2)); }
         .hdr-status,.cell-status{ text-align: center; }
 
         /* The record pill owns a TRACK of its own, on the OUTER side of each name.
