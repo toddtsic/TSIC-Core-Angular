@@ -133,19 +133,6 @@ type ScheduleRow =
                             <span class="ag-label">{{ game.agDiv }}</span>
                         </span>
 
-                        <!-- Home season record — its OWN cell, outboard of the name. It is a
-                             fixed-width object and the name beside it is not, so sharing a
-                             box made the pill's position a function of name length (see
-                             .cell-home-rec in the styles). -->
-                        <span class="cell cell-home-rec" role="cell" aria-colindex="4">
-                            @if (game.t1Record && game.t1Id) {
-                                <button type="button" class="record-btn"
-                                        [attr.title]="'View ' + game.t1Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + game.t1Record"
-                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Record }}</button>
-                            }
-                        </span>
-
                         <!-- Home team. The cell is ONE INLINE TEXT RUN (see .cell-home in the
                              styles), so star, name and annotation flow and wrap together.
                              That is what keeps the star beside its team: as a flex sibling it
@@ -159,9 +146,17 @@ type ScheduleRow =
                              longer needs a marker child on either side.
 
                              The bracket badge is not in here: it rides in the score cell, on
-                             the name side (see Score below). -->
-                        <span class="cell cell-home" role="cell" aria-colindex="5">
+                             the name side (see Score below).
+
+                             TWO LINES (see .tn-team): line one is the club — the link, carrying
+                             the win cue; line two is the team, then the season-record pill at
+                             the score-side edge (flush right here, flush left on away). With no
+                             club to split off, line one is the whole name and line two holds
+                             only the pill. The pill sits OUTSIDE the link span: a button inside
+                             a role="button" would be nested interactive content. -->
+                        <span class="cell cell-home" role="cell" aria-colindex="4">
                             @let n1 = teamParts(game.t1Name, game.t1SlotLabel);
+                            @let r1 = game.t1Id ? game.t1Record : null;
                             @if (game.t1Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t1Id)"
@@ -177,11 +172,19 @@ type ScheduleRow =
                                       [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t1Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t1Id!)"
-                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">@if (n1.club) {<span class="tn-club">{{ n1.club }}</span><br><span class="tn-team">{{ n1.team }}</span>} @else {<span class="tn-solo">{{ n1.team }}</span>}</span>
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ n1.club ?? n1.team }}</span>
                             } @else {
-                                <span class="team-name" [class.is-winner]="isT1Winner(game)">@if (n1.club) {<span class="tn-club">{{ n1.club }}</span><br><span class="tn-team">{{ n1.team }}</span>} @else {<span class="tn-solo">{{ n1.team }}</span>}</span>
+                                <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ n1.club ?? n1.team }}</span>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
+                            @if (n1.club || r1) { <br> }
+                            @if (n1.club) { <span class="tn-team">{{ n1.team }}</span> }
+                            @if (r1) {
+                                <button type="button" class="record-btn"
+                                        [attr.title]="'View ' + game.t1Name + ' results'"
+                                        [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + r1"
+                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ r1 }}</button>
+                            }
                         </span>
 
                         <!-- Score — three real columns so home/away numbers each stack on
@@ -193,7 +196,7 @@ type ScheduleRow =
                              numbers then read as one matchup block — "Q1  4 – 7  Q8" — with
                              each badge in a straight column against its team's name. -->
                         <!-- Home score -->
-                        <span class="cell cell-t1-score" role="cell" aria-colindex="6">
+                        <span class="cell cell-t1-score" role="cell" aria-colindex="5">
                             @if (game.t1SlotLabel) { <span class="seed-tag"><span class="visually-hidden">slot </span>{{ game.t1SlotLabel }}</span> }
                             @if (hasScore(game)) {
                                 <span class="score-val">{{ game.t1Score }}</span>
@@ -207,7 +210,7 @@ type ScheduleRow =
                              and the pencil then means nothing.
                              The glyph occupies the dash's own isolated min-content track, so
                              swapping one for the other cannot nudge either number. -->
-                        <span class="cell cell-dash" role="cell" aria-colindex="7">
+                        <span class="cell cell-dash" role="cell" aria-colindex="6">
                             @if (canScore()) {
                                 <button type="button" class="score-pencil"
                                         [attr.title]="'Enter score for game #' + game.gid"
@@ -220,7 +223,7 @@ type ScheduleRow =
                             }
                         </span>
                         <!-- Away score -->
-                        <span class="cell cell-t2-score" role="cell" aria-colindex="8">
+                        <span class="cell cell-t2-score" role="cell" aria-colindex="7">
                             @if (hasScore(game)) {
                                 <span class="score-val">{{ game.t2Score }}</span>
                             }
@@ -242,8 +245,9 @@ type ScheduleRow =
                              on the first line, so first-line wins: "the star precedes the
                              team name" is one rule for both sides, and the star is invisible
                              at rest anyway unless the team is followed. -->
-                        <span class="cell cell-away" role="cell" aria-colindex="9">
+                        <span class="cell cell-away" role="cell" aria-colindex="8">
                             @let n2 = teamParts(game.t2Name, game.t2SlotLabel);
+                            @let r2 = game.t2Id ? game.t2Record : null;
                             @if (game.t2Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t2Id)"
@@ -259,25 +263,24 @@ type ScheduleRow =
                                       [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t2Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t2Id!)"
-                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">@if (n2.club) {<span class="tn-club">{{ n2.club }}</span><br><span class="tn-team">{{ n2.team }}</span>} @else {<span class="tn-solo">{{ n2.team }}</span>}</span>
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ n2.club ?? n2.team }}</span>
                             } @else {
-                                <span class="team-name" [class.is-winner]="isT2Winner(game)">@if (n2.club) {<span class="tn-club">{{ n2.club }}</span><br><span class="tn-team">{{ n2.team }}</span>} @else {<span class="tn-solo">{{ n2.team }}</span>}</span>
+                                <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ n2.club ?? n2.team }}</span>
                             }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
-                        </span>
-
-                        <!-- Away season record — own cell, outboard of the name (see home). -->
-                        <span class="cell cell-away-rec" role="cell" aria-colindex="10">
-                            @if (game.t2Record && game.t2Id) {
+                            @if (n2.club || r2) { <br> }
+                            <!-- Mirror of home: pill FIRST on line two, at the score-side edge. -->
+                            @if (r2) {
                                 <button type="button" class="record-btn"
                                         [attr.title]="'View ' + game.t2Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + game.t2Record"
-                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Record }}</button>
+                                        [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + r2"
+                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ r2 }}</button>
                             }
+                            @if (n2.club) { <span class="tn-team">{{ n2.team }}</span> }
                         </span>
 
                         <!-- Status chip -->
-                        <span class="cell cell-status" role="cell" aria-colindex="11">
+                        <span class="cell cell-status" role="cell" aria-colindex="9">
                             @if (showStatusBadge(game)) {
                                 <span class="status-chip"
                                       [attr.title]="game.gStatusText"
@@ -510,13 +513,11 @@ type ScheduleRow =
                 max-content             /* date/time   */
                 minmax(0, max-content)  /* location    */
                 max-content             /* pool        */
-                max-content                 /* home record */
                 fit-content(var(--name-col))/* home →      */
                 max-content                 /* home score  */
                 min-content                 /* dash        */
                 max-content                 /* away score  */
                 fit-content(var(--name-col))/* ← away      */
-                max-content                 /* away record */
                 max-content;                /* status      */
             justify-content: safe center;
             column-gap: var(--space-2);
@@ -565,37 +566,22 @@ type ScheduleRow =
             white-space: nowrap;
         }
 
-        /* Column alignment (DOM order already matches visual order).
-
-           Home and Away each span TWO tracks — the record pill's track plus the name's —
-           because one word ("Home") heads both. Spanning keeps the header honest without
-           inventing a "Record" column label for a pill that is self-describing. The span
-           inherits the side's alignment, so "Home" still lands on the names' right edge
-           beside the score and "Away" on their left edge, exactly where they were. */
+        /* Column alignment (DOM order already matches visual order). */
         .hdr-pool,  .cell-pool  { text-align: left; }
-        .hdr-home   { grid-column: span 2; text-align: right; }
+        .hdr-home   { text-align: right; }
         .cell-home  { text-align: right; }
         .hdr-score  { grid-column: span 3; text-align: center; }
-        .hdr-away   { grid-column: span 2; text-align: left; }
+        .hdr-away   { text-align: left; }
         .cell-away  { text-align: left; }
         .hdr-status,.cell-status{ text-align: center; }
 
-        /* The record pill owns a TRACK of its own, on the OUTER side of each name.
-
-           It used to be the last inline child of the team cell, which made its position a
-           function of the name's length: once names could wrap, a name at or near the
-           17rem cap left no room on its last line and the pill dropped onto a line of its
-           own — on roughly half the rows, since the median name is 24 characters. Pinning
-           the cell to nowrap only traded that for silent clipping (.cell is overflow:
-           hidden), so the pill needed to stop sharing a box with text that resizes.
-
-           OUTER, not inner, deliberately: the inner slot would stack a column of season
-           records flush against the score column, and "2-2-0  4 - 14  3-1-0" reads as one
-           run of numbers. Bookending the row keeps the two kinds of number apart and
-           leaves the names themselves adjacent to the score, which is the pairing that
-           has to survive. Each pill hugs the name it belongs to. */
-        .cell-home-rec { text-align: right; }
-        .cell-away-rec { text-align: left; }
+        /* The record pill lives on the team cell's SECOND line, after the team part of the
+           name, at the score-side edge (home flush right, away flush left — see the
+           template). It used to own a track on the outer side of each name; on line two it
+           costs no width, and it stays clear of the score: the scores are on line one, so
+           "2-2-0  4 - 14  3-1-0" never reads as one run of numbers. */
+        .cell-home .record-btn { margin-inline-start: var(--space-1); }
+        .cell-away .record-btn { margin-inline-end: var(--space-1); }
 
         /* ── Broadsheet dateline ──
            A full-width day "chapter" break. Spans every column (grid-column 1/-1) and
@@ -995,6 +981,9 @@ type ScheduleRow =
            row needs calming, take it out of something that is not carrying meaning. */
         .record-btn {
             appearance: none;
+            /* An inline-block inherits text-indent; the away cell's hanging indent would
+               shove the label out of its own border. */
+            text-indent: 0;
             padding: 0 var(--space-2);
             border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-full);
@@ -1032,8 +1021,8 @@ type ScheduleRow =
         }
 
         /* ONE INLINE TEXT RUN, not a flex row. Star, name and annotation flow and wrap
-           together as text. (The record pill and the bracket badge are NOT in here: the pill
-           has its own track, see .cell-home-rec; the badge rides in the score cell.)
+           together as text, line two carrying the team part and the record pill. (The
+           bracket badge is NOT in here; it rides in the score cell.)
 
            Flex was the wrong container the moment names started wrapping, and it failed twice
            the same way. A flex item anchors to the NAME ELEMENT's edge, but a wrapped name's
@@ -1065,9 +1054,7 @@ type ScheduleRow =
             /* MUST be normal, and must stay that way. .cell sets nowrap + overflow: hidden +
                text-overflow: ellipsis for the single-line cells; inheriting that nowrap here
                re-arms the ellipsis and a long name collapses to a bare "...". Wrapping is the
-               whole point of these two cells. There was briefly a reason to want nowrap — it
-               stopped the W-L-T pill breaking onto its own line — but the pill now has its
-               own track (.cell-home-rec), so nothing in this cell needs it. */
+               whole point of these two cells. */
             white-space: normal;
             /* .cell's overflow: hidden + text-overflow: ellipsis are for the SINGLE-LINE
                cells. On a wrapping cell the ellipsis is dead (it only ever renders on an
@@ -1140,20 +1127,16 @@ type ScheduleRow =
             overflow-wrap: break-word;
         }
 
-        /* Two-line name (desktop grid): club on line one in body ink, carrying the link
-           underline and the win cue; team on line two in secondary ink. The row is already
+        /* Two-line name (desktop grid): club on line one in body ink — it is the link span,
+           carrying the underline and the win cue; team on line two in secondary ink, outside
+           the link, followed (home) or preceded (away) by the record pill. The row is already
            two lines tall (date over time), so the second line costs no height, and the name
-           track only has to fit the longer part instead of club + ":" + team.
+           track only has to fit the longer line instead of club + ":" + team.
 
            The split is a <br> inside the inline run, so the star stays on line one and the
-           away hanging indent puts line two under the club's first character. The team line
-           is an inline-block: an atomic box stops the parent's text-decoration (link
-           underline, gold win underline) propagating into it, and text-indent: 0 stops it
-           inheriting the hanging indent's negative indent. No club (see teamParts) → one
-           line, .tn-solo, styled like a club line. */
+           away hanging indent puts line two under the club's first character. No club (see
+           teamParts) → line one is the whole name, line two only the pill. */
         .tn-team {
-            display: inline-block;
-            text-indent: 0;
             color: var(--bs-secondary-color);
         }
 
