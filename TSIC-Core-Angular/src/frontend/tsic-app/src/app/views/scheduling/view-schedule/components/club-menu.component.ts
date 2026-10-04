@@ -1,6 +1,8 @@
 import {
+    booleanAttribute,
     ChangeDetectionStrategy,
     Component,
+    computed,
     DestroyRef,
     ElementRef,
     EmbeddedViewRef,
@@ -32,9 +34,10 @@ interface MenuState {
 }
 
 /**
- * Club name + caret → a dropdown of the club's teams on the event schedule; picking one
- * emits its teamId. One component for every place a club name appears — the games grid's
- * club line, the team panel's heading, the panel's opponents — so they behave identically.
+ * A dropdown of a club's teams on the event schedule; picking one emits its teamId. Two
+ * triggers, one menu: inline club name + caret (the games grid's club line), or — `pill` —
+ * the TEAM name as a picker pill (the team panel's heading and opponents), where the menu
+ * opens on that team so a sibling is one pick away.
  *
  * Inline by design: the host is an inline element and the trigger an inline span, so in the
  * grid the club name stays part of the cell's single text run (star, hanging indent, wrap).
@@ -57,13 +60,14 @@ interface MenuState {
     template: `
         @if (source) {
             <span #trigger class="club-trigger" role="button" tabindex="0" aria-haspopup="menu"
+                  [class.club-trigger--pill]="pill()"
                   [attr.aria-expanded]="menu() !== null"
-                  [attr.aria-label]="'Show ' + club() + ' teams'"
+                  [attr.aria-label]="pill() ? display() + ' — show ' + club() + ' teams' : 'Show ' + club() + ' teams'"
                   (click)="toggle($event)"
                   (keydown.enter)="toggle($event)"
-                  (keydown.space)="$event.preventDefault(); toggle($event)">{{ club() }}&nbsp;<i class="bi bi-caret-down-fill club-caret" aria-hidden="true"></i></span>
+                  (keydown.space)="$event.preventDefault(); toggle($event)">@if (pill()) {<span class="club-trigger__text">{{ display() }}</span><i class="bi bi-caret-down-fill club-caret" aria-hidden="true"></i>} @else {{{ display() }}&nbsp;<i class="bi bi-caret-down-fill club-caret" aria-hidden="true"></i>}</span>
         } @else {
-            {{ club() }}
+            {{ display() }}
         }
 
         <ng-template #menuTpl>
@@ -115,6 +119,29 @@ interface MenuState {
             outline: none;
             color: var(--bs-primary);
             box-shadow: var(--shadow-focus);
+        }
+
+        /* Pill: the TEAM as a picker — "2027 Black ▾" — framed so it reads as a control you
+           change, not a name you read. The caret sits at the trailing edge; the text wraps
+           inside the pill rather than truncating. */
+        .club-trigger--pill {
+            display: inline-flex;
+            align-items: baseline;
+            gap: var(--space-1);
+            max-width: 100%;
+            padding: 0 var(--space-2);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-full);
+            background: var(--bs-body-bg);
+        }
+        .club-trigger--pill:hover,
+        .club-trigger--pill[aria-expanded="true"],
+        .club-trigger--pill:focus-visible {
+            border-color: var(--bs-primary);
+        }
+        .club-trigger__text {
+            min-width: 0;
+            overflow-wrap: anywhere;
         }
         /* text-indent: 0 on the icon AND its ::before (the inline-block box Bootstrap Icons
            draws into) — the grid's away cell has a negative hanging indent, inherited otherwise. */
@@ -216,8 +243,14 @@ interface MenuState {
     `]
 })
 export class ClubMenuComponent {
-    /** Club name as displayed. */
+    /** Club name — the menu's subject (heading fallback, accessible names). */
     readonly club = input.required<string>();
+    /** Trigger text when it is not the club — the team name, in pill mode. */
+    readonly label = input<string | null>(null);
+    /** Render the trigger as a team-picker pill (bordered, caret trailing) instead of inline
+     *  club text. Same menu either way. */
+    readonly pill = input(false, { transform: booleanAttribute });
+    protected readonly display = computed(() => this.label() ?? this.club());
     /** Any team of the club — the lookup key, and the entry marked current in the list. */
     readonly teamId = input.required<string>();
     /** Which edge of the club name the menu hangs from: 'end' for right-aligned text

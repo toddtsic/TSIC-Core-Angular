@@ -56,23 +56,20 @@ interface ResultGroup {
                         <!-- Club over team — the same order as the games grid's two-line name.
                              "2031 Blue" alone names nothing (most clubs field one); the club is
                              the identifying part, so it is the heading and the team sits under
-                             it in semibold body ink (the subject, not demoted to grey). The
-                             heading's accessible name carries both. No club → the team is the
-                             heading and the sub-line holds only the record. -->
+                             it in semibold body ink (the subject, not demoted to grey). No club
+                             → the team is the heading and the sub-line holds only the record. -->
                         @let club = response()?.clubName;
                         @let subjectId = response()?.teamId;
-                        <h3 class="panel-title">
-                            @if (club && subjectId) {
-                                <!-- Club menu: the club's other teams; picking one reloads this
-                                     panel, the same path as an opponent tap. -->
-                                <app-club-menu [club]="club" [teamId]="subjectId"
-                                               (pick)="viewOpponent.emit($event)" />
-                            } @else {
-                                {{ club || response()?.teamName || 'Team Schedule' }}
-                            }
-                        </h3>
+                        <h3 class="panel-title">{{ club || response()?.teamName || 'Team Schedule' }}</h3>
                         <div class="title-sub">
-                            @if (club) {
+                            @if (club && subjectId) {
+                                <!-- Team picker: the club's other teams, this one marked; picking
+                                     one reloads this panel, the same path as an opponent tap. -->
+                                <span class="team-sub">
+                                    <app-club-menu pill [club]="club" [label]="response()?.teamName ?? ''"
+                                                   [teamId]="subjectId" (pick)="viewOpponent.emit($event)" />
+                                </span>
+                            } @else if (club) {
                                 <span class="team-sub">{{ response()?.teamName }}</span>
                             }
                             @if (headerRecord()) {
@@ -165,26 +162,20 @@ interface ResultGroup {
             </div>
         </div>
 
-        <!-- Opponent name, shared by Results and Upcoming rows. Same two-line language as the
-             games grid: club (semibold, emphasis ink, club menu) over team (the link to that
-             team's schedule, secondary ink). No club to split off → one line, the team. -->
+        <!-- Opponent name, shared by Results and Upcoming rows. Club (semibold, emphasis ink)
+             over the team as a picker pill — the opponent's club's teams, the opponent marked,
+             so opening it or a sibling is one pick. No club to split off → the pill alone. -->
         <ng-template #opponentTpl let-g>
             @let op = splitName(g.opponentName);
             <span class="opp-block">
                 @if (op.club) {
-                    <span class="opp-club">
-                        @if (g.opponentTeamId) {
-                            <app-club-menu [club]="op.club" [teamId]="g.opponentTeamId"
-                                           (pick)="viewOpponent.emit($event)" />
-                        } @else {
-                            {{ op.club }}
-                        }
-                    </span>
+                    <span class="opp-club">{{ op.club }}</span>
                 }
                 @if (g.opponentTeamId) {
-                    <button type="button" class="team-name-link" [class.opp-team]="!!op.club"
-                            [attr.aria-label]="'View ' + g.opponentName + ' schedule'"
-                            (click)="viewOpponent.emit(g.opponentTeamId)">{{ op.team }}</button>
+                    <span class="opp-name" [class.opp-team]="!!op.club">
+                        <app-club-menu pill [club]="op.club || op.team" [label]="op.team"
+                                       [teamId]="g.opponentTeamId" (pick)="viewOpponent.emit($event)" />
+                    </span>
                 } @else {
                     <span class="opp-name" [class.opp-team]="!!op.club">{{ op.team }}</span>
                 }
@@ -258,13 +249,14 @@ interface ResultGroup {
             min-width: 0;
         }
 
+        /* No overflow clipping: it would cut off the team pill's focus ring. A long name
+           wraps inside the pill instead. */
         .team-sub {
+            min-width: 0;
             font-size: var(--font-size-base);
             font-weight: 600;
             color: var(--bs-body-color);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow-wrap: anywhere;
         }
 
         /* Same object as the games-tab record button, and it has to STAY the same object —
@@ -375,29 +367,6 @@ interface ResultGroup {
             color: var(--score-muted);
         }
 
-        .team-name-link {
-            appearance: none;
-            border: none;
-            background: transparent;
-            padding: 0;
-            font: inherit;
-            font-size: var(--font-size-sm);
-            color: var(--bs-body-color);
-            text-align: left;
-            /* Wrap within the minmax(0, 1fr) column instead of truncating — a full team
-               name ("Maryland United:2034 West") reads in full over two lines rather than
-               being cut to an ellipsis. min-width: 0 lets the grid column shrink; anywhere
-               breaks a long unspaced token so it can never spill past the column. The grid
-               baseline-aligns the glyph/score/vs to this name's FIRST line, so a wrap grows
-               the row downward without dragging them off. */
-            min-width: 0;
-            overflow-wrap: anywhere;
-            cursor: pointer;
-            text-decoration: underline dotted;
-            text-decoration-color: var(--bs-border-color);
-            text-underline-offset: 3px;
-        }
-
         /* Two-line opponent (club over team), as in the games grid. A flex column in the
            ledger's name track: its baseline is the FIRST line, so the club lines up with the
            score and "vs", and the team sits under it. */
@@ -413,27 +382,18 @@ interface ResultGroup {
             color: var(--bs-emphasis-color);
             overflow-wrap: anywhere;
         }
-        /* Team line under a club: secondary ink, like the grid. Declared BEFORE
-           .team-name-link:hover (same specificity) so hover/focus still promote to primary. */
-        .team-name-link.opp-team,
+        /* Team line under a club: secondary ink, like the grid. The pill inherits it; its
+           own hover/focus promote to primary. */
         .opp-name.opp-team {
             color: var(--bs-secondary-color);
         }
 
-        .team-name-link:hover {
-            color: var(--bs-primary);
-            text-decoration-color: currentColor;
-        }
-
-        .team-name-link:focus-visible {
-            outline: none;
-            box-shadow: var(--shadow-focus);
-            border-radius: var(--radius-sm);
-        }
-
+        /* Wraps within the minmax(0, 1fr) column instead of truncating; the grid baseline-
+           aligns glyph/score/vs to the FIRST line, so a wrap grows the row downward. */
         .opp-name {
             font-size: var(--font-size-sm);
             min-width: 0;
+            max-width: 100%;
             overflow-wrap: anywhere;
         }
 
