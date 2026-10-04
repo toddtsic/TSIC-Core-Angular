@@ -9,6 +9,7 @@ import type {
     ViewGameDto,
     StandingsByDivisionResponse,
     TeamResultsResponse,
+    ClubTeamsResponse,
     DivisionBracketResponse,
     ContactDto,
     FieldDisplayDto,
@@ -34,6 +35,8 @@ export type {
     DivisionStandingsDto,
     TeamResultDto,
     TeamResultsResponse,
+    ClubTeamsResponse,
+    ClubTeamEntryDto,
     DivisionBracketResponse,
     BracketMatchDto,
     ContactDto,
@@ -104,6 +107,14 @@ export class ViewScheduleService {
             return this.http.get<TeamResultsResponse>(`${this.apiUrl}/team-results/${teamId}`, { params: { jobPath } });
         }
         return this.http.get<TeamResultsResponse>(`${this.apiUrl}/team-results/${teamId}`);
+    }
+
+    /** The team's club teams on the event schedule — looked up on click, never carried with the games. */
+    getClubTeams(teamId: string, jobPath?: string): Observable<ClubTeamsResponse> {
+        if (jobPath) {
+            return this.http.get<ClubTeamsResponse>(`${this.apiUrl}/club-teams/${teamId}`, { params: { jobPath } });
+        }
+        return this.http.get<ClubTeamsResponse>(`${this.apiUrl}/club-teams/${teamId}`);
     }
 
     getFieldInfo(fieldId: string): Observable<FieldDisplayDto> {

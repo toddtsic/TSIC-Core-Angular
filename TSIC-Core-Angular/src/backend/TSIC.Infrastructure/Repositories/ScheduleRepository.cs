@@ -1179,6 +1179,46 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ToListAsync(ct);
     }
 
+    public async Task<ClubTeamsResponse?> GetScheduledClubTeamsAsync(
+        Guid teamId, CancellationToken ct = default)
+    {
+        var anchor = await (
+            from t in _context.Teams
+            where t.TeamId == teamId
+            join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId into regs
+            from r in regs.DefaultIfEmpty()
+            select new { t.JobId, Rep = t.ClubrepRegistrationid, ClubName = r != null ? r.ClubName : null })
+            .AsNoTracking()
+            .FirstOrDefaultAsync(ct);
+        if (anchor == null) return null;
+
+        // Same job + same club-rep registration; a rep-less team stands alone. "On the
+        // schedule" = at least one dated game, the same test the team-results drill-down uses.
+        var clubTeams = anchor.Rep is Guid rep
+            ? _context.Teams.Where(t => t.JobId == anchor.JobId && t.ClubrepRegistrationid == rep)
+            : _context.Teams.Where(t => t.TeamId == teamId);
+
+        var teams = await (
+            from t in clubTeams
+            where _context.Schedule.Any(s => (s.T1Id == t.TeamId || s.T2Id == t.TeamId) && s.GDate.HasValue)
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            orderby ag.AgegroupName, t.TeamName
+            select new ClubTeamEntryDto
+            {
+                TeamId = t.TeamId,
+                TeamName = t.TeamName ?? "",
+                AgegroupName = ag.AgegroupName ?? ""
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        return new ClubTeamsResponse
+        {
+            ClubName = string.IsNullOrWhiteSpace(anchor.ClubName) ? null : anchor.ClubName.Trim(),
+            Teams = teams.Select(x => x with { TeamName = x.TeamName.Trim(), AgegroupName = x.AgegroupName.Trim() }).ToList()
+        };
+    }
+
     public async Task<List<GameStatusOptionDto>> GetGameStatusOptionsAsync(CancellationToken ct = default)
     {
         return await _context.GameStatusCodes

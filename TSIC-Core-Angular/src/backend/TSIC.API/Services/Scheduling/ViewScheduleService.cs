@@ -301,6 +301,11 @@ public sealed class ViewScheduleService : IViewScheduleService
         };
     }
 
+    public async Task<ClubTeamsResponse?> GetClubTeamsAsync(Guid teamId, CancellationToken ct = default)
+    {
+        return await _scheduleRepo.GetScheduledClubTeamsAsync(teamId, ct);
+    }
+
     public async Task<List<DivisionBracketResponse>> GetBracketsAsync(
         Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
     {

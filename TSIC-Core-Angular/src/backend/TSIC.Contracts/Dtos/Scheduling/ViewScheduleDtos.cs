@@ -398,6 +398,30 @@ public record TeamResultsResponse
     public required List<TeamResultDto> Games { get; init; }
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// Club Teams Lookup (games grid → club name → pick a team)
+// ══════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// The club's teams that are on this event's schedule, looked up from one of its teams.
+/// "Club" = the subject team's club-rep registration within the event — the same source the
+/// club name on the schedule row comes from (Registrations.club_name).
+/// </summary>
+public record ClubTeamsResponse
+{
+    /// <summary>Club name from the club-rep registration; null when the team has no club rep.</summary>
+    public string? ClubName { get; init; }
+    /// <summary>Teams with at least one dated game, ordered by agegroup name then team name.</summary>
+    public required List<ClubTeamEntryDto> Teams { get; init; }
+}
+
+public record ClubTeamEntryDto
+{
+    public required Guid TeamId { get; init; }
+    public required string TeamName { get; init; }
+    public required string AgegroupName { get; init; }
+}
+
 /// <summary>
 /// A single game from a specific team's perspective — used for the team results drill-down modal.
 /// </summary>

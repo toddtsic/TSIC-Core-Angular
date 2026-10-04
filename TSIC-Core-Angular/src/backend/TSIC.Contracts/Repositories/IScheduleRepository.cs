@@ -268,6 +268,13 @@ public interface IScheduleRepository
     Task<List<Schedule>> GetTeamGamesAsync(Guid teamId, CancellationToken ct = default);
 
     /// <summary>
+    /// The subject team's club teams on its event's schedule: same job, same club-rep
+    /// registration, at least one dated game. A team with no club rep yields only itself
+    /// (when scheduled). Null when the team does not exist.
+    /// </summary>
+    Task<ClubTeamsResponse?> GetScheduledClubTeamsAsync(Guid teamId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get all rows from Leagues.GameStatusCodes — the DB source of truth for status dropdowns and display.
     /// Ordered by code ascending.
     /// </summary>

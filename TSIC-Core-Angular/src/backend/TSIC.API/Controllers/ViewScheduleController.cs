@@ -213,6 +213,26 @@ public class ViewScheduleController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>GET /api/view-schedule/club-teams/{teamId}?jobPath= — The team's club teams on the schedule.</summary>
+    [AllowAnonymous]
+    [HttpGet("club-teams/{teamId:guid}")]
+    public async Task<ActionResult<ClubTeamsResponse>> GetClubTeams(
+        Guid teamId, [FromQuery] string? jobPath, CancellationToken ct)
+    {
+        var (_, _, _, error) = await ResolveContext(jobPath);
+        if (error != null) return error;
+
+        // Same gate as team-results: the job that OWNS the team, not the jobPath.
+        var teamJobId = await _jobLookupService.GetJobIdByTeamAsync(teamId, ct);
+        if (teamJobId == null) return ScheduleNotAvailable();
+        var unavailable = await UnavailableUnlessCanViewAsync(teamJobId.Value, ct);
+        if (unavailable != null) return unavailable;
+
+        var result = await _service.GetClubTeamsAsync(teamId, ct);
+        if (result == null) return ScheduleNotAvailable();
+        return Ok(result);
+    }
+
     /// <summary>GET /api/view-schedule/field-info/{fieldId} — Field directions/details.</summary>
     [AllowAnonymous]
     [HttpGet("field-info/{fieldId:guid}")]

@@ -343,6 +343,7 @@ interface FilterChip {
                             [canScore]="auth.isAdmin()"
                             [isLoading]="tabLoading()"
                             [followedTeamIds]="directTeamIds()"
+                            [loadClubTeams]="loadClubTeams"
                             (scoreGame)="onScoreGame($event)"
                             (editGame)="onEditGameOpen($event)"
                             (viewTeamResults)="onViewTeamResults($event)"
@@ -1911,6 +1912,10 @@ export class ViewScheduleComponent implements OnInit {
     // ══════════════════════════════════════════════════════════════════
     // Team Results Modal
     // ══════════════════════════════════════════════════════════════════
+
+    /** Games tab club menu → the club's scheduled teams. A stable arrow (one input value for
+     *  the component's life) that reads jobPath at CALL time, so it can never be stale. */
+    readonly loadClubTeams = (teamId: string) => this.svc.getClubTeams(teamId, this.jobPath);
 
     onViewTeamResults(teamId: string): void {
         this.teamResultsVisible.set(true);

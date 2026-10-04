@@ -73,6 +73,12 @@ public interface IViewScheduleService
     Task<TeamResultsResponse> GetTeamResultsAsync(Guid teamId, CancellationToken ct = default);
 
     /// <summary>
+    /// Club teams lookup — the subject team's club teams that are on the event's schedule.
+    /// Null when the team does not exist.
+    /// </summary>
+    Task<ClubTeamsResponse?> GetClubTeamsAsync(Guid teamId, CancellationToken ct = default);
+
+    /// <summary>
     /// Brackets tab — bracket matches grouped by division (or agegroup).
     /// </summary>
     Task<List<DivisionBracketResponse>> GetBracketsAsync(Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default);
