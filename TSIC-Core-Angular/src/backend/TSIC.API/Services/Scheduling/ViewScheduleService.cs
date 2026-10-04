@@ -292,6 +292,7 @@ public sealed class ViewScheduleService : IViewScheduleService
 
         return new TeamResultsResponse
         {
+            TeamId = teamId,
             TeamName = detail?.TeamName ?? "Unknown Team",
             AgegroupName = detail?.AgegroupName ?? "",
             ClubName = detail?.ClubName,

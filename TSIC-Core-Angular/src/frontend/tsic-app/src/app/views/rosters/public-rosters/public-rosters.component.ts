@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed, ElementRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, forwardRef, inject, signal, computed, ElementRef } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ListBoxModule, FilteringEventArgs } from '@syncfusion/ej2-angular-dropdowns';
@@ -7,6 +7,7 @@ import { CadtClubNode, CadtTeamNode, PublicRosterPlayerDto, TeamResultsResponse 
 import { PublicRosterService } from './public-roster.service';
 import { ViewScheduleService } from '../../scheduling/view-schedule/services/view-schedule.service';
 import { TeamResultsModalComponent } from '../../scheduling/view-schedule/components/team-results-modal.component';
+import { CLUB_TEAMS_SOURCE, type ClubTeamsSource } from '../../scheduling/view-schedule/services/club-teams-source';
 
 /** Flat team entry for search results — carries breadcrumb context. */
 interface FlatTeam {
@@ -39,9 +40,11 @@ interface RosterRow {
 	imports: [CommonModule, ListBoxModule, TeamResultsModalComponent],
 	templateUrl: './public-rosters.component.html',
 	styleUrls: ['./public-rosters.component.scss'],
+	// The team panel's club menus look their teams up here.
+	providers: [{ provide: CLUB_TEAMS_SOURCE, useExisting: forwardRef(() => PublicRostersComponent) }],
 	changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PublicRostersComponent {
+export class PublicRostersComponent implements ClubTeamsSource {
 	private readonly route = inject(ActivatedRoute);
 	private readonly svc = inject(PublicRosterService);
 	private readonly scheduleSvc = inject(ViewScheduleService);
@@ -322,6 +325,11 @@ export class PublicRostersComponent {
 		if (!teamId) return;
 		const ft = this.allTeams().find(x => x.team.teamId === teamId);
 		if (ft) this.selectFlatTeam(ft);
+	}
+
+	/** CLUB_TEAMS_SOURCE — club menus in the team panel. */
+	loadClubTeams(teamId: string) {
+		return this.scheduleSvc.getClubTeams(teamId, this.jobPath);
 	}
 
 	viewTeamSchedule(teamId: string): void {

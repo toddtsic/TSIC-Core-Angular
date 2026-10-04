@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { TeamResultDto } from './TeamResultDto';
 export type TeamResultsResponse = {
+    teamId: string;
     teamName: string;
     agegroupName: string;
     clubName?: string | null;

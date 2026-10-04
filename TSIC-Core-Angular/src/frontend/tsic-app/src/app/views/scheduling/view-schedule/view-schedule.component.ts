@@ -1,5 +1,5 @@
 import {
-    ChangeDetectionStrategy, Component, inject, OnInit, signal, computed, CUSTOM_ELEMENTS_SCHEMA
+    ChangeDetectionStrategy, Component, forwardRef, inject, OnInit, signal, computed, CUSTOM_ELEMENTS_SCHEMA
 } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { HttpClient, type HttpErrorResponse } from '@angular/common/http';
@@ -26,6 +26,7 @@ import type {
     FamilyPlayersResponseDto
 } from '@core/api';
 import { ViewScheduleService } from './services/view-schedule.service';
+import { CLUB_TEAMS_SOURCE, type ClubTeamsSource } from './services/club-teams-source';
 import { ScheduleFiltersStore } from './services/schedule-filters.store';
 import { JobFilterTreeService } from '../../../core/services/job-filter-tree.service';
 import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
@@ -80,7 +81,11 @@ interface FilterChip {
         ChecklistBackLinkComponent
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
-    providers: [CheckBoxSelectionService],
+    // This page is the club-menu lookup for everything under it (games grid, team panel).
+    providers: [
+        CheckBoxSelectionService,
+        { provide: CLUB_TEAMS_SOURCE, useExisting: forwardRef(() => ViewScheduleComponent) }
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <div class="view-schedule-page">
@@ -343,7 +348,6 @@ interface FilterChip {
                             [canScore]="auth.isAdmin()"
                             [isLoading]="tabLoading()"
                             [followedTeamIds]="directTeamIds()"
-                            [loadClubTeams]="loadClubTeams"
                             (scoreGame)="onScoreGame($event)"
                             (editGame)="onEditGameOpen($event)"
                             (viewTeamResults)="onViewTeamResults($event)"
@@ -1220,7 +1224,7 @@ interface FilterChip {
         }
     `]
 })
-export class ViewScheduleComponent implements OnInit {
+export class ViewScheduleComponent implements OnInit, ClubTeamsSource {
     private readonly svc = inject(ViewScheduleService);
     private readonly jobFilterTreeSvc = inject(JobFilterTreeService);
     private readonly route = inject(ActivatedRoute);
@@ -1913,9 +1917,11 @@ export class ViewScheduleComponent implements OnInit {
     // Team Results Modal
     // ══════════════════════════════════════════════════════════════════
 
-    /** Games tab club menu → the club's scheduled teams. A stable arrow (one input value for
-     *  the component's life) that reads jobPath at CALL time, so it can never be stale. */
-    readonly loadClubTeams = (teamId: string) => this.svc.getClubTeams(teamId, this.jobPath);
+    /** CLUB_TEAMS_SOURCE — every club menu on the page (grid, panel heading, panel opponents)
+     *  looks its teams up here. Reads jobPath at call time, so it is never stale. */
+    loadClubTeams(teamId: string) {
+        return this.svc.getClubTeams(teamId, this.jobPath);
+    }
 
     onViewTeamResults(teamId: string): void {
         this.teamResultsVisible.set(true);

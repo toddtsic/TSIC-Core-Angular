@@ -387,6 +387,8 @@ public record StandingsByDivisionResponse
 /// </summary>
 public record TeamResultsResponse
 {
+    /// <summary>The subject team — the panel's club menu looks up siblings from it.</summary>
+    public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
     public required string AgegroupName { get; init; }
     public string? ClubName { get; init; }

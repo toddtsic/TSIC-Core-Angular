@@ -1,34 +1,13 @@
 import {
   Component,
   ChangeDetectionStrategy,
-  ElementRef,
-  Injector,
-  afterNextRender,
-  inject,
   input,
   computed,
-  output,
-  signal,
-  viewChild
+  output
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Observable, Subject, catchError, fromEvent, map, merge, of, switchMap } from 'rxjs';
-import type { ClubTeamsResponse, ViewGameDto } from '@core/api';
-
-/** Open club menu. Exactly one of top/bottom and one of left/right is set (the rest null,
- *  which removes the style): home anchors its right edge to the club name, away its left. */
-interface ClubMenuState {
-    readonly key: string;
-    readonly teamId: string;
-    readonly top: number | null;
-    readonly bottom: number | null;
-    readonly left: number | null;
-    readonly right: number | null;
-    readonly maxHeight: number;
-    readonly status: 'loading' | 'ready' | 'error';
-    readonly data: ClubTeamsResponse | null;
-}
+import type { ViewGameDto } from '@core/api';
+import { ClubMenuComponent } from './club-menu.component';
+import { splitTeamName, teamLabel as formatTeamLabel, type TeamNameParts } from '../utils/team-name';
 
 /**
  * Broadsheet grouping — the flat chronological game list (server orders by
@@ -44,6 +23,7 @@ type ScheduleRow =
 @Component({
     selector: 'app-games-tab',
     standalone: true,
+    imports: [ClubMenuComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (isLoading()) {
@@ -185,12 +165,8 @@ type ScheduleRow =
                                 </button>
                             }
                             @if (n1.club && game.t1Id) {
-                                <span class="team-name tn-club club-trigger" role="button" tabindex="0" aria-haspopup="menu"
-                                      [attr.aria-expanded]="clubMenu()?.key === game.gid + ':1'"
-                                      [attr.aria-label]="'Show ' + n1.club + ' teams'"
-                                      (click)="openClubMenu(game.t1Id!, 'home', game.gid + ':1', $event)"
-                                      (keydown.enter)="openClubMenu(game.t1Id!, 'home', game.gid + ':1', $event)"
-                                      (keydown.space)="$event.preventDefault(); openClubMenu(game.t1Id!, 'home', game.gid + ':1', $event)">{{ n1.club }}&nbsp;<i class="bi bi-caret-down-fill club-caret" aria-hidden="true"></i></span>
+                                <app-club-menu class="team-name tn-club" [club]="n1.club" [teamId]="game.t1Id!" align="end"
+                                               (pick)="viewTeamResults.emit($event)" />
                             } @else if (n1.club) {
                                 <span class="team-name tn-club">{{ n1.club }}</span>
                             } @else if (game.t1Id) {
@@ -298,12 +274,8 @@ type ScheduleRow =
                                  flush left, at the score edge. Mirror of home. -->
                             @if (isT2Winner(game)) { <i class="bi bi-trophy-fill win-trophy" title="Winner" aria-hidden="true"></i> }
                             @if (n2.club && game.t2Id) {
-                                <span class="team-name tn-club club-trigger" role="button" tabindex="0" aria-haspopup="menu"
-                                      [attr.aria-expanded]="clubMenu()?.key === game.gid + ':2'"
-                                      [attr.aria-label]="'Show ' + n2.club + ' teams'"
-                                      (click)="openClubMenu(game.t2Id!, 'away', game.gid + ':2', $event)"
-                                      (keydown.enter)="openClubMenu(game.t2Id!, 'away', game.gid + ':2', $event)"
-                                      (keydown.space)="$event.preventDefault(); openClubMenu(game.t2Id!, 'away', game.gid + ':2', $event)">{{ n2.club }}&nbsp;<i class="bi bi-caret-down-fill club-caret" aria-hidden="true"></i></span>
+                                <app-club-menu class="team-name tn-club" [club]="n2.club" [teamId]="game.t2Id!"
+                                               (pick)="viewTeamResults.emit($event)" />
                             } @else if (n2.club) {
                                 <span class="team-name tn-club">{{ n2.club }}</span>
                             } @else if (game.t2Id) {
@@ -489,40 +461,6 @@ type ScheduleRow =
                             }
                         </div>
                     </div>
-                    }
-                }
-            </div>
-        }
-
-        <!-- Club menu — the club's teams on the event schedule, looked up on open (never carried
-             with the games). Fixed to the viewport, so no grid row or subgrid can clip it; the
-             transparent backdrop takes the outside click. Picking a team opens the same team
-             panel the team-name link does. -->
-        @if (clubMenu(); as m) {
-            <div class="club-menu-backdrop" (click)="closeClubMenu(false)"></div>
-            <div #clubMenuEl class="club-menu" role="menu" tabindex="-1"
-                 [attr.aria-label]="(m.data?.clubName ?? 'Club') + ' teams'"
-                 [attr.aria-busy]="m.status === 'loading'"
-                 [style.top.px]="m.top" [style.bottom.px]="m.bottom"
-                 [style.left.px]="m.left" [style.right.px]="m.right"
-                 [style.max-height.px]="m.maxHeight"
-                 (keydown)="onClubMenuKeydown($event)">
-                @switch (m.status) {
-                    @case ('loading') { <div class="club-menu-note">Loading teams…</div> }
-                    @case ('error') { <div class="club-menu-note">Couldn't load teams.</div> }
-                    @default {
-                        @if (m.data?.clubName) { <div class="club-menu-head">{{ m.data?.clubName }}</div> }
-                        @for (t of m.data?.teams ?? []; track t.teamId) {
-                            <button type="button" class="club-menu-item" role="menuitem" tabindex="-1"
-                                    [class.is-current]="t.teamId === m.teamId"
-                                    [attr.aria-current]="t.teamId === m.teamId ? 'true' : null"
-                                    (click)="pickClubTeam(t.teamId)">
-                                <span class="club-menu-ag">{{ t.agegroupName }}</span>
-                                <span class="club-menu-team">{{ t.teamName }}</span>
-                            </button>
-                        } @empty {
-                            <div class="club-menu-note">No scheduled teams.</div>
-                        }
                     }
                 }
             </div>
@@ -1220,117 +1158,6 @@ type ScheduleRow =
         .cell-home .win-trophy { margin-inline-start: var(--space-1); }
         .cell-away .win-trophy { margin-inline-end: var(--space-1); }
 
-        /* Club name → club menu. NOT the dotted underline: that affordance is the team link's
-           alone (it opens one team; this opens a list). The always-visible caret is the cue,
-           so touch gets it too. A span role="button" (like .team-link) so the name stays in the
-           inline run and wraps with the star and hanging indent. The &nbsp; before the caret
-           glues it to the last word — it never wraps onto a line by itself. */
-        .club-trigger {
-            cursor: pointer;
-            border-radius: var(--radius-sm);
-        }
-        .club-trigger:hover,
-        .club-trigger[aria-expanded="true"] {
-            color: var(--bs-primary);
-        }
-        .club-trigger:focus-visible {
-            outline: none;
-            color: var(--bs-primary);
-            box-shadow: var(--shadow-focus);
-        }
-        /* text-indent: 0 on the icon AND its ::before (the inline-block box Bootstrap Icons
-           draws into) — the away cell's negative hanging indent is inherited otherwise. */
-        .club-caret,
-        .club-caret::before {
-            text-indent: 0;
-        }
-        .club-caret {
-            font-size: 0.6em;
-            color: var(--bs-secondary-color);
-        }
-        .club-trigger:hover .club-caret,
-        .club-trigger:focus-visible .club-caret,
-        .club-trigger[aria-expanded="true"] .club-caret {
-            color: currentColor;
-        }
-
-        /* Club menu (fixed; see the template). Same recipe as the header user menu: a
-           transparent full-viewport backdrop under a viewport-fixed panel. Two-track subgrid so
-           every age group lines up in one column and every team name in the next. */
-        .club-menu-backdrop {
-            position: fixed;
-            inset: 0;
-            z-index: 10000;
-        }
-        .club-menu {
-            position: fixed;
-            z-index: 10001;
-            display: grid;
-            grid-template-columns: auto minmax(0, 1fr);
-            align-content: start;
-            min-width: 14rem;
-            max-width: min(22rem, calc(100vw - 2 * var(--space-4)));
-            overflow-y: auto;
-            padding: var(--space-1) 0;
-            background: var(--bs-body-bg);
-            border: 1px solid var(--bs-border-color);
-            border-radius: var(--bs-border-radius-lg);
-            box-shadow: var(--shadow-lg);
-            font-size: var(--font-size-xs);
-            text-align: start;
-        }
-        .club-menu:focus-visible {
-            outline: none;
-        }
-        .club-menu-head,
-        .club-menu-note {
-            grid-column: 1 / -1;
-            padding: var(--space-1) var(--space-3);
-        }
-        .club-menu-head {
-            font-weight: 600;
-            color: var(--bs-emphasis-color);
-            border-bottom: 1px solid var(--bs-border-color);
-            margin-bottom: var(--space-1);
-        }
-        .club-menu-note {
-            color: var(--bs-secondary-color);
-        }
-        .club-menu-item {
-            grid-column: 1 / -1;
-            display: grid;
-            grid-template-columns: subgrid;
-            column-gap: var(--space-3);
-            align-items: baseline;
-            padding: var(--space-1) var(--space-3);
-            border: none;
-            background: transparent;
-            font: inherit;
-            color: var(--bs-body-color);
-            text-align: start;
-            cursor: pointer;
-        }
-        .club-menu-item:hover,
-        .club-menu-item:focus-visible {
-            outline: none;
-            background: var(--bs-primary-bg-subtle);
-            color: var(--bs-primary);
-        }
-        .club-menu-ag {
-            color: var(--bs-secondary-color);
-            white-space: nowrap;
-        }
-        /* The team the menu was opened from: semibold + a primary inset bar on the leading
-           edge, so it stays marked after focus moves off it (not color alone — weight too). */
-        .club-menu-item.is-current {
-            font-weight: 600;
-            box-shadow: inset 3px 0 0 var(--bs-primary);
-        }
-        .club-menu-item:hover .club-menu-ag,
-        .club-menu-item:focus-visible .club-menu-ag {
-            color: inherit;
-        }
-
         /* Team name → team-results modal, the same viewTeamResults target the record
            badge fires. Black-tie doctrine meets touch reality: the name RESTS at body ink
            with a SOFT DOTTED UNDERLINE — a persistent affordance (no hover dependency, so
@@ -1860,9 +1687,6 @@ export class GamesTabComponent {
     readonly isLoading = input<boolean>(false);
     /** TeamIds the current user is following (parent owns the set). */
     readonly followedTeamIds = input<readonly string[]>([]);
-    /** Club menu lookup, supplied by the host (which owns the service and jobPath). Absent →
-     *  the menu shows its error line rather than this component reaching for HTTP itself. */
-    readonly loadClubTeams = input<((teamId: string) => Observable<ClubTeamsResponse>) | null>(null);
 
     // ── Outputs ──
     /** Pencil clicked — the host opens the score sheet. The whole game goes up rather than
@@ -1873,137 +1697,6 @@ export class GamesTabComponent {
     readonly viewTeamResults = output<string>();
     /** Emits the teamId when the user clicks a star — parent toggles the set. */
     readonly toggleFollow = output<string>();
-
-    // ── Club menu ──
-    readonly clubMenu = signal<ClubMenuState | null>(null);
-    private readonly clubMenuEl = viewChild<ElementRef<HTMLElement>>('clubMenuEl');
-    private readonly clubRequests = new Subject<string>();
-    private readonly injector = inject(Injector);
-    private readonly doc = inject(DOCUMENT);
-    /** The club name that opened the menu — focus returns here on Escape. */
-    private clubTrigger: HTMLElement | null = null;
-
-    constructor() {
-        // switchMap: re-opening on another club drops the stale lookup; the teamId check
-        // below also drops a response for a menu that was closed while it was in flight.
-        this.clubRequests.pipe(
-            switchMap(teamId => {
-                const load = this.loadClubTeams();
-                if (!load) return of({ teamId, data: null as ClubTeamsResponse | null });
-                return load(teamId).pipe(
-                    map(data => ({ teamId, data: data as ClubTeamsResponse | null })),
-                    catchError(() => of({ teamId, data: null as ClubTeamsResponse | null })));
-            }),
-            takeUntilDestroyed()
-        ).subscribe(({ teamId, data }) => {
-            const m = this.clubMenu();
-            if (!m || m.teamId !== teamId) return;
-            this.clubMenu.set({ ...m, status: data ? 'ready' : 'error', data });
-            if (data?.teams.length) {
-                // Default to the team the menu was opened from — Enter re-confirms it, arrows
-                // walk to its siblings. Falls back to the first entry if it is not listed.
-                const start = Math.max(0, data.teams.findIndex(t => t.teamId === teamId));
-                afterNextRender(() => this.focusClubItem(start), { injector: this.injector });
-            }
-        });
-
-        // A fixed menu would float free of its row on scroll or resize — close instead.
-        // Capture phase catches scrolls of any container; the menu's own list scroll is exempt.
-        merge(
-            fromEvent<Event>(this.doc, 'scroll', { capture: true }),
-            fromEvent<Event>(this.doc.defaultView ?? window, 'resize')
-        ).pipe(takeUntilDestroyed()).subscribe(ev => {
-            if (!this.clubMenu()) return;
-            const menu = this.clubMenuEl()?.nativeElement;
-            if (menu && ev.target instanceof Node && menu.contains(ev.target)) return;
-            this.closeClubMenu(false);
-        });
-    }
-
-    openClubMenu(teamId: string, side: 'home' | 'away', key: string, ev: Event): void {
-        ev.stopPropagation();
-        if (this.clubMenu()?.key === key) { this.closeClubMenu(true); return; }
-
-        const el = ev.currentTarget as HTMLElement;
-        this.clubTrigger = el;
-        const rect = el.getBoundingClientRect();
-        const win = this.doc.defaultView ?? window;
-        const vh = win.innerHeight;
-        const vw = win.innerWidth;
-        const gap = 4;
-        const margin = 16;
-        const roomBelow = vh - rect.bottom - gap - margin;
-        const roomAbove = rect.top - gap - margin;
-        const openUp = roomBelow < 240 && roomAbove > roomBelow;
-
-        this.clubMenu.set({
-            key,
-            teamId,
-            top: openUp ? null : rect.bottom + gap,
-            bottom: openUp ? vh - rect.top + gap : null,
-            left: side === 'away' ? rect.left : null,
-            right: side === 'home' ? vw - rect.right : null,
-            maxHeight: Math.max(160, openUp ? roomAbove : roomBelow),
-            status: 'loading',
-            data: null
-        });
-        // Focus the menu itself while loading so Escape works before the items exist.
-        afterNextRender(() => this.clubMenuEl()?.nativeElement.focus(), { injector: this.injector });
-        this.clubRequests.next(teamId);
-    }
-
-    closeClubMenu(returnFocus: boolean): void {
-        if (!this.clubMenu()) return;
-        this.clubMenu.set(null);
-        if (returnFocus) this.clubTrigger?.focus();
-        this.clubTrigger = null;
-    }
-
-    pickClubTeam(teamId: string): void {
-        this.closeClubMenu(false);
-        this.viewTeamResults.emit(teamId);
-    }
-
-    onClubMenuKeydown(ev: KeyboardEvent): void {
-        const items = this.clubMenuItems();
-        const idx = items.indexOf(this.doc.activeElement as HTMLElement);
-        switch (ev.key) {
-            case 'Escape':
-                ev.preventDefault();
-                this.closeClubMenu(true);
-                return;
-            case 'Tab':
-                this.closeClubMenu(false);
-                return;
-            case 'ArrowDown':
-                ev.preventDefault();
-                this.focusClubItem(idx < 0 ? 0 : (idx + 1) % items.length);
-                return;
-            case 'ArrowUp':
-                ev.preventDefault();
-                this.focusClubItem(idx <= 0 ? items.length - 1 : idx - 1);
-                return;
-            case 'Home':
-                ev.preventDefault();
-                this.focusClubItem(0);
-                return;
-            case 'End':
-                ev.preventDefault();
-                this.focusClubItem(items.length - 1);
-                return;
-        }
-    }
-
-    private clubMenuItems(): HTMLElement[] {
-        const menu = this.clubMenuEl()?.nativeElement;
-        return menu ? Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]')) : [];
-    }
-
-    private focusClubItem(i: number): void {
-        const item = this.clubMenuItems()[i];
-        item?.focus({ preventScroll: true });
-        item?.scrollIntoView({ block: 'nearest' });
-    }
 
     // ── Derived ──
     private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
@@ -2045,65 +1738,14 @@ export class GamesTabComponent {
     // Team labels
     // ══════════════════════════════════════════════════════════════════
 
-    /**
-     * Display label for a stored team name, with a repeated club prefix collapsed out.
-     *
-     * Schedules.T1Name / T2Name are denormalized as "{club}:{team}" — "Metro:2034/35 Blue",
-     * "All Lax Select:2034". Some clubs then name the team after the club again, so the
-     * stored string doubles back on itself: "North Bay Lacrosse Club:North Bay Lacrosse
-     * Club-Riptide". Those are the longest labels in the ledger and the first to ellipsize,
-     * and the half that gets cut is the half that identifies the team.
-     *
-     * Collapsing to "North Bay Lacrosse Club:Riptide" keeps the club:team shape every other
-     * row uses. DISPLAY ONLY — title and aria-label keep the stored value, so hovering,
-     * screen readers, and anyone matching against what the club typed still see it verbatim.
-     * Fixing it in the data would touch every consumer of T1Name (brackets, standings, team
-     * results) and rewrite what directors entered; this stays in the one view that suffers.
-     *
-     * Each part is also trimmed. Legacy rows were composed from club names carrying a
-     * trailing space ("Prime Time :2029"); the write path trims now (ComposeTeamLabel in
-     * ScheduleRepository), but the stored legacy text still has it.
-     */
+    /** One-line label (mobile cards) — see utils/team-name for the collapse + trim rules. */
     teamLabel(name: string | null | undefined, slotLabel?: string | null): string {
-        const p = this.teamParts(name, slotLabel);
-        return p.club ? `${p.club}:${p.team}` : p.team;
+        return formatTeamLabel(name, slotLabel);
     }
 
-    /**
-     * The same label split at the club boundary, for the desktop grid's two-line name: club
-     * on line one, team on line two. club is null — ONE line, the whole label in team —
-     * whenever there is no club to split off: no colon (team-name-only jobs, unresolved
-     * bracket feeds like "F1 (RED#1)"), an empty club or team either side of it, or a team
-     * named exactly after its club (two identical lines would say nothing new).
-     */
-    teamParts(name: string | null | undefined, slotLabel?: string | null): { club: string | null; team: string } {
-        const raw = this.stripSlotSuffix(name ?? '', slotLabel).trim();
-        const sep = raw.indexOf(':');
-        if (sep < 0) return { club: null, team: raw };
-        const club = raw.slice(0, sep).trim();
-        const team = raw.slice(sep + 1).trim();
-        if (!club) return { club: null, team };
-        if (!team) return { club: null, team: club };
-        if (!team.toLowerCase().startsWith(club.toLowerCase())) return { club, team };
-        // Drop the echoed club plus whatever joins it to the real name ("-", " ", "/", ":").
-        const rest = team.slice(club.length).replace(/^[\s\-–—:_/|]+/, '').trim();
-        return rest ? { club, team: rest } : { club: null, team: club };
-    }
-
-    /**
-     * Legacy-written bracket rows store the slot inside the name — "Capital Lacrosse
-     * Club:2029 Orange  (S1)" — and the row's seed tag already says S1, so the grid read it
-     * twice. Drop the suffix only when it is EXACTLY this row's own slot label (a stale
-     * "(Q1)" on an S game stays visible: that is a data fact, not a repeat). Display only,
-     * like the club-echo collapse above. A name that is nothing but the suffix is kept.
-     */
-    private stripSlotSuffix(name: string, slotLabel?: string | null): string {
-        if (!slotLabel) return name;
-        const suffix = `(${slotLabel})`;
-        const trimmed = name.trimEnd();
-        if (!trimmed.toUpperCase().endsWith(suffix.toUpperCase())) return name;
-        const rest = trimmed.slice(0, -suffix.length).trimEnd();
-        return rest || name;
+    /** Club / team split for the desktop grid's two-line name — see utils/team-name. */
+    teamParts(name: string | null | undefined, slotLabel?: string | null): TeamNameParts {
+        return splitTeamName(name, slotLabel);
     }
 
     // ══════════════════════════════════════════════════════════════════

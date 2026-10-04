@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import type { TeamResultDto, TeamResultsResponse } from '@core/api';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
+import { ClubMenuComponent } from './club-menu.component';
+import { splitTeamName } from '../utils/team-name';
 
 /**
  * Team schedule fly-in — opened from a team's record pill (games/brackets) or
@@ -28,7 +30,7 @@ interface ResultGroup {
 @Component({
     selector: 'app-team-results-modal',
     standalone: true,
-    imports: [DatePipe, ResizablePanelDirective],
+    imports: [DatePipe, NgTemplateOutlet, ResizablePanelDirective, ClubMenuComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (visible()) {
@@ -58,8 +60,17 @@ interface ResultGroup {
                              heading's accessible name carries both. No club → the team is the
                              heading and the sub-line holds only the record. -->
                         @let club = response()?.clubName;
-                        <h3 class="panel-title"
-                            [attr.aria-label]="club ? club + ', ' + response()?.teamName : null">{{ club || response()?.teamName || 'Team Schedule' }}</h3>
+                        @let subjectId = response()?.teamId;
+                        <h3 class="panel-title">
+                            @if (club && subjectId) {
+                                <!-- Club menu: the club's other teams; picking one reloads this
+                                     panel, the same path as an opponent tap. -->
+                                <app-club-menu [club]="club" [teamId]="subjectId"
+                                               (pick)="viewOpponent.emit($event)" />
+                            } @else {
+                                {{ club || response()?.teamName || 'Team Schedule' }}
+                            }
+                        </h3>
                         <div class="title-sub">
                             @if (club) {
                                 <span class="team-sub">{{ response()?.teamName }}</span>
@@ -107,13 +118,7 @@ interface ResultGroup {
                                         </span>
                                         <span class="score-text">{{ g.teamScore }}&ndash;{{ g.opponentScore }}</span>
                                         <span class="vs-text">vs</span>
-                                        @if (g.opponentTeamId) {
-                                            <button type="button" class="team-name-link"
-                                                    [attr.aria-label]="'View ' + g.opponentName + ' schedule'"
-                                                    (click)="viewOpponent.emit(g.opponentTeamId!)">{{ g.opponentName }}</button>
-                                        } @else {
-                                            <span class="opp-name">{{ g.opponentName }}</span>
-                                        }
+                                        <ng-container *ngTemplateOutlet="opponentTpl; context: { $implicit: g }" />
                                         @if (g.opponentRecord) {
                                             <span class="record-chip">{{ g.opponentRecord }}</span>
                                         }
@@ -123,13 +128,7 @@ interface ResultGroup {
                                     <div class="line-upcoming">
                                         <span class="when-text">{{ g.gDate | date:'EEE M/d' }} <span class="when-time">{{ g.gDate | date:'h:mm a' }}</span></span>
                                         <span class="vs-text">vs</span>
-                                        @if (g.opponentTeamId) {
-                                            <button type="button" class="team-name-link"
-                                                    [attr.aria-label]="'View ' + g.opponentName + ' schedule'"
-                                                    (click)="viewOpponent.emit(g.opponentTeamId!)">{{ g.opponentName }}</button>
-                                        } @else {
-                                            <span class="opp-name">{{ g.opponentName }}</span>
-                                        }
+                                        <ng-container *ngTemplateOutlet="opponentTpl; context: { $implicit: g }" />
                                         @if (g.opponentRecord) {
                                             <span class="record-chip">{{ g.opponentRecord }}</span>
                                         }
@@ -165,6 +164,32 @@ interface ResultGroup {
                 }
             </div>
         </div>
+
+        <!-- Opponent name, shared by Results and Upcoming rows. Same two-line language as the
+             games grid: club (semibold, emphasis ink, club menu) over team (the link to that
+             team's schedule, secondary ink). No club to split off → one line, the team. -->
+        <ng-template #opponentTpl let-g>
+            @let op = splitName(g.opponentName);
+            <span class="opp-block">
+                @if (op.club) {
+                    <span class="opp-club">
+                        @if (g.opponentTeamId) {
+                            <app-club-menu [club]="op.club" [teamId]="g.opponentTeamId"
+                                           (pick)="viewOpponent.emit($event)" />
+                        } @else {
+                            {{ op.club }}
+                        }
+                    </span>
+                }
+                @if (g.opponentTeamId) {
+                    <button type="button" class="team-name-link" [class.opp-team]="!!op.club"
+                            [attr.aria-label]="'View ' + g.opponentName + ' schedule'"
+                            (click)="viewOpponent.emit(g.opponentTeamId)">{{ op.team }}</button>
+                } @else {
+                    <span class="opp-name" [class.opp-team]="!!op.club">{{ op.team }}</span>
+                }
+            </span>
+        </ng-template>
     `,
     styles: [`
         /* Shell classes (.detail-backdrop/.detail-panel/.panel-*) are global — _flyin.scss.
@@ -373,6 +398,28 @@ interface ResultGroup {
             text-underline-offset: 3px;
         }
 
+        /* Two-line opponent (club over team), as in the games grid. A flex column in the
+           ledger's name track: its baseline is the FIRST line, so the club lines up with the
+           score and "vs", and the team sits under it. */
+        .opp-block {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            min-width: 0;
+        }
+        .opp-club {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--bs-emphasis-color);
+            overflow-wrap: anywhere;
+        }
+        /* Team line under a club: secondary ink, like the grid. Declared BEFORE
+           .team-name-link:hover (same specificity) so hover/focus still promote to primary. */
+        .team-name-link.opp-team,
+        .opp-name.opp-team {
+            color: var(--bs-secondary-color);
+        }
+
         .team-name-link:hover {
             color: var(--bs-primary);
             text-decoration-color: currentColor;
@@ -461,6 +508,9 @@ export class TeamResultsModalComponent {
 
     readonly close = output<void>();
     readonly viewOpponent = output<string>();
+
+    /** Opponent names split club / team — the games grid's rule (utils/team-name). */
+    protected readonly splitName = splitTeamName;
 
     /** Played = a real result exists: both scores present and the game wasn't
      *  cancelled. Everything else (unscored, cancelled) lists as upcoming, where
