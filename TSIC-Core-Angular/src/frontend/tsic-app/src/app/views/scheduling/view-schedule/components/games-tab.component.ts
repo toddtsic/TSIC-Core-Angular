@@ -509,6 +509,8 @@ type ScheduleRow =
                         @if (m.data?.clubName) { <div class="club-menu-head">{{ m.data?.clubName }}</div> }
                         @for (t of m.data?.teams ?? []; track t.teamId) {
                             <button type="button" class="club-menu-item" role="menuitem" tabindex="-1"
+                                    [class.is-current]="t.teamId === m.teamId"
+                                    [attr.aria-current]="t.teamId === m.teamId ? 'true' : null"
                                     (click)="pickClubTeam(t.teamId)">
                                 <span class="club-menu-ag">{{ t.agegroupName }}</span>
                                 <span class="club-menu-team">{{ t.teamName }}</span>
@@ -1294,6 +1296,12 @@ type ScheduleRow =
             color: var(--bs-secondary-color);
             white-space: nowrap;
         }
+        /* The team the menu was opened from: semibold + a primary inset bar on the leading
+           edge, so it stays marked after focus moves off it (not color alone — weight too). */
+        .club-menu-item.is-current {
+            font-weight: 600;
+            box-shadow: inset 3px 0 0 var(--bs-primary);
+        }
         .club-menu-item:hover .club-menu-ag,
         .club-menu-item:focus-visible .club-menu-ag {
             color: inherit;
@@ -1868,7 +1876,10 @@ export class GamesTabComponent {
             if (!m || m.teamId !== teamId) return;
             this.clubMenu.set({ ...m, status: data ? 'ready' : 'error', data });
             if (data?.teams.length) {
-                afterNextRender(() => this.focusClubItem(0), { injector: this.injector });
+                // Default to the team the menu was opened from — Enter re-confirms it, arrows
+                // walk to its siblings. Falls back to the first entry if it is not listed.
+                const start = Math.max(0, data.teams.findIndex(t => t.teamId === teamId));
+                afterNextRender(() => this.focusClubItem(start), { injector: this.injector });
             }
         });
 
@@ -1965,7 +1976,9 @@ export class GamesTabComponent {
     }
 
     private focusClubItem(i: number): void {
-        this.clubMenuItems()[i]?.focus();
+        const item = this.clubMenuItems()[i];
+        item?.focus({ preventScroll: true });
+        item?.scrollIntoView({ block: 'nearest' });
     }
 
     // ── Derived ──
