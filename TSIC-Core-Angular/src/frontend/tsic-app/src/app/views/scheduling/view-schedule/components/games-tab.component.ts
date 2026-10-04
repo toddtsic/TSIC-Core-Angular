@@ -161,6 +161,7 @@ type ScheduleRow =
                              The bracket badge is not in here: it rides in the score cell, on
                              the name side (see Score below). -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
+                            @let n1 = teamParts(game.t1Name, game.t1SlotLabel);
                             @if (game.t1Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t1Id)"
@@ -176,9 +177,9 @@ type ScheduleRow =
                                       [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t1Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t1Id!)"
-                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</span>
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">@if (n1.club) {<span class="tn-club">{{ n1.club }}</span><br><span class="tn-team">{{ n1.team }}</span>} @else {<span class="tn-solo">{{ n1.team }}</span>}</span>
                             } @else {
-                                <span class="team-name" [class.is-winner]="isT1Winner(game)">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</span>
+                                <span class="team-name" [class.is-winner]="isT1Winner(game)">@if (n1.club) {<span class="tn-club">{{ n1.club }}</span><br><span class="tn-team">{{ n1.team }}</span>} @else {<span class="tn-solo">{{ n1.team }}</span>}</span>
                             }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                         </span>
@@ -242,6 +243,7 @@ type ScheduleRow =
                              team name" is one rule for both sides, and the star is invisible
                              at rest anyway unless the team is followed. -->
                         <span class="cell cell-away" role="cell" aria-colindex="9">
+                            @let n2 = teamParts(game.t2Name, game.t2SlotLabel);
                             @if (game.t2Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t2Id)"
@@ -257,9 +259,9 @@ type ScheduleRow =
                                       [attr.aria-label]="'View ' + game.t2Name + ' results' + (isT2Winner(game) ? ', winner' : '')"
                                       (click)="viewTeamResults.emit(game.t2Id!)"
                                       (keydown.enter)="viewTeamResults.emit(game.t2Id!)"
-                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</span>
+                                      (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">@if (n2.club) {<span class="tn-club">{{ n2.club }}</span><br><span class="tn-team">{{ n2.team }}</span>} @else {<span class="tn-solo">{{ n2.team }}</span>}</span>
                             } @else {
-                                <span class="team-name" [class.is-winner]="isT2Winner(game)">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</span>
+                                <span class="team-name" [class.is-winner]="isT2Winner(game)">@if (n2.club) {<span class="tn-club">{{ n2.club }}</span><br><span class="tn-team">{{ n2.team }}</span>} @else {<span class="tn-solo">{{ n2.team }}</span>}</span>
                             }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                         </span>
@@ -1138,6 +1140,23 @@ type ScheduleRow =
             overflow-wrap: break-word;
         }
 
+        /* Two-line name (desktop grid): club on line one in body ink, carrying the link
+           underline and the win cue; team on line two in secondary ink. The row is already
+           two lines tall (date over time), so the second line costs no height, and the name
+           track only has to fit the longer part instead of club + ":" + team.
+
+           The split is a <br> inside the inline run, so the star stays on line one and the
+           away hanging indent puts line two under the club's first character. The team line
+           is an inline-block: an atomic box stops the parent's text-decoration (link
+           underline, gold win underline) propagating into it, and text-indent: 0 stops it
+           inheriting the hanging indent's negative indent. No club (see teamParts) → one
+           line, .tn-solo, styled like a club line. */
+        .tn-team {
+            display: inline-block;
+            text-indent: 0;
+            color: var(--bs-secondary-color);
+        }
+
         /* Team name → team-results modal, the same viewTeamResults target the record
            badge fires. Black-tie doctrine meets touch reality: the name RESTS at body ink
            with a SOFT DOTTED UNDERLINE — a persistent affordance (no hover dependency, so
@@ -1775,18 +1794,29 @@ export class GamesTabComponent {
      * ScheduleRepository), but the stored legacy text still has it.
      */
     teamLabel(name: string | null | undefined, slotLabel?: string | null): string {
+        const p = this.teamParts(name, slotLabel);
+        return p.club ? `${p.club}:${p.team}` : p.team;
+    }
+
+    /**
+     * The same label split at the club boundary, for the desktop grid's two-line name: club
+     * on line one, team on line two. club is null — ONE line, the whole label in team —
+     * whenever there is no club to split off: no colon (team-name-only jobs, unresolved
+     * bracket feeds like "F1 (RED#1)"), an empty club or team either side of it, or a team
+     * named exactly after its club (two identical lines would say nothing new).
+     */
+    teamParts(name: string | null | undefined, slotLabel?: string | null): { club: string | null; team: string } {
         const raw = this.stripSlotSuffix(name ?? '', slotLabel).trim();
         const sep = raw.indexOf(':');
-        if (sep <= 0) return raw;
+        if (sep < 0) return { club: null, team: raw };
         const club = raw.slice(0, sep).trim();
         const team = raw.slice(sep + 1).trim();
-        if (!club) return team;
-        if (!team) return club;
-        if (!team.toLowerCase().startsWith(club.toLowerCase())) return `${club}:${team}`;
+        if (!club) return { club: null, team };
+        if (!team) return { club: null, team: club };
+        if (!team.toLowerCase().startsWith(club.toLowerCase())) return { club, team };
         // Drop the echoed club plus whatever joins it to the real name ("-", " ", "/", ":").
         const rest = team.slice(club.length).replace(/^[\s\-–—:_/|]+/, '').trim();
-        // Team named EXACTLY after its club has nothing left to show — keep it as stored.
-        return `${club}:${rest || team}`;
+        return rest ? { club, team: rest } : { club: null, team: club };
     }
 
     /**
