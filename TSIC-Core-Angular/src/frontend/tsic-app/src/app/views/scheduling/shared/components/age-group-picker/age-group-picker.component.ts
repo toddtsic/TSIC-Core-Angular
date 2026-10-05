@@ -1,4 +1,5 @@
 import {
+    booleanAttribute,
     ChangeDetectionStrategy,
     Component,
     ElementRef,
@@ -40,24 +41,37 @@ export interface AgePickerItem {
     selector: 'app-age-group-picker',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
+    host: { '[class.compact]': 'compact()' },
     template: `
+        @if (stepper()) {
+            <button type="button" class="ag-step" [disabled]="!canPrev()"
+                    [attr.aria-label]="'Previous ' + noun()" (click)="stepBy(-1)">
+                <i class="bi bi-chevron-left" aria-hidden="true"></i>
+            </button>
+        }
         <button type="button" class="ag-picker-trigger"
                 [disabled]="!items().length"
                 aria-haspopup="listbox"
                 [attr.aria-expanded]="open()"
-                [attr.aria-label]="'Age group: ' + (selectedItem()?.label || emptyLabel())"
+                [attr.aria-label]="noun() + ': ' + (selectedItem()?.label || emptyLabel())"
                 (click)="toggle()">
             <span class="ag-dot" [class.ag-dot--empty]="!selectedItem()?.color"
                   [style.background]="selectedItem()?.color || null"></span>
             <span class="ag-picker-label">{{ selectedItem()?.label || emptyLabel() }}</span>
             <i class="bi bi-chevron-down ag-picker-chevron" [class.is-open]="open()" aria-hidden="true"></i>
         </button>
+        @if (stepper()) {
+            <button type="button" class="ag-step" [disabled]="!canNext()"
+                    [attr.aria-label]="'Next ' + noun()" (click)="stepBy(1)">
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </button>
+        }
 
         @if (open()) {
             <!-- Capped height so a large event scrolls inside the popover rather than
                  running off the screen. -->
             <div class="ag-picker-popover" role="listbox"
-                 [attr.aria-label]="'Select age group'">
+                 [attr.aria-label]="'Select ' + noun()">
                 @for (item of items(); track item.id) {
                     <button type="button" class="ag-picker-item" role="option"
                             [class.selected]="item.id === selectedId()"
@@ -101,9 +115,43 @@ export interface AgePickerItem {
         }
         .ag-picker-trigger:hover { background: var(--bs-secondary-bg); }
         .ag-picker-trigger:disabled { opacity: 0.5; cursor: default; }
-        .ag-picker-trigger:focus-visible {
+        .ag-picker-trigger:focus-visible,
+        .ag-step:focus-visible {
             outline: none;
             box-shadow: var(--shadow-focus);
+        }
+
+        /* ‹ › — walk one item at a time (TSIC-Events convention). Round, same hairline
+           border as the trigger, so the three read as one control. Clamped, never
+           wrapping: an arrow is disabled at its end of the list. */
+        :host { gap: var(--space-1); }
+        .ag-step {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            background: transparent;
+            border: 1px solid var(--bs-border-color);
+            border-radius: 50%;
+            color: var(--bs-body-color);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+        .ag-step:hover:not(:disabled) { background: var(--bs-secondary-bg); }
+        .ag-step:disabled { opacity: 0.35; cursor: default; }
+
+        /* Compact (inside a table header): smaller controls, and the name ellipsizes
+           before the controls beside it give way. */
+        :host(.compact) { min-width: 0; max-width: 100%; }
+        :host(.compact) .ag-step { width: 26px; height: 26px; font-size: var(--font-size-xs); }
+        :host(.compact) .ag-picker-trigger { min-width: 0; }
+        :host(.compact) .ag-picker-trigger .ag-picker-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* Small filled dot of the age-group's color. The hairline inset ring keeps
@@ -196,6 +244,7 @@ export interface AgePickerItem {
 
         @media (prefers-reduced-motion: reduce) {
             .ag-picker-trigger,
+            .ag-step,
             .ag-picker-chevron,
             .ag-picker-item { transition: none !important; }
         }
@@ -208,7 +257,13 @@ export class AgeGroupPickerComponent {
     selectedId = input<string | null>(null);
     /** Trigger text when there is no selection / no items. */
     emptyLabel = input<string>('—');
-    /** Emits the picked item's id. */
+    /** ‹ › arrows either side that step to the previous / next item (TSIC-Events convention). */
+    stepper = input(false, { transform: booleanAttribute });
+    /** Table-header size: smaller controls, and a long name ellipsizes instead of pushing. */
+    compact = input(false, { transform: booleanAttribute });
+    /** What the items are, for the accessible labels. */
+    noun = input('age group');
+    /** Emits the picked item's id — from the list or from an arrow. */
     selectionChange = output<string>();
 
     readonly open = signal(false);
@@ -216,6 +271,22 @@ export class AgeGroupPickerComponent {
     readonly selectedItem = computed(
         () => this.items().find(i => i.id === this.selectedId()) ?? null
     );
+
+    private readonly selectedIndex = computed(
+        () => this.items().findIndex(i => i.id === this.selectedId())
+    );
+    readonly canPrev = computed(() => this.selectedIndex() > 0);
+    readonly canNext = computed(() => {
+        const i = this.selectedIndex();
+        return i >= 0 && i < this.items().length - 1;
+    });
+
+    stepBy(delta: number): void {
+        const next = this.items()[this.selectedIndex() + delta];
+        if (!next) return;
+        this.open.set(false);
+        this.selectionChange.emit(next.id);
+    }
 
     toggle(): void {
         if (!this.items().length) return;

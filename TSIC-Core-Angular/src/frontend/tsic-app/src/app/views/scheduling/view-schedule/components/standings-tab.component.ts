@@ -25,7 +25,7 @@ type StandingsMode = 'all' | 'rr';
                     <!-- Age-group nav: a scrollable pill strip on desktop, a compact
                          dot+name dropdown on mobile (many age groups hide off-screen in
                          a phone-width strip). Both drive the same selectAgTab. -->
-                    <app-age-group-picker class="ag-picker-mobile"
+                    <app-age-group-picker class="ag-picker-mobile" stepper
                         [items]="agePickerItems()"
                         [selectedId]="activeAgId()"
                         (selectionChange)="onAgePicked($event)" />
