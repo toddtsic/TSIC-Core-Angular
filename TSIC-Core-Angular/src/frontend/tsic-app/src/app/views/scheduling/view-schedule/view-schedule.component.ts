@@ -83,7 +83,7 @@ interface FilterChip {
         ChecklistBackLinkComponent
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
-    // This page is the club-menu lookup for everything under it (games grid, team panel),
+    // This page is the club-menu lookup for the team panel,
     // and the team panel's Standings / Bracket / Roster data.
     providers: [
         CheckBoxSelectionService,
@@ -1921,7 +1921,7 @@ export class ViewScheduleComponent implements OnInit, ClubTeamsSource, TeamViews
     // Team Results Modal
     // ══════════════════════════════════════════════════════════════════
 
-    /** CLUB_TEAMS_SOURCE — every club menu on the page (grid, panel heading, panel opponents)
+    /** CLUB_TEAMS_SOURCE — every club menu on the page (panel heading, panel opponents)
      *  looks its teams up here. Reads jobPath at call time, so it is never stale. */
     loadClubTeams(teamId: string) {
         return this.svc.getClubTeams(teamId, this.jobPath);

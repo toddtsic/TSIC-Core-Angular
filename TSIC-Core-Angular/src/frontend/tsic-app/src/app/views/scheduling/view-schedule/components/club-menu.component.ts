@@ -35,9 +35,9 @@ interface MenuState {
 
 /**
  * A dropdown of a club's teams on the event schedule; picking one emits its teamId. Two
- * triggers, one menu: inline club name + caret (the games grid's club line), or — `pill` —
- * the TEAM name as a picker pill (the team panel's heading and opponents), where the menu
- * opens on that team so a sibling is one pick away.
+ * triggers, one menu: inline club name + caret, or — `pill` — the TEAM name as a picker pill
+ * (the team panel's heading and opponents), where the menu opens on that team so a sibling is
+ * one pick away. The games grid's club name is plain text by ruling: no club dropdown there.
  *
  * Inline by design: the host is an inline element and the trigger an inline span, so in the
  * grid the club name stays part of the cell's single text run (star, hanging indent, wrap).
