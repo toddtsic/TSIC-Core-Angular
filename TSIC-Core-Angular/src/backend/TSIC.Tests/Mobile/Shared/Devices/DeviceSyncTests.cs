@@ -9,12 +9,14 @@ using TSIC.Tests.Helpers;
 namespace TSIC.Tests.Mobile.Shared.Devices;
 
 /// <summary>
-/// device/sync files one device against everything the bearer holds, in one call.
+/// device/sync files one device against the one registration the login named, in one call.
 ///
-/// The properties that matter: it is idempotent (the client calls it on every launch), it
-/// covers ALL of a user's registrations rather than whichever one is active, it folds a
-/// rotated token in first so rows do not split across two device records, and it takes
-/// nothing about job or team from the caller.
+/// The properties that matter: it files ONLY the registration in the bearer -- a TSIC-Teams
+/// login is a pick of one player and one team, and the other registrations the family holds
+/// are not filed (an earlier version walked all of them and put every phone on tournament
+/// teams the user never signed into) -- it is idempotent (the client calls it on every
+/// launch), it folds a rotated token in first so rows do not split across two device
+/// records, and it takes nothing about job or team from the caller.
 /// </summary>
 public class DeviceSyncTests
 {
@@ -33,7 +35,7 @@ public class DeviceSyncTests
         new() { DeviceToken = token, DeviceType = "ios", PreviousDeviceToken = previous };
 
     /// <summary>Two jobs, two teams, one user - the multi-registration parent.</summary>
-    private static async Task<(Guid teamA, Guid teamB)> TwoRegistrations(MobileDataBuilder b)
+    private static async Task<(Guid regA, Guid teamA, Guid regB, Guid teamB)> TwoRegistrations(MobileDataBuilder b)
     {
         var jobA = b.AddJob(name: "Job A", jobPath: "job-a");
         var lA = b.AddLeague(jobA.JobId);
@@ -47,11 +49,11 @@ public class DeviceSyncTests
         var dB = b.AddDivision(agB.AgegroupId);
         var teamB = b.AddTeam(dB.DivId, "Team B", agB.AgegroupId, jobB.JobId);
 
-        b.AddRegistration(MobileDataBuilder.DefaultUserId, jobA.JobId, RoleConstants.Staff, teamA.TeamId);
-        b.AddRegistration(MobileDataBuilder.DefaultUserId, jobB.JobId, RoleConstants.Staff, teamB.TeamId);
+        var regA = b.AddRegistration(MobileDataBuilder.DefaultUserId, jobA.JobId, RoleConstants.Staff, teamA.TeamId);
+        var regB = b.AddRegistration(MobileDataBuilder.DefaultUserId, jobB.JobId, RoleConstants.Staff, teamB.TeamId);
         await b.SaveAsync();
 
-        return (teamA.TeamId, teamB.TeamId);
+        return (regA.RegistrationId, teamA.TeamId, regB.RegistrationId, teamB.TeamId);
     }
 
     /// <summary>
@@ -71,55 +73,73 @@ public class DeviceSyncTests
             .Should().Be(0, "sync is TSIC-Teams and must never write the TSIC-Events pool");
     }
 
-    [Fact(DisplayName = "Sync files the device against every registration, not just one")]
-    public async Task Sync_CoversAllRegistrations()
+    [Fact(DisplayName = "Sync files only the registration the login named, not the user's others")]
+    public async Task Sync_FilesOnlyTheNamedRegistration()
     {
         var (svc, b, ctx) = CreateService();
-        var (teamA, teamB) = await TwoRegistrations(b);
+        var (regA, teamA, _, _) = await TwoRegistrations(b);
 
-        var result = await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, Req());
+        var result = await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, regA, Req());
 
-        result.Jobs.Should().Be(2);
-        result.Teams.Should().Be(2);
-        result.Registrations.Should().Be(2);
+        result.Jobs.Should().Be(1);
+        result.Teams.Should().Be(1);
+        result.Registrations.Should().Be(1);
 
         var device = await ctx.Devices.AsNoTracking().SingleAsync(d => d.Token == Token);
         await NoEventsPoolRow(ctx, device.Id);
-        (await ctx.DeviceRegistrationIds.AsNoTracking().CountAsync(x => x.DeviceId == device.Id)).Should().Be(2);
+        (await ctx.DeviceRegistrationIds.AsNoTracking().Where(x => x.DeviceId == device.Id)
+            .Select(x => x.RegistrationId).ToListAsync())
+            .Should().BeEquivalentTo(new[] { regA });
 
         var teams = await ctx.DeviceTeams.AsNoTracking()
             .Where(x => x.DeviceId == device.Id).Select(x => x.TeamId).ToListAsync();
+        teams.Should().BeEquivalentTo(new[] { teamA },
+            "the login picked one player and one team; the family's other registrations are not filed");
+    }
+
+    [Fact(DisplayName = "Signing in as each registration in turn files one row per registration")]
+    public async Task Sync_EachLoginAddsItsOwnRow()
+    {
+        var (svc, b, ctx) = CreateService();
+        var (regA, teamA, regB, teamB) = await TwoRegistrations(b);
+
+        await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, regA, Req());
+        await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, regB, Req());
+
+        var device = await ctx.Devices.AsNoTracking().SingleAsync(d => d.Token == Token);
+        var teams = await ctx.DeviceTeams.AsNoTracking()
+            .Where(x => x.DeviceId == device.Id).Select(x => x.TeamId).ToListAsync();
         teams.Should().BeEquivalentTo(new[] { teamA, teamB },
-            "a parent with two children on two teams must hear about both");
+            "a parent who signs in as each child ends up filed on each child's team");
     }
 
     [Fact(DisplayName = "Sync is idempotent - a relaunch adds nothing")]
     public async Task Sync_Idempotent()
     {
         var (svc, b, ctx) = CreateService();
-        await TwoRegistrations(b);
+        var (regA, _, _, _) = await TwoRegistrations(b);
 
-        await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, Req());
-        var second = await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, Req());
+        await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, regA, Req());
+        var second = await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, regA, Req());
 
         second.Teams.Should().Be(0, "nothing new to add");
         second.Registrations.Should().Be(0);
 
         var device = await ctx.Devices.AsNoTracking().SingleAsync(d => d.Token == Token);
-        (await ctx.DeviceTeams.AsNoTracking().CountAsync(x => x.DeviceId == device.Id)).Should().Be(2);
+        (await ctx.DeviceTeams.AsNoTracking().CountAsync(x => x.DeviceId == device.Id)).Should().Be(1);
         await NoEventsPoolRow(ctx, device.Id);
         (await ctx.Devices.AsNoTracking().CountAsync()).Should().Be(1);
     }
 
-    [Fact(DisplayName = "Unplaced registration files job and registration but no team")]
+    [Fact(DisplayName = "Unplaced registration files the registration but no team")]
     public async Task Sync_UnplacedRegistration_NoTeamRow()
     {
         var (svc, b, ctx) = CreateService();
         var job = b.AddJob();
-        b.AddRegistration(MobileDataBuilder.DefaultUserId, job.JobId, RoleConstants.Staff, teamId: null);
+        var reg = b.AddRegistration(MobileDataBuilder.DefaultUserId, job.JobId, RoleConstants.Staff, teamId: null);
         await b.SaveAsync();
 
-        var result = await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, Req());
+        var result = await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, reg.RegistrationId, Req());
 
         result.Jobs.Should().Be(1);
         result.Teams.Should().Be(0);
@@ -131,38 +151,35 @@ public class DeviceSyncTests
     public async Task Sync_Rotation_FoldsOntoOneDevice()
     {
         var (svc, b, ctx) = CreateService();
-        await TwoRegistrations(b);
+        var (regA, _, _, _) = await TwoRegistrations(b);
 
-        await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, Req(OldToken));
-        await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, Req(Token, previous: OldToken));
+        await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, regA, Req(OldToken));
+        await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, regA, Req(Token, previous: OldToken));
 
         var device = await ctx.Devices.AsNoTracking().SingleAsync(d => d.Token == Token);
         (await ctx.DeviceTeams.AsNoTracking().CountAsync(x => x.DeviceId == device.Id))
-            .Should().Be(2, "the swap runs before the rows are written");
+            .Should().Be(1, "the swap runs before the rows are written");
+        (await ctx.Devices.AsNoTracking().CountAsync(d => d.Active)).Should().Be(1);
     }
 
-    [Fact(DisplayName = "Sync files only the caller registrations")]
-    public async Task Sync_IgnoresOtherUsers()
+    [Fact(DisplayName = "A registration the bearer does not own files nothing")]
+    public async Task Sync_IgnoresOtherUsersRegistration()
     {
         var (svc, b, ctx) = CreateService();
         var job = b.AddJob();
         var league = b.AddLeague(job.JobId);
         var ag = b.AddAgegroup(league.LeagueId);
         var div = b.AddDivision(ag.AgegroupId);
-        var mine = b.AddTeam(div.DivId, "Mine", ag.AgegroupId, job.JobId);
         var theirs = b.AddTeam(div.DivId, "Theirs", ag.AgegroupId, job.JobId);
 
-        b.AddRegistration(MobileDataBuilder.DefaultUserId, job.JobId, RoleConstants.Staff, mine.TeamId);
-        b.AddRegistration("someone-else", job.JobId, RoleConstants.Staff, theirs.TeamId);
+        var theirReg = b.AddRegistration("someone-else", job.JobId, RoleConstants.Staff, theirs.TeamId);
         await b.SaveAsync();
 
-        await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, Req());
+        var result = await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, theirReg.RegistrationId, Req());
 
-        var device = await ctx.Devices.AsNoTracking().SingleAsync(d => d.Token == Token);
-        var teams = await ctx.DeviceTeams.AsNoTracking()
-            .Where(x => x.DeviceId == device.Id).Select(x => x.TeamId).ToListAsync();
-        teams.Should().BeEquivalentTo(new[] { mine.TeamId },
-            "job and team come from the bearer, never from the caller");
+        result.Jobs.Should().Be(0, "ownership is checked against the bearer, never trusted from the regId alone");
+        (await ctx.DeviceTeams.AsNoTracking().CountAsync()).Should().Be(0);
+        (await ctx.DeviceRegistrationIds.AsNoTracking().CountAsync()).Should().Be(0);
     }
 
     [Fact(DisplayName = "Inactive registration is not filed")]
@@ -174,10 +191,10 @@ public class DeviceSyncTests
         var ag = b.AddAgegroup(league.LeagueId);
         var div = b.AddDivision(ag.AgegroupId);
         var team = b.AddTeam(div.DivId, "Dropped", ag.AgegroupId, job.JobId);
-        b.AddRegistration(MobileDataBuilder.DefaultUserId, job.JobId, RoleConstants.Staff, team.TeamId, active: false);
+        var reg = b.AddRegistration(MobileDataBuilder.DefaultUserId, job.JobId, RoleConstants.Staff, team.TeamId, active: false);
         await b.SaveAsync();
 
-        var result = await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, Req());
+        var result = await svc.SyncDeviceAsync(MobileDataBuilder.DefaultUserId, reg.RegistrationId, Req());
 
         result.Jobs.Should().Be(0);
         (await ctx.DeviceTeams.AsNoTracking().CountAsync()).Should().Be(0);

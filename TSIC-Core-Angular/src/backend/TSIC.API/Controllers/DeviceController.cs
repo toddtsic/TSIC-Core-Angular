@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 
@@ -22,12 +23,14 @@ public class DeviceController : ControllerBase
     }
 
     /// <summary>
-    /// Files this device against every job, team and registration the caller holds.
+    /// Files this device against the registration and team the caller logged in as.
     ///
     /// The only authenticated action on this controller -- the rest are anonymous, with the
-    /// device token as identity. Here the bearer IS the point: job and team are derived from
-    /// it and are deliberately absent from the request body, because an endpoint that
-    /// accepted them would let any authenticated user subscribe their phone to any team.
+    /// device token as identity. Here the bearer IS the point: the registration comes from
+    /// its regId claim, the team from that registration, and both are deliberately absent
+    /// from the request body, because an endpoint that accepted them would let any
+    /// authenticated user subscribe their phone to any team. A bearer without a regId is the
+    /// phase-one token issued before a role is picked; it names nothing to file.
     ///
     /// Idempotent; the client calls it on every launch and every token event.
     /// </summary>
@@ -41,7 +44,10 @@ public class DeviceController : ControllerBase
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        var result = await _deviceService.SyncDeviceAsync(userId, request, ct);
+        var regId = User.GetRegistrationId();
+        if (regId == null) return Unauthorized();
+
+        var result = await _deviceService.SyncDeviceAsync(userId, regId.Value, request, ct);
         return Ok(result);
     }
 

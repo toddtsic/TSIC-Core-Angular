@@ -4367,18 +4367,21 @@ public partial class RegistrationRepository : IRegistrationRepository
 
     // ── TSIC-Teams mobile ──
 
-    public async Task<List<DeviceSyncTargetDto>> GetDeviceSyncTargetsAsync(
+    public async Task<DeviceSyncTargetDto?> GetDeviceSyncTargetAsync(
         string userId,
+        Guid registrationId,
         CancellationToken ct = default)
     {
-        // Predicate mirrors GetMobileContextsAsync exactly -- a device must be filed against
-        // the same registrations the login screen offers, or a parent gets alerts for a job
-        // they can no longer sign into. See the note there on why Player is reached through
-        // FamilyUserId and Staff through UserId.
+        // The one registration the login named, and only if the bearer owns it. Predicate
+        // otherwise mirrors GetMobileContextsAsync -- a device is filed against a registration
+        // the login screen offers, or a parent gets alerts for a job they can no longer sign
+        // into. See the note there on why Player is reached through FamilyUserId and Staff
+        // through UserId.
         return await _context.Registrations
             .AsNoTracking()
             .Where(r =>
-                r.BActive == true
+                r.RegistrationId == registrationId
+                && r.BActive == true
                 && r.UserId != null
                 && DateTime.Now < r.Job.ExpiryUsers
                 && (
@@ -4389,10 +4392,10 @@ public partial class RegistrationRepository : IRegistrationRepository
             {
                 RegistrationId = r.RegistrationId,
                 JobId = r.JobId,
-                // Left join: null while the registration is unplaced. Job row still lands.
+                // Left join: null while the registration is unplaced. Registration row still lands.
                 TeamId = r.AssignedTeamId
             })
-            .ToListAsync(ct);
+            .FirstOrDefaultAsync(ct);
     }
 
     public async Task<List<MobileContextDto>> GetMobileContextsAsync(
