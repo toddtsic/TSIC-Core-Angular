@@ -20,8 +20,9 @@ public interface IDeviceManagementService
     Task<List<Guid>> GetSubscribedTeamIdsAsync(string deviceToken, Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Files a device against every job, team and registration the user holds. Idempotent.
-    /// userId comes from the bearer; nothing about job or team is taken from the request.
+    /// Files a device against the one registration the login named, and its assigned team.
+    /// Idempotent. userId and registrationId come from the bearer; nothing about job or team
+    /// is taken from the request. Files nothing when the registration is not the user's.
     /// </summary>
-    Task<SyncDeviceResponse> SyncDeviceAsync(string userId, SyncDeviceRequest request, CancellationToken ct = default);
+    Task<SyncDeviceResponse> SyncDeviceAsync(string userId, Guid registrationId, SyncDeviceRequest request, CancellationToken ct = default);
 }

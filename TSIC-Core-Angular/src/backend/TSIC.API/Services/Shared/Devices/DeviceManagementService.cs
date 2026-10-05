@@ -21,7 +21,7 @@ public sealed class DeviceManagementService : IDeviceManagementService
     }
 
     public async Task<SyncDeviceResponse> SyncDeviceAsync(
-        string userId, SyncDeviceRequest request, CancellationToken ct = default)
+        string userId, Guid registrationId, SyncDeviceRequest request, CancellationToken ct = default)
     {
         // Rotation first. If the OS reissued the token, fold the old device row into the new
         // one before writing anything, so the rows below land on one device rather than two.
@@ -35,10 +35,16 @@ public sealed class DeviceManagementService : IDeviceManagementService
         var device = await _deviceRepo.GetOrCreateDeviceByTokenAsync(request.DeviceToken, request.DeviceType, ct);
         await _deviceRepo.SaveChangesAsync(ct);
 
-        var targets = await _registrationRepo.GetDeviceSyncTargetsAsync(userId, ct);
+        // Only the registration the login named. The TSIC-Teams login is a pick of one player
+        // and one team, and that pick is what the device is filed against -- the same single
+        // row legacy's LoginController wrote. An earlier version walked every registration the
+        // family held on any live job, which filed every phone against tournament teams the
+        // user never signed into; that is why the registration comes from the bearer and not
+        // from a lookup by user.
+        var target = await _registrationRepo.GetDeviceSyncTargetAsync(userId, registrationId, ct);
+        if (target == null)
+            return new SyncDeviceResponse { Jobs = 0, Teams = 0, Registrations = 0 };
 
-        // Sequential by necessity -- these share one scoped DbContext, so Task.WhenAll here
-        // would throw on concurrent access.
         // Deliberately NOT writing Device_Jobs here. That table has exactly two readers, both
         // the TSIC-Events broadcast pool, so a row in it means "send this phone the Events
         // push". Sync is the authenticated TSIC-Teams path, and its tokens belong to the
@@ -46,22 +52,17 @@ public sealed class DeviceManagementService : IDeviceManagementService
         // where the Events credential answers SenderIdMismatch and the push reaches nobody.
         // TSIC-Teams devices are reached through Device_Teams. The anonymous register endpoint
         // is what fills Device_Jobs, and that is the TSIC-Events app.
-        var jobs = 0; var teams = 0; var regs = 0;
-        foreach (var t in targets)
-        {
-            jobs++;
+        var teams = 0;
+        if (target.TeamId is { } teamId
+            && await _deviceRepo.AddDeviceTeamIfNotExistsAsync(device.Id, teamId, target.RegistrationId, ct))
+            teams++;
 
-            if (t.TeamId is { } teamId
-                && await _deviceRepo.AddDeviceTeamIfNotExistsAsync(device.Id, teamId, t.RegistrationId, ct))
-                teams++;
-
-            if (await _deviceRepo.AddDeviceRegistrationIdIfNotExistsAsync(device.Id, t.RegistrationId, ct))
-                regs++;
-        }
+        var regs = await _deviceRepo.AddDeviceRegistrationIdIfNotExistsAsync(device.Id, target.RegistrationId, ct)
+            ? 1 : 0;
 
         await _deviceRepo.SaveChangesAsync(ct);
 
-        return new SyncDeviceResponse { Jobs = jobs, Teams = teams, Registrations = regs };
+        return new SyncDeviceResponse { Jobs = 1, Teams = teams, Registrations = regs };
     }
 
     public async Task RegisterDeviceAsync(RegisterDeviceRequest request, CancellationToken ct = default)
