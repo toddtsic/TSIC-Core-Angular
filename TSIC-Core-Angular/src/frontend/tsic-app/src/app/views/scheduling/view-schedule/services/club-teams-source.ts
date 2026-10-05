@@ -4,8 +4,8 @@ import type { ClubTeamsResponse } from '@core/api';
 
 /**
  * Where a club menu gets its teams. Provided by the PAGE that hosts the schedule (it owns
- * the service and the jobPath) and injected by every <app-club-menu> beneath it — games
- * grid, team panel heading, team panel opponents — so none of them threads an input.
+ * the service and the jobPath) and injected by every <app-club-menu> beneath it — the team
+ * panel heading and opponents — so none of them threads an input.
  * Not provided → the club renders as plain text, no caret.
  */
 export interface ClubTeamsSource {

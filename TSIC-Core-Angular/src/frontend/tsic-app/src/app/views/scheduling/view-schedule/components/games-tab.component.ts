@@ -6,7 +6,6 @@ import {
   output
 } from '@angular/core';
 import type { ViewGameDto } from '@core/api';
-import { ClubMenuComponent } from './club-menu.component';
 import { splitTeamName, teamLabel as formatTeamLabel, type TeamNameParts } from '../utils/team-name';
 
 /**
@@ -23,7 +22,6 @@ type ScheduleRow =
 @Component({
     selector: 'app-games-tab',
     standalone: true,
-    imports: [ClubMenuComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (isLoading()) {
@@ -164,10 +162,7 @@ type ScheduleRow =
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                 </button>
                             }
-                            @if (n1.club && game.t1Id) {
-                                <app-club-menu class="team-name tn-club" [club]="n1.club" [teamId]="game.t1Id!" align="end"
-                                               (pick)="viewTeamResults.emit($event)" />
-                            } @else if (n1.club) {
+                            @if (n1.club) {
                                 <span class="team-name tn-club">{{ n1.club }}</span>
                             } @else if (game.t1Id) {
                                 <span class="team-name team-link" role="button" tabindex="0"
@@ -273,10 +268,7 @@ type ScheduleRow =
                             <!-- Winner trophy: FIRST on line one (after the at-rest zero-width star) →
                                  flush left, at the score edge. Mirror of home. -->
                             @if (isT2Winner(game)) { <i class="bi bi-trophy-fill win-trophy" title="Winner" aria-hidden="true"></i> }
-                            @if (n2.club && game.t2Id) {
-                                <app-club-menu class="team-name tn-club" [club]="n2.club" [teamId]="game.t2Id!"
-                                               (pick)="viewTeamResults.emit($event)" />
-                            } @else if (n2.club) {
+                            @if (n2.club) {
                                 <span class="team-name tn-club">{{ n2.club }}</span>
                             } @else if (game.t2Id) {
                                 <span class="team-name team-link" role="button" tabindex="0"
