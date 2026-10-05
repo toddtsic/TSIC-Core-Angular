@@ -117,6 +117,16 @@ export class ViewScheduleService {
         return this.http.get<ClubTeamsResponse>(`${this.apiUrl}/club-teams/${teamId}`);
     }
 
+    /** Standings for the team's pool (its age group's, when it has no pool). */
+    getStandingsByTeam(teamId: string): Observable<StandingsByDivisionResponse> {
+        return this.http.get<StandingsByDivisionResponse>(`${this.apiUrl}/standings/by-team/${teamId}`);
+    }
+
+    /** Brackets for the team's division (its age group's, when it has no division). */
+    getBracketsByTeam(teamId: string): Observable<DivisionBracketResponse[]> {
+        return this.http.get<DivisionBracketResponse[]>(`${this.apiUrl}/brackets/by-team/${teamId}`);
+    }
+
     getFieldInfo(fieldId: string): Observable<FieldDisplayDto> {
         return this.http.get<FieldDisplayDto>(`${this.apiUrl}/field-info/${fieldId}`);
     }

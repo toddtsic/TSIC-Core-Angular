@@ -27,6 +27,8 @@ import type {
 } from '@core/api';
 import { ViewScheduleService } from './services/view-schedule.service';
 import { CLUB_TEAMS_SOURCE, type ClubTeamsSource } from './services/club-teams-source';
+import { TEAM_VIEWS_SOURCE, type TeamViewsSource } from './services/team-views-source';
+import { PublicRosterService } from '../../rosters/public-rosters/public-roster.service';
 import { ScheduleFiltersStore } from './services/schedule-filters.store';
 import { JobFilterTreeService } from '../../../core/services/job-filter-tree.service';
 import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
@@ -81,10 +83,12 @@ interface FilterChip {
         ChecklistBackLinkComponent
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
-    // This page is the club-menu lookup for everything under it (games grid, team panel).
+    // This page is the club-menu lookup for everything under it (games grid, team panel),
+    // and the team panel's Standings / Bracket / Roster data.
     providers: [
         CheckBoxSelectionService,
-        { provide: CLUB_TEAMS_SOURCE, useExisting: forwardRef(() => ViewScheduleComponent) }
+        { provide: CLUB_TEAMS_SOURCE, useExisting: forwardRef(() => ViewScheduleComponent) },
+        { provide: TEAM_VIEWS_SOURCE, useExisting: forwardRef(() => ViewScheduleComponent) }
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -1224,7 +1228,7 @@ interface FilterChip {
         }
     `]
 })
-export class ViewScheduleComponent implements OnInit, ClubTeamsSource {
+export class ViewScheduleComponent implements OnInit, ClubTeamsSource, TeamViewsSource {
     private readonly svc = inject(ViewScheduleService);
     private readonly jobFilterTreeSvc = inject(JobFilterTreeService);
     private readonly route = inject(ActivatedRoute);
@@ -1922,6 +1926,33 @@ export class ViewScheduleComponent implements OnInit, ClubTeamsSource {
     loadClubTeams(teamId: string) {
         return this.svc.getClubTeams(teamId, this.jobPath);
     }
+
+    // TEAM_VIEWS_SOURCE — the team panel's Standings / Bracket / Roster views.
+    private readonly rosterSvc = inject(PublicRosterService);
+
+    loadTeamStandings(teamId: string) {
+        return this.svc.getStandingsByTeam(teamId);
+    }
+
+    loadAgegroupStandings(agegroupId: string) {
+        return this.svc.getStandings({ agegroupIds: [agegroupId] }, this.jobPath);
+    }
+
+    loadBrackets(teamId: string, agegroupId: string | null) {
+        return agegroupId
+            ? this.svc.getBrackets({ agegroupIds: [agegroupId] }, this.jobPath)
+            : this.svc.getBracketsByTeam(teamId);
+    }
+
+    loadTeamRoster(teamId: string) {
+        return this.rosterSvc.getTeamRoster(teamId, this.jobPath ?? '');
+    }
+
+    /** Private until the capabilities say otherwise. */
+    readonly rostersRestricted = computed(() => {
+        const caps = this.capabilities();
+        return !caps || !!caps.restrictPublicRosters;
+    });
 
     onViewTeamResults(teamId: string): void {
         this.teamResultsVisible.set(true);

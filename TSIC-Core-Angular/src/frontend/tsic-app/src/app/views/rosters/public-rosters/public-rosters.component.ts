@@ -8,6 +8,7 @@ import { PublicRosterService } from './public-roster.service';
 import { ViewScheduleService } from '../../scheduling/view-schedule/services/view-schedule.service';
 import { TeamResultsModalComponent } from '../../scheduling/view-schedule/components/team-results-modal.component';
 import { CLUB_TEAMS_SOURCE, type ClubTeamsSource } from '../../scheduling/view-schedule/services/club-teams-source';
+import { TEAM_VIEWS_SOURCE, type TeamViewsSource } from '../../scheduling/view-schedule/services/team-views-source';
 
 /** Flat team entry for search results — carries breadcrumb context. */
 interface FlatTeam {
@@ -40,11 +41,14 @@ interface RosterRow {
 	imports: [CommonModule, ListBoxModule, TeamResultsModalComponent],
 	templateUrl: './public-rosters.component.html',
 	styleUrls: ['./public-rosters.component.scss'],
-	// The team panel's club menus look their teams up here.
-	providers: [{ provide: CLUB_TEAMS_SOURCE, useExisting: forwardRef(() => PublicRostersComponent) }],
+	// The team panel's club menus look their teams up here, and its Standings / Bracket / Roster views.
+	providers: [
+		{ provide: CLUB_TEAMS_SOURCE, useExisting: forwardRef(() => PublicRostersComponent) },
+		{ provide: TEAM_VIEWS_SOURCE, useExisting: forwardRef(() => PublicRostersComponent) }
+	],
 	changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PublicRostersComponent implements ClubTeamsSource {
+export class PublicRostersComponent implements ClubTeamsSource, TeamViewsSource {
 	private readonly route = inject(ActivatedRoute);
 	private readonly svc = inject(PublicRosterService);
 	private readonly scheduleSvc = inject(ViewScheduleService);
@@ -331,6 +335,27 @@ export class PublicRostersComponent implements ClubTeamsSource {
 	loadClubTeams(teamId: string) {
 		return this.scheduleSvc.getClubTeams(teamId, this.jobPath);
 	}
+
+	// TEAM_VIEWS_SOURCE — the team panel's Standings / Bracket / Roster views.
+	loadTeamStandings(teamId: string) {
+		return this.scheduleSvc.getStandingsByTeam(teamId);
+	}
+
+	loadAgegroupStandings(agegroupId: string) {
+		return this.scheduleSvc.getStandings({ agegroupIds: [agegroupId] }, this.jobPath);
+	}
+
+	loadBrackets(teamId: string, agegroupId: string | null) {
+		return agegroupId
+			? this.scheduleSvc.getBrackets({ agegroupIds: [agegroupId] }, this.jobPath)
+			: this.scheduleSvc.getBracketsByTeam(teamId);
+	}
+
+	loadTeamRoster(teamId: string) {
+		return this.svc.getTeamRoster(teamId, this.jobPath);
+	}
+
+	readonly rostersRestricted = this.restricted.asReadonly();
 
 	viewTeamSchedule(teamId: string): void {
 		this.teamResultsVisible.set(true);

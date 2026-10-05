@@ -157,7 +157,7 @@ interface LadderCard extends BracketNode {
                                 }
                                 <div class="br-card__loc" [class.br-card__loc--edit]="canScore()">
                                     @if (card.locationTime) {
-                                        @if (card.fieldId) {
+                                        @if (card.fieldId && fieldLinks()) {
                                             <button type="button" class="br-card__link"
                                                     (click)="viewFieldInfo.emit(card.fieldId!)">{{ card.locationTime }}</button>
                                         } @else {
@@ -222,7 +222,7 @@ interface LadderCard extends BracketNode {
                                     }
                                     @if (card.location) {
                                         <div class="ol-card__loc">
-                                            @if (card.fieldId) {
+                                            @if (card.fieldId && fieldLinks()) {
                                                 <button type="button" class="ol-card__link"
                                                         (click)="viewFieldInfo.emit(card.fieldId!)">{{ card.location }}</button>
                                             } @else {
@@ -609,6 +609,8 @@ export class BracketViewComponent implements OnChanges {
     /** The division's age-group color (null for none). Tints the cards. */
     agColor = input<string | null>(null);
     followedTeamIds = input<readonly string[]>([]);
+    /** false: locations are plain text — no host here to open the field-info dialog. */
+    fieldLinks = input<boolean>(true);
 
     private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
 
