@@ -145,12 +145,22 @@ public class SchedulePreviewInviteSendTests
         (await RefusalAsync(f, PreviewRequest(f))).Should().Contain("Club Rep schedule preview on");
     }
 
-    [Fact(DisplayName = "The token in the subject line is checked the same as in the body")]
-    public async Task TokenInSubject_AlsoChecked()
+    [Fact(DisplayName = "A link token only in the subject is not a link - the send is refused before any other guard")]
+    public async Task TokenOnlyInSubject_IsNoLink()
     {
+        // A subject line never renders as a link, so a token there alone is the deleted-token case
+        // (10f9c5a31), refused ahead of the recipient check.
         var f = await BuildAsync();
         var request = PreviewRequest(f, f.Player.RegistrationId) with { Subject = "!SCHEDULE_PREVIEW_LINK", BodyTemplate = "hi" };
-        (await RefusalAsync(f, request)).Should().Contain("only to Club Reps");
+        (await RefusalAsync(f, request)).Should().Contain("has no link");
+    }
+
+    [Fact(DisplayName = "A token in the subject line is still seen by the mixing guard")]
+    public async Task TokenInSubject_StillChecked()
+    {
+        var f = await BuildAsync();
+        var request = PreviewRequest(f) with { Subject = "!INVITE_LINK" };
+        (await RefusalAsync(f, request)).Should().Contain("can't be combined");
     }
 
     [Fact(DisplayName = "Filter options: the preview target is this job while the door is open, empty once shut")]

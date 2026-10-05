@@ -141,14 +141,18 @@ public class JobRegistrationCapabilitiesTests
         set.CanRegisterPlayer.Should().BeTrue();
     }
 
-    [Fact(DisplayName = "No date signal, ExpiryUsers itself past → last-resort fallback concludes")]
-    public async Task NoDateSignal_ExpiryPast_Concluded()
+    [Fact(DisplayName = "No date signal, ExpiryUsers itself past → player registration stays open; the team door concludes")]
+    public async Task NoDateSignal_ExpiryPast_PlayerOpenTeamConcluded()
     {
+        // A past ExpiryUsers is a director lever that hides player roles at login (American
+        // Select after offers go out); it must not close player registration (b42cd00a2). The
+        // other doors still honor it as the last-resort conclusion rung.
         var facts = Healthy() with { SchedulePublished = false, LastGameDate = null, EventEndDate = null, ExpiryUsers = PastDay };
 
         var set = await Resolve(facts, CapabilityActor.User);
 
-        set.CanRegisterPlayer.Should().BeFalse();
+        set.CanRegisterPlayer.Should().BeTrue();
+        set.CanAddTeam.Should().BeFalse();
     }
 
     // ── The door: supersession ──────────────────────────────────────────────

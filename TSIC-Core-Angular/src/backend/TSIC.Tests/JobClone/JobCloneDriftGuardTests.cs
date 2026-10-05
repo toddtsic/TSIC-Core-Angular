@@ -123,6 +123,10 @@ public class JobCloneDriftGuardTests
     {
         [typeof(BracketInstances)] = "Per-season schedule artifact — brackets are rebuilt each season, never cloned.",
         [typeof(CalendarEvents)] = "Runtime calendar content, tied to the season's actual events.",
+        [typeof(Events)] = "Runtime team-event content (teamevents schema), tied to the season's actual practices and games.",
+        [typeof(Series)] = "Recurrence series behind teamevents.Events — same season-bound runtime content as the events it generates.",
+        [typeof(Messages)] = "Team chat conversation content (teamchat schema) — runtime, never cloned.",
+        [typeof(JobFeatures)] ="SuperUser-only mobile feature switches; a cloned job starts with them off and the SuperUser turns them on deliberately (same posture as club rep Delete, AR-132).",
         [typeof(DeviceJobs)] = "Runtime device linkage (mobile check-in) — devices re-associate per season.",
         [typeof(DivisionProcessingOrder)] = "Scheduling-run working state, meaningless without the season's schedule.",
         [typeof(EmailFailures)] = "Send history.",
