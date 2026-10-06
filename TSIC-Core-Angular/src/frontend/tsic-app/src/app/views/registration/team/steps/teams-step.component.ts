@@ -7,6 +7,7 @@ import { RegisteredTeamsGridComponent, sumDueNowOf } from '../components/registe
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { ClubService } from '@infrastructure/services/club.service';
 import { cartPhaseBadgeLabel, resolveCartPhase } from '@shared-ui/fees/cart-phase';
 import { JobService } from '@infrastructure/services/job.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
@@ -65,6 +66,35 @@ type TeamsSegment = 'library' | 'registered';
 
       <!-- ── One card, two segments (Todd 2026-09-26). The green edge means teams are in. ── -->
       <div class="step-card" [class.step-card-registered]="enteredTeams().length > 0">
+
+        <!-- The club this rep registers as — and the one place to rename it (Todd 2026-10-06). -->
+        <div class="club-bar">
+          @if (renamingClub()) {
+            <label class="club-bar-label" for="club-rename-input">Club name</label>
+            <input id="club-rename-input" class="field-input club-bar-input" [value]="clubDraft()"
+                   [disabled]="clubSaving()"
+                   (input)="clubDraft.set($any($event.target).value)"
+                   (keydown.enter)="saveClubRename()" (keydown.escape)="cancelClubRename()" />
+            <button type="button" class="club-bar-btn club-bar-btn--solid"
+                    [disabled]="clubSaving() || !clubDraftChanged()" (click)="saveClubRename()">Save</button>
+            <button type="button" class="club-bar-btn club-bar-btn--quiet" [disabled]="clubSaving()"
+                    (click)="cancelClubRename()">Cancel</button>
+            @if (clubRenameError(); as err) { <p class="club-bar-error" role="alert">{{ err }}</p> }
+            <p class="club-bar-note">Renames your club for this event and your Club Team Library. Events where you already have teams keep their name.</p>
+          } @else {
+            <span class="club-bar-label">Registering as</span>
+            <span class="club-bar-name">{{ clubName() }}</span>
+            @if (clubRenamable()) {
+              <button type="button" class="club-bar-btn" (click)="startClubRename()">
+                <i class="bi bi-pencil" aria-hidden="true"></i>Rename
+              </button>
+            } @else {
+              <span class="club-bar-lock">
+                <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>To rename your club for this event, ask the event director.
+              </span>
+            }
+          }
+        </div>
 
         @if (layout() !== 'segments') {
         <!-- The board (Todd 2026-09-27): library left, this event right — a team is on one side
@@ -503,6 +533,47 @@ type TeamsSegment = 'library' | 'registered';
       /* .step-card / .step-card-registered live in styles/_wizard-globals.scss
          so payment-step shares the same outer chrome. */
 
+      /* The club this rep registers as, with its one-place rename (Todd 2026-10-06): renamable while
+         this event holds none of their teams; otherwise the event director renames it. */
+      .club-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        margin-bottom: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--radius-sm);
+        background: var(--brand-surface);
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+      }
+      .club-bar-label { color: var(--brand-text-muted); }
+      .club-bar-name { font-weight: var(--font-weight-bold); }
+      .club-bar-input { flex: 1 1 14rem; min-width: 0; }
+      .club-bar-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: 2px var(--space-2);
+        border: 1px solid var(--bs-primary);
+        border-radius: var(--radius-sm);
+        background: var(--brand-surface);
+        color: var(--bs-primary);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+
+        &--solid { background: var(--bs-primary); color: var(--neutral-0); }
+        &--quiet { border-color: transparent; color: var(--brand-text-muted); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+        &:disabled { opacity: 0.45; cursor: default; }
+      }
+      .club-bar-lock { font-size: var(--font-size-xs); color: var(--brand-text-muted); }
+      .club-bar-note, .club-bar-error { flex-basis: 100%; margin: 0; font-size: var(--font-size-xs); }
+      .club-bar-note { color: var(--brand-text-muted); }
+      .club-bar-error { color: var(--bs-danger-text-emphasis); }
+
       /* AR-095 item 5 — the "what this table is / is not" notice above the grid.
          ONE line: the positive half names what the figures are, the negative half is
          what actually breaks the misread, and the Continue to Payment button below
@@ -912,6 +983,7 @@ export class TeamTeamsStepComponent implements OnInit {
     private readonly state = inject(TeamWizardStateService);
     private readonly teamReg = inject(TeamRegistrationService);
     private readonly toast = inject(ToastService);
+    private readonly clubService = inject(ClubService);
     private readonly jobService = inject(JobService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly router = inject(Router);
@@ -948,6 +1020,63 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
     readonly clubName = signal('your club');
+
+    // ── Club rename (Todd 2026-10-06): the one place to rename. Open while this event holds none of the
+    //    rep's teams — dropped ones count, as on the server, which re-checks. Renames the club (library) and
+    //    the rep's teamless registrations, this event's among them; events with teams keep their name. ──
+    readonly renamingClub = signal(false);
+    readonly clubDraft = signal('');
+    readonly clubSaving = signal(false);
+    readonly clubRenameError = signal<string | null>(null);
+    readonly clubRenamable = computed(() =>
+        this.enteredTeams().length === 0 && this.droppedTeams().length === 0 && !!this.state.clubRep.eventClubName());
+    readonly clubDraftChanged = computed(() => {
+        const draft = this.clubDraft().trim();
+        return draft.length > 0 && draft !== this.clubName();
+    });
+
+    startClubRename(): void {
+        this.clubDraft.set(this.clubName());
+        this.clubRenameError.set(null);
+        this.renamingClub.set(true);
+    }
+
+    cancelClubRename(): void {
+        if (this.clubSaving()) return;
+        this.renamingClub.set(false);
+        this.clubRenameError.set(null);
+    }
+
+    saveClubRename(): void {
+        if (this.clubSaving() || !this.clubDraftChanged()) return;
+        const current = this.clubName();
+        const next = this.clubDraft().trim();
+        this.clubSaving.set(true);
+        this.clubRenameError.set(null);
+        this.clubService.renameClub({ currentClubName: current, newClubName: next })
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: resp => {
+                    this.clubSaving.set(false);
+                    if (!resp.success || !resp.newClubName) {
+                        this.clubRenameError.set(resp.message ?? 'Could not rename your club.');
+                        return;
+                    }
+                    const renamed = resp.newClubName;
+                    const rep = this.state.clubRep;
+                    if (rep.selectedClub() === current) rep.setSelectedClub(renamed);
+                    rep.setAvailableClubs(rep.availableClubs().map(c => c.clubName === current ? { ...c, clubName: renamed } : c));
+                    rep.setEventClubName(renamed);
+                    this.renamingClub.set(false);
+                    // The duplicate warning and the other reps' groups follow the name — reload them.
+                    this.loadTeamsMetadata(false, () => this.toast.show(`Your club is now ${renamed}.`, 'success', 3000));
+                },
+                error: (e: unknown) => {
+                    this.clubSaving.set(false);
+                    this.clubRenameError.set(extractHttpErrorMessage(e, 'Could not rename your club.'));
+                },
+            });
+    }
     readonly ageGroups = signal<AgeGroupDto[]>([]);
     readonly actionInProgress = signal(false);
     /** Plain library add — the Club Team Library tab's Add, open or closed (the tab is list-only: it never registers). */

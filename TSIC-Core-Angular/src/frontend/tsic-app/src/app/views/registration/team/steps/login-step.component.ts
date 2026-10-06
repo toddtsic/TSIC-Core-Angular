@@ -231,19 +231,6 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
       }
 
       /* ── Club info card ─────────────────────────────────── */
-      .club-edit-row {
-        display: flex;
-        gap: var(--space-2);
-        align-items: stretch;
-      }
-      .club-edit-row .field-input { flex: 1; }
-      .btn-save-club {
-        flex: 0 0 auto;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 44px;
-      }
       .club-locked-hint {
         font-size: var(--font-size-xs);
         color: var(--brand-text-muted);
@@ -348,41 +335,12 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
                 <h5 class="mb-0"><i class="bi bi-people-fill"></i> Club</h5>
               </div>
               <div class="card-body">
-                @if (editingClub()) {
-                  <label class="field-label">Club Name <span class="text-muted small">— editable until your first team is registered</span></label>
-                  <div class="club-edit-row">
-                    <input class="field-input" [value]="clubNameDraft()"
-                           (input)="clubNameDraft.set($any($event.target).value)"
-                           [disabled]="savingClub()"
-                           placeholder="Club name" />
-                    <button type="button" class="btn btn-primary btn-save-club"
-                            [disabled]="savingClub() || !clubNameDirty()"
-                            (click)="saveClubName()">
-                      @if (savingClub()) {
-                        <span class="spinner-border spinner-border-sm"></span>
-                      } @else {
-                        <i class="bi bi-check-lg"></i>
-                      }
-                    </button>
-                  </div>
-                  @if (clubError()) {
-                    <div class="field-error mt-1">{{ clubError() }}</div>
-                  }
-                  <button type="button" class="btn btn-link btn-cancel-inline" (click)="cancelEditClub()">Cancel</button>
-                } @else {
-                  <div class="readout-row">
-                    <span class="readout-value">{{ club }}</span>
-                    @if (clubEditable()) {
-                      <button type="button" class="inline-edit-btn" (click)="startEditClub()">
-                        <i class="bi bi-pencil me-1"></i>Edit
-                      </button>
-                    } @else {
-                      <span class="club-locked-hint">
-                        <i class="bi bi-lock-fill me-1"></i>Club Name Locked — club teams are registered in this or other events
-                      </span>
-                    }
-                  </div>
-                }
+                <!-- Read-only (Todd 2026-10-06): the club is renamed in ONE place, the Teams step, while this
+                     event holds none of the rep's teams. -->
+                <div class="readout-row">
+                  <span class="readout-value">{{ club }}</span>
+                  <span class="club-locked-hint">To rename your club, use <b>Rename</b> on the Teams step.</span>
+                </div>
               </div>
             </div>
           }
@@ -468,8 +426,8 @@ export class TeamLoginStepComponent implements OnInit {
         return this.auth.currentUser() ? 'account-summary' : 'sign-in';
     });
 
-    /** Club this rep is registering — shown on the review screen for confirmation. */
-    readonly registeringClub = this.state.clubRep.selectedClub;
+    /** Club this rep is registering — the event registration's name, as the wizard header shows it. */
+    readonly registeringClub = computed(() => this.state.clubRep.eventClubName() ?? this.state.clubRep.selectedClub());
 
     /** Authenticated rep's userId — drives the (immediate-mode) headshot control on the review card. */
     readonly repUserId = computed(() => this.auth.currentUser()?.userId ?? null);
@@ -478,31 +436,7 @@ export class TeamLoginStepComponent implements OnInit {
     // in place, without ever leaving the "Club & Rep Info" screen. A returning rep
     // rarely edits, so the default is a calm read-only display + a one-click Edit.
     readonly editingProfile = signal(false);
-    readonly editingClub = signal(false);
 
-    // ── Club name inline edit (allowed only before the club's first team) ──────
-    readonly clubNameDraft = signal('');
-    readonly savingClub = signal(false);
-    readonly clubError = signal<string | null>(null);
-
-    /**
-     * Club name is editable only while the selected club has no registered teams
-     * (IsInUse=false). That is exactly the data-safe window: with no teams, no
-     * Registrations.club_name copies exist to diverge from the renamed Clubs row.
-     * Once a team is registered the name locks (rename becomes an admin concern).
-     */
-    readonly clubEditable = computed(() => {
-        const name = this.state.clubRep.selectedClub();
-        if (!name) return false;
-        const club = this.state.clubRep.availableClubs().find(c => c.clubName === name);
-        return !!club && !club.isInUse;
-    });
-
-    /** Save is enabled only for a non-empty, actually-changed name. */
-    readonly clubNameDirty = computed(() => {
-        const draft = this.clubNameDraft().trim();
-        return draft.length > 0 && draft !== (this.registeringClub() ?? '');
-    });
 
     /** Open the inline create-account sub-view (from the sign-in gate). */
     showCreateAccount(): void { this.viewOverride.set('create'); }
@@ -520,47 +454,6 @@ export class TeamLoginStepComponent implements OnInit {
     // ── Inline edit toggles (in-place; no view change) ────────────────────────
     startEditProfile(): void { this.editingProfile.set(true); }
     cancelEditProfile(): void { this.editingProfile.set(false); }
-    startEditClub(): void { this.seedClubDraft(); this.editingClub.set(true); }
-    cancelEditClub(): void { this.editingClub.set(false); this.clubError.set(null); }
-
-    /** Seed the club-name draft from the selected club when landing on the review. */
-    private seedClubDraft(): void {
-        this.clubNameDraft.set(this.state.clubRep.selectedClub() ?? '');
-        this.clubError.set(null);
-    }
-
-    /** Persist a club rename; updates wizard state so the new name flows everywhere. */
-    saveClubName(): void {
-        const current = this.registeringClub();
-        const next = this.clubNameDraft().trim();
-        if (!current || !next || next === current) return;
-
-        this.savingClub.set(true);
-        this.clubError.set(null);
-        this.clubService.renameClub({ currentClubName: current, newClubName: next })
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: (resp) => {
-                    this.savingClub.set(false);
-                    if (resp.success && resp.newClubName) {
-                        const renamed = resp.newClubName;
-                        this.state.clubRep.setSelectedClub(renamed);
-                        this.state.clubRep.setAvailableClubs(
-                            this.state.clubRep.availableClubs().map(c =>
-                                c.clubName === current ? { ...c, clubName: renamed } : c));
-                        this.clubNameDraft.set(renamed);
-                        this.editingClub.set(false);
-                    } else {
-                        this.clubError.set(resp.message ?? 'Could not rename club.');
-                    }
-                },
-                error: (err: unknown) => {
-                    this.savingClub.set(false);
-                    const e = err as { error?: { message?: string } };
-                    this.clubError.set(e?.error?.message ?? 'Could not rename club.');
-                },
-            });
-    }
 
     ngOnInit(): void {
         if (this.auth.isAuthenticated()) {
@@ -581,7 +474,6 @@ export class TeamLoginStepComponent implements OnInit {
             const hasFullSession = !!user?.regId && user.jobPath === this.state.jobPath();
             if (hasFullSession) {
                 // view computes to account-summary (authenticated); just load the profile.
-                this.seedClubDraft();
                 this.loadProfile();
             } else {
                 this.continueWithLogin();
@@ -674,7 +566,6 @@ export class TeamLoginStepComponent implements OnInit {
                     // Phase-1 token, so the identity renders immediately and the wizard
                     // Continue lights up once hasWizardSession() flips true.
                     this.viewOverride.set(null);
-                    this.seedClubDraft();
                     this.loadProfile();
                 },
                 error: (err: unknown) => {

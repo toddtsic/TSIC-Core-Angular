@@ -6,6 +6,7 @@ import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { ClubService } from '@infrastructure/services/club.service';
 import type { RegisterTeamResponse, ClubTeamDto } from '@core/api';
 
 /**
@@ -69,6 +70,7 @@ describe('TeamTeamsStepComponent — register response handling', () => {
                     provide: JobService,
                     useValue: { currentJob: signal({ jobName: 'Test Tournament' }) },
                 },
+                { provide: ClubService, useValue: { renameClub: vi.fn() } },
             ],
             schemas: [NO_ERRORS_SCHEMA],
         });

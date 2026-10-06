@@ -449,12 +449,15 @@ public sealed class ClubService : IClubService
     }
 
     /// <summary>
-    /// Rename a club the caller reps (the library name — Clubs.ClubName). Locked once the club has
-    /// registered teams (IsInUse, found by id). Inside an event the club's name is the club rep
-    /// registration's club_name: this re-stamps the rep's TEAMLESS registrations only (the event they
-    /// are entering); one with teams is the event's record, which a Director or Superuser renames.
+    /// Rename a club the caller reps (the library name — Clubs.ClubName), from the event they are
+    /// registering in (<paramref name="currentRegistrationId"/>, the wizard token's regId). Allowed while
+    /// THAT registration holds none of their teams (Todd 2026-10-06) — teams in other events don't lock it:
+    /// each event's registration keeps the club_name it was registered under, so history stays put.
+    /// Re-stamps the rep's TEAMLESS registrations under the old name (this event among them); one with
+    /// teams is that event's record, which a Director or Superuser renames per event. A director's rename
+    /// needs a team in the event, and a team here locks this one — the two never meet.
     /// </summary>
-    public async Task<ClubRenameResponse> RenameClubAsync(string userId, ClubRenameRequest request)
+    public async Task<ClubRenameResponse> RenameClubAsync(string userId, Guid? currentRegistrationId, ClubRenameRequest request)
     {
         var current = (request.CurrentClubName ?? string.Empty).Trim();
         var next = (request.NewClubName ?? string.Empty).Trim();
@@ -480,13 +483,24 @@ public sealed class ClubService : IClubService
             return new ClubRenameResponse { Success = true, NewClubName = target.ClubName };
         }
 
-        // Guard: a club with registered teams is locked.
-        if (target.IsInUse)
+        // Gate: the event the rep is registering in holds none of their teams under this club's name.
+        // A director-renamed registration no longer carries the club's name, so it is never in the set.
+        var oldName = target.ClubName;
+        var teamless = await _registrations.GetTeamlessClubRepRegistrationsByClubNameAsync(userId, oldName);
+        if (currentRegistrationId is not Guid currentRegId)
         {
             return new ClubRenameResponse
             {
                 Success = false,
-                Message = "This club already has registered teams, so its name is locked."
+                Message = "Open your event's team registration to rename your club."
+            };
+        }
+        if (!teamless.Exists(r => r.RegistrationId == currentRegId))
+        {
+            return new ClubRenameResponse
+            {
+                Success = false,
+                Message = "Your club already has teams registered for this event. Ask the event director to rename your club for this event."
             };
         }
 
@@ -514,8 +528,6 @@ public sealed class ClubService : IClubService
         // when they entered it. Teamless registrations take the new name too (Todd 2026-10-06) —
         // otherwise their first teams go in, and print on schedules, under the old one. One with any
         // team keeps its name: that is the event's record, renamed per event by a director.
-        var oldName = target.ClubName;
-        var teamless = await _registrations.GetTeamlessClubRepRegistrationsByClubNameAsync(userId, oldName);
         foreach (var reg in teamless)
         {
             reg.ClubName = next;

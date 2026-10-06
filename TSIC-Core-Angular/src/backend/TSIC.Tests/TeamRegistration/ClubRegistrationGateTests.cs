@@ -439,20 +439,23 @@ public class ClubRegistrationGateTests
     [Fact(DisplayName = "Rename: a teamless event registration takes the new club name")]
     public async Task Rename_RestampsTeamlessRegistrations()
     {
-        var own = new ClubWithUsageInfo { ClubId = 1, ClubName = "Old Name", IsInUse = false };
+        // In use = teams in OTHER events: no longer a lock (Todd 2026-10-06); only this event's teams lock it.
+        var own = new ClubWithUsageInfo { ClubId = 1, ClubName = "Old Name", IsInUse = true };
         var stamped = new Registrations
         {
+            RegistrationId = Guid.NewGuid(),
             ClubName = "Old Name", Assignment = "Old Name", RegistrationCategory = "Club Rep: Old Name"
         };
         var handEdited = new Registrations
         {
+            RegistrationId = Guid.NewGuid(),
             ClubName = "Old Name", Assignment = "Director note", RegistrationCategory = "Other"
         };
         var f = CreateService([], existingUsersClubs: [own], teamlessRegistrations: [stamped, handEdited]);
         f.ClubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Clubs { ClubId = 1, ClubName = "Old Name" });
 
-        var result = await f.Svc.RenameClubAsync("user-1",
+        var result = await f.Svc.RenameClubAsync("user-1", stamped.RegistrationId,
             new ClubRenameRequest { CurrentClubName = "Old Name", NewClubName = "New Name" });
 
         result.Success.Should().BeTrue();
@@ -463,6 +466,44 @@ public class ClubRegistrationGateTests
         handEdited.Assignment.Should().Be("Director note");
         handEdited.RegistrationCategory.Should().Be("Other");
         f.ClubRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// SCENARIO: The rep already has a team in the event they are registering in (their registration
+    /// there is not teamless) — or a director renamed the club for it, so it no longer carries the name.
+    /// EXPECTED: refused, nothing written; the director renames a club per event.
+    /// </summary>
+    [Fact(DisplayName = "Rename: refused once the rep has a team in this event")]
+    public async Task Rename_RefusedWithTeamsInThisEvent()
+    {
+        var own = new ClubWithUsageInfo { ClubId = 1, ClubName = "Old Name", IsInUse = true };
+        var otherEvent = new Registrations { RegistrationId = Guid.NewGuid(), ClubName = "Old Name" };
+        var f = CreateService([], existingUsersClubs: [own], teamlessRegistrations: [otherEvent]);
+
+        var result = await f.Svc.RenameClubAsync("user-1", Guid.NewGuid(),
+            new ClubRenameRequest { CurrentClubName = "Old Name", NewClubName = "New Name" });
+
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("event director");
+        otherEvent.ClubName.Should().Be("Old Name");
+        f.ClubRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// SCENARIO: A rename with no event in hand (no wizard registration on the token).
+    /// EXPECTED: refused — the rename is made from the event the rep is registering in.
+    /// </summary>
+    [Fact(DisplayName = "Rename: refused outside an event's registration")]
+    public async Task Rename_RefusedWithoutEvent()
+    {
+        var own = new ClubWithUsageInfo { ClubId = 1, ClubName = "Old Name", IsInUse = false };
+        var f = CreateService([], existingUsersClubs: [own], teamlessRegistrations: []);
+
+        var result = await f.Svc.RenameClubAsync("user-1", null,
+            new ClubRenameRequest { CurrentClubName = "Old Name", NewClubName = "New Name" });
+
+        result.Success.Should().BeFalse();
+        f.ClubRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ═══════════════════════════════════════════════════════════════════

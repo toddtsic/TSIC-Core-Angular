@@ -151,7 +151,9 @@ public class ClubRepsController : ControllerBase
             return Unauthorized(new { Message = "User not authenticated" });
         }
 
-        var result = await _clubService.RenameClubAsync(userId, request);
+        // The event the rep is registering in (the wizard's Phase-2 token) — the rename gate is that event.
+        Guid? regId = Guid.TryParse(User.FindFirst("regId")?.Value, out var parsed) ? parsed : null;
+        var result = await _clubService.RenameClubAsync(userId, regId, request);
         if (!result.Success)
         {
             return BadRequest(result);

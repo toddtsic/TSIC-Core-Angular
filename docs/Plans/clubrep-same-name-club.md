@@ -141,3 +141,11 @@ One rule: the loose same-name match (`ClubNameMatcher.IsSameClubName`) only help
 - **Registered Teams** groups by rep when other reps share the club name: "You (name)" first in green with every action; other reps read-only in grey, "Registered and paid for by X — not on your bill." Payment shows only the rep's own teams.
 - **Duplicate warning UI:** facts, the question, the bold fee line, and **Don't add** / **Yes, add it** together as soon as it shows; + Add and ✕ are held until it is answered. Don't add clears the row.
 - Verified: backend 1236/1237 (the one failure is EventBrowse, from `c78b33aa4`, not this branch); `npm run build` passes the gates.
+
+## Revision: one place to rename the club — the Teams step, gated on THIS event (Todd 2026-10-06)
+- **Where:** a "Registering as **{club}**" bar at the top of the Teams step, with **Rename** while this event holds none of the rep's teams (dropped included). Otherwise a lock: "To rename your club for this event, ask the event director." The Club card on Club Rep Info is read-only, and shows the event's club name (it was missing for a rep who arrived already signed in).
+- **Server gate** (`ClubService.RenameClubAsync`, now given the wizard token's regId): the rep's registration in THIS event must be one of their teamless registrations under the club's name. Teams in other events no longer lock it — each event's registration keeps the name it was registered under. Refused with no event in hand.
+- **Effect:** renames the club (library, future events) and re-stamps the rep's teamless registrations under the old name, this event's among them. The Teams step reloads, so the duplicate warning and the other reps' groups follow the new name.
+- **Director rename never collides:** it needs a team in the event; a team here locks the rep's rename; a director-renamed registration no longer carries the club's name, so the rep's rename never re-stamps it.
+- **Known consequence:** the team-retention report matches clubs across years by name; a renamed club reads as two there (already an accepted risk above).
+- Verified: backend 1238/1239 (EventBrowse, from `c78b33aa4`); `npm run build` passes. `teams-step.component.spec.ts` fails 4 tests on master too (its mock state lacks `applyTeamsMetadata`) — not this change.
