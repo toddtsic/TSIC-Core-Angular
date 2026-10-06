@@ -224,11 +224,13 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
             <!-- What another rep already did, one line each; then the question; then what it costs. -->
             @for (g of dupGroups(); track g.repName) {
               <p class="dup-text">
-                <b>{{ g.repName }}</b> has already registered {{ teamPhrase(g.teams) }} in the {{ dupAgeGroup() }} age group.
+                <b>{{ g.repName }}</b> has already registered the
+                @for (t of g.teams; track $index) {<b class="dup-em">{{ t }}</b>{{ $last ? '' : ($index === g.teams.length - 2 ? ' and ' : ', ') }}}
+                {{ g.teams.length === 1 ? 'team' : 'teams' }} in the <b class="dup-em">{{ dupAgeGroup() }}</b> age group.
               </p>
             }
-            <p class="dup-q">Do you really want to add {{ teamPhrase([text().trim()]) }}?</p>
-            <p class="dup-text">Adding it creates a separate entry and a separate fee.</p>
+            <p class="dup-q">Do you really want to add the <b class="dup-em">{{ text().trim() }}</b> team?</p>
+            <p class="dup-text dup-fee">Adding it creates a separate entry and a separate fee.</p>
             @if (confirmOpen()) {
               <div class="dup-confirm">
                 <div class="dup-actions">
@@ -450,6 +452,9 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
       .dup-text, .dup-q { margin: 0; font-size: var(--font-size-sm); line-height: var(--line-height-normal); }
       .dup-text + .dup-text, .dup-q, .dup-q + .dup-text { margin-top: var(--space-1); }
       .dup-q { margin-top: var(--space-2); }
+      /* Team names and the age group: the facts the rep compares against their own team. */
+      .dup-em { font-weight: var(--font-weight-bold); color: var(--bs-warning-text-emphasis); }
+      .dup-fee { font-weight: var(--font-weight-bold); }
       .dup-confirm {
         margin-top: var(--space-2);
         padding-top: var(--space-2);
@@ -648,13 +653,6 @@ export class TeamAddRowComponent implements OnChanges {
     /** Other same-name reps' teams in the picked age group — once the row has a name and an age group. */
     readonly dupGroups = computed(() =>
         this.text().trim() ? otherRepsInAgeGroup(this.sameNameEventTeams(), this.dupAgeGroup()) : []);
-
-    /** "the 2029 team", "the Blue and Gold teams", "the A, B and C teams" — short names ("2029")
-     *  read awkwardly bare. */
-    teamPhrase(teams: readonly string[]): string {
-        const names = teams.length <= 1 ? teams.join('') : `${teams.slice(0, -1).join(', ')} and ${teams[teams.length - 1]}`;
-        return `the ${names} ${teams.length === 1 ? 'team' : 'teams'}`;
-    }
 
     /** What's still needed, in order — the disabled Add's tooltip. null = ready. */
     readonly missing = computed<string | null>(() => {
