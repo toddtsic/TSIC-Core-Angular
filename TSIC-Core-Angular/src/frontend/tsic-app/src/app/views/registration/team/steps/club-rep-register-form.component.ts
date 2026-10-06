@@ -16,10 +16,10 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
  * Club rep self-registration / profile-edit form.
  * Renders form fields only — the consumer owns the title and card chrome.
  *
- * A club name never blocks sign-up (Todd 2026-10-06). 65%+ matches surface as a friendly
- * "already on TSIC" panel — typically a new rep taking over from their club's old rep —
- * with "Use this name" so the Teams step can offer that club's saved teams. The server
- * silently claims an unclaimed empty club of exactly the typed name.
+ * A club name never blocks sign-up (Todd 2026-10-06). When clubs of the same name exist —
+ * typically a new rep taking over from their club's old rep — the rep answers "Is your club
+ * one of these?": the picked club's teams are copied into theirs, or "None of these" starts
+ * empty. The server silently claims an unclaimed empty club of exactly the typed name.
  */
 @Component({
     selector: 'app-club-rep-register-form',
@@ -36,40 +36,24 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
         line-height: 1.4;
       }
 
-      /* ── Same-name clubs: "Is this your club?" (a choice, never a block) ──
-         Mode-adaptive: panel surface inherits from .card-body (white in light,
-         dark in dark). Text uses --brand-text. The primary tint is an rgba
-         overlay that works over either surface. Do NOT force a palette-locked
-         background here — the dark theme overrides .card-body with !important
-         and a locked-white panel breaks the cascade for descendant text.
-      */
-      .club-known-panel {
-        border: 1px solid rgba(var(--bs-primary-rgb), 0.3);
-        border-radius: var(--radius-md);
+      /* ── Same-name clubs: "Is your club one of these?" (a choice, never a block) ──
+         The question is the site's informational callout (.tsic-callout--info); the
+         clubs list under it. Row surfaces inherit .card-body (light/dark); the primary
+         tint is an rgba overlay that works over either. */
+      .club-choice {
         margin: var(--space-2) 0 0;
         padding: 0;
+        border: 0;
         min-width: 0;
+      }
+      .known-q { display: block; font-weight: var(--font-weight-bold); }
+      .known-p { display: block; margin-top: var(--space-1); font-weight: var(--font-weight-normal); }
+      .club-known-list {
+        margin-top: var(--space-2);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
         overflow: hidden;
       }
-      /* A legend: float + width make it a normal block inside the fieldset's border. */
-      .club-known-header {
-        float: left;
-        width: 100%;
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        margin: 0;
-        padding: var(--space-3);
-        background: rgba(var(--bs-primary-rgb), 0.08);
-        border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.15);
-        font-size: var(--font-size-sm);
-        line-height: var(--line-height-normal);
-        color: var(--brand-text);
-      }
-      .club-known-header + * { clear: both; }
-      .club-known-header > i { color: var(--bs-primary); margin-top: 2px; flex-shrink: 0; }
-      .known-q { display: block; font-weight: var(--font-weight-bold); }
-      .known-p { display: block; margin-top: var(--space-1); }
       .known-club-row {
         display: flex;
         align-items: center;
@@ -191,18 +175,18 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
                    aren't unique, so the pick is by club, not by name. "None of these" starts empty.
                    Create Account waits for an answer. No rep names or emails here. -->
               @if (similarMatches().length > 0) {
-                <fieldset class="club-known-panel">
-                  <legend class="club-known-header">
-                    <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+                <fieldset class="club-choice" aria-labelledby="club-choice-q">
+                  <div class="tsic-callout tsic-callout--info tsic-callout--block" role="note">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
                     <span>
-                      <span class="known-q">{{ similarMatches().length === 1 ? 'Is this your club?' : 'Is one of these your club?' }}</span>
+                      <span class="known-q" id="club-choice-q">{{ similarMatches().length === 1 ? 'Is this your club?' : 'Is your club one of these?' }}</span>
                       <span class="known-p">
-                        Pick your club and its saved teams are copied to your account, ready to register
-                        &mdash; no retyping. Starting a different club that happens to share the name?
-                        Choose <b>None of these</b>.
+                        Pick it and its teams come with you &mdash; nothing to retype.
+                        Not your club? Pick <b>None of these</b>.
                       </span>
                     </span>
-                  </legend>
+                  </div>
+                  <div class="club-known-list">
                   @for (club of similarMatches(); track club.clubId) {
                     <label class="known-club-row" [class.is-chosen]="clubChoice() === club.clubId">
                       <input type="radio" class="form-check-input" name="clubChoice"
@@ -212,7 +196,7 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
                         @if (club.state) {
                           <span class="text-muted ms-1">({{ club.state }})</span>
                         }
-                        <span class="text-muted ms-1">&bull; {{ club.teamCount }} {{ club.teamCount === 1 ? 'saved team' : 'saved teams' }}</span>
+                        <span class="text-muted ms-1">&bull; {{ club.teamCount }} {{ club.teamCount === 1 ? 'team' : 'teams' }}</span>
                       </span>
                     </label>
                   }
@@ -222,6 +206,7 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
                     <span><span class="fw-semibold">None of these</span>
                       <span class="text-muted ms-1">&mdash; we're a new club</span></span>
                   </label>
+                  </div>
                 </fieldset>
               }
               }
