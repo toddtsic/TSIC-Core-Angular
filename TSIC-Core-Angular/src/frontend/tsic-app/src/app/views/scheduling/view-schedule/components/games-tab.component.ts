@@ -148,7 +148,7 @@ type ScheduleRow =
                              a role="button" would be nested interactive content. -->
                         <span class="cell cell-home" role="cell" aria-colindex="4">
                             @let n1 = teamParts(game.t1Name, game.t1SlotLabel);
-                            @let r1 = game.t1Id ? game.t1Record : null;
+                            @let r1 = shownRecord(game.t1Id, game.t1Record);
                             @if (n1.club) {
                                 <span class="team-name tn-club">{{ n1.club }}</span>
                             } @else if (game.t1Id) {
@@ -231,7 +231,7 @@ type ScheduleRow =
                              edge, record pill after the team on line two. -->
                         <span class="cell cell-away" role="cell" aria-colindex="8">
                             @let n2 = teamParts(game.t2Name, game.t2SlotLabel);
-                            @let r2 = game.t2Id ? game.t2Record : null;
+                            @let r2 = shownRecord(game.t2Id, game.t2Record);
                             <!-- Winner trophy: FIRST on line one → flush left, at the score edge. -->
                             @if (isT2Winner(game)) { <i class="bi bi-trophy-fill win-trophy" title="Winner" aria-hidden="true"></i> }
                             @if (n2.club) {
@@ -340,7 +340,7 @@ type ScheduleRow =
                                 } @else {
                                     <span class="team-name">{{ teamLabel(game.t1Name, game.t1SlotLabel) }}</span>
                                 }
-                                @if (game.t1Record && game.t1Id) {
+                                @if (shownRecord(game.t1Id, game.t1Record)) {
                                     <button type="button" class="record-btn"
                                             [attr.title]="'View ' + game.t1Name + ' results'"
                                             [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + game.t1Record"
@@ -365,7 +365,7 @@ type ScheduleRow =
                                 } @else {
                                     <span class="team-name">{{ teamLabel(game.t2Name, game.t2SlotLabel) }}</span>
                                 }
-                                @if (game.t2Record && game.t2Id) {
+                                @if (shownRecord(game.t2Id, game.t2Record)) {
                                     <button type="button" class="record-btn"
                                             [attr.title]="'View ' + game.t2Name + ' results'"
                                             [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + game.t2Record"
@@ -1634,6 +1634,13 @@ export class GamesTabComponent {
 
     hasScore(game: ViewGameDto): boolean {
         return game.t1Score != null && game.t2Score != null;
+    }
+
+    /** The record pill's text, or null when there's no pill: no resolved team, no pool record
+     *  (bracket slot), or a 0-0-0 that says nothing yet (Todd 10-06). The team name opens the
+     *  same panel, so hiding the pill loses no entry point. */
+    shownRecord(teamId: string | null | undefined, record: string | null | undefined): string | null {
+        return teamId && record && record !== '0-0-0' ? record : null;
     }
 
     isT1Winner(game: ViewGameDto): boolean {
