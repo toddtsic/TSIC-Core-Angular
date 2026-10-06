@@ -221,26 +221,19 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
         <div class="dup-warn" role="alert">
           <i class="bi bi-exclamation-triangle-fill dup-icon" aria-hidden="true"></i>
           <div class="dup-body">
-            @if (dupGroups().length === 1) {
+            <!-- What another rep already did, one line each; then the question; then what it costs. -->
+            @for (g of dupGroups(); track g.repName) {
               <p class="dup-text">
-                Another {{ clubName() }} rep, <b>{{ dupGroups()[0].repName }}</b>, already registered
-                {{ teamCount(dupGroups()[0].teams.length) }} in <b>{{ dupAgeGroup() }}</b>: {{ dupGroups()[0].teams.join(', ') }}.
+                <b>{{ g.repName }}</b> has already registered {{ teamPhrase(g.teams) }} in the {{ dupAgeGroup() }} age group.
               </p>
-            } @else {
-              <p class="dup-text">Other {{ clubName() }} reps already registered teams in <b>{{ dupAgeGroup() }}</b>:</p>
-              <ul class="dup-list">
-                @for (g of dupGroups(); track g.repName) {
-                  <li><b>{{ g.repName }}</b>, {{ teamCount(g.teams.length) }}: {{ g.teams.join(', ') }}</li>
-                }
-              </ul>
             }
-            <p class="dup-text">Adding another creates a separate entry and a separate fee.</p>
+            <p class="dup-q">Do you really want to add {{ teamPhrase([text().trim()]) }}?</p>
+            <p class="dup-text">Adding it creates a separate entry and a separate fee.</p>
             @if (confirmOpen()) {
               <div class="dup-confirm">
-                <p class="dup-q">{{ confirmQuestion() }}</p>
                 <div class="dup-actions">
                   <button type="button" class="btn-dont" (click)="dontAdd()">Don't add</button>
-                  <button type="button" class="btn-yes" [disabled]="busy()" (click)="add(true)">Yes &mdash; it's a different team, add it</button>
+                  <button type="button" class="btn-yes" [disabled]="busy()" (click)="add(true)">Yes, add it</button>
                 </div>
               </div>
             }
@@ -455,13 +448,8 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
       .dup-icon { flex-shrink: 0; margin-top: 2px; color: var(--bs-warning-text-emphasis); font-size: var(--font-size-base); }
       .dup-body { flex: 1; min-width: 0; }
       .dup-text, .dup-q { margin: 0; font-size: var(--font-size-sm); line-height: var(--line-height-normal); }
-      .dup-text + .dup-text { margin-top: var(--space-1); }
-      .dup-list {
-        margin: var(--space-1) 0;
-        padding-left: var(--space-4);
-        font-size: var(--font-size-sm);
-        line-height: var(--line-height-normal);
-      }
+      .dup-text + .dup-text, .dup-q, .dup-q + .dup-text { margin-top: var(--space-1); }
+      .dup-q { margin-top: var(--space-2); }
       .dup-confirm {
         margin-top: var(--space-2);
         padding-top: var(--space-2);
@@ -661,12 +649,12 @@ export class TeamAddRowComponent implements OnChanges {
     readonly dupGroups = computed(() =>
         this.text().trim() ? otherRepsInAgeGroup(this.sameNameEventTeams(), this.dupAgeGroup()) : []);
 
-    readonly confirmQuestion = computed(() => {
-        const n = this.dupGroups().reduce((sum, g) => sum + g.teams.length, 0);
-        return `Is ${this.text().trim()} a different team from ${n === 1 ? 'that one' : 'those'}?`;
-    });
-
-    teamCount(n: number): string { return n === 1 ? '1 team' : `${n} teams`; }
+    /** "the 2029 team", "the Blue and Gold teams", "the A, B and C teams" — short names ("2029")
+     *  read awkwardly bare. */
+    teamPhrase(teams: readonly string[]): string {
+        const names = teams.length <= 1 ? teams.join('') : `${teams.slice(0, -1).join(', ')} and ${teams[teams.length - 1]}`;
+        return `the ${names} ${teams.length === 1 ? 'team' : 'teams'}`;
+    }
 
     /** What's still needed, in order — the disabled Add's tooltip. null = ready. */
     readonly missing = computed<string | null>(() => {
