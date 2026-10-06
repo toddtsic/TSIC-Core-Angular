@@ -16,7 +16,7 @@
 | **Two people register for one club in the same event**, e.g. one handles the boys' teams and one the girls'. | Both register. Each has their own teams and their own bill, and each sees the other's teams, read-only. |
 | **The second person goes to add a team the first may already have entered.** | They're warned and asked first: **Don't add** or **Yes, add it**. |
 | **Two unrelated clubs happen to share a name.** | The newcomer picks **None of these**, which gives them their own new club. |
-| **The director needs to spot possible double entries.** | The club shows **"⚠ N reps"** on the club in the director's **C-A-D-T** tree (Club â Agegroup â Division â Team). |
+| **The director needs to spot possible double entries.** | The club shows **"⚠ N reps"** in the director's **C-A-D-T** tree (Club → Agegroup → Division → Team). |
 
 ## How it works
 
@@ -78,7 +78,7 @@ Teams are copied only at Create NEW Club Rep Account. Nothing in the wizard copi
 
 ### 3. Director screens (Search Teams, Search Registrations, schedule screens)
 
-- **"⚠ N reps" badge** on any club in the **C-A-D-T** tree (Club â Agegroup â Division â Team) that has more than one rep's teams in the event. The text is always visible, not hover-only. Its tooltip reads *"N club reps entered teams under {club} — check for a team entered twice."*
+- **"⚠ N reps" badge** on any club in the **C-A-D-T** tree (Club → Agegroup → Division → Team) that has more than one rep's teams in the event. The text is always visible, not hover-only. Its tooltip reads *"N club reps entered teams under {club} — check for a team entered twice."*
 - Only directors (and SuperDirector/Superuser) of that event see the badge. Public schedule pages never do.
 - **Rename Club for this event** (registration detail panel, Details tab):
   - Allowed once the rep has at least one team in the event.
