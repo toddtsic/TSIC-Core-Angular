@@ -659,6 +659,8 @@ export type { RosterTransferResultDto } from './models/RosterTransferResultDto';
 export type { RosterTransferWarningDto } from './models/RosterTransferWarningDto';
 export type { RoundLayout } from './models/RoundLayout';
 export type { RoundShapeDto } from './models/RoundShapeDto';
+export type { SameNameEventTeamDto } from './models/SameNameEventTeamDto';
+export type { SameNameLibraryTeamDto } from './models/SameNameLibraryTeamDto';
 export type { SaveBatchBuildRulesRequest } from './models/SaveBatchBuildRulesRequest';
 export type { SaveBatchWavesRequest } from './models/SaveBatchWavesRequest';
 export type { SaveCascadeLevelRequest } from './models/SaveCascadeLevelRequest';

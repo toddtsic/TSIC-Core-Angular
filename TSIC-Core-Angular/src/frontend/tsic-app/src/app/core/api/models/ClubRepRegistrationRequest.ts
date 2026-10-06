@@ -15,8 +15,6 @@ export type ClubRepRegistrationRequest = {
     state: string;
     postalCode: string;
     cellphone: string;
-    existingClubId?: number | null;
-    confirmedNewClub?: boolean;
     acceptedTos: boolean;
 };
 
