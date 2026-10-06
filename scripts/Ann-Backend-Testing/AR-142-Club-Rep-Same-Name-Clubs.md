@@ -4,9 +4,23 @@
 
 ---
 
-## The design in one paragraph
+## Goal
 
-A club name never stops a club rep. Several reps registering for the same club, even in the same event, is normal, and the system allows it. Instead of blocking, the system **warns the people who can act on it**:
+**To support multiple club reps with the same club name.**
+
+## Scenarios it covers
+
+| Scenario | What happens |
+|---|---|
+| **A new person takes over a club.** The old rep left, and the new one has never used TSIC. | They sign up with the club's name, answer **"Is this your club?"**, and start with the club's saved teams. Nobody has to hand anything over. |
+| **Two people register for one club in the same event**, e.g. one handles the boys' teams and one the girls'. | Both register. Each has their own teams and their own bill, and each sees the other's teams, read-only. |
+| **The second person goes to add a team the first may already have entered.** | They're warned and asked first: **Don't add** or **Yes, add it**. |
+| **Two unrelated clubs happen to share a name.** | The newcomer picks **None of these**, which gives them their own new club. |
+| **The director needs to spot possible double entries.** | The club shows **"⚠ N reps"** in the director's search filters. |
+
+## How it works
+
+A club name never stops a club rep. Instead of blocking, the system **warns the people who can act on it**:
 - The **rep** is asked before adding a team that may already be entered.
 - The **director** sees a badge on any club that has more than one rep in the event.
 
