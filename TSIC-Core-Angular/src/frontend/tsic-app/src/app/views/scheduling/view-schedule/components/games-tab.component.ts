@@ -719,25 +719,20 @@ type ScheduleRow =
         }
 
         /* Date/Time */
-        /* Date and time are two stacked lines of ONE datum, so neither owns the row's
-           baseline — the pair should straddle the row's line, centred on it.
+        /* The DATE is line one and sits on the row's line; the time hangs below it, exactly
+           like the team cells (club on line one, team below). Every column's first line is
+           then one straight rule across the row.
 
-           align-self: center does NOT do that. It centres this cell against the ROW BOX, so
-           the moment a team name wraps and the row grows taller, the date sinks toward the
-           middle of the taller row and drifts off the line every other column sits on. The
-           target is the row's LINE, which does not move; the row's box does.
+           It used to straddle the line instead (vertical-align: middle on the stack), on the
+           theory that date + time are one datum. That floated the date half a line ABOVE the
+           club names, pool and location on every row — the row's top edge read jagged
+           (2026-10-06, Todd). align-self: center is no better: it centres against the ROW
+           BOX, so the date drifts whenever a name wraps.
 
            So the cell stays a plain block and baseline-aligns like everything else, and the
-           stacking moves to an INLINE-FLEX child with vertical-align: middle. The cell's
-           line box then takes its baseline from the strut — landing exactly where the other
-           columns' baselines land — and the two-line stack is centred on that baseline. Row
-           height can now change without the date moving at all.
-
-           It also makes the two permission branches behave identically. .dt-edit is a real
-           <button>, an atomic inline box whose baseline is its LAST line; under plain
-           baseline alignment that would have put the TIME on the row's line for admins and
-           the DATE on it for everyone else. vertical-align: middle overrides the baseline
-           question for both, so admin and parent see the same column. */
+           stack is an INLINE-FLEX child with vertical-align: baseline. A column flex box's
+           baseline is its FIRST item's — the date — for the <button> (admin) branch and the
+           plain span branch alike, so admin and parent see the same column. */
         .cell-dt {
             display: block;
             line-height: 1.3;
@@ -766,7 +761,7 @@ type ScheduleRow =
             display: inline-flex;
             flex-direction: column;
             align-items: flex-start;
-            vertical-align: middle;
+            vertical-align: baseline;
         }
 
         .dt-date {
@@ -786,8 +781,8 @@ type ScheduleRow =
            colour. It used to paint both lines --bs-primary, which put 323 blue anchors down
            the leftmost column: the loudest colour in the row, spent on its RAREST action,
            and the only non-doctrinal colour in a layout where colour means age-group
-           identity or a win and nothing else. Blue now belongs solely to the location link,
-           which actually navigates.
+           identity or a win and nothing else. Blue belongs to the links that navigate: the
+           location link and the team link.
 
            The affordance arrives on hover instead — same bargain as the follow stars. Safe
            here because this is not the hot path: scoring is a click on the score cells
@@ -1106,7 +1101,7 @@ type ScheduleRow =
         }
 
         /* Two-line name (desktop grid): club on line one, plain text (.tn-club); team on line
-           two in secondary ink — THE link (dotted underline → team results), since the team,
+           two — THE link (primary ink, like the location link → team panel), since the team,
            not the club, is what the link opens — followed (home) or preceded (away) by the
            record pill. The row is already two lines tall (date over time), so the second line costs no height, and the name
            track only has to fit the longer line instead of club + ":" + team.
@@ -1114,10 +1109,9 @@ type ScheduleRow =
            The split is a <br> inside the inline run, so the star stays on line one and the
            away hanging indent puts line two under the club's first character. No club (see
            teamParts) → line one is the whole name, line two only the pill. */
-        /* .team-link sets color: inherit; this keeps the linked team line in secondary ink at
-           rest. Declared BEFORE .team-link:hover so hover/focus still promote to primary. */
-        .tn-team,
-        .tn-team.team-link {
+        /* Unlinked team line (unresolved feed) stays secondary ink; the LINKED team line takes
+           the .team-link primary treatment below. */
+        .tn-team {
             color: var(--bs-secondary-color);
         }
 
@@ -1150,34 +1144,29 @@ type ScheduleRow =
         .cell-home .win-trophy { margin-inline-start: var(--space-1); }
         .cell-away .win-trophy { margin-inline-end: var(--space-1); }
 
-        /* Team name → team-results modal, the same viewTeamResults target the record
-           badge fires. Black-tie doctrine meets touch reality: the name RESTS at body ink
-           with a SOFT DOTTED UNDERLINE — a persistent affordance (no hover dependency, so
-           touch shows it too) that stays calm (ink, not loud blue) so gold remains the
-           only resting accent and the ledger reads even. Hover/focus promotes it to solid
-           primary. This is the mobile-app treatment, and what was flagged missing at the
-           start of the refresh. A <button>, not a bare span like standings, so it's
-           keyboard-operable and gets a focus ring (design system requires focus states on
-           interactive elements). Reuses .team-name for truncation/layout; only rendered
-           when the slot has a resolved team id (unresolved bracket feeds stay plain text). */
+        /* Team name → team panel, the same viewTeamResults target the record pill fires.
+           Styled EXACTLY like the location link (.loc-link): primary ink at rest, underline
+           on hover (2026-10-06, Todd). It replaced a body-ink dotted underline that was too
+           quiet to read as clickable — the team panel is the grid's richest destination, so
+           its entry point earns the same blue as the map link. Rejected: an age-group-colour
+           badge — the pool cell already retired a colour-flooded chip because near-white
+           director colours (#FFFFFF, #F0F8FF) made it invisible / unreadable.
+           Desktop is a span role="button" (see the template for why), mobile a real
+           <button>; both keyboard-operable with a focus ring. Only rendered when the slot
+           has a resolved team id (unresolved bracket feeds stay plain text). */
         .team-link {
             appearance: none;
             border: none;
             padding: 0;
             background: transparent;
             font: inherit;
-            color: inherit;
+            color: var(--bs-primary);
             text-align: inherit;
             cursor: pointer;
-            text-decoration: underline dotted;
-            text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
-            text-decoration-thickness: 1px;
-            text-underline-offset: 2px;
+            text-decoration: none;
         }
         .team-link:hover {
-            color: var(--bs-primary);
-            text-decoration: underline solid;
-            text-decoration-color: currentColor;
+            text-decoration: underline;
         }
         .team-link:focus-visible {
             outline: none;
