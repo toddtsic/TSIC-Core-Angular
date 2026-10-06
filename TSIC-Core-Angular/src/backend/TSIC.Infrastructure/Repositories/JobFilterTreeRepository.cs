@@ -42,7 +42,8 @@ public sealed class JobFilterTreeRepository : IJobFilterTreeRepository
                 DivId = div != null ? (Guid?)div.DivId : null,
                 DivName = div != null ? div.DivName : null,
                 DivRank = t.DivRank,
-                ClubName = reg != null ? reg.ClubName : null
+                ClubName = reg != null ? reg.ClubName : null,
+                ClubRepRegistrationId = t.ClubrepRegistrationid
             }
         ).ToListAsync(ct);
 
@@ -133,6 +134,8 @@ public sealed class JobFilterTreeRepository : IJobFilterTreeRepository
                 ClubName = clubGroup.Key,
                 TeamCount = clubGroup.Count(),
                 PlayerCount = clubGroup.Sum(e => e.PlayerCount),
+                RepCount = clubGroup.Where(e => e.Row.ClubRepRegistrationId != null)
+                    .Select(e => e.Row.ClubRepRegistrationId).Distinct().Count(),
                 Agegroups = BuildCadtAgegroups(clubGroup).ToList()
             })
             .ToList();
@@ -240,6 +243,7 @@ public sealed class JobFilterTreeRepository : IJobFilterTreeRepository
         public string? DivName { get; init; }
         public required int DivRank { get; init; }
         public string? ClubName { get; init; }
+        public Guid? ClubRepRegistrationId { get; init; }
     }
 
     private sealed class EnrichedRow

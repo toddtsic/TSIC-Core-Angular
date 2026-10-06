@@ -78,6 +78,17 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Every on-the-books team (active, not DROPPED; waitlisted included — it is still an entry and a
+    /// fee) in the job that belongs to an active club rep registration OTHER than
+    /// <paramref name="excludeRegistrationId"/>, with that registration's club_name and rep. The caller
+    /// filters by club name in memory (normalized matching). AsNoTracking.
+    /// </summary>
+    Task<List<OtherClubRepTeamInfo>> GetOtherClubRepTeamsInJobAsync(
+        Guid jobId,
+        Guid excludeRegistrationId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get historical teams for team name suggestions.
     /// Returns teams from previous year's jobs for the same club.
     /// </summary>
@@ -653,6 +664,19 @@ public interface ITeamRepository
         DateTime since,
         Dtos.Usage.UsageBucket bucket,
         CancellationToken ct = default);
+}
+
+/// <summary>See <see cref="ITeamRepository.GetOtherClubRepTeamsInJobAsync"/>.</summary>
+public record OtherClubRepTeamInfo
+{
+    /// The owning club rep registration's club_name (the event's club identity).
+    public required string ClubName { get; init; }
+    public required string TeamName { get; init; }
+    /// The library team's grad year when the team is library-linked; null otherwise.
+    public string? GradYear { get; init; }
+    public required string AgegroupName { get; init; }
+    public string? RepFirstName { get; init; }
+    public string? RepLastName { get; init; }
 }
 
 public record TeamWithRegistrationInfo

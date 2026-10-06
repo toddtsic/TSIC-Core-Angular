@@ -69,24 +69,22 @@ public sealed class ClubRepLocalRenameService : IClubRepLocalRenameService
             throw new InvalidOperationException(
                 "This club can't be renamed for this event: its rep represents more than one club and none of its teams here are linked to a club team library, so the rename would disconnect the rep from their club.");
 
-        // Inside the event teams group by this name, so another rep here already using it would merge two clubs.
-        if (await _registrationRepo.IsClubRepClubNameInUseInJobAsync(jobId, reg.RegistrationId, next, ct))
-            throw new InvalidOperationException(
-                $"Another club in this event already uses \"{next}\". Choose a different name.");
+        // Another rep in this event may already carry this name (Todd 2026-10-06): sign-up allows same-name
+        // clubs, so two reps of one name in an event is an expected case, not one to block here. The director's
+        // CADT tree flags it instead.
 
         // Inside the event this name reads as the club's identity. Naming this rep after a club they do not
         // represent would present their teams as that other club — refuse it. Renaming to one of the rep's
-        // own clubs (including back to the library name) is allowed.
-        var sameNamedClub = await _clubRepo.GetByNameAsync(next, ct);
-        if (sameNamedClub != null)
-        {
-            var repsOwnClub = reg.UserId != null
-                && (await _clubRepRepo.GetClubsForUserAsync(reg.UserId, ct))
-                    .Exists(c => c.ClubId == sameNamedClub.ClubId);
-            if (!repsOwnClub)
-                throw new InvalidOperationException(
-                    $"\"{next}\" is the name of a different club. Choose a name that is not another club's.");
-        }
+        // own clubs (including back to the library name) is allowed. The rep's own clubs are asked FIRST:
+        // club names are not unique, so a global by-name lookup can land on another club of the same name.
+        var ownClubs = reg.UserId != null
+            ? await _clubRepRepo.GetClubsForUserAsync(reg.UserId, ct)
+            : [];
+        var repsOwnName = ownClubs.Exists(c =>
+            string.Equals(c.ClubName?.Trim(), next, StringComparison.OrdinalIgnoreCase));
+        if (!repsOwnName && await _clubRepo.GetByNameAsync(next, ct) != null)
+            throw new InvalidOperationException(
+                $"\"{next}\" is the name of a different club. Choose a name that is not another club's.");
 
         // Same three copies the club-rep registration is created with (InitializeRegistrationAsync).
         reg.ClubName = next;

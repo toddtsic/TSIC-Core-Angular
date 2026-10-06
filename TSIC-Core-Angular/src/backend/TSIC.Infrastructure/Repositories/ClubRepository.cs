@@ -43,6 +43,16 @@ public class ClubRepository : IClubRepository
             .AnyAsync(ct => ct.ClubId == clubId, cancellationToken);
     }
 
+    public async Task<List<ClubIdName>> GetClubIdNamesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Clubs
+            .AsNoTracking()
+            .Where(c => c.ClubName != null)
+            .Select(c => new ClubIdName { ClubId = c.ClubId, ClubName = c.ClubName! })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Clubs?> GetByNameAsync(
         string clubName,
         CancellationToken cancellationToken = default)
@@ -53,7 +63,7 @@ public class ClubRepository : IClubRepository
     }
 
     /// <summary>
-    /// Single-query approach: gets all clubs with team counts and primary rep contact.
+    /// Single-query approach: gets all clubs with team counts and whether any rep is linked.
     /// Replaces the old N+1 loop that issued one COUNT query per club.
     /// </summary>
     public async Task<List<ClubSearchCandidate>> GetSearchCandidatesAsync(
@@ -67,14 +77,6 @@ public class ClubRepository : IClubRepository
                 State = c.ClubReps.OrderBy(cr => cr.Aid).Select(cr => cr.ClubRepUser.State).FirstOrDefault(),
                 TeamCount = _context.ClubTeams
                     .Count(ct => ct.ClubId == c.ClubId),
-                RepName = c.ClubReps.OrderBy(cr => cr.Aid)
-                    .Select(cr => cr.ClubRepUser.FirstName != null && cr.ClubRepUser.LastName != null
-                        ? cr.ClubRepUser.FirstName + " " + cr.ClubRepUser.LastName
-                        : null)
-                    .FirstOrDefault(),
-                RepEmail = c.ClubReps.OrderBy(cr => cr.Aid)
-                    .Select(cr => cr.ClubRepUser.Email)
-                    .FirstOrDefault(),
                 HasRep = c.ClubReps.Any()
             })
             .AsNoTracking()
@@ -103,14 +105,6 @@ public class ClubRepository : IClubRepository
                 State = c.ClubReps.OrderBy(cr => cr.Aid).Select(cr => cr.ClubRepUser.State).FirstOrDefault(),
                 TeamCount = _context.ClubTeams
                     .Count(ct => ct.ClubId == c.ClubId),
-                RepName = c.ClubReps.OrderBy(cr => cr.Aid)
-                    .Select(cr => cr.ClubRepUser.FirstName != null && cr.ClubRepUser.LastName != null
-                        ? cr.ClubRepUser.FirstName + " " + cr.ClubRepUser.LastName
-                        : null)
-                    .FirstOrDefault(),
-                RepEmail = c.ClubReps.OrderBy(cr => cr.Aid)
-                    .Select(cr => cr.ClubRepUser.Email)
-                    .FirstOrDefault(),
                 HasRep = c.ClubReps.Any()
             })
             .AsNoTracking()

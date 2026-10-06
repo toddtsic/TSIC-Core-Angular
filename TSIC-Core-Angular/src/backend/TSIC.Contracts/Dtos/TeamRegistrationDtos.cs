@@ -122,6 +122,39 @@ public sealed record TeamsMetadataResponse
     // are the SAME rates the server charges, so the team payment's amount tripwire stays quiet.
     public required decimal EffectiveProcessingRate { get; init; }
     public required decimal EffectiveEcheckProcessingRate { get; init; }
+    // Same-name clubs (Todd 2026-10-06). Sign-up lets a rep create a club whose name another club
+    // already uses — typically the rep replacing that club's old rep. These two lists serve that rep:
+    // the first lets them pick the other club's saved teams instead of retyping them; the second
+    // warns before they register a team another rep of the same club name already entered here.
+    public required List<SameNameLibraryTeamDto> SameNameLibraryTeams { get; init; }
+    public required List<SameNameEventTeamDto> SameNameEventTeams { get; init; }
+}
+
+/// <summary>
+/// A team saved in ANOTHER club's library whose club name matches this rep's club. Offered in the Add a
+/// Team box as a pick that fills in name, grad year and level of play; adding it creates the rep's OWN
+/// library copy. Active teams only, one per name + grad year, none the rep's own library already holds.
+/// </summary>
+public sealed record SameNameLibraryTeamDto
+{
+    public required string ClubTeamName { get; init; }
+    public required string ClubTeamGradYear { get; init; }
+    public required string ClubTeamLevelOfPlay { get; init; }
+    /// The club whose library the team came from, for the pick's label.
+    public required string SourceClubName { get; init; }
+}
+
+/// <summary>
+/// A team ALREADY registered in this event by another club rep whose club name matches this rep's.
+/// Drives the Add a Team box's "already registered here" warning and its confirm-before-adding.
+/// </summary>
+public sealed record SameNameEventTeamDto
+{
+    public required string TeamName { get; init; }
+    /// The library grad year when the team is library-linked; null otherwise.
+    public string? GradYear { get; init; }
+    public required string AgeGroupName { get; init; }
+    public required string RepName { get; init; }
 }
 
 public sealed record ClubTeamDto
