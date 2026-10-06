@@ -149,3 +149,12 @@ One rule: the loose same-name match (`ClubNameMatcher.IsSameClubName`) only help
 - **Director rename never collides:** it needs a team in the event; a team here locks the rep's rename; a director-renamed registration no longer carries the club's name, so the rep's rename never re-stamps it.
 - **Known consequence:** the team-retention report matches clubs across years by name; a renamed club reads as two there (already an accepted risk above).
 - Verified: backend 1238/1239 (EventBrowse, from `c78b33aa4`); `npm run build` passes. `teams-step.component.spec.ts` fails 4 tests on master too (its mock state lacks `applyTeamsMetadata`) — not this change.
+
+## Revision: one-club-rep-per-event rule removed (AR-142, Todd 2026-10-06)
+- `RegisterTeamForEventAsync` no longer refuses a team because another rep of the club has teams in the event. Legacy never had the rule (added here 2026-01-04, `ef1a6e32c`), and it matched loosely: anyone ALSO a rep of the club counted, so a person repping two clubs blocked the other club's reps.
+- Removed with it: `GET team-registration/check-existing` (no UI caller), `CheckExistingRegistrationsResponse`, `ITeamRepository.GetTeamsByClubExcludingRegistrationAsync`.
+- New sign-ups never put two reps on one club (sign-up claims only a rep-less, team-less club). About 99 older clubs do; their reps now register side by side like same-name reps.
+- Left as is (Todd): the two API-only add-club endpoints; library "also rename in this event" doesn't check the event team is the caller's (no UI sends it).
+- Recommendation 2 (Search flag) is met by the CADT "⚠ N reps" badge (Todd).
+- Tester-facing summary: `scripts/Ann-Backend-Testing/AR-142-Club-Rep-Same-Name-Clubs.md`.
+- Verified: backend 1240/1240; `npm run build` passes the gates.
