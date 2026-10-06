@@ -196,8 +196,8 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
         </label>
 
         <button type="button" class="btn-add-team" [class.btn-add-team--wl]="waitlists()"
-                [disabled]="busy() || !canAdd()"
-                [attr.title]="missing() ?? null"
+                [disabled]="busy() || !canAdd() || dupGroups().length > 0"
+                [attr.title]="dupGroups().length > 0 ? 'Answer the question below' : missing() ?? null"
                 (click)="add()">
           @if (saving()) {
             <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>Adding…
@@ -208,21 +208,23 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
         </button>
         @if (dirty() && !busy()) {
           <!-- A started row holds Back / Proceed shut — this is the way out without adding. -->
-          <button type="button" class="btn-clear" (click)="clear()" title="Clear this row">
+          <!-- Held, like Add, while the duplicate question is up: it is answered one way or the other. -->
+          <button type="button" class="btn-clear" (click)="clear()" [disabled]="dupGroups().length > 0"
+                  [attr.title]="dupGroups().length > 0 ? 'Answer the question below' : 'Clear this row'">
             <i class="bi bi-x-lg" aria-hidden="true"></i><span class="visually-hidden">Clear</span>
           </button>
         }
       </div>
 
       <!-- Another rep of this club already registered teams in this age group here (Todd 2026-10-06):
-           said loudly, with their teams, and Add asks first — a second entry is a second fee and a
+           said loudly, with their teams, and the warning asks then and there, its answers with it
+           (Todd 2026-10-06) — the row's Add waits on the answer. A second entry is a second fee and a
            headache for the tournament. Never a dead end: a genuinely different team still goes in. -->
       @if (dupGroups().length > 0) {
         <div class="dup-warn" role="alert">
           <i class="bi bi-exclamation-triangle-fill dup-icon" aria-hidden="true"></i>
           <div class="dup-body">
-            <!-- What another rep already did, one line each; then what it costs. Add asks the question,
-                 and only then — a question shows with its answers, never before (Todd 2026-10-06). -->
+            <!-- What another rep already did, one line each; then the question; then what it costs. -->
             @for (g of dupGroups(); track g.repName) {
               <p class="dup-text">
                 <b>{{ g.repName }}</b> has already registered the
@@ -230,18 +232,15 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
                 {{ g.teams.length === 1 ? 'team' : 'teams' }} in the <b class="dup-em">{{ dupAgeGroup() }}</b> age group.
               </p>
             }
-            @if (confirmOpen()) {
-              <p class="dup-q">Do you really want to add the <b class="dup-em">{{ text().trim() }}</b> team?</p>
-            }
+            <p class="dup-q">Do you really want to add the <b class="dup-em">{{ text().trim() }}</b> team?</p>
             <p class="dup-text dup-fee">Adding it creates a separate entry and a separate fee.</p>
-            @if (confirmOpen()) {
-              <div class="dup-confirm">
-                <div class="dup-actions">
-                  <button type="button" class="btn-dont" (click)="dontAdd()">Don't add</button>
-                  <button type="button" class="btn-yes" [disabled]="busy()" (click)="add(true)">Yes, add it</button>
-                </div>
+            <div class="dup-confirm">
+              <div class="dup-actions">
+                <button type="button" class="btn-dont" [disabled]="busy()" (click)="clear()">Don't add</button>
+                <button type="button" class="btn-yes" [disabled]="busy() || !canAdd()"
+                        [attr.title]="missing() ?? null" (click)="add(true)">Yes, add it</button>
               </div>
-            }
+            </div>
           </div>
         </div>
       }
@@ -301,8 +300,9 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
         font-size: var(--font-size-xs);
         cursor: pointer;
 
-        &:hover { color: var(--bs-danger); border-color: var(--bs-danger); }
+        &:hover:not(:disabled) { color: var(--bs-danger); border-color: var(--bs-danger); }
         &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+        &:disabled { opacity: 0.4; cursor: default; }
       }
 
       /* Team | Grad | LOP | Age group | Add — wraps to Team over the rest on a narrow screen. */
@@ -519,8 +519,6 @@ export class TeamAddRowComponent implements OnChanges {
     readonly text = signal('');
     /** The library team picked from the list — which one, when several share a name. */
     private readonly chosen = signal<ClubTeamDto | null>(null);
-    /** Add was pressed on a team another same-name rep registered here: asking first. */
-    readonly confirmOpen = signal(false);
     /** The rep's grad-year pick; '' = the library team's, or N/A for a new one. */
     readonly gradPick = signal('');
     /** The rep's level pick; '' = the library team's level. */
@@ -679,7 +677,6 @@ export class TeamAddRowComponent implements OnChanges {
         if (!sameLibraryText(this.chosen()?.clubTeamName, value)) this.chosen.set(null);
         // A different library team: its grad year, level and age group are not the last one's.
         if (this.base() !== before) this.clearPicks();
-        this.confirmOpen.set(false);
         this.errorMsg.set(null);
         this.activeIndex.set(-1);
         this.listOpen.set(true);
@@ -722,14 +719,14 @@ export class TeamAddRowComponent implements OnChanges {
         this.chosen.set(team);
         this.text.set(team.clubTeamName);
         this.clearPicks();
-        this.confirmOpen.set(false);
         this.errorMsg.set(null);
         this.closeList();
-        // Everything filled → straight to Add, so Enter registers; otherwise the first blank.
+        // Everything filled → straight to Add, so Enter registers (to "Don't add" when the duplicate
+        // question is up — the safe answer); otherwise the first blank.
         afterNextRender(() => {
             const root = this.host.nativeElement;
             const target = this.canAdd()
-                ? root.querySelector<HTMLElement>('.btn-add-team')
+                ? root.querySelector<HTMLElement>(this.dupGroups().length > 0 ? '.btn-dont' : '.btn-add-team')
                 : root.querySelector<HTMLElement>('select.is-blank');
             target?.focus();
         }, { injector: this.injector });
@@ -744,14 +741,8 @@ export class TeamAddRowComponent implements OnChanges {
     add(confirmed = false): void {
         if (this.busy() || !this.canAdd()) return;
         this.closeList();
-        if (this.dupGroups().length > 0 && !confirmed) {
-            // Ask first; "Don't add" is the default and takes the focus.
-            this.confirmOpen.set(true);
-            afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>('.btn-dont')?.focus(),
-                { injector: this.injector });
-            return;
-        }
-        this.confirmOpen.set(false);
+        // A duplicate goes in only on "Yes, add it" — never on Enter or the row's Add.
+        if (this.dupGroups().length > 0 && !confirmed) return;
         this.errorMsg.set(null);
         this.saving.set(true);
         // The step locks everything (this row, the registered list) until its reload lands.
@@ -810,23 +801,15 @@ export class TeamAddRowComponent implements OnChanges {
             });
     }
 
-    /** "Don't add": the question closes and the row stays as entered, cursor back in the name. */
-    dontAdd(): void {
-        this.confirmOpen.set(false);
-        this.focusName();
-    }
-
-    /** Escape closes the open list, else the open question. */
+    /** Escape closes the open list. */
     onEscape(): void {
         if (this.listOpen()) this.closeList();
-        else if (this.confirmOpen()) this.dontAdd();
     }
 
     /** Clear for the next team. The cursor goes back to the name once the step's reload lands. */
     private reset(): void {
         this.text.set('');
         this.chosen.set(null);
-        this.confirmOpen.set(false);
         this.clearPicks();
         this.errorMsg.set(null);
         this.closeList();
