@@ -95,10 +95,10 @@ Teams are copied only at Create NEW Club Rep Account. Nothing in the wizard copi
 |---|---|
 | **Block 1: creating a new account** | **Fixed.** A club name never refuses Create NEW Club Rep Account (section 1). |
 | **Block 2: a second rep in an event** | **Fixed.** The rule "Only one club representative can register teams per event" is removed. Legacy never had it; it was added in January 2026. It was also over-broad: someone repping two clubs could block the other club's reps. |
-| **Block 3: transferring teams to them** | **Unblocked.** The director's move had no club-name check. The new rep was stuck only because they couldn't sign up to receive the teams. |
+| **Block 3: transferring teams to them** | **Works.** The director's **Move a team to another club rep** has no club-name or one-rep check. It needs the receiving rep to have a registration in the event, and a new rep can now create one (Block 1). |
 | **Recommendation 1: warn, but let them proceed** | **Done, at two points:** the "Is your club one of these?" question at Create NEW Club Rep Account (section 1), and the age-group warning in the Team Registration Wizard (section 2). |
 | **Recommendation 2: a flag for duplicates in Search** | **Done as the "⚠ N reps" badge** on the club in the **C-A-D-T tree filter** of the director's **Search Registrations** and **Search Teams** (section 3). It's visible text rather than hover-only, which covers the touch and keyboard concern. Todd ruled this sufficient. |
-| **The "4 minute window"** | **Closed.** No 4-minute limit exists in TSIC, in today's code, its history or Legacy. The only timers a rep meets are the team undo window (60 minutes) and a username check that never blocks. The cost Ann described, a rep losing minutes and then being stopped without knowing why, came from the blocks above. All three are removed, so nothing stops a rep now. |
+| **The "4 minute window"** | **Not found. Nothing to change.** No 4-minute limit exists in TSIC, in today's code, its history or Legacy. The only timers in club rep registration are the team undo window (60 minutes) and the username-availability check, which never blocks. |
 
 **One correction to the report:** a second rep was never blocked at **login**. They got in and were refused on their first **Add**. That's now fixed.
 
