@@ -353,7 +353,7 @@ note and the **Edit Family Account** note. Both are marked ⭐ below.
 | **K** · Family account editing ⭐ | 4 | ✅ **filed as AR-135** (all four, one item) |
 | **L** · Saved changes not reflected | 2 | ⏳ to review |
 | **M** · Player selection screen | 2 | ⏳ to review |
-| **N** · Optional-field validation | 2 | ⏳ to review |
+| **N** · Optional-field validation | 2 | ✅ **filed as AR-148** (both parts) |
 | **O** · Coach registration | 4 | ✅ **filed — AR-136, AR-137, AR-138, AR-139** |
 | **P** · Coach USA Lacrosse number | 2 | ✅ **filed — AR-140, AR-141** |
 | **TOTAL** | **18** | |
@@ -375,8 +375,8 @@ note and the **Edit Family Account** note. Both are marked ⭐ below.
 | D-41 | Lock icon has no hover and no explanation | |
 | D-42 | Show a trash can **only** for players not registered elsewhere | |
 | | **N · Optional-field validation** | |
-| D-43 | Email accepts **any text** — no validation | |
-| D-44 | Phone rejects the hyphenated form **the system itself produced** | 🔴 defect |
+| D-43 | Email accepts **any text** — no validation | ✅ **AR-148** (part 1) |
+| D-44 | Phone rejects the hyphenated form **the system itself produced** | ✅ **AR-148** (part 2) |
 | | **O · Coach registration** (no USA # validation) | |
 | D-45 | Add **Edit Staff Account** to the upper-right menu | ✅ **AR-136** |
 | D-46 | A coach must be able to edit **their own name** | ✅ **AR-137** |
@@ -497,10 +497,10 @@ should say which rule wins where.
 
 ## N · Validation on optional player fields
 
-### D-43 · Email accepts any text
+### D-43 · ✅ FILED IN AR-148 (10-06, part 1; location confirmed as Edit Family Account → Player information) · Email accepts any text
 *"If you change the email it allows any text changes."*
 
-### D-44 · Phone rejects the format the system produced 🔴
+### D-44 · ✅ FILED IN AR-148 (10-06, part 2) · Phone rejects the format the system produced 🔴
 *"…but says that phone needs to be digits only. Phone was entered digits only and converted to
 correct hyphen form by system."*
 
