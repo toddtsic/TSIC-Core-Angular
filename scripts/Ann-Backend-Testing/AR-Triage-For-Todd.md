@@ -97,7 +97,7 @@ have gone quiet rather than getting a second ruling.
 | AR | Item | What is needed |
 |:--|:--|:--|
 | **087** | Email batch summary | Her review + validation — scope widened, one part declined |
-| **132** | Job Clone permissions | Built, **not deployed** — read-and-respond |
+| **132** | Job Clone permissions | 🟡 **Acknowledged 10-06, NOT tested** — cannot be exercised until the next **job clone**, and still not deployed. ❓ Whether she accepts **Edit + Add staying ON** against her all-three-off ruling is unstated |
 | **108** | Team Breakdown moves with the team | Fixed, **awaiting deploy** — testing early shows old behaviour |
 | **070 / 020** | Staff bar · Vertical Insure address | Marked *awaiting Ann verify* since early September |
 
