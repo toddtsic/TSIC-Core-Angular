@@ -96,7 +96,6 @@ have gone quiet rather than getting a second ruling.
 |:--|:--|:--|
 | **121** | Registration Links badges | 🔁 Todd's question back to her: *"why remove them if the figures are right?"* |
 | **087** | Email batch summary | Her review + validation — scope widened, one part declined |
-| **123** | $0 team table | Built + verified on dev, awaiting her check |
 | **132** | Job Clone permissions | Built, **not deployed** — read-and-respond |
 | **108** | Team Breakdown moves with the team | Fixed, **awaiting deploy** — testing early shows old behaviour |
 | **070 / 020** | Staff bar · Vertical Insure address | Marked *awaiting Ann verify* since early September |
