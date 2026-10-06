@@ -1,61 +1,101 @@
 # Club rep: new rep for a club that already exists
 
-Branch: `feature/clubrep-same-name-club` (from master `92d36b7ec`). Status: SCOPED, NOT BUILT. Todd gave the go to branch, not yet to build.
+Branch: `feature/clubrep-same-name-club`. The plan was reviewed step by step with Todd on 2026-10-06, and he gave the go.
+
+The branch also carries Todd's schedule appearance commits (games grid, view-schedule). That's by his ruling: they reach master with this feature.
 
 ## Problem
 
 A new rep replacing their club's old rep has never used TSIC. "Create NEW Club Rep Account" then dead-ends:
-- An exact club-name match hard-blocks sign-up. The form stays hidden.
+- An exact club-name match hard-blocks sign-up, and the form stays hidden.
 - The only exit is a mailto link to the club's OLDEST rep, usually the one who left.
 - The old rep can't add them anyway.
 - The suggested workaround (a regional suffix) creates a duplicate club.
 
 ## Background (Todd)
 
-- The Club Team Library was meant to track a team over time. That failed in practice. It is now only a pick list so reps don't retype teams. **Priority #1: keep it as that convenience.**
-- Legacy had no constraints. Occasionally two reps registered the same teams, and tournaments dealt with it. Todd accepts that risk again rather than leaving dead ends.
+- The Club Team Library was meant to track a team over time, and that failed in practice. It is now a pick list so reps don't retype teams. **Priority #1: keep it as that convenience.**
+- Legacy had no constraints. Occasionally two reps registered the same teams, and tournaments dealt with it. Todd accepts that risk again rather than leaving dead ends. It is surfaced early instead: the rep gets a confirm-before-adding, and the director gets a CADT badge.
 
-## Design (agreed)
+## Design (as ruled)
 
-### A. Create Club Rep Account
-- `club-rep-register-form.component.ts`, `ClubService.RegisterAsync`.
-- Show the whole form at once.
-- Name matches are information, not a block:
-  - "Fury Lacrosse is already on TSIC. Taking over or joining it? Go ahead. You'll have your own account, and you can bring its saved teams in when you register."
-  - Each match gets a **Use this name** button.
-- Remove: the red block, the "bypass them / split team history" wording, the mailto link, the regional-chapter advice.
-- Claiming an empty club (no rep, no teams) stays as it is.
-- Server: remove the exact-match and near-match refusals. Guard: if this user already reps a club with the same normalized name, create no second club.
-- Drop rep name and email from the anonymous `GET api/clubs/search` response. It has no `[Authorize]` and no fallback policy, so anyone can harvest them today.
-- **Forgot-account prompt (Todd: yes):** if the typed email matches an existing club-rep account, show one non-blocking line, "Looks like you may already have an account — reset your password." Never reveal the username.
-- Relax the rename collision blocks the same way: `ClubService.RenameClubAsync` (Club & Rep Info edit) and `TeamRegistrationService.UpdateClubNameAsync`.
+"Same club name" everywhere below means `ClubNameMatcher.IsSameClubName`:
+- Normalized, so "Fury Lax" = "Fury Lacrosse" ("lacrosse", "lax", "lc", "club" are filler).
+- A filler-only name ("Lacrosse Club") matches nothing.
 
-### B. Team wizard: the "Add a Team" row
-- Live layout is `'list'` (`teams-step.component.ts`). The only add path is `team-add-row.component.ts`. The library segment, board and register modal are NOT live.
-- `GetTeamsMetadataAsync` returns two new lists:
-  1. **Other same-name club libraries:** active ClubTeams of OTHER clubs whose name normalized-matches the rep's club. Deduped by name + grad year, excluding teams already in the rep's own library. **All teams (Todd).**
-  2. **Already in this event under another rep:** teams in this job whose other, active club-rep registration has a normalized-matching club_name. Carries team name, grad year, age group and rep name.
-- Combobox gets a second, labelled group: "From another Fury Lacrosse list". Picking one prefills name, grad year and LOP and uses the EXISTING new-team path (create library row + register). No new write endpoint.
-- Duplicate notice in the add-note line, and as a tag on combobox options: "Fury 2030 Blue is already registered in this event (2030) by another Fury Lacrosse rep, Jane Smith." **Show the rep's name (Todd).** Information only; Add stays enabled.
+### 1. Sign-up server (`ClubService.RegisterAsync`)
+- A club name never refuses sign-up.
+- The rep is added as **a** rep of the new club; others can be added later.
+- **Silent claim:** an unclaimed EMPTY club (no reps, no library teams) whose name is EXACTLY the typed name (case/space-insensitive, not merely normalized) is claimed instead of duplicated. It's safe because a wrong claimant inherits nothing.
+- **Same-rep guard:** an existing user who already reps a club with the same club name gets no second club.
+- Request lost `ExistingClubId` and `ConfirmedNewClub`. Response lost `SimilarClubs`.
 
-### Fix included in this build
-- Director per-event club rename: `ClubRepLocalRenameService.cs:80` calls global `ClubRepository.GetByNameAsync`. With same-name clubs it can land on the other club and wrongly refuse. Resolve within the rep's own clubs.
-- `RemoveClubFromRepAsync` and `UpdateClubNameAsync` share the same global lookup but have NO UI caller. Leave them.
+### 2. "Already have an account?" (frontend only)
+- No email lookup. A live lookup on a public form would let anyone test whether an email is a club rep.
+- A line shown to everyone at the top of the form: "Already have a club rep account? Sign in or reset your password." It links to the same forgot-password screen as the sign-in page.
 
-### Unchanged (verified safe with same-name clubs)
-- One-rep-per-event check (by ClubId).
-- Duplicate-name-in-age-group check (per registration).
-- `ResolveClubForClubRepRegistrationAsync` (by id, then the user's own clubs).
-- `InitializeRegistrationAsync` (user-scoped).
+### 3. Club search (anonymous `GET api/clubs/search`)
+- No longer returns rep name or email. Only the sign-up form read them.
+
+### 4. Club & Rep Info rename (`ClubService.RenameClubAsync`)
+- Another club's name is allowed.
+- It refuses only a collision with ANOTHER of the same rep's clubs.
+- The lock once teams are registered is unchanged.
+- `update-club-name` (no UI caller) is left alone.
+
+### 5. Director per-event rename (`ClubRepLocalRenameService`)
+- Checks the rep's own clubs FIRST, then refuses only if another club has the name. Names aren't unique, so the old global lookup could hit the wrong club.
+- The "another rep in this event already uses this name" refusal is REMOVED. One rule: same-name reps in an event are allowed.
+
+### 6. Teams step data (`GetTeamsMetadataAsync`; rules in `SameNameClubLists`)
+- `SameNameLibraryTeams`: every other same-name club's ACTIVE library teams.
+  - Deduped by name + grad year.
+  - Excludes the rep's own library, archived own rows included.
+  - Tagged with the source club. All teams, per Todd.
+- `SameNameEventTeams`: teams in THIS event under other active club-rep registrations with the same club_name.
+  - On-the-books only: active, not DROPPED. Waitlisted teams are included.
+  - Covers any number of reps, each tagged with the rep's name.
+
+### 7. Regenerate API models.
+
+### 8. Sign-up screen (`club-rep-register-form.component.ts`)
+- Whole form visible from the start.
+- Matches show a friendly panel: "Fury Lacrosse is already on TSIC. Taking over or joining it? Go ahead…".
+  - Each match has a **Use this name** button, which guarantees the step-9 match.
+  - No rep names or emails.
+- Silent claim, so there's no claim panel.
+- Friendly, welcoming language throughout. No red, no block.
+
+### 9. Add a Team row (`team-add-row.component.ts`, the live `'list'` layout)
+- The combobox gains a second section, "From another Fury Lacrosse list".
+- Picking from it fills name, grad year and LOP. Add registers the team and saves the rep's own library copy, using the existing new-team path.
+- A rep taking over from a predecessor registers the predecessor's teams by click.
+
+### 10. Duplicate warning (same row): forceful, never a dead end
+- An amber warning with an icon: "Fury 2030 Blue looks like it's already registered in this event by another Fury Lacrosse rep, Jane Smith. Registering it again creates a second entry and a second fee."
+- Add asks first: **Don't add** (the default, with focus) or "Yes — it's a different team, add it".
+- Combobox options carry "⚠ Registered here by Jane Smith".
+
+### 11. Tests
+- Sign-up gate rewritten to the new rules.
+- Director rename: own club found when another shares its name; a name another rep in the event uses is allowed.
+- `TeamsMetadataSameNameTests` cover the list rules and the event query.
+
+### 12. CADT badge (pure CADT fix)
+- `CadtClubNode.RepCount` = distinct club-rep registrations under that club name, set by the 3 builders that feed screens:
+  - team search
+  - registration search
+  - `job-filter-tree`, which serves view-schedule, rescheduler and public rosters
+- `job-filter-tree` is anonymous, so RepCount is zeroed unless the caller is a Director/SuperDirector/Superuser of THAT job.
+- The shared `cadt-tree-filter` shows "⚠ 2 reps" on the club line, with a tooltip.
+- Grouping, filtering and node ids are unchanged. Truly separate nodes were deferred: they would change filter contracts on game-day screens.
 
 ## Accepted risks / out of scope
-- Director trees and filters (search-teams, view-schedule, rescheduler, search-registrations) group by club_name. Two same-name reps in one event show as one club node. Display/filter only; move pickers are by RegistrationId.
-- Cross-event club_name matching: the schedule QA overplay check, the team-retention report, and the TSIC-Teams Schedules tab (`TeamTournamentsRepository.cs:107-115`, global). Same-name collisions already exist; this adds more.
-- A rep choosing a different name gets no duplicate notice (same as legacy).
-- Normalized matching ("True" = "True Lacrosse") can show a wrong club's list. It is labelled and a suggestion only.
-- SEPARATE HOLE, close separately: two API-only endpoints with no frontend caller let any signed-in user attach to any club:
-  - `TeamRegistrationService.AddClubToRepAsync` (silent link on a fuzzy score of 90 or more)
-  - `ClubService.AddClubAsync` with `UseExistingClubId` (no checks)
+- Director trees still group by club name. The badge is the warning.
+- Cross-event club_name matching (schedule QA overplay, team-retention report, TSIC-Teams Schedules tab): same-name collisions already exist, and this adds more.
+- A rep choosing a different name gets no warning (same as legacy).
+- SEPARATE HOLE, close separately: two API-only endpoints let any signed-in user attach to any club, `TeamRegistrationService.AddClubToRepAsync` and `ClubService.AddClubAsync` with `UseExistingClubId`.
 
-## Tests
-- `TSIC.Tests/TeamRegistration/ClubRegistrationGateTests.cs` asserts the hard block and will need updating. Todd runs the tests.
+## Status
+- Server steps 1, 3–6 and step 12's server half: DONE, commit `f4ff45abf`. Full suite 1230/1230.
+- Next: regenerate (blocked while a debug session serves the old API), then the frontend for steps 2, 8, 9, 10 and the step-12 badge, then the browser walkthrough.
