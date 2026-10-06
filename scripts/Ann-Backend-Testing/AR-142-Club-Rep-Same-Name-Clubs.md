@@ -1,4 +1,4 @@
-# AR-142: Several club reps for one club
+# AR-142: Several club reps for one club — Current Design as of 10/06/2026
 
 **For:** Ann, and anyone testing club rep registration.
 **Branch:** `feature/clubrep-same-name-club`. Goes to master once AR-142 testing passes.
