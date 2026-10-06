@@ -96,6 +96,16 @@ A new rep replacing their club's old rep has never used TSIC. "Create NEW Club R
 - A rep choosing a different name gets no warning (same as legacy).
 - SEPARATE HOLE, close separately: two API-only endpoints let any signed-in user attach to any club, `TeamRegistrationService.AddClubToRepAsync` and `ClubService.AddClubAsync` with `UseExistingClubId`.
 
-## Status
-- Server steps 1, 3–6 and step 12's server half: DONE, commit `f4ff45abf`. Full suite 1230/1230.
-- Next: regenerate (blocked while a debug session serves the old API), then the frontend for steps 2, 8, 9, 10 and the step-12 badge, then the browser walkthrough.
+## Status: all 12 steps done, on the branch (not merged, not pushed)
+- Server: `f4ff45abf`. Full backend suite 1230/1230.
+- Models regenerated: `296a1aaea`.
+- Frontend: `1415da054` and walkthrough fixes in `08102d7da`. `npm run build` passes all 4 prebuild gates.
+- Frontend spec `team-add-row.same-name.spec.ts` passes.
+  - The neighbouring `teams-step.component.spec.ts` fails 4 tests. That's pre-existing: its state mock has no `applyTeamsMetadata`.
+- Browser walkthrough on local (no writes; never submitted, never confirmed an add):
+  - Sign-up: whole form visible, friendly panel, no mailto, "Use this name" works, "Sign in" link returns to the gate.
+  - Teams step (madii_maas, lftc-summer-2027): "From another True Lacrosse list" section, 21 teams. A pick reads "saved to your library too".
+  - Teams step (TopTierSports): typing cclacrosse1's "Top Tier National 2029" shows the amber warning naming Erin Abbot-Gillin. Add asks, "Don't add" has focus, and Don't add keeps the row.
+  - CADT: Search Teams (director) shows "⚠ 2 reps" on Top Tier National. The anonymous job-filter-tree carries no rep counts. A director's job-filter-tree carries them.
+- Found in the walkthrough: real prod data has a blank-named library team (ClubTeamId 16165, club 2297). It seeded an empty Add row with a bogus note and LOP. Guarded in `08102d7da`.
+- Real duplicate found: lftc-summer-2027 "Top Tier National 2029/2030" is registered twice, by the same person under two accounts (TopTierSports, cclacrosse1).
