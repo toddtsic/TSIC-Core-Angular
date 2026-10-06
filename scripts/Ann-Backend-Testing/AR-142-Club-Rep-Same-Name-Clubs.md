@@ -20,7 +20,7 @@
 
 ## How it works
 
-**The Club Team Library is now per rep: C-CR-TL, Club → Club Rep → Team Library** (the C-A-D-T tree filter in Search Registrations and Search Teams is unchanged: Club → Agegroup → Division → Team). A club name can have several reps. Each rep has their own team list, and nobody else's changes touch it.
+**The Club Team Library is per rep: C-CR-TL, Club → Club Rep → Team Library.** The director's C-A-D-T tree filter in Search Registrations and Search Teams is Club → Agegroup → Division → Team. A club name can have several reps. Each rep has their own team list, and nobody else's changes touch it.
 
 The design touches **two separate places**, at two different times:
 
@@ -28,7 +28,7 @@ The design touches **two separate places**, at two different times:
 |---|---|---|
 | **When** | **Once**, when the person becomes a club rep | **Every event** the rep registers teams for |
 | **What it decides** | **Which club** this rep is, and **what's in their library** | **Which teams** go into this event |
-| **What changed** | Asks "Is your club one of these?", and copies the picked club's teams into the rep's own library | Shows other reps of the same club name, and warns before a possible duplicate team |
+| **What it does** | Asks "Is your club one of these?", and copies the picked club's teams into the rep's own library | Shows other reps of the same club name, and warns before a possible duplicate team |
 | **Can it block?** | **No.** A club name never refuses an account. | **No.** The warning asks, and the rep decides. |
 
 Teams are copied only at Create NEW Club Rep Account. Nothing in the wizard copies teams or changes another rep's library.
@@ -85,22 +85,20 @@ Teams are copied only at Create NEW Club Rep Account. Nothing in the wizard copi
   - Allowed even when another rep in the event already uses that name.
   - It renames this event only: the registration, its teams' names, and the schedule.
   - Refused when the name belongs to a **different** club that isn't one of the rep's own.
-- **Move a team to another club rep** works as before.
+- **Move a team to another club rep** moves teams to any club rep with a registration in the event.
 
 ---
 
 ## AR-142, point by point
 
-| Ann's point | Where it stands |
+| Ann's point | How it is |
 |---|---|
-| **Block 1: creating a new account** | **Fixed.** A club name never refuses Create NEW Club Rep Account (section 1). |
-| **Block 2: a second rep in an event** | **Fixed.** The rule "Only one club representative can register teams per event" is removed. Legacy never had it; it was added in January 2026. It was also over-broad: someone repping two clubs could block the other club's reps. |
-| **Block 3: transferring teams to them** | **Works.** The director's **Move a team to another club rep** has no club-name or one-rep check. It needs the receiving rep to have a registration in the event, and a new rep can now create one (Block 1). |
+| **Block 1: creating a new account** | **Works.** A club name never refuses Create NEW Club Rep Account (section 1). |
+| **Block 2: a second rep in an event** | **Works.** Any number of reps of the same club sign in, register and add teams in the same event. Each sees the others' teams, and the duplicate warning asks before a possible double entry (section 2). |
+| **Block 3: transferring teams to them** | **Works.** The director's **Move a team to another club rep** moves teams to any club rep who has a registration in the event. |
 | **Recommendation 1: warn, but let them proceed** | **Done, at two points:** the "Is your club one of these?" question at Create NEW Club Rep Account (section 1), and the age-group warning in the Team Registration Wizard (section 2). |
-| **Recommendation 2: a flag for duplicates in Search** | **Done as the "⚠ N reps" badge** on the club in the **C-A-D-T tree filter** of the director's **Search Registrations** and **Search Teams** (section 3). It's visible text rather than hover-only, which covers the touch and keyboard concern. Todd ruled this sufficient. |
-| **The "4 minute window"** | **Not found. Nothing to change.** No 4-minute limit exists in TSIC, in today's code, its history or Legacy. The only timers in club rep registration are the team undo window (60 minutes) and the username-availability check, which never blocks. |
-
-**One correction to the report:** a second rep was never blocked at **login**. They got in and were refused on their first **Add**. That's now fixed.
+| **Recommendation 2: a flag for duplicates in Search** | **Done as the "⚠ N reps" badge** on the club in the **C-A-D-T tree filter** of the director's **Search Registrations** and **Search Teams** (section 3). It's visible text, not hover-only, so it works on touch and keyboard. Todd ruled this sufficient. |
+| **The "4 minute window"** | **Does not exist.** Club rep registration has two timers: the team undo window (60 minutes) and the username-availability check, which never blocks. |
 
 ---
 
@@ -108,7 +106,7 @@ Teams are copied only at Create NEW Club Rep Account. Nothing in the wizard copi
 
 - **Matching is by exact club name.** "Lax Plus" and "Lax Plus Club" count as different clubs, so they get no warning and no badge.
 - **The C-A-D-T tree filter (Search Registrations, Search Teams) groups by club name.** Two unrelated clubs that share a name show as one line with the badge. The badge is the prompt to look.
-- **Older clubs with two reps on one club record:** in currently open events, exactly **one** club has two such reps who both have teams (South Jersey Select, Top Threat Five Star 2026). Create NEW Club Rep Account never creates this. Those reps now register alongside each other like any same-name reps.
+- **Older clubs with two reps on one club record:** in currently open events, exactly **one** club has two such reps who both have teams (South Jersey Select, Top Threat Five Star 2026). Create NEW Club Rep Account never creates this. Those reps register alongside each other like any same-name reps.
 - **A renamed club** shows as two clubs in the year-over-year team-retention report, which matches clubs across years by name.
 
 ---
