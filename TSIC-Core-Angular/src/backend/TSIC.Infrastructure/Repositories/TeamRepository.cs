@@ -502,31 +502,28 @@ public class TeamRepository : ITeamRepository
         return (scheduled, nextDate);
     }
 
-    public async Task<List<TeamWithRegistrationInfo>> GetTeamsByClubExcludingRegistrationAsync(
+    public async Task<List<OtherClubRepTeamInfo>> GetOtherClubRepTeamsInJobAsync(
         Guid jobId,
-        int clubId,
-        Guid? excludeRegistrationId = null,
+        Guid excludeRegistrationId,
         CancellationToken cancellationToken = default)
     {
-        var query = from t in _context.Teams
-                    join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
-                    where t.JobId == jobId
-                      && t.ClubrepRegistrationid != null
-                      && _context.ClubReps.Any(cr => cr.ClubRepUserId == reg.UserId && cr.ClubId == clubId)
-                    select new TeamWithRegistrationInfo
-                    {
-                        TeamId = t.TeamId,
-                        TeamName = t.TeamName ?? string.Empty,
-                        Username = reg.User != null ? reg.User.UserName : null,
-                        ClubrepRegistrationid = t.ClubrepRegistrationid
-                    };
-
-        if (excludeRegistrationId.HasValue)
-        {
-            query = query.Where(t => t.ClubrepRegistrationid != excludeRegistrationId.Value);
-        }
-
-        return await query
+        return await (
+            from t in _context.Teams.Where(ClubRepTeamsOnTheBooks.Predicate)
+            join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
+            where t.JobId == jobId
+                  && reg.RegistrationId != excludeRegistrationId
+                  && reg.RoleId == RoleConstants.ClubRep
+                  && reg.BActive == true
+                  && reg.ClubName != null
+            select new OtherClubRepTeamInfo
+            {
+                ClubName = reg.ClubName!,
+                TeamName = t.TeamName ?? string.Empty,
+                GradYear = t.ClubTeam != null ? t.ClubTeam.ClubTeamGradYear : null,
+                AgegroupName = t.Agegroup.AgegroupName ?? string.Empty,
+                RepFirstName = reg.User != null ? reg.User.FirstName : null,
+                RepLastName = reg.User != null ? reg.User.LastName : null
+            })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
@@ -1812,6 +1809,7 @@ public class TeamRepository : ITeamRepository
             select new
             {
                 ClubName = clubReg != null ? clubReg.ClubName : null,
+                t.ClubrepRegistrationid,
                 ag.AgegroupId,
                 ag.AgegroupName,
                 ag.Color,
@@ -1835,6 +1833,8 @@ public class TeamRepository : ITeamRepository
                 ClubName = clubGroup.Key,
                 TeamCount = clubGroup.Count(),
                 PlayerCount = clubGroup.Sum(r => r.PlayerCount),
+                RepCount = clubGroup.Where(r => r.ClubrepRegistrationid != null)
+                    .Select(r => r.ClubrepRegistrationid).Distinct().Count(),
                 Agegroups = clubGroup
                     .GroupBy(r => new { r.AgegroupId, r.AgegroupName, r.Color })
                     .OrderBy(g => g.Key.AgegroupName)

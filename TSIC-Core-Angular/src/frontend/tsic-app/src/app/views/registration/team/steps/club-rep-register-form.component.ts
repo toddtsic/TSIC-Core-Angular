@@ -1,5 +1,6 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, OnInit, output, signal, computed, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, catchError, tap, map } from 'rxjs/operators';
 import { of } from 'rxjs';
@@ -13,27 +14,18 @@ import { USERNAME_PATTERN } from '@shared-ui/validators/username.validators';
 import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdateRequest, ClubSearchResult } from '@core/api';
 
 /**
- * Club decision state:
- * - 'pending' — matches found, user hasn't confirmed "create new" yet
- * - 'new'     — user confirmed "create new" against the matches
- * - 'clear'   — no matches found, auto-approved for new club
- */
-type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
-
-/**
- * Club rep self-registration / profile-edit form with single-tier similarity gate.
+ * Club rep self-registration / profile-edit form.
  * Renders form fields only — the consumer owns the title and card chrome.
  *
- * 65%+ match — surfaces existing clubs and asks the rep to either contact
- *   the existing rep (if one is theirs) or confirm "create new" (e.g. a
- *   regional chapter of a national org legitimately registering as a sibling).
- *
- * Below 65% — no friction, new club created automatically.
+ * A club name never blocks sign-up (Todd 2026-10-06). When clubs of the same name exist —
+ * typically a new rep taking over from their club's old rep — the rep answers "Is your club
+ * one of these?": the picked club's teams are copied into theirs, or "None of these" starts
+ * empty. The server silently claims an unclaimed empty club of exactly the typed name.
  */
 @Component({
     selector: 'app-club-rep-register-form',
     standalone: true,
-    imports: [ReactiveFormsModule, TosContentComponent],
+    imports: [ReactiveFormsModule, TosContentComponent, DatePipe],
     styles: [`
       :host { display: block; }
 
@@ -44,104 +36,56 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
         font-size: var(--font-size-base);
         line-height: 1.4;
       }
+      /* Locked to the picked club's name (Todd 2026-10-06): reads as set, not as a field to type in. */
+      .field-input--hero[readonly] {
+        background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface));
+        border-color: color-mix(in srgb, var(--bs-primary) 45%, var(--bs-border-color));
+        font-weight: var(--font-weight-semibold);
+        cursor: default;
+      }
+      .club-name-locked {
+        margin-top: var(--space-1);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+      }
 
-      /* ── Similar-clubs panel (single tier, 65%+) ────────────────────────
-         Mode-adaptive: panel surface inherits from .card-body (white in light,
-         dark in dark). Text uses --brand-text. The yellow/red tints are rgba
-         overlays that work over either surface. Do NOT force a palette-locked
-         background here — the dark theme overrides .card-body with !important
-         and a locked-white panel breaks the cascade for descendant text.
-         See feedback_neutral0_text_color_trap.md.
-      */
-      .club-similar-panel {
-        border: 2px solid var(--bs-warning);
-        border-radius: var(--radius-md);
+      /* ── Same-name clubs: "Is your club one of these?" (a choice, never a block) ──
+         The question is the site's informational callout (.tsic-callout--info); the
+         clubs list under it. Row surfaces inherit .card-body (light/dark); the primary
+         tint is an rgba overlay that works over either. */
+      .club-choice {
+        margin: var(--space-2) 0 0;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+      }
+      .known-q { display: block; font-weight: var(--font-weight-bold); }
+      .known-p { display: block; margin-top: var(--space-1); font-weight: var(--font-weight-normal); }
+      .club-known-list {
         margin-top: var(--space-2);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
         overflow: hidden;
       }
-      /* Hard-block modifier: exact-normalized duplicate. Cannot be created. */
-      .club-similar-panel--exact { border-color: var(--bs-danger); }
-      .club-similar-panel--exact .club-similar-header {
-        background: rgba(var(--bs-danger-rgb), 0.18);
-        border-bottom-color: rgba(var(--bs-danger-rgb), 0.3);
-      }
-      .club-similar-header {
-        padding: var(--space-3);
-        background: rgba(var(--bs-warning-rgb), 0.18);
-        border-bottom: 1px solid rgba(var(--bs-warning-rgb), 0.25);
-      }
-      .club-similar-header h6 {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-        margin: 0 0 var(--space-2);
-      }
-      .club-similar-header p {
-        font-size: var(--font-size-sm);
-        color: var(--brand-text);
-        margin: var(--space-2) 0 0;
-        line-height: var(--line-height-normal);
-      }
-      .similar-club-row {
-        padding: var(--space-3);
-        border-bottom: 1px solid var(--border-color);
-      }
-      .similar-club-row:last-child { border-bottom: none; }
-      .rep-contact {
+      .known-club-row {
         display: flex;
         align-items: center;
         gap: var(--space-2);
-        margin-top: var(--space-2);
+        margin: 0;
         padding: var(--space-2) var(--space-3);
-        background: rgba(var(--bs-primary-rgb), 0.08);
-        border-radius: var(--radius-sm);
+        border-bottom: 1px solid var(--border-color);
         font-size: var(--font-size-sm);
-      }
-      .rep-contact i { color: var(--bs-primary); flex-shrink: 0; }
-      .rep-contact a {
-        color: var(--bs-primary);
-        text-decoration: none;
-        font-weight: var(--font-weight-medium);
-      }
-      .rep-contact a:hover { text-decoration: underline; }
-      .similar-confirm-bar {
-        padding: var(--space-3);
-        background: rgba(var(--bs-warning-rgb), 0.06);
-        text-align: center;
-      }
-
-      /* ── Decision confirmation bars ──────────────────────── */
-      .club-decision-bar {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        padding: var(--space-3);
-        border-radius: var(--radius-md);
-        margin-top: var(--space-2);
-      }
-      .club-decision-bar i { margin-top: 2px; flex-shrink: 0; }
-      .decision-confirmed {
-        background: rgba(var(--bs-success-rgb), 0.06);
-        border: 1px solid rgba(var(--bs-success-rgb), 0.15);
-      }
-      .decision-confirmed i { color: var(--bs-success); }
-      .decision-new-info {
-        background: rgba(var(--bs-primary-rgb), 0.04);
-        border: 1px solid rgba(var(--bs-primary-rgb), 0.12);
-      }
-      .decision-new-info i { color: var(--bs-primary); }
-      .decision-body { flex: 1; min-width: 0; }
-      .decision-title {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
         color: var(--brand-text);
+        cursor: pointer;
       }
-      .decision-detail {
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-        margin-top: 2px;
-        line-height: var(--line-height-normal);
+      .known-club-row:last-child { border-bottom: none; }
+      .known-club-row:hover { background: color-mix(in srgb, var(--bs-primary) 4%, transparent); }
+      .known-club-row.is-chosen {
+        background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+        box-shadow: inset 4px 0 0 var(--bs-primary);
       }
+      .known-club-row .form-check-input { flex-shrink: 0; margin: 0; }
+      .known-club-row .form-check-input:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
       /* ── Shared ──────────────────────────────────────────── */
       .form-divider { border-color: var(--border-color); opacity: 0.5; }
@@ -161,32 +105,6 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
         padding: var(--space-1) 0;
       }
       .value-prop i { color: var(--bs-success); }
-      .match-confidence {
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        padding: 2px var(--space-2);
-        border-radius: var(--radius-full);
-        white-space: nowrap;
-      }
-      .confidence-exact {
-        background: var(--bs-danger);
-        color: var(--neutral-0);
-      }
-      .confidence-high {
-        background: rgba(var(--bs-danger-rgb), 0.15);
-        color: var(--bs-danger);
-      }
-      .confidence-medium {
-        background: rgba(var(--bs-warning-rgb), 0.18);
-        color: var(--bs-warning);
-      }
-      .mega-club-tag {
-        font-size: var(--font-size-xs);
-        padding: 1px var(--space-2);
-        border-radius: var(--radius-full);
-        background: rgba(var(--bs-info-rgb), 0.1);
-        color: var(--bs-info);
-      }
 
       /* ── ToS acceptance row (above Create Account) ─────── */
       .tos-acceptance-row {
@@ -255,7 +173,16 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                 <input #clubNameInput class="field-input field-input--hero" formControlName="clubName"
                        placeholder="Start typing your club name..."
                        autocomplete="off"
+                       [readOnly]="!!chosenClub()"
+                       [attr.aria-describedby]="chosenClub() ? 'club-name-locked' : null"
                        [class.is-invalid]="showError('clubName')" />
+                @if (chosenClub()) {
+                  <!-- A picked club fixes the name (Todd 2026-10-06): its teams register under its exact name. -->
+                  <div class="club-name-locked" id="club-name-locked">
+                    <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>Your club's name, from the club you picked.
+                    To use a different name, pick <b>None of these</b>.
+                  </div>
+                }
                 @if (errorText('clubName'); as msg) { <div class="field-error">{{ msg }}</div> }
               </div>
 
@@ -267,167 +194,51 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                 </div>
               }
 
-              <!-- ═══ SIMILAR / EXACT MATCH PANEL ═══
-                   Exact-normalized match → hard block (no Create-new button, danger framing).
-                   Otherwise → similarity surface with Create-new available. -->
-              @if (similarMatches().length > 0 && !clubSearchLoading()
-                   && clubDecision() !== 'new' && clubDecision() !== 'claim') {
-                <div class="club-similar-panel"
-                     [class.club-similar-panel--exact]="exactMatch() !== null && claimableMatch() === null">
-                  <div class="club-similar-header">
-                    @if (claimableMatch(); as claimable) {
-                      <h6><i class="bi bi-hand-index me-2 text-primary"></i>This club has no representative yet</h6>
-                      <p>
-                        <strong>"{{ claimable.clubName }}" is set up, but no one reps it and it has
-                        no teams.</strong> Usually that means it was created ready for its rep to take over.
-                      </p>
-                      <p>
-                        <strong>Only continue if this is genuinely your club.</strong> If it isn't,
-                        register under a name that identifies your own organization instead.
-                      </p>
-                      <p>
-                        Confirm below and you'll be this club's representative. Your teams will
-                        register under this name.
-                      </p>
-                    } @else if (exactMatch(); as exact) {
-                      <h6><i class="bi bi-shield-exclamation me-2 text-danger"></i>This club is already registered</h6>
-                      <p>
-                        <strong>"{{ exact.clubName }}" already has a registered rep</strong> —
-                        that rep is responsible for registering teams under this club. Creating a
-                        duplicate account would bypass them and split team history.
-                      </p>
-                      <p>
-                        If you have a team that should play for this club, contact the existing
-                        rep below — they handle the registration.
-                      </p>
-                      <p>
-                        <strong>If you're a different regional chapter</strong> of a national
-                        organization, register with a name that distinguishes your region
-                        (e.g. "Aacme Lacrosse NJ").
-                      </p>
-                    } @else {
-                      <h6><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Similar clubs already on file</h6>
-                      <p>
-                        <strong>If one of these IS your club</strong>, please contact that rep below
-                        instead of creating a duplicate — duplicate clubs can't share team history.
-                      </p>
-                      <p>
-                        <strong>If you're a different regional chapter</strong> of a national organization
-                        (e.g. "Aacme Lax NJ" vs "Aacme Lax MA"), that's expected — each chapter has its
-                        own account so families and tournament directors reach the right rep. Go ahead
-                        and create yours.
-                      </p>
-                      <p>
-                        <strong>National-org reps:</strong> please don't register on behalf of local
-                        chapters. Local reps need to own their teams and contact info directly.
-                      </p>
-                    }
+              <!-- ═══ CLUBS ALREADY ON TSIC ═══
+                   A choice, never a block (Todd 2026-10-06): a rep taking over or joining a club picks
+                   WHICH club is theirs, and that club's saved teams are copied into their own — names
+                   aren't unique, so the pick is by club, not by name. "None of these" starts empty.
+                   Create Account waits for an answer. No rep names or emails here. -->
+              @if (similarMatches().length > 0) {
+                <fieldset class="club-choice" aria-labelledby="club-choice-q">
+                  <div class="tsic-callout tsic-callout--info tsic-callout--block" role="note">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    <span>
+                      <span class="known-q" id="club-choice-q">{{ similarMatches().length === 1 ? 'Is this your club?' : 'Is your club one of these?' }}</span>
+                      <span class="known-p">
+                        Pick it and its teams come with you &mdash; nothing to retype.
+                        Not your club? Pick <b>None of these</b>.
+                      </span>
+                    </span>
                   </div>
-                  @for (club of displayedMatches(); track club.clubId) {
-                    <div class="similar-club-row">
-                      <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                          <span class="fw-semibold">{{ club.clubName }}</span>
-                          @if (club.state) {
-                            <span class="text-muted ms-1 small">({{ club.state }})</span>
-                          }
-                          @if (club.teamCount) {
-                            <span class="text-muted small ms-1">&bull; {{ club.teamCount }} teams</span>
-                          }
-                        </div>
-                        <div class="d-flex align-items-center gap-1">
-                          @if (club.isRelatedClub) {
-                            <span class="mega-club-tag"><i class="bi bi-diagram-3 me-1"></i>Same org</span>
-                          }
-                          @if (club.isExactMatch && club.isClaimable) {
-                            <span class="match-confidence confidence-high">Unclaimed</span>
-                          } @else if (club.isExactMatch) {
-                            <span class="match-confidence confidence-exact">Already registered</span>
-                          } @else if (club.matchScore >= 85) {
-                            <span class="match-confidence confidence-high">Very similar</span>
-                          } @else {
-                            <span class="match-confidence confidence-medium">Similar</span>
-                          }
-                        </div>
-                      </div>
-                      @if (club.repEmail) {
-                        <div class="rep-contact">
-                          <i class="bi bi-envelope"></i>
-                          <div>
-                            @if (club.repName) {
-                              <span>{{ club.repName }}</span>
-                              <span class="text-muted mx-1">&mdash;</span>
-                            }
-                            <a [href]="'mailto:' + club.repEmail
-                              + '?subject=Request to join ' + encodeURIComponent(club.clubName)
-                              + '&body=' + encodeURIComponent(getEmailBody(club))">
-                              {{ club.repEmail }}
-                            </a>
-                          </div>
-                        </div>
-                      }
-                    </div>
+                  <div class="club-known-list">
+                  @for (club of similarMatches(); track club.clubId) {
+                    <label class="known-club-row" [class.is-chosen]="clubChoice() === club.clubId">
+                      <input type="radio" class="form-check-input" name="clubChoice"
+                             [checked]="clubChoice() === club.clubId" (change)="chooseClub(club)">
+                      <span>
+                        <span class="fw-semibold">{{ club.clubName }}</span>
+                        @if (club.state) {
+                          <span class="text-muted ms-1">({{ club.state }})</span>
+                        }
+                        <span class="text-muted ms-1">&bull; {{ club.activeTeamCount }} {{ club.activeTeamCount === 1 ? 'team' : 'teams' }}</span>
+                        @if (club.lastRegistered) {
+                          <span class="text-muted ms-1">&bull; last registered {{ club.lastRegistered | date: 'MMM y' }}</span>
+                        }
+                      </span>
+                    </label>
                   }
-                  @if (claimableMatch(); as claimable) {
-                    <div class="similar-confirm-bar">
-                      <button type="button" class="btn btn-sm btn-primary fw-medium"
-                              (click)="confirmClaim(claimable.clubId)">
-                        <i class="bi bi-hand-index me-1"></i>Yes — this is my club
-                      </button>
-                      <div class="small text-muted mt-1">
-                        You'll fill in your details next, then create your account.
-                      </div>
-                    </div>
-                  } @else if (exactMatch() === null) {
-                    <div class="similar-confirm-bar">
-                      <button type="button" class="btn btn-sm btn-outline-primary fw-medium"
-                              (click)="confirmNewClub()">
-                        <i class="bi bi-plus-circle me-1"></i>None of these are my club — create new
-                      </button>
-                      <div class="small text-muted mt-1">This starts a new account for your club.</div>
-                    </div>
-                  }
-                </div>
-              }
-
-              <!-- ═══ NEW CLUB CONFIRMED ═══ -->
-              @if (clubDecision() === 'new' && similarMatches().length > 0) {
-                <div class="club-decision-bar decision-new-info">
-                  <i class="bi bi-plus-circle-fill"></i>
-                  <div class="decision-body">
-                    <div class="decision-title">New club: {{ form.controls.clubName.value }}</div>
-                    <div class="decision-detail">
-                      Starting fresh. Teams you add will carry forward to future events automatically.
-                    </div>
+                  <label class="known-club-row" [class.is-chosen]="clubChoice() === 'none'">
+                    <input type="radio" class="form-check-input" name="clubChoice"
+                           [checked]="clubChoice() === 'none'" (change)="chooseNone()">
+                    <span><span class="fw-semibold">None of these</span>
+                      <span class="text-muted ms-1">&mdash; we're a new club</span></span>
+                  </label>
                   </div>
-                  <button type="button" class="btn btn-sm btn-link text-muted p-0 flex-shrink-0"
-                          (click)="resetClubDecision()" aria-label="Go back to club selection">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                </div>
-              }
-
-              <!-- ═══ CLAIM CONFIRMED ═══ -->
-              @if (clubDecision() === 'claim') {
-                <div class="club-decision-bar decision-new-info">
-                  <i class="bi bi-hand-index-fill"></i>
-                  <div class="decision-body">
-                    <div class="decision-title">Taking over: {{ form.controls.clubName.value }}</div>
-                    <div class="decision-detail">
-                      You'll be this club's representative. Teams you add will carry forward to
-                      future events automatically.
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-sm btn-link text-muted p-0 flex-shrink-0"
-                          (click)="resetClubDecision()" aria-label="Go back to club selection">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                </div>
+                </fieldset>
               }
               }
 
-              @if (isEdit() || clubDecision() === 'clear' || clubDecision() === 'new'
-                   || clubDecision() === 'claim') {
                 <hr class="form-divider my-3">
                 <h6 class="form-section-title">
                   <i class="bi bi-person-vcard me-2"></i>Club Rep Details
@@ -612,14 +423,11 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                   } @else {
                     @if (isEdit()) {
                       <i class="bi bi-check-lg me-1"></i>Save Changes
-                    } @else if (clubDecision() === 'claim') {
-                      <i class="bi bi-person-plus-fill me-1"></i>Create Account &amp; Take Over Club
                     } @else {
                       <i class="bi bi-person-plus-fill me-1"></i>Create Account
                     }
                   }
                 </button>
-              }
       </form>
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -665,49 +473,26 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
     // Club search state
     readonly clubSearchResults = signal<ClubSearchResult[]>([]);
     readonly clubSearchLoading = signal(false);
-    readonly clubDecision = signal<ClubDecision>('pending');
 
-    /** All 65%+ matches — surfaced in a single panel; "Very similar" pill on 85%+ */
+    /** Same-name clubs only (server: ClubNameMatcher.IsSameClubName) — the "Is this your club?" panel. */
     readonly similarMatches = computed(() =>
-        this.clubSearchResults().filter(c => c.matchScore >= 65)
+        // A club with no active teams has nothing to bring — picking it is "None of these". Server order:
+        // most recently registered first, untouched copies already folded into their source.
+        this.clubSearchResults().filter(c => c.isExactMatch && (c.activeTeamCount ?? 0) > 0)
     );
 
-    /** First exact-normalized match if any. When present, registration is hard-blocked. */
-    readonly exactMatch = computed(() =>
-        this.clubSearchResults().find(c => c.isExactMatch) ?? null
-    );
+    /** The rep's answer: a listed club's id, 'none' ("None of these"), or null = not answered. */
+    readonly clubChoice = signal<number | 'none' | null>(null);
 
-    /** The club name the currently-displayed results were fetched for. */
-    readonly lastSearchedClubName = signal('');
-
-    /** Empty-shell club being offered for claim. Requires the typed name to BE the club's
-     *  name, not merely normalize to it: "lacrosse"/"lc"/"club" are filler words, so
-     *  "True Lacrosse" normalizes identically to "True" and would otherwise offer the shell
-     *  to the whole True Lacrosse population. You should have to know a club's real name to
-     *  claim it. The server enforces the same rule on the write. */
-    readonly claimableMatch = computed(() => {
-        const typed = this.lastSearchedClubName().trim();
-        if (!typed) return null;
-        return this.clubSearchResults().find(c =>
-            c.isExactMatch
-            && c.isClaimable
-            && c.clubName.trim().toLowerCase() === typed.toLowerCase()
-        ) ?? null;
+    /** The picked club while it is still listed — editing the name to another club's drops it. */
+    readonly chosenClub = computed(() => {
+        const choice = this.clubChoice();
+        return typeof choice === 'number' ? this.similarMatches().find(c => c.clubId === choice) ?? null : null;
     });
 
-    /** Club the rep chose to take over. Set by the panel decision, consumed by submit. */
-    readonly claimedClubId = signal<number | null>(null);
-
-    /** Rows to render in the panel: the claimable club when one is on offer — the row MUST be
-     *  the club the button acts on, or the panel describes one club and claims another;
-     *  otherwise only the exact match when blocked (the other similars are noise once the user
-     *  can't proceed); otherwise all 65%+ matches. */
-    readonly displayedMatches = computed(() => {
-        const claimable = this.claimableMatch();
-        if (claimable) return [claimable];
-        const exact = this.exactMatch();
-        return exact ? [exact] : this.similarMatches();
-    });
+    /** Answered, or nothing to answer: no same-name club is listed. */
+    readonly clubChoiceMade = computed(() =>
+        this.similarMatches().length === 0 || this.clubChoice() === 'none' || !!this.chosenClub());
 
     readonly form = this.fb.group({
         clubName: ['', Validators.required],
@@ -772,9 +557,11 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         this.form.controls.clubName.valueChanges.pipe(
             distinctUntilChanged(),
             tap((v) => {
+                // A new name is a new question: "Is this your club?" is answered again. Only the rep's
+                // typing gets here — chooseClub / chooseNone set the name without an event.
+                this.clubChoice.set(null);
                 if (!v || v.trim().length < 3) {
                     this.clubSearchResults.set([]);
-                    this.clubDecision.set('pending');
                     this.clubSearchLoading.set(false);
                 }
             }),
@@ -782,19 +569,12 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             filter((v): v is string => !!v && v.trim().length >= 3),
             tap(() => this.clubSearchLoading.set(true)),
             switchMap(name => this.clubService.searchClubs(name.trim()).pipe(
-                catchError(() => of([] as ClubSearchResult[])),
-                // Carry the query alongside its results so the claim check can compare against
-                // the name these results were actually fetched for, never a later keystroke.
-                map(results => ({ query: name.trim(), results }))
+                catchError(() => of([] as ClubSearchResult[]))
             )),
             takeUntilDestroyed(this.destroyRef)
-        ).subscribe(({ query, results }) => {
+        ).subscribe(results => {
             this.clubSearchLoading.set(false);
-            this.lastSearchedClubName.set(query);
             this.clubSearchResults.set(results);
-
-            const hasSimilar = results.some(r => r.matchScore >= 65);
-            this.clubDecision.set(hasSimilar ? 'pending' : 'clear');
         });
 
         // Live username-availability probe — mirrors the club-name search above so the rep
@@ -833,9 +613,6 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         // Gender is collected on create only; disable so the edit form excludes it.
         this.form.controls.gender.disable();
 
-        // canSubmit() gates on clubDecision; 'clear' skips the club-search gate entirely.
-        this.clubDecision.set('clear');
-
         const data = this.existing();
         if (data) {
             this.form.patchValue({
@@ -860,16 +637,28 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         });
     }
 
-    /** Pre-fill a mailto body to make contacting the rep as easy as possible */
-    getEmailBody(club: ClubSearchResult): string {
-        return `Hi${club.repName ? ' ' + club.repName : ''},\n\n`
-             + `I'm trying to register as a rep for ${club.clubName} on TSIC. `
-             + `Could you help me get added to the club?\n\n`
-             + `Thanks!`;
+    /** What the rep typed before picking a club — "None of these" hands it back. */
+    private typedClubName = '';
+
+    /**
+     * "This is my club": its teams come with the rep, and the club name becomes its EXACT name and locks
+     * (Todd 2026-10-06) — the server stamps that name too. Set without an event: the list stays as the
+     * typed search found it, so the rep can switch picks, and the set name doesn't clear the answer.
+     */
+    chooseClub(club: ClubSearchResult): void {
+        const c = this.form.controls.clubName;
+        if (typeof this.clubChoice() !== 'number') this.typedClubName = c.value ?? '';
+        c.setValue(club.clubName, { emitEvent: false });
+        c.markAsDirty();
+        this.clubChoice.set(club.clubId);
     }
 
-    encodeURIComponent(value: string): string {
-        return encodeURIComponent(value);
+    /** "None of these": the name unlocks and goes back to what the rep typed. */
+    chooseNone(): void {
+        if (typeof this.clubChoice() === 'number') {
+            this.form.controls.clubName.setValue(this.typedClubName, { emitEvent: false });
+        }
+        this.clubChoice.set('none');
     }
 
     digitsOnly(controlName: string, event: Event): void {
@@ -879,36 +668,11 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         this.form.get(controlName)?.setValue(digits);
     }
 
-    confirmNewClub(): void {
-        this.claimedClubId.set(null);
-        this.clubDecision.set('new');
-    }
-
-    /** Panel DECISION, not the submit: records which shell club she's taking over and reveals
-     *  the rep-details fields. The actual write happens on the form's one submit button, the
-     *  same shape as confirmNewClub — so the panel never renders a button that needs a form
-     *  the user cannot see yet. */
-    confirmClaim(clubId: number): void {
-        this.claimedClubId.set(clubId);
-        this.clubDecision.set('claim');
-    }
-
-    resetClubDecision(): void {
-        this.claimedClubId.set(null);
-        this.clubDecision.set('pending');
-    }
-
-    /** Submit is allowed when: clear (no matches), or new (confirmed against similar matches), passwords match, and ToS accepted.
-     *  Exact-normalized match always blocks (cannot be bypassed — backend agrees). */
+    /** Submit needs a valid form, matching passwords, ToS accepted, a username not known taken, and —
+     *  when same-name clubs are listed — an answer to "Is this your club?". The name itself never blocks. */
     canSubmit(): boolean {
         if (this.usernameStatus() === 'taken') return false;
-        const decision = this.clubDecision();
-        // A confirmed claim is the one case where an exact match does NOT block: she is
-        // taking over that club, not creating a duplicate of it.
-        if (decision !== 'claim' && this.exactMatch() !== null) return false;
-        return (decision === 'clear' || decision === 'new' || decision === 'claim')
-            && this.form.valid
-            && !this.passwordMismatch();
+        return this.form.valid && !this.passwordMismatch() && this.clubChoiceMade();
     }
 
     onSubmit(): void {
@@ -920,9 +684,6 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         }
 
         if (this.form.invalid || !this.canSubmit() || this.passwordMismatch()) return;
-
-        const claimClubId = this.clubDecision() === 'claim' ? this.claimedClubId() : null;
-        const claiming = claimClubId !== null;
 
         this.saving.set(true);
         this.errorMsg.set(null);
@@ -941,11 +702,8 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             postalCode: v.postalCode!.trim(),
             username: v.username!.trim(),
             password: v.password!,
-            // Claiming links her to a club that already exists, so there is no new club to
-            // confirm. The server re-checks that the club is genuinely unclaimed.
-            confirmedNewClub: !claiming,
-            existingClubId: claimClubId,
             acceptedTos: true,
+            sourceClubId: this.chosenClub()?.clubId ?? null,
         };
 
         this.clubService.registerClub(request)
@@ -956,12 +714,6 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
                         // Backend has already stamped bTSICWaiverSigned + timestamp.
                         // Auto-login and emit registered — no separate ToS step.
                         this.autoLoginAndEmit(request.username, request.password);
-                    } else if (resp.similarClubs?.length) {
-                        this.saving.set(false);
-                        // Backend gate caught something the frontend missed
-                        this.clubSearchResults.set(resp.similarClubs as ClubSearchResult[]);
-                        this.clubDecision.set('pending');
-                        this.errorMsg.set(resp.message || null);
                     } else {
                         this.saving.set(false);
                         this.errorMsg.set(resp.message || 'Registration failed.');

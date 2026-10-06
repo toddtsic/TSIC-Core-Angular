@@ -266,7 +266,7 @@ interface FilterChip {
                 }
 
                 <!-- Active-filters echo zone: shows every applied filter as a removable chip.
-                     Followed teams render first (star-tinted), then non-team filter chips
+                     Your teams (Find Your Teams picks) render first, then non-team filter chips
                      (CADT/LADT picks, Date, Time, Location, Unscored). Reset lives at the
                      right edge so it's adjacent to the chips it will clear. -->
                 @if (hasActiveFilters()) {
@@ -278,8 +278,8 @@ interface FilterChip {
                         </span>
                         <div class="active-chips-list">
                             @for (chip of directTeamChips(); track chip.teamId) {
-                                <span class="team-chip team-chip--following">
-                                    <i class="bi bi-bookmark-star-fill team-chip-icon" aria-hidden="true"></i>
+                                <span class="team-chip team-chip--team">
+                                    <i class="bi bi-people-fill team-chip-icon" aria-hidden="true"></i>
                                     <span class="team-chip-label">{{ chip.displayText }}</span>
                                     <button type="button" class="team-chip-remove"
                                             (click)="toggleDirectTeam(chip.teamId)"
@@ -351,11 +351,9 @@ interface FilterChip {
                             [games]="games()"
                             [canScore]="auth.isAdmin()"
                             [isLoading]="tabLoading()"
-                            [followedTeamIds]="directTeamIds()"
                             (scoreGame)="onScoreGame($event)"
                             (editGame)="onEditGameOpen($event)"
-                            (viewTeamResults)="onViewTeamResults($event)"
-                            (toggleFollow)="toggleDirectTeam($event)" />
+                            (viewTeamResults)="onViewTeamResults($event)" />
                     }
                     @case ('standings') {
                         <app-standings-tab
@@ -912,15 +910,15 @@ interface FilterChip {
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
         }
 
-        /* Followed-team chip variant — black-tie "yours" marker: strong-ink border +
-           filled star, no gold (gold is reserved for the winner trophy; the follow
-           star went strong-ink with it). The filled star shape carries the state. */
-        .team-chip--following {
+        /* Team-pick chip variant (Find Your Teams) — strong-ink border + people icon, so
+           your teams read apart from the category filter chips. No gold (reserved for the
+           winner trophy). */
+        .team-chip--team {
             border-color: color-mix(in srgb, var(--score-strong) 50%, transparent);
             background: color-mix(in srgb, var(--score-strong) 6%, var(--bs-card-bg));
         }
 
-        .team-chip--following:hover {
+        .team-chip--team:hover {
             border-color: var(--score-strong);
         }
 
@@ -1277,7 +1275,7 @@ export class ViewScheduleComponent implements OnInit, ClubTeamsSource, TeamViews
     readonly unscoredOnly = signal(false);
 
     // ── Direct team multiselect (typeahead) ──
-    /** TeamIds the user has explicitly selected via the typeahead OR row star. */
+    /** TeamIds the user has explicitly selected via the Find Your Teams typeahead. */
     readonly directTeamIds = signal<string[]>([]);
     /** Syncfusion field-mapping for ejs-multiselect. */
     readonly directTeamFields = { value: 'teamId', text: 'displayText' };
@@ -1445,7 +1443,7 @@ export class ViewScheduleComponent implements OnInit, ClubTeamsSource, TeamViews
         return count;
     });
 
-    /** Chips for direct-team selections (typeahead / row-stars). */
+    /** Chips for direct-team selections (Find Your Teams typeahead). */
     readonly directTeamChips = computed<DirectTeamOption[]>(() => {
         const ids = this.directTeamIds();
         if (ids.length === 0) return [];
@@ -1788,7 +1786,7 @@ export class ViewScheduleComponent implements OnInit, ClubTeamsSource, TeamViews
         this.refreshTab();
     }
 
-    /** Toggle a single team's presence in the direct-selection set (used by row stars). */
+    /** Toggle a single team's presence in the direct-selection set (used by the team chips' remove button). */
     toggleDirectTeam(teamId: string): void {
         if (!teamId) return;
         const current = this.directTeamIds();

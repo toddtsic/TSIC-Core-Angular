@@ -247,12 +247,11 @@ public interface IRegistrationRepository
     Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// True when a club rep registration in the job other than <paramref name="excludeRegistrationId"/>, holding
-    /// at least one active team, already carries <paramref name="clubName"/> (trimmed, case-insensitive). Inside an
-    /// event the club tree and club filters group active teams by that name, so a second rep with it would merge two
-    /// clubs; a rep whose teams are all dropped (inactive) has no club node and can't merge. AsNoTracking.
+    /// The user's club-rep registrations (any event) still carrying <paramref name="clubName"/> that have
+    /// no teams at all. Tracked — a club rename re-stamps them, so the event the rep is standing in
+    /// takes the new name before its first team (Todd 2026-10-06).
     /// </summary>
-    Task<bool> IsClubRepClubNameInUseInJobAsync(Guid jobId, Guid excludeRegistrationId, string clubName, CancellationToken cancellationToken = default);
+    Task<List<Registrations>> GetTeamlessClubRepRegistrationsByClubNameAsync(string userId, string clubName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get registration basic info (ClubName, JobId) by registration ID and user ID.

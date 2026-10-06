@@ -8,54 +8,58 @@ using TSIC.Application.Services.Users;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.Identity;
 
 namespace TSIC.Tests.TeamRegistration;
 
 /// <summary>
-/// CLUB REGISTRATION GATE TESTS
+/// CLUB REP SIGN-UP: WHICH CLUB
 ///
-/// Two-layer gate:
-///   1. HARD BLOCK on exact-normalized match (token sets identical) —
-///      cannot be bypassed by ConfirmedNewClub. Catches duplicate-creation
-///      / hijacking attempts including filler-only suffixes ("Charlotte
-///      Fury" vs "Charlotte Fury LC") and word reordering.
-///   2. SIMILARITY SURFACE for any other 65%+ match — requires
-///      ConfirmedNewClub. Allows regional chapters of national orgs
-///      (e.g. "Aacme Lax NJ" vs "Aacme Lax MA") to register as siblings.
-/// Below 65% → no friction.
+/// A club name never refuses sign-up (Todd 2026-10-06): a rep replacing their club's old rep must be
+/// able to register under the club's own name, so a name another club already uses creates this rep's
+/// own club of that name. Two cases resolve to an EXISTING club instead:
+///   - the user already reps a club of that name → no second club;
+///   - an unclaimed EMPTY club (no reps, no library teams) carries exactly the typed name → claimed
+///     silently. A merely normalize-equal name ("True Lacrosse" vs a club named "True") never claims.
 /// </summary>
 public class ClubRegistrationGateTests
 {
+    private const string Password = "Password123!";
+
     // ── Test data ────────────────────────────────────────────────────
 
+    /// <summary>An established club: has a rep and a library.</summary>
     private static readonly ClubSearchCandidate ExistingClub = new()
     {
         ClubId = 1,
         ClubName = "Charlotte Fury",
         State = "NC",
         TeamCount = 12,
-        RepName = "John Smith",
-        RepEmail = "j.smith@email.com"
+        HasRep = true
     };
 
-    /// <summary>
-    /// A club that scores in the WARNING band (65-84%) against typical queries.
-    /// "Charlotte Eagles" vs "Charlotte Fury" shares "charlotte" but differs enough.
-    /// </summary>
+    /// <summary>Scores in the similarity band against "Charlotte Hawks" — shares "charlotte".</summary>
     private static readonly ClubSearchCandidate SimilarClub = new()
     {
         ClubId = 2,
         ClubName = "Charlotte Eagles",
         State = "NC",
         TeamCount = 5,
-        RepName = "Sarah Jones",
-        RepEmail = "sarah@email.com"
+        HasRep = true
+    };
+
+    private static ClubSearchCandidate EmptyShell(int clubId, string name) => new()
+    {
+        ClubId = clubId,
+        ClubName = name,
+        TeamCount = 0,
+        HasRep = false
     };
 
     private static ClubRepRegistrationRequest MakeRequest(
         string clubName,
-        bool confirmedNewClub = false,
+        string? username = null,
         bool acceptedTos = true) => new()
         {
             ClubName = clubName,
@@ -63,49 +67,107 @@ public class ClubRegistrationGateTests
             LastName = "User",
             Gender = "M",
             Email = "test@example.com",
-            Username = "testuser_" + Guid.NewGuid().ToString("N")[..8],
-            Password = "Password123!",
+            Username = username ?? "testuser_" + Guid.NewGuid().ToString("N")[..8],
+            Password = Password,
             StreetAddress = "123 Main St",
             City = "Anytown",
             State = "NC",
             PostalCode = "28205",
             Cellphone = "5551234567",
-            ConfirmedNewClub = confirmedNewClub,
             AcceptedTos = acceptedTos
         };
 
     // ── Service factory ─────────────────────────────────────────────
 
-    private static (ClubService svc, Mock<IClubRepository> clubRepo) CreateService(
-        params ClubSearchCandidate[] existingClubs)
+    private sealed class Fixture
+    {
+        public required ClubService Svc { get; init; }
+        public required Mock<IClubRepository> ClubRepo { get; init; }
+        public required Mock<IClubRepRepository> ClubRepRepo { get; init; }
+        public required Mock<IRegistrationRepository> Registrations { get; init; }
+        public required Mock<IClubTeamRepository> ClubTeams { get; init; }
+
+        /// <summary>The service created a NEW Clubs row.</summary>
+        public void VerifyNewClubCreated() =>
+            ClubRepo.Verify(r => r.Add(It.IsAny<Clubs>()), Times.Once);
+
+        /// <summary>The service created no Clubs row (resolved to an existing club).</summary>
+        public void VerifyNoClubCreated() =>
+            ClubRepo.Verify(r => r.Add(It.IsAny<Clubs>()), Times.Never);
+    }
+
+    /// <param name="existingUser">When set, the request's username resolves to this account (password = <see cref="Password"/>).</param>
+    /// <param name="existingUsersClubs">The clubs that existing account already reps.</param>
+    /// <param name="unclaimedEmptyClubIds">Clubs IsUnclaimedEmptyAsync confirms on the write.</param>
+    private static Fixture CreateService(
+        ClubSearchCandidate[] existingClubs,
+        ApplicationUser? existingUser = null,
+        ClubWithUsageInfo[]? existingUsersClubs = null,
+        int[]? unclaimedEmptyClubIds = null,
+        Registrations[]? teamlessRegistrations = null,
+        Dictionary<int, ClubTeams[]>? libraries = null)
     {
         var clubRepo = new Mock<IClubRepository>();
         clubRepo.Setup(r => r.GetSearchCandidatesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingClubs.ToList());
+        var unclaimed = (unclaimedEmptyClubIds ?? []).ToHashSet();
+        clubRepo.Setup(r => r.IsUnclaimedEmptyAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, CancellationToken _) => unclaimed.Contains(id));
 
         var clubRepRepo = new Mock<IClubRepRepository>();
         clubRepRepo.Setup(r => r.ExistsAsync(It.IsAny<string>(), It.IsAny<int>(),
             It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        clubRepRepo.Setup(r => r.GetClubsForUserAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((existingUsersClubs ?? []).ToList());
 
         // UserManager requires a store mock that implements IUserPasswordStore
+        var hasher = new PasswordHasher<ApplicationUser>();
         var userStore = new Mock<IUserPasswordStore<ApplicationUser>>();
         userStore.As<IUserStore<ApplicationUser>>();
         userStore.Setup(s => s.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(IdentityResult.Success);
         userStore.Setup(s => s.SetPasswordHashAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        userStore.Setup(s => s.GetPasswordHashAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("hashed");
         userStore.Setup(s => s.HasPasswordAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        if (existingUser != null)
+        {
+            userStore.Setup(s => s.FindByNameAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(existingUser);
+            userStore.Setup(s => s.GetPasswordHashAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(hasher.HashPassword(existingUser, Password));
+        }
+        else
+        {
+            userStore.Setup(s => s.GetPasswordHashAsync(It.IsAny<ApplicationUser>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("hashed");
+        }
         var userManager = new UserManager<ApplicationUser>(
-            userStore.Object, null!, new PasswordHasher<ApplicationUser>(),
+            userStore.Object, null!, hasher,
             null!, null!, null!, null!, null!, null!);
 
         var privilegeService = new Mock<IUserPrivilegeLevelService>();
         privilegeService.Setup(p => p.ValidatePrivilegeForRegistrationAsync(
             It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(true);
+
+        var registrations = new Mock<IRegistrationRepository>();
+        registrations.Setup(r => r.GetTeamlessClubRepRegistrationsByClubNameAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((teamlessRegistrations ?? []).ToList());
+
+        // Each club's library, by ClubId; a club looked up by id is the matching search candidate.
+        var clubTeams = new Mock<IClubTeamRepository>();
+        clubTeams.Setup(r => r.GetByClubIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, CancellationToken _) => (libraries ?? []).TryGetValue(id, out var lib) ? lib.ToList() : []);
+        clubTeams.Setup(r => r.GetByClubIdsAsync(It.IsAny<IEnumerable<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<int> ids, CancellationToken _) =>
+                ids.SelectMany(id => (libraries ?? []).TryGetValue(id, out var lib) ? lib : []).ToList());
+        clubTeams.Setup(r => r.GetLastRegisteredByClubIdsAsync(It.IsAny<IEnumerable<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<int, DateTime>());
+        clubRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, CancellationToken _) => existingClubs.Where(c => c.ClubId == id)
+                .Select(c => new Clubs { ClubId = c.ClubId, ClubName = c.ClubName }).FirstOrDefault());
 
         var userRepo = new Mock<IUserRepository>();
         userRepo.Setup(r => r.UpdateTosAcceptanceByUserIdAsync(
@@ -116,212 +178,223 @@ public class ClubRegistrationGateTests
 
         var userProfileService = new Mock<IUserProfileService>();
 
-        var svc = new ClubService(userManager, clubRepo.Object, clubRepRepo.Object,
+        var svc = new ClubService(userManager, clubRepo.Object, clubRepRepo.Object, registrations.Object, clubTeams.Object,
             userRepo.Object, privilegeService.Object, userProfileService.Object, cache);
 
-        return (svc, clubRepo);
+        return new Fixture { Svc = svc, ClubRepo = clubRepo, ClubRepRepo = clubRepRepo, Registrations = registrations, ClubTeams = clubTeams };
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  SIMILARITY GATE (65%+ match — any tier)
+    //  A NAME NEVER REFUSES — the rep gets their own club of that name
     // ═══════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// SCENARIO: Registrant types exact name of existing club without confirming
-    /// EXPECTED: Hard-blocked with SimilarClubs returned (cannot create a duplicate)
+    /// SCENARIO: A new rep types the exact name of an established club (it has a rep and teams) —
+    ///   typically the rep replacing that club's old rep.
+    /// EXPECTED: Sign-up succeeds and creates the rep's own club of that name. Never attached to the
+    ///   established club: that would hand a stranger its library.
     /// </summary>
-    [Fact(DisplayName = "Exact-name match is hard-blocked")]
-    public async Task ExactMatch_HardBlocked()
+    [Fact(DisplayName = "Exact name of an established club: own club created, never refused")]
+    public async Task ExactMatch_CreatesOwnClub()
     {
-        var (svc, _) = CreateService(ExistingClub);
-        var request = MakeRequest("Charlotte Fury");
+        var f = CreateService([ExistingClub]);
 
-        var result = await svc.RegisterAsync(request);
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury"));
 
-        result.Success.Should().BeFalse("exact name match must be hard-blocked");
-        result.SimilarClubs.Should().NotBeNullOrEmpty("response must include the matching club");
-        result.Message.Should().Contain("already registered");
+        result.Success.Should().BeTrue("a club name never refuses sign-up");
+        f.VerifyNewClubCreated();
+        result.ClubId.Should().NotBe(ExistingClub.ClubId, "an established club is never joined at sign-up");
     }
 
     /// <summary>
-    /// SCENARIO: Registrant types EXACT name AND sets ConfirmedNewClub = true
-    /// EXPECTED: STILL BLOCKED — exact-match bypass via client flag is a security hole.
-    ///   Confirmation only allows similar-but-different names (regional siblings).
+    /// SCENARIO: Filler-only suffix difference ("Charlotte Fury LC" vs "Charlotte Fury")
+    /// EXPECTED: Same as an exact name — succeeds with the rep's own club.
     /// </summary>
-    [Fact(DisplayName = "Exact-name match CANNOT be bypassed by ConfirmedNewClub")]
-    public async Task ExactMatch_CannotBypassWithConfirmation()
+    [Fact(DisplayName = "Filler-suffix variant ('Fury LC'): own club created")]
+    public async Task FillerSuffixVariant_CreatesOwnClub()
     {
-        var (svc, _) = CreateService(ExistingClub);
-        var request = MakeRequest("Charlotte Fury", confirmedNewClub: true);
+        var f = CreateService([ExistingClub]);
 
-        var result = await svc.RegisterAsync(request);
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury LC"));
 
-        result.Success.Should().BeFalse("exact match block must NOT be bypassed by ConfirmedNewClub");
+        result.Success.Should().BeTrue();
+        f.VerifyNewClubCreated();
     }
 
     /// <summary>
-    /// SCENARIO: Filler-only suffix difference ("Charlotte Fury" vs "Charlotte Fury LC")
-    /// EXPECTED: Hard-blocked even with confirmation — "LC" expands to filler so the
-    ///   normalized token sets are identical (same club).
+    /// SCENARIO: Near-exact typo ("Charlote Fury")
+    /// EXPECTED: Succeeds — no confirmation step any more.
     /// </summary>
-    [Fact(DisplayName = "Filler-suffix variant ('Fury LC' vs 'Fury') is hard-blocked")]
-    public async Task FillerSuffixVariant_HardBlocked()
+    [Fact(DisplayName = "Typo variant: own club created, no confirmation needed")]
+    public async Task TypoVariant_CreatesOwnClub()
     {
-        var (svc, _) = CreateService(ExistingClub);
-        var request = MakeRequest("Charlotte Fury LC", confirmedNewClub: true);
+        var f = CreateService([ExistingClub]);
 
-        var result = await svc.RegisterAsync(request);
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlote Fury"));
 
-        result.Success.Should().BeFalse("filler-only suffix difference must be hard-blocked");
+        result.Success.Should().BeTrue();
+        f.VerifyNewClubCreated();
     }
 
     /// <summary>
-    /// SCENARIO: Regional sibling — different distinctive token, same root
-    ///   ("Charlotte Fury North" vs existing "Charlotte Fury") with confirmation
-    /// EXPECTED: Passes — token sets differ ("north" added), so this is NOT
-    ///   an exact match. The regional chapter use case must work.
+    /// SCENARIO: Mid-similarity match (shared city, different mascot)
+    /// EXPECTED: Succeeds — no confirmation step any more.
     /// </summary>
-    [Fact(DisplayName = "Regional sibling ('Fury North') with confirmation passes")]
-    public async Task RegionalSibling_WithConfirmation_PassesGate()
+    [Fact(DisplayName = "Mid-similarity name: own club created, no confirmation needed")]
+    public async Task MidSimilarity_CreatesOwnClub()
     {
-        var (svc, _) = CreateService(ExistingClub);
-        var request = MakeRequest("Charlotte Fury North", confirmedNewClub: true);
+        var f = CreateService([SimilarClub]);
 
-        var result = await svc.RegisterAsync(request);
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Hawks"));
 
-        var wasGateBlocked = !result.Success && result.SimilarClubs?.Any() == true;
-        wasGateBlocked.Should().BeFalse(
-            "regional sibling with a distinguishing token must pass when confirmed");
+        result.Success.Should().BeTrue();
+        f.VerifyNewClubCreated();
     }
 
     /// <summary>
-    /// SCENARIO: Near-exact typo ("Charlote Fury") without confirmation
-    /// EXPECTED: Rejected — single-char typo still scores in the similarity band
+    /// SCENARIO: Regional sibling ("Charlotte Fury North" vs existing "Charlotte Fury")
+    /// EXPECTED: Succeeds with the rep's own club.
     /// </summary>
-    [Fact(DisplayName = "Typo variant without confirmation is rejected")]
-    public async Task TypoVariant_WithoutConfirmation_Rejected()
+    [Fact(DisplayName = "Regional sibling ('Fury North'): own club created")]
+    public async Task RegionalSibling_CreatesOwnClub()
     {
-        var (svc, _) = CreateService(ExistingClub);
-        var request = MakeRequest("Charlote Fury");
+        var f = CreateService([ExistingClub]);
 
-        var result = await svc.RegisterAsync(request);
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury North"));
 
-        result.Success.Should().BeFalse("single-char typo should surface similar clubs");
-        result.SimilarClubs.Should().NotBeNullOrEmpty();
+        result.Success.Should().BeTrue();
+        f.VerifyNewClubCreated();
     }
 
-    /// <summary>
-    /// SCENARIO: Similar-clubs response must include existing rep contact info
-    /// EXPECTED: RepName and RepEmail present so the registrant can reach out
-    /// </summary>
-    [Fact(DisplayName = "Similar clubs response includes rep contact for self-service")]
-    public async Task SimilarClubs_IncludeRepContact()
+    [Fact(DisplayName = "Clean path: unrelated name creates a club")]
+    public async Task CleanPath_NoMatches_CreatesClub()
     {
-        var (svc, _) = CreateService(ExistingClub);
-        var request = MakeRequest("Charlotte Fury");
+        var f = CreateService([ExistingClub]);
 
-        var result = await svc.RegisterAsync(request);
+        var result = await f.Svc.RegisterAsync(MakeRequest("Totally Unique Club XYZ 999"));
 
-        result.SimilarClubs.Should().NotBeNull();
-        var match = result.SimilarClubs![0];
-        match.RepName.Should().Be("John Smith");
-        match.RepEmail.Should().Be("j.smith@email.com");
+        result.Success.Should().BeTrue();
+        f.VerifyNewClubCreated();
     }
 
-    /// <summary>
-    /// SCENARIO: Mid-similarity match (shared city, different mascot) without confirmation
-    /// EXPECTED: Rejected — warning-band matches still require ConfirmedNewClub
-    /// </summary>
-    [Fact(DisplayName = "Mid-similarity match without confirmation is rejected")]
-    public async Task MidSimilarity_WithoutConfirmation_Rejected()
+    [Fact(DisplayName = "Clean path: empty database creates a club")]
+    public async Task CleanPath_EmptyDb_CreatesClub()
     {
-        var (svc, _) = CreateService(SimilarClub);
-        var request = MakeRequest("Charlotte Hawks");
+        var f = CreateService([]);
 
-        var result = await svc.RegisterAsync(request);
+        var result = await f.Svc.RegisterAsync(MakeRequest("Brand New Club"));
 
-        if (result.SimilarClubs?.Any() == true)
-        {
-            result.Success.Should().BeFalse("similar match without confirmation should be rejected");
-        }
+        result.Success.Should().BeTrue();
+        f.VerifyNewClubCreated();
     }
 
-    /// <summary>
-    /// SCENARIO: Mid-similarity match WITH confirmation
-    /// EXPECTED: Gate passes — confirmation is what unlocks creation
-    /// </summary>
-    [Fact(DisplayName = "Mid-similarity match WITH confirmation passes the gate")]
-    public async Task MidSimilarity_WithConfirmation_PassesGate()
+    [Fact(DisplayName = "Terms of Service not accepted: refused")]
+    public async Task TosNotAccepted_Refused()
     {
-        var (svc, _) = CreateService(SimilarClub);
-        var request = MakeRequest("Charlotte Hawks", confirmedNewClub: true);
+        var f = CreateService([]);
 
-        var result = await svc.RegisterAsync(request);
+        var result = await f.Svc.RegisterAsync(MakeRequest("Brand New Club", acceptedTos: false));
 
-        var wasGateBlocked = !result.Success && result.SimilarClubs?.Any() == true;
-        wasGateBlocked.Should().BeFalse(
-            "confirmed new club should pass the gate (not return SimilarClubs)");
+        result.Success.Should().BeFalse();
+        f.VerifyNoClubCreated();
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  CLEAN PATH (below 65%)
+    //  SILENT CLAIM of an unclaimed empty club
     // ═══════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// SCENARIO: Registrant types a name with no close matches in the database
-    /// EXPECTED: No SimilarClubs returned, gate does not block
+    /// SCENARIO: An admin provisioned "Charlotte Fury" (no rep, no library) and the rep types exactly that name.
+    /// EXPECTED: The rep is attached to that club — no duplicate created, no question asked.
     /// </summary>
-    [Fact(DisplayName = "Clean path: unrelated name does not trigger any gate")]
-    public async Task CleanPath_NoMatches_NoGate()
+    [Fact(DisplayName = "Empty club with the exact typed name is claimed silently")]
+    public async Task EmptyShell_ExactName_ClaimedSilently()
     {
-        var (svc, _) = CreateService(ExistingClub);
-        var request = MakeRequest("Totally Unique Club XYZ 999");
+        var shell = EmptyShell(7, "Charlotte Fury");
+        var f = CreateService([shell], unclaimedEmptyClubIds: [7]);
 
-        var result = await svc.RegisterAsync(request);
+        var result = await f.Svc.RegisterAsync(MakeRequest("charlotte fury "));
 
-        // Should not be blocked by the gate (may fail later at UserManager -- that's OK)
-        var wasGateBlocked = !result.Success && result.SimilarClubs?.Any() == true;
-        wasGateBlocked.Should().BeFalse("unrelated name should not trigger any gate");
+        result.Success.Should().BeTrue();
+        result.ClubId.Should().Be(7);
+        f.VerifyNoClubCreated();
     }
 
     /// <summary>
-    /// SCENARIO: No existing clubs in the database at all
-    /// EXPECTED: Registration passes gate with no friction
+    /// SCENARIO: An empty club named "True" exists; the rep types "True Lacrosse" — normalize-equal
+    ///   ("lacrosse" is filler) but not the club's name.
+    /// EXPECTED: Not claimed — a new club is created. You must type a shell's real name to get it.
     /// </summary>
-    [Fact(DisplayName = "Clean path: empty database has no friction")]
-    public async Task CleanPath_EmptyDb_NoFriction()
+    [Fact(DisplayName = "Empty club that only NORMALIZES to the typed name is not claimed")]
+    public async Task EmptyShell_NormalizedOnly_NotClaimed()
     {
-        var (svc, _) = CreateService(); // no existing clubs
+        var shell = EmptyShell(8, "True");
+        var f = CreateService([shell], unclaimedEmptyClubIds: [8]);
 
-        var request = MakeRequest("Brand New Club");
-        var result = await svc.RegisterAsync(request);
+        var result = await f.Svc.RegisterAsync(MakeRequest("True Lacrosse"));
 
-        var wasGateBlocked = !result.Success && result.SimilarClubs?.Any() == true;
-        wasGateBlocked.Should().BeFalse("empty database should never trigger the gate");
+        result.Success.Should().BeTrue();
+        result.ClubId.Should().NotBe(8);
+        f.VerifyNewClubCreated();
+    }
+
+    /// <summary>
+    /// SCENARIO: The search still shows the club as empty, but by the write it has a rep or teams
+    ///   (IsUnclaimedEmptyAsync, the gate, says no).
+    /// EXPECTED: Not claimed — a new club is created.
+    /// </summary>
+    [Fact(DisplayName = "Empty-looking club that is no longer empty at the write is not claimed")]
+    public async Task EmptyShell_NoLongerEmpty_NotClaimed()
+    {
+        var shell = EmptyShell(9, "Charlotte Fury");
+        var f = CreateService([shell], unclaimedEmptyClubIds: []);
+
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury"));
+
+        result.Success.Should().BeTrue();
+        result.ClubId.Should().NotBe(9);
+        f.VerifyNewClubCreated();
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  SEARCH RESULTS QUALITY
+    //  SAME USER, SAME CLUB NAME — no second club
     // ═══════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// SCENARIO: Search for a club with a short query (less than 3 chars)
-    /// EXPECTED: Returns empty list -- no point searching on "Ch"
+    /// SCENARIO: An existing account that already reps "Charlotte Fury" signs up again with "Charlotte Fury LC".
+    /// EXPECTED: No second club — resolves to the club they already rep.
     /// </summary>
+    [Fact(DisplayName = "Existing user who already reps that club name gets no second club")]
+    public async Task ExistingUser_SameNameClub_NoSecondClub()
+    {
+        var user = new ApplicationUser { Id = "user-1", UserName = "jane" };
+        var own = new ClubWithUsageInfo { ClubId = 1, ClubName = "Charlotte Fury", IsInUse = true };
+        var f = CreateService([ExistingClub], existingUser: user, existingUsersClubs: [own]);
+        f.ClubRepRepo.Setup(r => r.ExistsAsync("user-1", 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury LC", username: "jane"));
+
+        result.Success.Should().BeTrue();
+        result.ClubId.Should().Be(1);
+        f.VerifyNoClubCreated();
+        f.ClubRepRepo.Verify(r => r.Add(It.IsAny<ClubReps>()), Times.Never);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  SEARCH RESULTS
+    // ═══════════════════════════════════════════════════════════════════
+
     [Fact(DisplayName = "Search: queries under 3 chars return empty results")]
     public async Task Search_ShortQuery_Empty()
     {
-        var (svc, _) = CreateService(ExistingClub);
+        var f = CreateService([ExistingClub]);
 
-        var results = await svc.SearchClubsAsync("Ch", null);
+        var results = await f.Svc.SearchClubsAsync("Ch", null);
 
         results.Should().BeEmpty("queries under 3 characters should not search");
     }
 
-    /// <summary>
-    /// SCENARIO: Search includes mega-club detection
-    /// EXPECTED: IsRelatedClub flag set on results that share a root organization
-    /// </summary>
     [Fact(DisplayName = "Search: mega-club branches flagged as IsRelatedClub")]
     public async Task Search_MegaClub_Flagged()
     {
@@ -331,15 +404,183 @@ public class ClubRegistrationGateTests
             ClubName = "3 Point Lacrosse - VA",
             State = "VA",
             TeamCount = 8,
-            RepName = "Rep VA",
-            RepEmail = "va@3point.com"
+            HasRep = true
         };
-        var (svc, _) = CreateService(vaClub);
+        var f = CreateService([vaClub]);
 
-        var results = await svc.SearchClubsAsync("3 Point Lacrosse - NC", null);
+        var results = await f.Svc.SearchClubsAsync("3 Point Lacrosse - NC", null);
 
         results.Should().NotBeEmpty();
         results[0].IsRelatedClub.Should().BeTrue(
             "same root org with different state suffix should be flagged as related");
+    }
+
+    [Fact(DisplayName = "Search: an exact-name club is flagged, a claimable one marked claimable")]
+    public async Task Search_FlagsExactAndClaimable()
+    {
+        var f = CreateService([ExistingClub, EmptyShell(7, "Charlotte Fury Gold")]);
+
+        var results = await f.Svc.SearchClubsAsync("Charlotte Fury", null);
+
+        results.Single(r => r.ClubId == 1).IsExactMatch.Should().BeTrue();
+        results.Single(r => r.ClubId == 1).IsClaimable.Should().BeFalse("it has a rep and teams");
+        results.Single(r => r.ClubId == 7).IsClaimable.Should().BeTrue();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  RENAME — teamless event registrations take the new name
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// SCENARIO: A rep with no teams yet renames their club while already registered in an event.
+    /// EXPECTED: the event registration's club name follows the rename; Assignment and the category
+    /// follow only where they carried the old name; a hand-edited value is left alone.
+    /// </summary>
+    [Fact(DisplayName = "Rename: a teamless event registration takes the new club name")]
+    public async Task Rename_RestampsTeamlessRegistrations()
+    {
+        // In use = teams in OTHER events: no longer a lock (Todd 2026-10-06); only this event's teams lock it.
+        var own = new ClubWithUsageInfo { ClubId = 1, ClubName = "Old Name", IsInUse = true };
+        var stamped = new Registrations
+        {
+            RegistrationId = Guid.NewGuid(),
+            ClubName = "Old Name", Assignment = "Old Name", RegistrationCategory = "Club Rep: Old Name"
+        };
+        var handEdited = new Registrations
+        {
+            RegistrationId = Guid.NewGuid(),
+            ClubName = "Old Name", Assignment = "Director note", RegistrationCategory = "Other"
+        };
+        var f = CreateService([], existingUsersClubs: [own], teamlessRegistrations: [stamped, handEdited]);
+        f.ClubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Clubs { ClubId = 1, ClubName = "Old Name" });
+
+        var result = await f.Svc.RenameClubAsync("user-1", stamped.RegistrationId,
+            new ClubRenameRequest { CurrentClubName = "Old Name", NewClubName = "New Name" });
+
+        result.Success.Should().BeTrue();
+        stamped.ClubName.Should().Be("New Name");
+        stamped.Assignment.Should().Be("New Name");
+        stamped.RegistrationCategory.Should().Be("Club Rep: New Name");
+        handEdited.ClubName.Should().Be("New Name");
+        handEdited.Assignment.Should().Be("Director note");
+        handEdited.RegistrationCategory.Should().Be("Other");
+        f.ClubRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// SCENARIO: The rep already has a team in the event they are registering in (their registration
+    /// there is not teamless) — or a director renamed the club for it, so it no longer carries the name.
+    /// EXPECTED: refused, nothing written; the director renames a club per event.
+    /// </summary>
+    [Fact(DisplayName = "Rename: refused once the rep has a team in this event")]
+    public async Task Rename_RefusedWithTeamsInThisEvent()
+    {
+        var own = new ClubWithUsageInfo { ClubId = 1, ClubName = "Old Name", IsInUse = true };
+        var otherEvent = new Registrations { RegistrationId = Guid.NewGuid(), ClubName = "Old Name" };
+        var f = CreateService([], existingUsersClubs: [own], teamlessRegistrations: [otherEvent]);
+
+        var result = await f.Svc.RenameClubAsync("user-1", Guid.NewGuid(),
+            new ClubRenameRequest { CurrentClubName = "Old Name", NewClubName = "New Name" });
+
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("event director");
+        otherEvent.ClubName.Should().Be("Old Name");
+        f.ClubRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// SCENARIO: A rename with no event in hand (no wizard registration on the token).
+    /// EXPECTED: refused — the rename is made from the event the rep is registering in.
+    /// </summary>
+    [Fact(DisplayName = "Rename: refused outside an event's registration")]
+    public async Task Rename_RefusedWithoutEvent()
+    {
+        var own = new ClubWithUsageInfo { ClubId = 1, ClubName = "Old Name", IsInUse = false };
+        var f = CreateService([], existingUsersClubs: [own], teamlessRegistrations: []);
+
+        var result = await f.Svc.RenameClubAsync("user-1", null,
+            new ClubRenameRequest { CurrentClubName = "Old Name", NewClubName = "New Name" });
+
+        result.Success.Should().BeFalse();
+        f.ClubRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  "THIS IS MY CLUB" — the picked club's teams are copied
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// SCENARIO: A rep taking over Charlotte Fury picks the existing Charlotte Fury as their club.
+    /// EXPECTED: their own club is created, and the picked club's active teams are copied into it.
+    /// </summary>
+    [Fact(DisplayName = "Picked club: its active teams are copied into the rep's new club")]
+    public async Task PickedClub_TeamsCopied()
+    {
+        var library = new[]
+        {
+            new ClubTeams { ClubTeamId = 10, ClubId = 1, ClubTeamName = "2030 Blue", ClubTeamGradYear = "2030", Active = true },
+            new ClubTeams { ClubTeamId = 11, ClubId = 1, ClubTeamName = "2029 Gold", ClubTeamGradYear = "2029", Active = true },
+            new ClubTeams { ClubTeamId = 12, ClubId = 1, ClubTeamName = "2027 Old", ClubTeamGradYear = "2027", Active = false },
+        };
+        var f = CreateService([ExistingClub], libraries: new() { [1] = library });
+
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury") with { SourceClubId = 1 });
+
+        result.Success.Should().BeTrue();
+        f.VerifyNewClubCreated();
+        f.ClubTeams.Verify(r => r.Add(It.Is<ClubTeams>(t => t.ClubId != 1 && t.ClubTeamId == 0 && t.Active)), Times.Exactly(2));
+        f.ClubTeams.Verify(r => r.Add(It.Is<ClubTeams>(t => t.ClubTeamName == "2027 Old")), Times.Never);
+        f.ClubTeams.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// SCENARIO: The rep typed "Charlotte Fury LC" and picked the existing Charlotte Fury.
+    /// EXPECTED: their club takes the PICKED club's exact name — the name is the identity after sign-up.
+    /// </summary>
+    [Fact(DisplayName = "Picked club: the new club takes the picked club's exact name, not the typed one")]
+    public async Task PickedClub_TakesItsExactName()
+    {
+        var library = new[] { new ClubTeams { ClubTeamId = 10, ClubId = 1, ClubTeamName = "2030 Blue", ClubTeamGradYear = "2030", Active = true } };
+        var f = CreateService([ExistingClub], libraries: new() { [1] = library });
+
+        var result = await f.Svc.RegisterAsync(MakeRequest("  charlotte fury LC ") with { SourceClubId = 1 });
+
+        result.Success.Should().BeTrue();
+        f.ClubRepo.Verify(r => r.Add(It.Is<Clubs>(c => c.ClubName == "Charlotte Fury")), Times.Once);
+    }
+
+    /// <summary>
+    /// SCENARIO: The rep answers "None of these — we're a new club".
+    /// EXPECTED: their own club, empty.
+    /// </summary>
+    [Fact(DisplayName = "None of these: no teams copied")]
+    public async Task NoneOfThese_NothingCopied()
+    {
+        var library = new[] { new ClubTeams { ClubTeamId = 10, ClubId = 1, ClubTeamName = "2030 Blue", ClubTeamGradYear = "2030", Active = true } };
+        var f = CreateService([ExistingClub], libraries: new() { [1] = library });
+
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury"));
+
+        result.Success.Should().BeTrue();
+        f.ClubTeams.Verify(r => r.Add(It.IsAny<ClubTeams>()), Times.Never);
+    }
+
+    /// <summary>
+    /// SCENARIO: The request names a club whose name is NOT the club name typed (a forged or stale id).
+    /// EXPECTED: refused before any account or club is created — an id never copies an unrelated library.
+    /// </summary>
+    [Fact(DisplayName = "Picked club of another name: refused, nothing created or copied")]
+    public async Task PickedClub_OtherName_Refused()
+    {
+        var library = new[] { new ClubTeams { ClubTeamId = 50, ClubId = 5, ClubTeamName = "Storm 2030", ClubTeamGradYear = "2030", Active = true } };
+        var storm = new ClubSearchCandidate { ClubId = 5, ClubName = "Raleigh Storm", State = "NC", TeamCount = 1, HasRep = true };
+        var f = CreateService([ExistingClub, storm], libraries: new() { [5] = library });
+
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury") with { SourceClubId = 5 });
+
+        result.Success.Should().BeFalse();
+        f.VerifyNoClubCreated();
+        f.ClubTeams.Verify(r => r.Add(It.IsAny<ClubTeams>()), Times.Never);
     }
 }

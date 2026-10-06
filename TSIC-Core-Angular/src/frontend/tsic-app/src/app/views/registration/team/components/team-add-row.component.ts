@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, OnChanges, SimpleChanges, afterNextRender, computed, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto, RegisterTeamResponse } from '@core/api';
+import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto, RegisterTeamResponse, SameNameEventTeamDto } from '@core/api';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 import { LOP_CHOICES, formatLop, normalizeLop } from '@shared/teams/lop-choices';
@@ -44,6 +44,32 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
     return longest.ageGroupId;
 }
 
+/** Trimmed, case- and inner-space-insensitive. */
+const teamKey = (s: string | null | undefined): string => (s ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+/** An age group's identity across its WAITLIST twin: WAITLIST - 2029 is 2029. */
+const ageGroupKey = (name: string | null | undefined): string => teamKey(ageGroupLabel({ ageGroupName: name ?? '' }));
+
+/** One other same-name rep and the teams they registered in one age group. */
+export interface RepAgeGroupTeams { repName: string; teams: string[]; }
+
+/**
+ * The other same-name reps who already registered teams in this age group here (Todd 2026-10-06),
+ * each rep once, with their teams. Compared by AGE GROUP, never by team name: the same team carries
+ * different names on different lists ("Top Tier National 2029" vs "2029"). A WAITLIST twin counts
+ * as its age group.
+ */
+export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[], ageGroupName: string | null | undefined): RepAgeGroupTeams[] {
+    const ag = ageGroupKey(ageGroupName);
+    if (!ag) return [];
+    const byRep = new Map<string, string[]>();
+    for (const e of eventTeams) {
+        if (ageGroupKey(e.ageGroupName) !== ag) continue;
+        const rep = e.repName.trim() || 'another rep';
+        byRep.set(rep, [...(byRep.get(rep) ?? []), e.teamName.trim()]);
+    }
+    return [...byRep].map(([repName, teams]) => ({ repName, teams }));
+}
+
 /**
  * The ONE way a team gets onto this event (Todd 2026-09-28): a compound input on top of Registered
  * Teams. The team name is a combobox over the club's library:
@@ -60,13 +86,18 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
  * library team, from the typed name when new, else must be chosen.
  * Enter adds; the row clears and the cursor is back in the name for the next team.
  *
+ * Same-name clubs (Todd 2026-10-06): the list also offers other same-name clubs' saved teams — a
+ * rep taking over from a predecessor registers the predecessor's teams by click. A pick fills name,
+ * grad year and level and goes the new-team way (saved to the rep's library, then registered). A
+ * team another same-name rep already registered here gets a loud warning, and Add asks first.
+ *
  * Owns its own writes, like the row editors; the step locks on `started` and reloads on `added` / `failed`.
  */
 @Component({
     selector: 'app-team-add-row',
     standalone: true,
     template: `
-    <section class="add" [attr.aria-labelledby]="inputId + '-title'" (keydown.escape)="closeList()">
+    <section class="add" [attr.aria-labelledby]="inputId + '-title'" (keydown.escape)="onEscape()">
       <!-- The zone says what it is for, loudly (Todd 2026-09-28): this is where a team comes in. -->
       <header class="zone-head">
         <span class="zone-icon zone-icon--add" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
@@ -165,8 +196,8 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
         </label>
 
         <button type="button" class="btn-add-team" [class.btn-add-team--wl]="waitlists()"
-                [disabled]="busy() || !canAdd()"
-                [attr.title]="missing() ?? null"
+                [disabled]="busy() || !canAdd() || dupGroups().length > 0"
+                [attr.title]="dupGroups().length > 0 ? 'Answer the question below' : missing() ?? null"
                 (click)="add()">
           @if (saving()) {
             <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>Adding…
@@ -177,11 +208,42 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
         </button>
         @if (dirty() && !busy()) {
           <!-- A started row holds Back / Proceed shut — this is the way out without adding. -->
-          <button type="button" class="btn-clear" (click)="clear()" title="Clear this row">
+          <!-- Held, like Add, while the duplicate question is up: it is answered one way or the other. -->
+          <button type="button" class="btn-clear" (click)="clear()" [disabled]="dupGroups().length > 0"
+                  [attr.title]="dupGroups().length > 0 ? 'Answer the question below' : 'Clear this row'">
             <i class="bi bi-x-lg" aria-hidden="true"></i><span class="visually-hidden">Clear</span>
           </button>
         }
       </div>
+
+      <!-- Another rep of this club already registered teams in this age group here (Todd 2026-10-06):
+           said loudly, with their teams, and the warning asks then and there, its answers with it
+           (Todd 2026-10-06) — the row's Add waits on the answer. A second entry is a second fee and a
+           headache for the tournament. Never a dead end: a genuinely different team still goes in. -->
+      @if (dupGroups().length > 0) {
+        <div class="dup-warn" role="alert">
+          <i class="bi bi-exclamation-triangle-fill dup-icon" aria-hidden="true"></i>
+          <div class="dup-body">
+            <!-- What another rep already did, one line each; then the question; then what it costs. -->
+            @for (g of dupGroups(); track g.repName) {
+              <p class="dup-text">
+                <b>{{ g.repName }}</b> has already registered the
+                @for (t of g.teams; track $index) {<b class="dup-em">{{ t }}</b>{{ $last ? '' : ($index === g.teams.length - 2 ? ' and ' : ', ') }}}
+                {{ g.teams.length === 1 ? 'team' : 'teams' }} in the <b class="dup-em">{{ dupAgeGroup() }}</b> age group.
+              </p>
+            }
+            <p class="dup-q">Do you really want to add the <b class="dup-em">{{ text().trim() }}</b> team?</p>
+            <p class="dup-text dup-fee">Adding it creates a separate entry and a separate fee.</p>
+            <div class="dup-confirm">
+              <div class="dup-actions">
+                <button type="button" class="btn-dont" [disabled]="busy()" (click)="clear()">Don't add</button>
+                <button type="button" class="btn-yes" [disabled]="busy() || !canAdd()"
+                        [attr.title]="missing() ?? null" (click)="add(true)">Yes, add it</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
 
       <!-- One line under the fields: what the press will do, or what's in the way. -->
       <p class="add-note" [class.add-note--err]="!!nameProblem() || !!errorMsg()" role="status">
@@ -238,8 +300,9 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
         font-size: var(--font-size-xs);
         cursor: pointer;
 
-        &:hover { color: var(--bs-danger); border-color: var(--bs-danger); }
+        &:hover:not(:disabled) { color: var(--bs-danger); border-color: var(--bs-danger); }
         &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+        &:disabled { opacity: 0.4; cursor: default; }
       }
 
       /* Team | Grad | LOP | Age group | Add — wraps to Team over the rest on a narrow screen. */
@@ -375,8 +438,48 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
         &--err { color: var(--bs-danger); .bi { color: var(--bs-danger); } }
       }
 
+      /* ── Same-name duplicate warning: amber, loud, never a dead end ── */
+      .dup-warn {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--bs-warning);
+        border-left: 4px solid var(--bs-warning);
+        border-radius: var(--radius-sm);
+        background: color-mix(in srgb, var(--bs-warning) 14%, var(--brand-surface));
+        color: var(--brand-text);
+      }
+      .dup-icon { flex-shrink: 0; margin-top: 2px; color: var(--bs-warning-text-emphasis); font-size: var(--font-size-base); }
+      .dup-body { flex: 1; min-width: 0; }
+      .dup-text, .dup-q { margin: 0; font-size: var(--font-size-sm); line-height: var(--line-height-normal); }
+      .dup-text + .dup-text, .dup-q, .dup-q + .dup-text { margin-top: var(--space-1); }
+      .dup-q { margin-top: var(--space-2); }
+      /* Team names and the age group: the facts the rep compares against their own team. */
+      .dup-em { font-weight: var(--font-weight-bold); color: var(--bs-warning-text-emphasis); }
+      .dup-fee { font-weight: var(--font-weight-bold); }
+      .dup-confirm { margin-top: var(--space-2); }
+      .dup-q { font-weight: var(--font-weight-semibold); }
+      .dup-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+      .btn-dont, .btn-yes {
+        height: 30px;
+        padding: 0 var(--space-3);
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+        &:disabled { opacity: 0.4; cursor: default; }
+      }
+      .btn-dont { border: 1px solid var(--bs-primary); background: var(--bs-primary); color: var(--neutral-0); }
+      .btn-dont:hover { filter: brightness(0.93); }
+      .btn-yes { border: 1px solid var(--bs-border-color); background: var(--brand-surface); color: var(--brand-text); }
+      .btn-yes:hover:not(:disabled) { border-color: var(--brand-text-muted); }
+
       @media (max-width: 575.98px) {
         .f--ag { flex-basis: 100%; }
+        .combo-opt { flex-wrap: wrap; }
         .btn-add-team { flex: 1 1 100%; height: 36px; }
       }
     `],
@@ -393,6 +496,8 @@ export class TeamAddRowComponent implements OnChanges {
     readonly ageGroups = input<readonly AgeGroupDto[]>([]);
     readonly clubName = input('');
     readonly eventName = input('this event');
+    /** Teams other same-name reps already registered here — the duplicate warning. */
+    readonly sameNameEventTeams = input<readonly SameNameEventTeamDto[]>([]);
     /** Another write on the step is in flight. */
     readonly actionInProgress = input(false);
 
@@ -451,7 +556,8 @@ export class TeamAddRowComponent implements OnChanges {
         return this.clubTeams().filter(t => !t.bArchived && !reg.has(t.clubTeamId)).sort(byGradYearThenName);
     });
 
-    /** The dropdown: every available team until the rep types, then the ones whose name or grad year contain it. */
+    /** The dropdown: every available team until the rep types, then the ones whose name or grad
+     *  year contain it; a picked team shows them all again. */
     readonly options = computed(() => {
         const q = norm(this.text());
         if (!q || this.base()) return this.available();
@@ -464,6 +570,8 @@ export class TeamAddRowComponent implements OnChanges {
      * this name (case/spacing-insensitive), so typing a library name IS picking it.
      */
     readonly base = computed<ClubTeamDto | null>(() => {
+        // An empty row started from nothing — even if a library row's name is blank (one exists in prod data).
+        if (!this.text().trim()) return null;
         const c = this.chosen();
         if (c && sameLibraryText(c.clubTeamName, this.text())) return c;
         const same = this.available().filter(t => sameLibraryText(t.clubTeamName, this.text()));
@@ -532,6 +640,16 @@ export class TeamAddRowComponent implements OnChanges {
         }
         return null;
     });
+
+    /** The picked age group as the rep reads it (a WAITLIST twin shows its parent's name). */
+    readonly dupAgeGroup = computed(() => {
+        const ag = this.ageGroups().find(a => a.ageGroupId === this.ageGroupId());
+        return ag ? ageGroupLabel(ag) : '';
+    });
+
+    /** Other same-name reps' teams in the picked age group — once the row has a name and an age group. */
+    readonly dupGroups = computed(() =>
+        this.text().trim() ? otherRepsInAgeGroup(this.sameNameEventTeams(), this.dupAgeGroup()) : []);
 
     /** What's still needed, in order — the disabled Add's tooltip. null = ready. */
     readonly missing = computed<string | null>(() => {
@@ -603,11 +721,12 @@ export class TeamAddRowComponent implements OnChanges {
         this.clearPicks();
         this.errorMsg.set(null);
         this.closeList();
-        // Everything filled → straight to Add, so Enter registers; otherwise the first blank.
+        // Everything filled → straight to Add, so Enter registers (to "Don't add" when the duplicate
+        // question is up — the safe answer); otherwise the first blank.
         afterNextRender(() => {
             const root = this.host.nativeElement;
             const target = this.canAdd()
-                ? root.querySelector<HTMLElement>('.btn-add-team')
+                ? root.querySelector<HTMLElement>(this.dupGroups().length > 0 ? '.btn-dont' : '.btn-add-team')
                 : root.querySelector<HTMLElement>('select.is-blank');
             target?.focus();
         }, { injector: this.injector });
@@ -618,9 +737,12 @@ export class TeamAddRowComponent implements OnChanges {
     }
 
     // ── Add ──
-    add(): void {
+    /** confirmed = the rep answered "Yes — it's a different team" to the duplicate question. */
+    add(confirmed = false): void {
         if (this.busy() || !this.canAdd()) return;
         this.closeList();
+        // A duplicate goes in only on "Yes, add it" — never on Enter or the row's Add.
+        if (this.dupGroups().length > 0 && !confirmed) return;
         this.errorMsg.set(null);
         this.saving.set(true);
         // The step locks everything (this row, the registered list) until its reload lands.
@@ -677,6 +799,11 @@ export class TeamAddRowComponent implements OnChanges {
                     this.failed.emit({ reload: createdNow });
                 },
             });
+    }
+
+    /** Escape closes the open list. */
+    onEscape(): void {
+        if (this.listOpen()) this.closeList();
     }
 
     /** Clear for the next team. The cursor goes back to the name once the step's reload lands. */

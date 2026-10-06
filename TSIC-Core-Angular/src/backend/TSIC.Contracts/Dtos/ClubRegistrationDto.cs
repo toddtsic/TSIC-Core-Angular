@@ -18,23 +18,18 @@ public record ClubRepRegistrationRequest
     public required string Cellphone { get; init; }
 
     /// <summary>
-    /// If set, the user chose an existing club instead of creating a new one.
-    /// Skips club creation; links user as rep of this club.
-    /// </summary>
-    public int? ExistingClubId { get; init; }
-
-    /// <summary>
-    /// Must be true when ExistingClubId is null and similar clubs were found.
-    /// Forces the caller to explicitly confirm "create new club" before we proceed.
-    /// </summary>
-    public bool ConfirmedNewClub { get; init; }
-
-    /// <summary>
     /// True when the registrant has checked the Terms of Service acceptance box.
     /// Required to be true at service time (mirrors adult registration pattern).
     /// On success the service stamps AspNetUsers.bTSICWaiverSigned + TSICWaiverSigned_TS.
     /// </summary>
     public required bool AcceptedTos { get; init; }
+
+    /// <summary>
+    /// The existing same-name club the rep picked as theirs ("This is my club"); its active library teams are
+    /// copied into the rep's club so the Teams step offers them. Null = "None of these — we're a new club",
+    /// or no same-name club exists. The server re-checks the club has the same club name.
+    /// </summary>
+    public int? SourceClubId { get; init; }
 }
 
 public class ClubRepRegistrationRequestValidator : AbstractValidator<ClubRepRegistrationRequest>
@@ -101,7 +96,6 @@ public record ClubRepRegistrationResponse
     public int? ClubId { get; init; }
     public string? UserId { get; init; }
     public string? Message { get; init; }
-    public List<ClubSearchResult>? SimilarClubs { get; init; }
 }
 
 public record ClubSearchResult
@@ -119,31 +113,26 @@ public record ClubSearchResult
     public bool IsRelatedClub { get; init; }
 
     /// <summary>
-    /// True when this club's normalized name is identical to the query's
-    /// (token sets match — covers exact text, case/whitespace differences,
-    /// filler-only suffixes like "LC", and word reordering). Drives the
-    /// hard block on duplicate creation; cannot be bypassed by ConfirmedNewClub.
+    /// True when this club has the same club name as the query (ClubNameMatcher.IsSameClubName:
+    /// token sets match — covers exact text, case/whitespace differences, filler-only suffixes
+    /// like "LC", and word reordering; a filler-only name matches nothing). Sign-up lists only
+    /// these. Informational: a same-name club never refuses sign-up.
     /// </summary>
     public bool IsExactMatch { get; init; }
 
     /// <summary>
     /// True when this club is an EMPTY SHELL — no reps linked and no library teams.
-    /// Normally that means an admin provisioned the name for a rep who is about to claim
-    /// it. Only such a club may be passed as
-    /// <see cref="ClubRepRegistrationRequest.ExistingClubId"/>; the server re-checks on the
-    /// write, so this flag is for presentation, never the gate.
+    /// Sign-up claims such a club silently when the typed name is exactly its name;
+    /// the server re-checks on the write, so this flag is never the gate.
     /// </summary>
     public bool IsClaimable { get; init; }
 
-    /// <summary>
-    /// Primary rep's full name (from Clubs.LebUserId → AspNetUsers).
-    /// Shown to registrant so they can contact the existing rep directly.
-    /// </summary>
-    public string? RepName { get; init; }
+    /// <summary>Same-name clubs only: the ACTIVE library teams — what sign-up copies if the rep picks this club.</summary>
+    public int? ActiveTeamCount { get; init; }
 
-    /// <summary>
-    /// Primary rep's email address.
-    /// Shown unmasked so registrant can reach out without director involvement.
-    /// </summary>
-    public string? RepEmail { get; init; }
+    /// <summary>Same-name clubs only: when the club last registered a team in any event; null = never.</summary>
+    public DateTime? LastRegistered { get; init; }
+
+    // No rep name or email: the club search is anonymous (sign-up runs before login), and a
+    // public type-ahead returning them handed out every club rep's contact details.
 }

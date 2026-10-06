@@ -10,6 +10,7 @@ using TSIC.Application.Services.Shared.Mapping;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.Identity;
+using TSIC.API.Services.Teams;
 
 namespace TSIC.API.Services.Clubs;
 
@@ -21,6 +22,8 @@ public sealed class ClubService : IClubService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IClubRepository _clubRepo;
     private readonly IClubRepRepository _clubRepRepo;
+    private readonly IRegistrationRepository _registrations;
+    private readonly IClubTeamRepository _clubTeams;
     private readonly IUserRepository _userRepo;
     private readonly IUserPrivilegeLevelService _privilegeService;
     private readonly IUserProfileService _userProfileService;
@@ -30,6 +33,8 @@ public sealed class ClubService : IClubService
         UserManager<ApplicationUser> userManager,
         IClubRepository clubRepo,
         IClubRepRepository clubRepRepo,
+        IRegistrationRepository registrations,
+        IClubTeamRepository clubTeams,
         IUserRepository userRepo,
         IUserPrivilegeLevelService privilegeService,
         IUserProfileService userProfileService,
@@ -38,6 +43,8 @@ public sealed class ClubService : IClubService
         _userManager = userManager;
         _clubRepo = clubRepo;
         _clubRepRepo = clubRepRepo;
+        _registrations = registrations;
+        _clubTeams = clubTeams;
         _userRepo = userRepo;
         _privilegeService = privilegeService;
         _userProfileService = userProfileService;
@@ -45,11 +52,16 @@ public sealed class ClubService : IClubService
     }
 
     /// <summary>
-    /// Register a new club rep account. Enforces a strict gate:
-    /// - If ExistingClubId is set → link user to that club (no new club created)
-    /// - If ConfirmedNewClub is true → create new club
-    /// - If neither is set → run fuzzy search; if matches found, return them
-    ///   with Success=false and DO NOT create anything. Caller must decide first.
+    /// Register a new club rep account. A club name never refuses the sign-up (Todd 2026-10-06):
+    /// a rep replacing their club's old rep must be able to register under the club's own name,
+    /// so a name another club already uses creates this rep's own club of that name. Two
+    /// exceptions resolve to an EXISTING club instead of a new one:
+    /// - the user already reps a club of that name → no second club (their own screens find
+    ///   "your club" by name, and two of one name would be indistinguishable to them);
+    /// - an unclaimed empty club carries exactly the typed name → claimed silently.
+    /// When the rep picked an existing same-name club as theirs (<see cref="ClubRepRegistrationRequest.SourceClubId"/>),
+    /// that club's active library teams are copied into the rep's club — the Teams step then offers them as
+    /// the rep's own. Nothing links the two clubs afterwards.
     /// </summary>
     public async Task<ClubRepRegistrationResponse> RegisterAsync(ClubRepRegistrationRequest request)
     {
@@ -98,133 +110,70 @@ public sealed class ClubService : IClubService
             }
         }
 
-        // ── Club name gate ─────────────────────────────────────────────
+        // ── The club the rep picked as theirs ───────────────────────────
         //
-        // Two layers:
-        //  1. HARD BLOCK on exact-normalized match (token sets identical):
-        //     catches the duplicate-creation / hijacking scenario. Cannot
-        //     be bypassed by ConfirmedNewClub. Covers exact text, case &
-        //     whitespace differences, filler-only suffixes ("Charlotte
-        //     Fury LC"), and word reordering ("Lions Aacme" vs "Aacme Lions").
-        //  2. SIMILARITY SURFACE for any 65%+ non-exact match: requires
-        //     ConfirmedNewClub. Allows regional chapters of national orgs
-        //     (e.g. "Aacme Lax NJ" vs "Aacme Lax MA") to register as siblings.
+        // Only a club with the same club name: the pick comes from sign-up's same-name list, and an id
+        // posted for any other club must not copy that club's library. A pick also fixes the name: the rep
+        // registers under the picked club's EXACT name (Todd 2026-10-06), whatever the request typed — the
+        // club name is the identity everywhere after sign-up (the duplicate warning, the director's trees),
+        // and the loose same-name match only helps the rep find their club.
+        var clubName = request.ClubName.Trim();
+        List<ClubTeams> sourceTeams = [];
+        if (request.SourceClubId is int sourceClubId)
+        {
+            var source = await _clubRepo.GetByIdAsync(sourceClubId);
+            if (source == null || !ClubNameMatcher.IsSameClubName(source.ClubName, request.ClubName))
+            {
+                return new ClubRepRegistrationResponse
+                {
+                    Success = false,
+                    ClubId = null,
+                    UserId = null,
+                    Message = "The club you picked doesn't have this club name. Pick your club again, or choose \"None of these\"."
+                };
+            }
+            clubName = source.ClubName.Trim();
+            sourceTeams = await _clubTeams.GetByClubIdAsync(sourceClubId);
+        }
+
+        // ── Which club ─────────────────────────────────────────────────
+        //
+        // A name collision never refuses (see the summary). The duplicate risk it reopens — two
+        // reps of one club registering the same teams — is surfaced where teams are entered (the
+        // team wizard's same-name notice) and on the director's CADT tree, not blocked here.
 
         int clubId = 0; // sentinel: create new
 
-        if (request.ExistingClubId.HasValue)
+        // The user already reps a club of this name: no second one. Normalized, so "Fury LC" and
+        // "Fury Lacrosse" are the same club to them, exactly as sign-up's search treats them.
+        if (existingUser != null)
         {
-            // ── Join an existing club ───────────────────────────────────────
-            //
-            // The gate below guards duplicate CREATION, so it does not apply on this
-            // branch — nothing new is created; the user is linked as a rep of a club
-            // that already exists. Documented on this method from the original design
-            // (see the summary above); this wires it up.
-            //
-            // SECURITY: restricted to an EMPTY SHELL club — no reps AND no library teams.
-            // This endpoint is anonymous, so an unrestricted id-link would let anyone create
-            // an account attached to an established club and inherit its team library and
-            // rosters (minors' PII). "No reps" alone is not enough: a club can shed its last
-            // rep via RemoveClubFromRepAsync, which only guards on registered Teams. Requiring
-            // an empty library means a wrongful claim inherits nothing. Claiming is first-come:
-            // once this rep is linked the door shuts, and every later rep must be added through
-            // the authenticated add-club path.
-            var chosenClub = await _clubRepo.GetByIdAsync(request.ExistingClubId.Value);
-
-            if (chosenClub == null)
+            var ownClubs = await _clubRepRepo.GetClubsForUserAsync(existingUser.Id);
+            var ownSameName = ownClubs.FirstOrDefault(c =>
+                ClubNameMatcher.IsSameClubName(c.ClubName, clubName));
+            if (ownSameName != null)
             {
-                return new ClubRepRegistrationResponse
-                {
-                    Success = false,
-                    ClubId = null,
-                    UserId = null,
-                    Message = "Selected club not found."
-                };
+                clubId = ownSameName.ClubId;
             }
-
-            if (!await _clubRepo.IsUnclaimedEmptyAsync(chosenClub.ClubId))
-            {
-                return new ClubRepRegistrationResponse
-                {
-                    Success = false,
-                    ClubId = null,
-                    UserId = null,
-                    Message = $"\"{chosenClub.ClubName}\" is already in use. "
-                            + "If this is your club, please contact its representative to be added."
-                };
-            }
-
-            // The submitted name must BE the club's name, not merely normalize to it. Filler
-            // words ("lacrosse", "lc", "club") collapse under normalization, so "True Lacrosse"
-            // normalizes identically to "True" — without this, a shell named "True" would be
-            // offered to everyone who types the longer name. Knowing the club's real name is
-            // the weak proof of intent that keeps a claim deliberate rather than incidental.
-            if (!string.Equals(
-                    (chosenClub.ClubName ?? string.Empty).Trim(),
-                    request.ClubName.Trim(),
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return new ClubRepRegistrationResponse
-                {
-                    Success = false,
-                    ClubId = null,
-                    UserId = null,
-                    Message = $"To claim this club, enter its name exactly as \"{chosenClub.ClubName}\"."
-                };
-            }
-
-            clubId = chosenClub.ClubId;
         }
-        else
+
+        // An unclaimed EMPTY club — no reps AND no library teams — carrying exactly the typed name
+        // is claimed instead of duplicated (Todd 2026-10-06: silently). Safe because a wrong
+        // claimant inherits nothing: no teams, no rosters, no history. The typed name must BE the
+        // club's name, not merely normalize to it: filler words ("lacrosse", "lc", "club") collapse
+        // under normalization, so "True Lacrosse" must never claim a shell named "True". The
+        // search's IsClaimable is display data; IsUnclaimedEmptyAsync is the gate.
+        if (clubId == 0)
         {
-            var similarClubs = await SearchClubsAsync(request.ClubName, null);
-            var exactMatch = similarClubs.FirstOrDefault(c => c.IsExactMatch);
-
-            if (exactMatch != null)
+            var typed = clubName;
+            var shell = (await SearchClubsAsync(typed, null)).FirstOrDefault(c =>
+                c.IsExactMatch
+                && c.IsClaimable
+                && string.Equals(c.ClubName.Trim(), typed, StringComparison.OrdinalIgnoreCase));
+            if (shell != null && await _clubRepo.IsUnclaimedEmptyAsync(shell.ClubId))
             {
-                // An UNCLAIMED exact match is the provisioned-club case: there is no rep to
-                // contact, and telling her to find one would be a dead end. Point her at the
-                // claim instead. Still a refusal — claiming is an explicit second action, never
-                // something the server does for her off a name collision.
-                // Same rule as the claim itself: only advertise a shell to someone who typed
-                // its actual name, or the whole normalize-equal population gets invited.
-                var claimable = similarClubs.FirstOrDefault(c =>
-                    c.IsExactMatch
-                    && c.IsClaimable
-                    && string.Equals(c.ClubName.Trim(), request.ClubName.Trim(),
-                        StringComparison.OrdinalIgnoreCase));
-
-                return new ClubRepRegistrationResponse
-                {
-                    Success = false,
-                    ClubId = null,
-                    UserId = null,
-                    Message = claimable != null
-                        ? $"\"{claimable.ClubName}\" is set up but has no representative and no teams yet. "
-                        + "If this is your club, select it below to become its rep."
-                        : $"A club named \"{exactMatch.ClubName}\" is already registered. "
-                        + "If this is your club, please contact the existing rep to be added. "
-                        + "If you're a different chapter, register with a name that distinguishes "
-                        + "your region (e.g. add a state suffix).",
-                    SimilarClubs = similarClubs
-                };
+                clubId = shell.ClubId;
             }
-
-            var nearMatches = similarClubs.Where(c => c.MatchScore >= 65).ToList();
-
-            if (nearMatches.Count > 0 && !request.ConfirmedNewClub)
-            {
-                return new ClubRepRegistrationResponse
-                {
-                    Success = false,
-                    ClubId = null,
-                    UserId = null,
-                    Message = "We found clubs with similar names. If none of these are yours, confirm below to create a new club.",
-                    SimilarClubs = nearMatches
-                };
-            }
-
-            // Either no matches or caller confirmed new club in warning band
         }
 
         // ── Create user + club/link inside transaction ──────────────────
@@ -272,7 +221,7 @@ public sealed class ClubService : IClubService
             // Create new club
             var club = new Domain.Entities.Clubs
             {
-                ClubName = request.ClubName,
+                ClubName = clubName,
                 LebUserId = user.Id,
                 Modified = DateTime.Now
             };
@@ -293,6 +242,18 @@ public sealed class ClubService : IClubService
             };
             _clubRepRepo.Add(clubRep);
             await _clubRepRepo.SaveChangesAsync();
+        }
+
+        // Copy the picked club's teams (Todd 2026-10-06). Never into the picked club itself — an existing
+        // rep re-registering resolves to their own club, which may be the one they picked.
+        if (sourceTeams.Count > 0 && request.SourceClubId != clubId)
+        {
+            var ownLibrary = await _clubTeams.GetByClubIdAsync(clubId);
+            foreach (var copy in SameNameClubLists.LibraryCopy(sourceTeams, ownLibrary, clubId, user.Id))
+            {
+                _clubTeams.Add(copy);
+            }
+            await _clubTeams.SaveChangesAsync();
         }
 
         scope.Complete();
@@ -418,7 +379,8 @@ public sealed class ClubService : IClubService
             {
                 var compositeScore = ClubNameMatcher.CalculateCompositeScore(query, c.ClubName);
                 var isRelated = ClubNameMatcher.AreRelatedClubs(query, c.ClubName);
-                var isExact = ClubNameMatcher.IsExactNormalizedMatch(query, c.ClubName);
+                // The same club name, normalized — the clubs sign-up asks "Is your club one of these?" about.
+                var isExact = ClubNameMatcher.IsSameClubName(query, c.ClubName);
 
                 return new ClubSearchResult
                 {
@@ -432,9 +394,7 @@ public sealed class ClubService : IClubService
                     // Mirrors IClubRepository.IsUnclaimedEmptyAsync — no reps AND an empty
                     // library. TeamCount is the ClubTeams count, so the two agree by
                     // construction. The server re-checks on the write; this is display only.
-                    IsClaimable = !c.HasRep && c.TeamCount == 0,
-                    RepName = c.RepName,
-                    RepEmail = c.RepEmail
+                    IsClaimable = !c.HasRep && c.TeamCount == 0
                 };
             })
             .Where(r => r.MatchScore >= 65 || r.IsRelatedClub)
@@ -442,7 +402,12 @@ public sealed class ClubService : IClubService
             .Take(10)
             .ToList();
 
-        return results;
+        var sameNameIds = results.Where(r => r.IsExactMatch).Select(r => r.ClubId).ToList();
+        if (sameNameIds.Count == 0) return results;
+
+        var libraries = await _clubTeams.GetByClubIdsAsync(sameNameIds);
+        var lastRegistered = await _clubTeams.GetLastRegisteredByClubIdsAsync(sameNameIds);
+        return SameNameClubLists.ForSignUp(results, libraries, lastRegistered);
     }
 
     // Self-profile read/write is role-neutral ApplicationUser mutation — owned by
@@ -484,11 +449,15 @@ public sealed class ClubService : IClubService
     }
 
     /// <summary>
-    /// Rename a club the caller reps (the library name — Clubs.ClubName). Locked once the club has
-    /// registered teams (IsInUse, found by id). Inside an event the club's name is the club rep
-    /// registration's club_name, which this never touches; a Director or Superuser renames that per event.
+    /// Rename a club the caller reps (the library name — Clubs.ClubName), from the event they are
+    /// registering in (<paramref name="currentRegistrationId"/>, the wizard token's regId). Allowed while
+    /// THAT registration holds none of their teams (Todd 2026-10-06) — teams in other events don't lock it:
+    /// each event's registration keeps the club_name it was registered under, so history stays put.
+    /// Re-stamps the rep's TEAMLESS registrations under the old name (this event among them); one with
+    /// teams is that event's record, which a Director or Superuser renames per event. A director's rename
+    /// needs a team in the event, and a team here locks this one — the two never meet.
     /// </summary>
-    public async Task<ClubRenameResponse> RenameClubAsync(string userId, ClubRenameRequest request)
+    public async Task<ClubRenameResponse> RenameClubAsync(string userId, Guid? currentRegistrationId, ClubRenameRequest request)
     {
         var current = (request.CurrentClubName ?? string.Empty).Trim();
         var next = (request.NewClubName ?? string.Empty).Trim();
@@ -514,26 +483,38 @@ public sealed class ClubService : IClubService
             return new ClubRenameResponse { Success = true, NewClubName = target.ClubName };
         }
 
-        // Guard: a club with registered teams is locked.
-        if (target.IsInUse)
+        // Gate: the event the rep is registering in holds none of their teams under this club's name.
+        // A director-renamed registration no longer carries the club's name, so it is never in the set.
+        var oldName = target.ClubName;
+        var teamless = await _registrations.GetTeamlessClubRepRegistrationsByClubNameAsync(userId, oldName);
+        if (currentRegistrationId is not Guid currentRegId)
         {
             return new ClubRenameResponse
             {
                 Success = false,
-                Message = "This club already has registered teams, so its name is locked."
+                Message = "Open your event's team registration to rename your club."
+            };
+        }
+        if (!teamless.Exists(r => r.RegistrationId == currentRegId))
+        {
+            return new ClubRenameResponse
+            {
+                Success = false,
+                Message = "Your club already has teams registered for this event. Ask the event director to rename your club for this event."
             };
         }
 
-        // Collision: don't rename into an existing club (exact-normalized match),
-        // mirroring the create flow's hard block.
-        var matches = await SearchClubsAsync(next, null);
-        var collision = matches.FirstOrDefault(m => m.IsExactMatch && m.ClubId != target.ClubId);
-        if (collision != null)
+        // Another club's name is allowed, as at sign-up (Todd 2026-10-06). The one collision refused
+        // is with ANOTHER of this rep's own clubs: their screens find "your club" by name, and two of
+        // one name would be indistinguishable to them. Normalized, matching sign-up's same-rep guard.
+        var ownCollision = myClubs.FirstOrDefault(c =>
+            c.ClubId != target.ClubId && ClubNameMatcher.IsSameClubName(c.ClubName, next));
+        if (ownCollision != null)
         {
             return new ClubRenameResponse
             {
                 Success = false,
-                Message = $"A club named \"{collision.ClubName}\" already exists."
+                Message = $"You already represent a club named \"{ownCollision.ClubName}\"."
             };
         }
 
@@ -543,9 +524,24 @@ public sealed class ClubService : IClubService
             return new ClubRenameResponse { Success = false, Message = "Club not found." };
         }
 
+        // The event the rep is standing in already has their registration, stamped with the old name
+        // when they entered it. Teamless registrations take the new name too (Todd 2026-10-06) —
+        // otherwise their first teams go in, and print on schedules, under the old one. One with any
+        // team keeps its name: that is the event's record, renamed per event by a director.
+        foreach (var reg in teamless)
+        {
+            reg.ClubName = next;
+            if (string.Equals(reg.Assignment, oldName, StringComparison.Ordinal)) reg.Assignment = next;
+            if (string.Equals(reg.RegistrationCategory, $"Club Rep: {oldName}", StringComparison.Ordinal))
+                reg.RegistrationCategory = $"Club Rep: {next}";
+            reg.LebUserId = userId;
+            reg.Modified = DateTime.Now;
+        }
+
         club.ClubName = next;
         club.LebUserId = userId;
         club.Modified = DateTime.Now;
+        // One save: the club and its registrations share the request's DbContext.
         await _clubRepo.SaveChangesAsync();
         InvalidateSearchCache();
 

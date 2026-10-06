@@ -1447,25 +1447,28 @@ public class JobRepository : IJobRepository
     }
 
     /// <summary>
-    /// How long a finished event stays in the TSIC-Events list after its last game (Todd, 2026-10-04).
+    /// How long a finished event stays in the TSIC-Events list after its EventEndDate (Todd, 2026-10-06).
     /// </summary>
     private const int PastEventListingMonths = 9;
 
     public async Task<List<EventListingDto>> GetActivePublicEventsAsync(CancellationToken ct = default)
     {
         // DELIBERATE EXCEPTION to the canonical list door (JobExpiry.NotExpiredForUsers): the
-        // TSIC-Events list also keeps an EXPIRED event whose last game was within the past
+        // TSIC-Events list also keeps an EXPIRED event whose EventEndDate was within the past
         // PastEventListingMonths, so families can still look up a finished event's results. Anchored
-        // on the last game, not ExpiryUsers — directors set expiry generously so balances stay
+        // on EventEndDate, not ExpiryUsers — directors set expiry generously so balances stay
         // payable, and "9 months after expiry" would run well past when the event was played.
+        // EventEndDate, not the last scheduled game (Todd, 2026-10-06): the filter stays on Jobs
+        // alone — a Schedule.Any() here scanned Leagues.schedule once per job (~2s per call). An
+        // expired job with a NULL EventEndDate drops off the list.
         // Opting out stays where it was: "TSIC-Events Enabled" (BSuspendPublic) hides the event from
         // the app at any age; turning off public schedule access hides it here and on the web.
         // The schedule/standings endpoints never checked expiry, so a listed past event loads fully;
         // public rosters stay closed (EventConcluded, IsPublicRostersRestrictedAsync).
-        var lastGameCutoff = DateTime.Now.AddMonths(-PastEventListingMonths);
+        var eventEndCutoff = DateTime.Now.AddMonths(-PastEventListingMonths);
         return await _context.Jobs.AsNoTracking()
             .Where(j => DateTime.Now < j.ExpiryUsers
-                || j.Schedule.Any(s => s.GDate != null && s.GDate >= lastGameCutoff))
+                || (j.EventEndDate != null && j.EventEndDate >= eventEndCutoff))
             .Where(j => !j.BSuspendPublic && j.BScheduleAllowPublicAccess == true)
             .Select(j => new EventListingDto
             {

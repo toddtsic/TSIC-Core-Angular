@@ -47,6 +47,22 @@ public class ClubTeamRepository : IClubTeamRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<Dictionary<int, DateTime>> GetLastRegisteredByClubIdsAsync(
+        IEnumerable<int> clubIds,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = clubIds.Distinct().ToList();
+        if (idList.Count == 0) return new Dictionary<int, DateTime>();
+
+        return await (from t in _context.Teams
+                      join ct in _context.ClubTeams on t.ClubTeamId equals ct.ClubTeamId
+                      where idList.Contains(ct.ClubId)
+                      group t by ct.ClubId into g
+                      select new { ClubId = g.Key, Last = g.Max(t => t.Createdate) })
+            .AsNoTracking()
+            .ToDictionaryAsync(x => x.ClubId, x => x.Last, cancellationToken);
+    }
+
     public async Task<HashSet<int>> GetClubTeamIdsInJobAsync(
         Guid jobId,
         IEnumerable<int> clubTeamIds,

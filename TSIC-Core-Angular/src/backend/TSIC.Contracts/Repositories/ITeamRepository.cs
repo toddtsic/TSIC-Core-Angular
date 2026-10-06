@@ -67,14 +67,14 @@ public record AvailableTeamQueryResult
 public interface ITeamRepository
 {
     /// <summary>
-    /// Get teams by club and job, excluding specific registration.
-    /// Used for checking conflicts when multiple club reps try to register teams.
-    /// Joins to Registrations → ClubReps to verify club association.
+    /// Every on-the-books team (active, not DROPPED; waitlisted included — it is still an entry and a
+    /// fee) in the job that belongs to an active club rep registration OTHER than
+    /// <paramref name="excludeRegistrationId"/>, with that registration's club_name and rep. The caller
+    /// filters by club name in memory (normalized matching). AsNoTracking.
     /// </summary>
-    Task<List<TeamWithRegistrationInfo>> GetTeamsByClubExcludingRegistrationAsync(
+    Task<List<OtherClubRepTeamInfo>> GetOtherClubRepTeamsInJobAsync(
         Guid jobId,
-        int clubId,
-        Guid? excludeRegistrationId = null,
+        Guid excludeRegistrationId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -655,12 +655,17 @@ public interface ITeamRepository
         CancellationToken ct = default);
 }
 
-public record TeamWithRegistrationInfo
+/// <summary>See <see cref="ITeamRepository.GetOtherClubRepTeamsInJobAsync"/>.</summary>
+public record OtherClubRepTeamInfo
 {
-    public required Guid TeamId { get; init; }
+    /// The owning club rep registration's club_name (the event's club identity).
+    public required string ClubName { get; init; }
     public required string TeamName { get; init; }
-    public string? Username { get; init; }
-    public Guid? ClubrepRegistrationid { get; init; }
+    /// The library team's grad year when the team is library-linked; null otherwise.
+    public string? GradYear { get; init; }
+    public required string AgegroupName { get; init; }
+    public string? RepFirstName { get; init; }
+    public string? RepLastName { get; init; }
 }
 
 /// <summary>

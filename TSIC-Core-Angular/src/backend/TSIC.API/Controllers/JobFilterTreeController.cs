@@ -5,6 +5,7 @@ using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -69,8 +70,31 @@ public class JobFilterTreeController : ControllerBase
         var tree = await _repo.GetForJobAsync(jobId.Value, ct);
         if (!await HttpContext.CanViewScheduleAsync(jobId.Value, _jobLookupService, _viewScheduleService, ct))
             tree = WithoutScheduleFlags(tree);
+        if (!await CallerAdministersJobAsync(jobId.Value))
+            tree = WithoutRepCounts(tree);
         return Ok(tree);
     }
+
+    /// <summary>
+    /// A Director, SuperDirector or Superuser whose session is in THIS job — the same "admin of the page's
+    /// event" test view-schedule applies. Anyone else (public, parents, coaches, an admin of another event)
+    /// is not shown how many club reps sit behind a club name.
+    /// </summary>
+    private async Task<bool> CallerAdministersJobAsync(Guid jobId)
+    {
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        if (role is not (RoleConstants.Names.SuperuserName or RoleConstants.Names.DirectorName
+            or RoleConstants.Names.SuperDirectorName))
+            return false;
+        if (!User.GetRegistrationId().HasValue) return false;
+        return await User.GetJobIdFromRegistrationAsync(_jobLookupService) == jobId;
+    }
+
+    /// <summary>The same tree with every club's RepCount cleared — the duplicate-rep warning is admin-only.</summary>
+    internal static JobFilterTreeDto WithoutRepCounts(JobFilterTreeDto tree) => tree with
+    {
+        Cadt = [.. tree.Cadt.Select(club => club with { RepCount = 0 })]
+    };
 
     /// <summary>The same tree with every team's IsScheduled cleared — reveals nothing about the schedule.</summary>
     internal static JobFilterTreeDto WithoutScheduleFlags(JobFilterTreeDto tree) => tree with

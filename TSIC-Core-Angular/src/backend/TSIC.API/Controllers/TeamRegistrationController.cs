@@ -190,48 +190,6 @@ public class TeamRegistrationController : ControllerBase
         });
     }
 
-    /// <summary>
-    /// Check if another club rep has already registered teams for this event+club.
-    /// Returns conflict info to warn user before they attempt registration.
-    /// </summary>
-    [HttpGet("check-existing")]
-    [ProducesResponseType(typeof(CheckExistingRegistrationsResponse), 200)]
-    [ProducesResponseType(400)]
-    [ProducesResponseType(401)]
-    public async Task<IActionResult> CheckExistingRegistrations([FromQuery] string jobPath, [FromQuery] string clubName)
-    {
-        if (string.IsNullOrWhiteSpace(jobPath))
-        {
-            return BadRequest(new { Message = "jobPath is required" });
-        }
-
-        if (string.IsNullOrWhiteSpace(clubName))
-        {
-            return BadRequest(new { Message = "clubName is required" });
-        }
-
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
-        }
-
-        try
-        {
-            var response = await _teamRegistrationService.CheckExistingRegistrationsAsync(jobPath, clubName, userId);
-            return Ok(response);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning(ex, "Failed to check existing registrations for user {UserId}, job {JobPath}, club {ClubName}", userId, jobPath, clubName);
-            return BadRequest(new { Message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error checking existing registrations for user {UserId}, job {JobPath}, club {ClubName}", userId, jobPath, clubName);
-            return StatusCode(500, new { Message = "An error occurred while checking existing registrations" });
-        }
-    }
 
     /// <summary>
     /// Get teams metadata for the current club and event.
@@ -352,7 +310,7 @@ public class TeamRegistrationController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            // Business rule (e.g. one club rep per event). Same structured shape the UI already reads.
+            // Business rule (e.g. event closed). Same structured shape the UI already reads.
             _logger.LogWarning(ex, "Register-team blocked by business rule for user {UserId}, regId {RegId}", userId, regId);
             return BadRequest(new RegisterTeamResponse { TeamId = Guid.Empty, Success = false, Message = ex.Message });
         }

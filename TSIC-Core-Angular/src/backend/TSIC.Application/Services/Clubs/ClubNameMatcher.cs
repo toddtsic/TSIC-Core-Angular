@@ -234,14 +234,27 @@ public static partial class ClubNameMatcher
     /// True when two names normalize to the same token set (Jaccard == 100).
     /// Catches exact text, case/whitespace differences, filler-only suffixes
     /// (e.g. "Charlotte Fury" vs "Charlotte Fury LC"), and word reordering
-    /// (e.g. "Aacme Lions" vs "Lions Aacme"). Used as the duplicate-creation
-    /// hard block — cannot be bypassed by self-registration confirmation flags.
+    /// (e.g. "Aacme Lions" vs "Lions Aacme"). Drives sign-up's "already on TSIC"
+    /// panel; informational, never a refusal.
     /// </summary>
     public static bool IsExactNormalizedMatch(string name1, string name2)
     {
         var n1 = NormalizeClubName(name1);
         var n2 = NormalizeClubName(name2);
         return CalculateTokenSimilarity(n1, n2) == 100;
+    }
+
+    /// <summary>
+    /// "These two names are the same club" — <see cref="IsExactNormalizedMatch"/>, except a name that
+    /// is ALL filler ("Lacrosse Club") normalizes to nothing and matches nothing. Without that guard
+    /// every filler-only name would be the same club as every other. Used where a match links one
+    /// club's data to another's: a rep's own clubs, the team wizard's same-name lists.
+    /// </summary>
+    public static bool IsSameClubName(string? name1, string? name2)
+    {
+        var n1 = NormalizeClubName(name1 ?? string.Empty);
+        var n2 = NormalizeClubName(name2 ?? string.Empty);
+        return n1.Length > 0 && n2.Length > 0 && CalculateTokenSimilarity(n1, n2) == 100;
     }
 
     /// <summary>

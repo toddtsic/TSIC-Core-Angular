@@ -168,6 +168,12 @@ public record CadtClubNode
     public required string ClubName { get; init; }
     public int TeamCount { get; init; }
     public int PlayerCount { get; init; }
+    /// <summary>
+    /// How many different club rep registrations have teams under this club name. Clubs group by
+    /// name, and sign-up allows same-name clubs (Todd 2026-10-06), so 2+ is the director's early
+    /// warning of a possible double registration. Admin-only: zeroed for every other caller.
+    /// </summary>
+    public int RepCount { get; init; }
     public required List<CadtAgegroupNode> Agegroups { get; init; }
 }
 

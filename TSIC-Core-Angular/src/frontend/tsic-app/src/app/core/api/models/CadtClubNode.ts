@@ -7,6 +7,7 @@ export type CadtClubNode = {
     clubName: string;
     teamCount?: number;
     playerCount?: number;
+    repCount?: number;
     agegroups: Array<CadtAgegroupNode>;
 };
 

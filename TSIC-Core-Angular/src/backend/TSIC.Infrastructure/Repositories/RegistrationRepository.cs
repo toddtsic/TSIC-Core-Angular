@@ -1389,18 +1389,17 @@ public partial class RegistrationRepository : IRegistrationRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<bool> IsClubRepClubNameInUseInJobAsync(Guid jobId, Guid excludeRegistrationId, string clubName, CancellationToken cancellationToken = default)
+    public async Task<List<Registrations>> GetTeamlessClubRepRegistrationsByClubNameAsync(string userId, string clubName, CancellationToken cancellationToken = default)
     {
-        var name = clubName.Trim().ToLower();
+        var name = clubName.Trim();
+        // Tracked: the caller re-stamps the club name. No team of any kind (dropped included) on the
+        // registration — a schedule, roster or invoice may already print a registration that has one.
         return await _context.Registrations
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId
+            .Where(r => r.UserId == userId
                 && r.RoleId == Domain.Constants.RoleConstants.ClubRep
-                && r.RegistrationId != excludeRegistrationId
-                && r.ClubName != null
-                && r.ClubName.Trim().ToLower() == name
-                && _context.Teams.Any(t => t.ClubrepRegistrationid == r.RegistrationId && t.Active == true))
-            .AnyAsync(cancellationToken);
+                && r.ClubName != null && r.ClubName.Trim() == name
+                && !_context.Teams.Any(t => t.ClubrepRegistrationid == r.RegistrationId))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<RegistrationBasicInfo?> GetRegistrationBasicInfoAsync(Guid registrationId, string userId, CancellationToken cancellationToken = default)
@@ -1676,7 +1675,8 @@ public partial class RegistrationRepository : IRegistrationRepository
                 AgegroupColor = ag.Color,
                 DivId = div != null ? (Guid?)div.DivId : null,
                 DivName = div != null ? div.DivName : null,
-                ClubName = reg != null ? reg.ClubName : null
+                ClubName = reg != null ? reg.ClubName : null,
+                t.ClubrepRegistrationid
             }
         ).ToListAsync(ct);
 
@@ -1704,6 +1704,7 @@ public partial class RegistrationRepository : IRegistrationRepository
                 t.DivId,
                 t.DivName,
                 ClubName = t.ClubName ?? "Unaffiliated",
+                t.ClubrepRegistrationid,
                 PlayerCount = playerCounts.GetValueOrDefault(t.TeamId, 0)
             })
             .GroupBy(t => t.ClubName)
@@ -1713,6 +1714,8 @@ public partial class RegistrationRepository : IRegistrationRepository
                 ClubName = clubGroup.Key,
                 TeamCount = clubGroup.Count(),
                 PlayerCount = clubGroup.Sum(t => t.PlayerCount),
+                RepCount = clubGroup.Where(t => t.ClubrepRegistrationid != null)
+                    .Select(t => t.ClubrepRegistrationid).Distinct().Count(),
                 Agegroups = clubGroup
                     .GroupBy(t => new { t.AgegroupId, t.AgegroupName, t.AgegroupColor })
                     .OrderBy(a => a.Key.AgegroupName)

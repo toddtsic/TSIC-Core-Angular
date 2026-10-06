@@ -315,4 +315,39 @@ public class ClubRepLocalRenameTests
         Reg(w, w.Rep.RegistrationId).ClubName.Should().Be("Old Club Lacrosse");
         Row(w, GameRepVsOther).T1Name.Should().Be("Old Club Lacrosse:2030 Blue");
     }
+
+    /// <summary>
+    /// Club names are not unique (Todd 2026-10-06: sign-up allows a same-name club). Another rep's
+    /// "Fury Lacrosse" sits first; the rep's own "Fury Lacrosse" must still be found, not refused as
+    /// "a different club" because a by-name lookup landed on the other one.
+    /// </summary>
+    [Fact(DisplayName = "Naming the rep after their own club is allowed when another club shares that name")]
+    public async Task Rename_ToOwnClubName_WhenAnotherClubSharesIt_Allowed()
+    {
+        var w = await Seed();
+        w.Ctx.Clubs.AddRange(
+            new Clubs { ClubId = 902, ClubName = "Fury Lacrosse" },
+            new Clubs { ClubId = 903, ClubName = "Fury Lacrosse" });
+        w.Ctx.ClubReps.Add(new ClubReps { Aid = 2, ClubId = 903, ClubRepUserId = w.RepUser.Id });
+        await w.Ctx.SaveChangesAsync();
+
+        await w.Svc.RenameAsync(w.JobId, "dir-1", Director, w.Rep.RegistrationId, "Fury Lacrosse");
+
+        Reg(w, w.Rep.RegistrationId).ClubName.Should().Be("Fury Lacrosse");
+    }
+
+    /// <summary>
+    /// Two reps of one club name in an event is an expected case now (the director's CADT tree flags
+    /// it), so the rename no longer refuses a name another rep in this event already carries.
+    /// </summary>
+    [Fact(DisplayName = "A name another rep in this event already uses is allowed")]
+    public async Task Rename_ToNameAnotherRepInEventUses_Allowed()
+    {
+        var w = await Seed();
+
+        await w.Svc.RenameAsync(w.JobId, "dir-1", Director, w.Rep.RegistrationId, "Other Club");
+
+        Reg(w, w.Rep.RegistrationId).ClubName.Should().Be("Other Club");
+        Reg(w, w.OtherRep.RegistrationId).ClubName.Should().Be("Other Club");
+    }
 }

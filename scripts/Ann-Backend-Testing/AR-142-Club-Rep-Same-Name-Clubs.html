@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AR-142: Several club reps for one club</title>
+<style>
+  body { font: 11pt/1.45 Segoe UI, Arial, sans-serif; color: #111; max-width: 8.5in; margin: 0 auto; padding: 0.5in; background: #fff; }
+  h1 { font-size: 20pt; margin: 0 0 6pt; }
+  h2 { font-size: 15pt; margin: 22pt 0 6pt; padding-top: 10pt; border-top: 2px solid #111; }
+  h3 { font-size: 12.5pt; margin: 16pt 0 4pt; }
+  p, li { margin: 3pt 0; }
+  ul, ol { padding-left: 18pt; }
+  table { border-collapse: collapse; margin: 6pt 0; font-size: 10pt; width: 100%; }
+  th, td { border: 1px solid #999; padding: 3pt 7pt; text-align: left; vertical-align: top; }
+  th { background: #eee; }
+  .meta { color: #444; margin: 0 0 10pt; }
+  .goal { font-size: 13pt; font-weight: 600; margin: 4pt 0 10pt; }
+  li.check { list-style: none; margin-left: -18pt; }
+  li.check input { width: 13pt; height: 13pt; vertical-align: -2pt; margin: 0 6pt 0 0; }
+  .see { color: #1a5d1a; }
+  .see::before { content: "\2192\00a0"; }
+  .figref { font-size: 9.5pt; color: #555; }
+
+  /* ── Illustrations: drawn in HTML to look like the screens, not screenshots ── */
+  figure { margin: 10pt 0 14pt; border: 1px solid #cfd6de; border-radius: 8px; background: #f6f8fa; padding: 12pt; page-break-inside: avoid; }
+  figcaption { font-size: 9.5pt; color: #555; margin-top: 8pt; }
+  figcaption b { color: #222; }
+  .ui { font: 10pt/1.4 Segoe UI, Arial, sans-serif; color: #1f2937; background: #fff; border: 1px solid #dde3ea; border-radius: 8px; padding: 10pt; }
+  .ui + .ui { margin-top: 8pt; }
+  .lbl { display: block; font-size: 8.5pt; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3pt; }
+  .inp { border: 1px solid #c8d0da; border-radius: 6px; padding: 5pt 8pt; background: #fff; }
+  .inp.hero { font-size: 12pt; font-weight: 600; }
+  .inp.locked { background: #e8f2fd; border-color: #8cbcef; }
+  .hint { font-size: 8.5pt; color: #4b5563; margin-top: 3pt; }
+  .callout { display: flex; gap: 7pt; background: #eaf4fe; border: 1px solid #b6d7f7; border-radius: 6px; padding: 7pt 9pt; margin-top: 8pt; }
+  .callout .q { font-weight: 700; display: block; }
+  .radio-row { display: flex; align-items: center; gap: 7pt; border: 1px solid #dde3ea; border-radius: 6px; padding: 6pt 8pt; margin-top: 4pt; background: #fff; }
+  .radio-row.chosen { background: #e8f2fd; border-color: #8cbcef; }
+  .dot { width: 11pt; height: 11pt; border-radius: 50%; border: 1.5px solid #6b7280; flex: none; }
+  .chosen .dot { border: 4px solid #0d6efd; }
+  .muted { color: #6b7280; }
+  .btn { display: inline-block; border-radius: 6px; padding: 4pt 10pt; font-weight: 600; font-size: 9.5pt; border: 1px solid #0d6efd; color: #0d6efd; background: #fff; }
+  .btn.solid { background: #0d6efd; color: #fff; }
+  .btn.off { opacity: .45; }
+  .btn.dont { border-color: #6b7280; color: #374151; }
+  .btn.yes { border-color: #b45309; color: #fff; background: #b45309; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8pt; }
+  .bar .name { font-weight: 700; font-size: 11pt; }
+  .lock { color: #6b7280; font-size: 9pt; }
+  .addrow { display: flex; gap: 6pt; align-items: center; flex-wrap: wrap; }
+  .addrow .inp { flex: 1 1 120pt; }
+  .warn { display: flex; gap: 8pt; background: #fff7e6; border: 1px solid #f0b54a; border-left: 4px solid #d97706; border-radius: 6px; padding: 8pt 10pt; margin-top: 8pt; }
+  .warn .ico { color: #d97706; font-size: 13pt; line-height: 1; }
+  .warn p { margin: 0 0 4pt; }
+  .warn .em { color: #92400e; }
+  .grp { display: flex; flex-wrap: wrap; gap: 6pt; align-items: baseline; padding: 4pt 8pt; font-weight: 700; margin-top: 6pt; }
+  .grp.own { background: #e9f7ef; color: #146c43; box-shadow: inset 4px 0 0 #198754; }
+  .grp.other { background: #f1f3f5; color: #495057; box-shadow: inset 4px 0 0 #adb5bd; }
+  .grp .note { font-weight: 400; font-size: 9pt; }
+  .row { display: flex; gap: 8pt; align-items: center; padding: 4pt 8pt; border-bottom: 1px solid #eef1f4; }
+  .row.own { background: #f4fbf7; box-shadow: inset 4px 0 0 #198754; }
+  .row.other { background: #f8f9fa; box-shadow: inset 4px 0 0 #adb5bd; color: #6b7280; }
+  .ag { display: inline-block; min-width: 26pt; text-align: center; border-radius: 4px; padding: 0 4pt; font-size: 8.5pt; font-weight: 700; color: #fff; background: #6f42c1; }
+  .row.other .ag { background: #adb5bd; }
+  .row .acts { margin-left: auto; color: #6b7280; }
+  .tree { max-width: 300pt; }
+  .tree .hdr, .tree .node { display: flex; align-items: center; gap: 6pt; padding: 4pt 6pt; }
+  .tree .hdr { font-size: 8.5pt; color: #6b7280; justify-content: flex-end; gap: 14pt; }
+  .tree .node { border-top: 1px solid #eef1f4; }
+  .box { width: 10pt; height: 10pt; border: 1.5px solid #6b7280; border-radius: 2px; flex: none; }
+  .reps { margin-left: auto; font-size: 8.5pt; font-weight: 600; color: #92400e; background: #fff3cd; border: 1px solid #f0b54a; border-radius: 999px; padding: 0 6pt; }
+  .cnt { min-width: 18pt; text-align: center; font-size: 8.5pt; font-weight: 700; background: #e9ecef; border-radius: 999px; padding: 0 5pt; }
+  .reps + .cnt, .node .cnt:first-of-type { margin-left: 0; }
+  .node .spacer { margin-left: auto; }
+  .panel .k { font-size: 8.5pt; font-weight: 700; color: #6b7280; text-transform: uppercase; }
+  .tip { display: inline-block; font-size: 8.5pt; background: #212529; color: #fff; border-radius: 4px; padding: 2pt 6pt; margin-top: 4pt; }
+
+  @media (max-width: 600px) { body { padding: 16px; } }
+  @media print {
+    body { padding: 0; max-width: none; }
+    h2 { page-break-after: avoid; }
+    li, tr, figure { page-break-inside: avoid; }
+  }
+</style></head><body>
+
+<h1>AR-142: Several club reps for one club</h1>
+<p class="meta"><strong>Current Design as of 10/06/2026</strong> &middot; For Ann, and anyone testing club rep registration.</p>
+
+<h2>Goal</h2>
+<p class="goal">To support multiple club reps with the same club name.</p>
+
+<h3>Scenarios it covers</h3>
+<table>
+<tr><th>Scenario</th><th>What happens</th></tr>
+<tr><td><strong>A new person takes over a club.</strong> The old rep left, and the new one has never used TSIC.</td><td>They sign up with the club's name, answer <strong>"Is this your club?"</strong>, and start with the club's saved teams. Nobody has to hand anything over.</td></tr>
+<tr><td><strong>Two people register for one club in the same event</strong>, e.g. one handles the boys' teams and one the girls'.</td><td>Both register. Each has their own teams and their own bill, and each sees the other's teams, read-only.</td></tr>
+<tr><td><strong>The second person goes to add a team the first may already have entered.</strong></td><td>They're warned and asked first: <strong>Don't add</strong> or <strong>Yes, add it</strong>.</td></tr>
+<tr><td><strong>Two unrelated clubs happen to share a name.</strong></td><td>The newcomer picks <strong>None of these</strong>, which gives them their own new club.</td></tr>
+<tr><td><strong>The director needs to spot possible double entries.</strong></td><td>The club shows <strong>"&#9888; N reps"</strong> in the <strong>C-A-D-T tree filter</strong> (Club &rarr; Agegroup &rarr; Division &rarr; Team) of the director's <strong>Search Registrations</strong> and <strong>Search Teams</strong>.</td></tr>
+</table>
+
+<h2>How it works</h2>
+<p><strong>The Club Team Library is per rep: C-CR-TL, Club &rarr; Club Rep &rarr; Team Library.</strong> The director's C-A-D-T tree filter in Search Registrations and Search Teams is Club &rarr; Agegroup &rarr; Division &rarr; Team. A club name can have several reps. Each rep has their own team list, and nobody else's changes touch it.</p>
+<p>The design touches <strong>two separate places</strong>, at two different times:</p>
+<table>
+<tr><th></th><th>Create NEW Club Rep Account</th><th>Team Registration Wizard</th></tr>
+<tr><th>When</th><td><strong>Once</strong>, when the person becomes a club rep</td><td><strong>Every event</strong> the rep registers teams for</td></tr>
+<tr><th>What it decides</th><td><strong>Which club</strong> this rep is, and <strong>what's in their library</strong></td><td><strong>Which teams</strong> go into this event</td></tr>
+<tr><th>What it does</th><td>Asks "Is your club one of these?", and copies the picked club's teams into the rep's own library</td><td>Shows other reps of the same club name, and warns before a possible duplicate team</td></tr>
+<tr><th>Can it block?</th><td><strong>No.</strong> A club name never refuses an account.</td><td><strong>No.</strong> The warning asks, and the rep decides.</td></tr>
+</table>
+<p>Teams are copied only at Create NEW Club Rep Account. Nothing in the wizard copies teams or changes another rep's library.</p>
+
+<h2>The rules</h2>
+<ol>
+<li><strong>Every rep has their own club and their own bill.</strong> A new rep never shares another rep's club, team list, or balance.</li>
+<li><strong>A similar name only helps a new rep find their club at Create NEW Club Rep Account.</strong> After that, the <strong>exact</strong> club name is what counts.</li>
+<li><strong>One rep's teams are never another rep's to manage.</strong> Each rep sees the other reps' teams in the event, but can't edit, drop or pay for them.</li>
+<li><strong>Warn, never block.</strong> Each warning ends in a choice the person can make, never in a dead end.</li>
+</ol>
+
+<h2>What each person sees</h2>
+<p class="figref">The figures are drawn to look like the screens. Names in them are examples.</p>
+
+<h3>1. Create NEW Club Rep Account (once, when the person becomes a club rep)</h3>
+<ul>
+<li>The whole form shows from the start. A line at the top reads <em>"Already have a club rep account? Sign in or reset your password."</em></li>
+<li>As the rep types the club name, clubs with that name that are already on TSIC appear under <strong>"Is your club one of these?"</strong> (or "Is this your club?" when there is one). Each row shows the club's state, number of active teams and when it last registered. Rep names and emails are never shown.</li>
+<li>The rep <strong>must answer</strong> before <strong>Create Account</strong> works:
+  <ul>
+  <li><strong>Pick a club:</strong> the Club Name box <strong>locks</strong> to that club's exact name.</li>
+  <li><strong>None of these, we're a new club:</strong> the box unlocks, the rep's own typing comes back, and they start with an empty library.</li>
+  </ul></li>
+<li>A name nobody else uses gets no question at all.</li>
+<li><strong>The copy.</strong> When the account is created, the picked club's <strong>active</strong> teams are copied into the new rep's own library: name, grad year and level of play.
+  <ul>
+  <li>Archived teams and teams with no name aren't copied.</li>
+  <li>A team the rep already has (same name and grad year) isn't copied twice.</li>
+  <li>It happens <strong>once</strong>. After that the two lists are separate: renaming, archiving or adding teams in one never changes the other.</li>
+  </ul></li>
+</ul>
+
+<figure id="fig1">
+  <div class="ui">
+    <span class="lbl">Club Name</span>
+    <div class="inp hero locked">Fury Lacrosse</div>
+    <div class="hint">Your club's name, from the club you picked. To use a different name, pick <b>None of these</b>.</div>
+    <div class="callout"><span>&#9432;</span><span><span class="q">Is your club one of these?</span>Pick it and its teams come with you &mdash; nothing to retype. Not your club? Pick <b>None of these</b>.</span></div>
+    <div class="radio-row chosen"><span class="dot"></span><span><b>Fury Lacrosse</b> <span class="muted">(MD) &bull; 6 teams &bull; last registered Jun 2026</span></span></div>
+    <div class="radio-row"><span class="dot"></span><span><b>Fury Lacrosse</b> <span class="muted">(VA) &bull; 2 teams &bull; last registered Mar 2025</span></span></div>
+    <div class="radio-row"><span class="dot"></span><span><b>None of these</b> <span class="muted">&mdash; we're a new club</span></span></div>
+    <p style="margin:8pt 0 0"><span class="btn solid">Create Account</span></p>
+  </div>
+  <figcaption><b>Figure 1.</b> Create NEW Club Rep Account: a club is picked, so the Club Name box is locked (tinted) to its exact name. Create Account stays disabled until a row is picked.</figcaption>
+</figure>
+
+<h3>2. Team Registration Wizard, Teams step (every event)</h3>
+<ul>
+<li><strong>Add a Team</strong> offers the rep's own library, including any teams copied at Create NEW Club Rep Account, so there's nothing to retype.</li>
+<li><strong>"Registering as {club}"</strong> bar at the top:
+  <ul>
+  <li><strong>Rename</strong> is offered while the rep has <strong>no teams in this event</strong>. It renames the club for this event and in the rep's Club Team Library; events where the rep already has teams keep their name.</li>
+  <li>Once the rep has a team in this event, the bar instead reads <em>"To rename your club for this event, ask the event director."</em></li>
+  <li>Teams in <strong>other</strong> events don't lock it.</li>
+  </ul></li>
+</ul>
+
+<figure id="fig2">
+  <div class="ui bar"><span class="muted">Registering as</span><span class="name">Fury Lacrosse</span><span class="btn">&#9998; Rename</span></div>
+  <div class="ui bar"><span class="muted">Registering as</span><span class="name">Fury Lacrosse</span><span class="lock">&#128274; To rename your club for this event, ask the event director.</span></div>
+  <figcaption><b>Figure 2.</b> The bar at the top of the Teams step. Top: no teams in this event yet, so Rename is offered. Bottom: the rep has a team in this event, so it's locked.</figcaption>
+</figure>
+
+<ul>
+<li><strong>Duplicate warning:</strong> when the rep picks an age group where another rep of the <strong>same club name</strong> already has teams in this event, an amber warning shows:
+  <ul>
+  <li><em>"{Rep} has already registered the {teams} team(s) in the {age group} age group."</em></li>
+  <li><em>"Do you really want to add the {team} team?"</em></li>
+  <li><em>"Adding it creates a separate entry and a separate fee."</em></li>
+  <li><strong>Don't add</strong> clears the row. <strong>Yes, add it</strong> adds the team. <strong>+ Add</strong> and <strong>&#10005;</strong> stay disabled until the rep answers.</li>
+  </ul></li>
+</ul>
+
+<figure id="fig3">
+  <div class="ui">
+    <div class="addrow">
+      <div class="inp">2029 Blue</div>
+      <div class="inp" style="flex:0 0 70pt">2029</div>
+      <span class="btn solid off">+ Add</span>
+      <span class="btn off">&#10005;</span>
+    </div>
+    <div class="warn">
+      <span class="ico">&#9888;</span>
+      <div>
+        <p><b>Jane Smith</b> has already registered the <b class="em">Fury 2029</b> team in the <b class="em">2029</b> age group.</p>
+        <p><strong>Do you really want to add the <span class="em">2029 Blue</span> team?</strong></p>
+        <p><b>Adding it creates a separate entry and a separate fee.</b></p>
+        <p style="margin:6pt 0 0"><span class="btn dont">Don't add</span> &nbsp; <span class="btn yes">Yes, add it</span></p>
+      </div>
+    </div>
+  </div>
+  <figcaption><b>Figure 3.</b> Add a Team with the duplicate warning. + Add and &#10005; are greyed out until the rep picks Don't add or Yes, add it.</figcaption>
+</figure>
+
+<ul>
+<li><strong>Registered Teams</strong> is grouped by rep when other reps of the same club name are in the event:
+  <ul>
+  <li><strong>"You ({name})"</strong> first, in green, with every action.</li>
+  <li>Each other rep below, in grey and read-only: <em>"Registered and paid for by {rep} &mdash; not on your bill."</em></li>
+  <li>The team count and the payment step cover the rep's <strong>own</strong> teams only.</li>
+  </ul></li>
+</ul>
+
+<figure id="fig4">
+  <div class="ui" style="padding:6pt 0">
+    <div class="grp own">&#128100; You (Alex Rivera)</div>
+    <div class="row own"><span class="ag">2029</span><span>2029 Blue</span><span class="acts">&#9998; &#128465;</span></div>
+    <div class="row own"><span class="ag" style="background:#0d6efd">2030</span><span>2030 White</span><span class="acts">&#9998; &#128465;</span></div>
+    <div class="grp other">&#128100; Jane Smith <span class="note">Registered and paid for by Jane Smith &mdash; not on your bill.</span></div>
+    <div class="row other"><span class="ag">2029</span><span>Fury 2029</span></div>
+  </div>
+  <figcaption><b>Figure 4.</b> Registered Teams when another rep of the same club name is in the event. The rep's own rows are green with actions; the other rep's rows are grey with none.</figcaption>
+</figure>
+
+<h3>3. Director screens (Search Teams, Search Registrations, schedule screens)</h3>
+<ul>
+<li><strong>"&#9888; N reps" badge</strong> on any club in the <strong>C-A-D-T tree filter</strong> (Club &rarr; Agegroup &rarr; Division &rarr; Team) of <strong>Search Registrations</strong> and <strong>Search Teams</strong> that has more than one rep's teams in the event. The text is always visible, not hover-only. Its tooltip reads <em>"N club reps entered teams under {club} &mdash; check for a team entered twice."</em></li>
+<li>Only directors (and SuperDirector/Superuser) of that event see the badge. Public schedule pages never do.</li>
+</ul>
+
+<figure id="fig5">
+  <div class="ui tree">
+    <span class="lbl">Club/A/D/T</span>
+    <div class="hdr"><span>TEAMS</span><span>PLAYERS</span></div>
+    <div class="node"><b>&#8964; All</b><span class="spacer"></span><span class="cnt">5</span><span class="cnt">0</span></div>
+    <div class="node">&rsaquo; <span class="box"></span> Fury Lacrosse <span class="reps">&#9888; 2 reps</span><span class="cnt">3</span><span class="cnt">0</span></div>
+    <div class="node">&rsaquo; <span class="box"></span> Lightning LC <span class="spacer"></span><span class="cnt">2</span><span class="cnt">0</span></div>
+    <span class="tip">2 club reps entered teams under Fury Lacrosse &mdash; check for a team entered twice.</span>
+  </div>
+  <figcaption><b>Figure 5.</b> The C-A-D-T tree filter in Search Teams / Search Registrations, with the badge and its tooltip.</figcaption>
+</figure>
+
+<ul>
+<li><strong>Rename Club for this event</strong> (registration detail panel, Details tab):
+  <ul>
+  <li>Allowed once the rep has at least one team in the event.</li>
+  <li>Allowed even when another rep in the event already uses that name.</li>
+  <li>It renames this event only: the registration, its teams' names, and the schedule.</li>
+  <li>Refused when the name belongs to a <strong>different</strong> club that isn't one of the rep's own.</li>
+  </ul></li>
+<li><strong>Move a team to another club rep</strong> moves teams to any club rep with a registration in the event.</li>
+</ul>
+
+<figure id="fig6">
+  <div class="ui panel bar" style="justify-content:space-between">
+    <span><span class="k">Club</span><br><span class="muted" style="font-size:8.5pt">CLUB NAME</span><br><b>Fury Lacrosse</b></span>
+    <span class="btn">&#9998; Rename Club</span>
+  </div>
+  <figcaption><b>Figure 6.</b> The Club section of the registration detail panel (Details tab). Rename Club changes the name for this event only.</figcaption>
+</figure>
+
+<h2>AR-142, point by point</h2>
+<table>
+<tr><th>Ann's point</th><th>How it is</th></tr>
+<tr><td><strong>Block 1: creating a new account</strong></td><td><strong>Works.</strong> A club name never refuses Create NEW Club Rep Account (section 1, Figure 1).</td></tr>
+<tr><td><strong>Block 2: a second rep in an event</strong></td><td><strong>Works.</strong> Any number of reps of the same club sign in, register and add teams in the same event. Each sees the others' teams, and the duplicate warning asks before a possible double entry (section 2, Figures 3&ndash;4).</td></tr>
+<tr><td><strong>Block 3: transferring teams to them</strong></td><td><strong>Works.</strong> The director's <strong>Move a team to another club rep</strong> moves teams to any club rep who has a registration in the event.</td></tr>
+<tr><td><strong>Recommendation 1: warn, but let them proceed</strong></td><td><strong>Done, at two points:</strong> the "Is your club one of these?" question at Create NEW Club Rep Account (Figure 1), and the age-group warning in the Team Registration Wizard (Figure 3).</td></tr>
+<tr><td><strong>Recommendation 2: a flag for duplicates in Search</strong></td><td><strong>Done as the "&#9888; N reps" badge</strong> on the club in the <strong>C-A-D-T tree filter</strong> of the director's <strong>Search Registrations</strong> and <strong>Search Teams</strong> (Figure 5). It's visible text, not hover-only, so it works on touch and keyboard. Todd ruled this sufficient.</td></tr>
+<tr><td><strong>The "4 minute window"</strong></td><td><strong>Does not exist.</strong> Club rep registration has two timers: the team undo window (60 minutes) and the username-availability check, which never blocks.</td></tr>
+</table>
+
+<h2>Known limits (accepted)</h2>
+<ul>
+<li><strong>Matching is by exact club name.</strong> "Lax Plus" and "Lax Plus Club" count as different clubs, so they get no warning and no badge.</li>
+<li><strong>The C-A-D-T tree filter (Search Registrations, Search Teams) groups by club name.</strong> Two unrelated clubs that share a name show as one line with the badge. The badge is the prompt to look.</li>
+<li><strong>Older clubs with two reps on one club record:</strong> in currently open events, exactly <strong>one</strong> club has two such reps who both have teams (South Jersey Select, Top Threat Five Star 2026). Create NEW Club Rep Account never creates this. Those reps register alongside each other like any same-name reps.</li>
+<li><strong>A renamed club</strong> shows as two clubs in the year-over-year team-retention report, which matches clubs across years by name.</li>
+</ul>
+
+<h2>How to test</h2>
+<p>Test locally. Use made-up accounts and an event you own. Each step says what you should see.</p>
+
+<h3>A. Create NEW Club Rep Account: an existing club name (Figure 1)</h3>
+<ol>
+<li class="check"><input type="checkbox"> 1. Start <strong>Create NEW Club Rep Account</strong> and type the name of a club already on TSIC.<br><span class="see"><strong>"Is your club one of these?"</strong> lists it, with its state, team count and last registered date. <strong>Create Account</strong> is disabled.</span></li>
+<li class="check"><input type="checkbox"> 2. Pick the club.<br><span class="see">The Club Name box locks to that club's exact name.</span></li>
+<li class="check"><input type="checkbox"> 3. Pick <strong>None of these</strong>, then pick the club again.<br><span class="see">None unlocks the box and brings your typing back; picking again locks it.</span></li>
+<li class="check"><input type="checkbox"> 4. Pick the club, finish and create the account. Then open the Team Registration Wizard for an event and go to the Teams step.<br><span class="see">Your library already has that club's teams.</span></li>
+<li class="check"><input type="checkbox"> 5. Repeat with a new rep, choosing <strong>None of these</strong>.<br><span class="see">The new rep gets an empty club.</span></li>
+<li class="check"><input type="checkbox"> 6. Type a name nobody uses.<br><span class="see">No question appears.</span></li>
+</ol>
+
+<h3>B. Team Registration Wizard: two reps of the same club in one event (Figures 3&ndash;4)</h3>
+<ol>
+<li class="check"><input type="checkbox"> 1. Rep A registers a team in age group X.</li>
+<li class="check"><input type="checkbox"> 2. Rep B, with the same exact club name, opens the Teams step in that event.<br><span class="see">Registered Teams shows "You (B)" in green and rep A's group in grey: "Registered and paid for by A &mdash; not on your bill."</span></li>
+<li class="check"><input type="checkbox"> 3. Rep B starts a team in age group X.<br><span class="see">The amber warning names rep A's team. <strong>+ Add</strong> and <strong>&#10005;</strong> are disabled.</span></li>
+<li class="check"><input type="checkbox"> 4. Click <strong>Don't add</strong>.<br><span class="see">The row clears and nothing is added.</span></li>
+<li class="check"><input type="checkbox"> 5. Repeat, and click <strong>Yes, add it</strong>.<br><span class="see">The team is added. B's count and payment include only B's teams.</span></li>
+<li class="check"><input type="checkbox"> 6. Rep B starts a team in an age group where rep A has none.<br><span class="see">No warning.</span></li>
+</ol>
+
+<h3>C. Team Registration Wizard: renaming the club on the Teams step (Figure 2)</h3>
+<ol>
+<li class="check"><input type="checkbox"> 1. As a rep with no teams in the event:<br><span class="see">The bar shows <strong>Rename</strong>. Rename the club, and the page reloads under the new name.</span></li>
+<li class="check"><input type="checkbox"> 2. Rename to another rep's exact club name in this event.<br><span class="see">The warning and the grey groups appear.</span></li>
+<li class="check"><input type="checkbox"> 3. Rename back.<br><span class="see">They disappear.</span></li>
+<li class="check"><input type="checkbox"> 4. Add one team.<br><span class="see"><strong>Rename</strong> is replaced by "ask the event director".</span></li>
+</ol>
+
+<h3>D. Director screens (Figures 5&ndash;6)</h3>
+<ol>
+<li class="check"><input type="checkbox"> 1. Open <strong>Search Teams</strong> for the event.<br><span class="see">The club has "&#9888; 2 reps", and hovering or focusing it shows the tooltip.</span></li>
+<li class="check"><input type="checkbox"> 2. Open the rep's registration &rarr; <strong>Details</strong> &rarr; <strong>Rename Club</strong> &rarr; a new name.<br><span class="see">It saves. The assignment and team names follow.</span></li>
+<li class="check"><input type="checkbox"> 3. Rename to the name another rep in this event uses.<br><span class="see">It saves. In Search Teams, that club shows one more team and one more rep.</span></li>
+<li class="check"><input type="checkbox"> 4. Rename to a <strong>different</strong> club's name that isn't the rep's own.<br><span class="see">It's refused: "&hellip; is the name of a different club."</span></li>
+<li class="check"><input type="checkbox"> 5. View the event's public schedule while signed out.<br><span class="see">No rep badge.</span></li>
+</ol>
+<p><strong>Note:</strong> the Search Registrations tree loads once when the page opens. After a rename, reopen the page to see the tree update. Search Teams is current.</p>
+
+</body></html>

@@ -110,6 +110,14 @@ public interface IClubTeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// When each club last registered a team in any event: the newest Teams.Createdate among event teams
+    /// linked to its library (Teams.ClubTeamId). Clubs that never registered a team are absent.
+    /// </summary>
+    Task<Dictionary<int, DateTime>> GetLastRegisteredByClubIdsAsync(
+        IEnumerable<int> clubIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Which of the given library rows have a copy in THIS job (any status - live, waitlisted or dropped).
     /// </summary>
     Task<HashSet<int>> GetClubTeamIdsInJobAsync(

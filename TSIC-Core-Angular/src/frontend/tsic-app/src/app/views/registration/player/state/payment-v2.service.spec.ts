@@ -69,6 +69,9 @@ function createJobContextStub() {
         adnArbIntervalLength: signal<number | null>(null),
         adnArbStartDate: signal<string | null>(null),
         bAddProcessingFees: signal(true),
+        // PIF-upgrade quotes back the method's proc credit out at these rates (computePifUpgrade).
+        effectiveProcessingRate: signal(0.035),
+        effectiveEcheckProcessingRate: signal(0.015),
         paymentOption: signal<'PIF' | 'Deposit' | 'ARB'>('PIF'),
         jobHasActiveDiscountCodes: signal(false),
         jobPath: signal('test-job'),

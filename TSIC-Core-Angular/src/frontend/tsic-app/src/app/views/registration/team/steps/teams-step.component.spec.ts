@@ -6,6 +6,7 @@ import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { ClubService } from '@infrastructure/services/club.service';
 import type { RegisterTeamResponse, ClubTeamDto } from '@core/api';
 
 /**
@@ -16,10 +17,10 @@ import type { RegisterTeamResponse, ClubTeamDto } from '@core/api';
  * what the club rep sees after clicking an age group to register a team.
  *
  * Key behaviors tested:
- *   - Success → green toast with team name
- *   - Success + waitlisted → warning toast with waitlist agegroup name
- *   - Success: false (quota exceeded) → danger toast with server message
- *   - HTTP error → danger toast with generic message
+ *   - Success → green toast with team and event name
+ *   - Success + waitlisted → warning toast with the age group (WAITLIST prefix stripped)
+ *   - Refusal (HTTP 4xx, e.g. quota exceeded) → no component toast; the global
+ *     interceptor already shows the server's reason. The data reloads.
  */
 describe('TeamTeamsStepComponent — register response handling', () => {
     let component: TeamTeamsStepComponent;
@@ -58,6 +59,7 @@ describe('TeamTeamsStepComponent — register response handling', () => {
                         clubRepRegistration: signal(null),
                         jobPath: signal('test-job'),
                         setHasActiveDiscountCodes: vi.fn(),
+                        applyTeamsMetadata: vi.fn(),
                         teamPayment: {
                             setTeams: vi.fn(),
                             setJobPath: vi.fn(),
@@ -69,6 +71,7 @@ describe('TeamTeamsStepComponent — register response handling', () => {
                     provide: JobService,
                     useValue: { currentJob: signal({ jobName: 'Test Tournament' }) },
                 },
+                { provide: ClubService, useValue: { renameClub: vi.fn() } },
             ],
             schemas: [NO_ERRORS_SCHEMA],
         });
@@ -79,7 +82,7 @@ describe('TeamTeamsStepComponent — register response handling', () => {
 
     // ── Tests ─────────────────────────────────────────────────────────
 
-    it('success → success toast with team name', () => {
+    it('success → success toast naming the team and the event', () => {
         registerFn.mockReturnValue(of({
             success: true,
             teamId: 'new-team-id',
@@ -89,13 +92,13 @@ describe('TeamTeamsStepComponent — register response handling', () => {
         component.onSelectAgeGroup(testTeam, 'ag-1');
 
         expect(toastShowFn).toHaveBeenCalledWith(
-            expect.stringContaining('Storm U12 registered for the event!'),
+            'Storm U12 registered for Test Tournament.',
             'success',
             expect.any(Number),
         );
     });
 
-    it('success + waitlisted → warning toast with waitlist agegroup name', () => {
+    it('success + waitlisted → warning toast with the age group, WAITLIST prefix stripped', () => {
         registerFn.mockReturnValue(of({
             success: true,
             teamId: 'waitlist-team-id',
@@ -106,42 +109,20 @@ describe('TeamTeamsStepComponent — register response handling', () => {
         component.onSelectAgeGroup(testTeam, 'ag-1');
 
         expect(toastShowFn).toHaveBeenCalledWith(
-            expect.stringContaining('waitlisted'),
+            'Storm U12 waitlisted for Boys U14',
             'warning',
             expect.any(Number),
         );
-        expect(toastShowFn).toHaveBeenCalledWith(
-            expect.stringContaining('WAITLIST - Boys U14'),
-            expect.anything(),
-            expect.anything(),
-        );
     });
 
-    it('success: false (quota exceeded) → danger toast with server message', () => {
-        registerFn.mockReturnValue(of({
-            success: false,
-            teamId: '',
-            message: 'Your club has reached the maximum of 3 team(s) allowed in Boys U14.',
-        } satisfies RegisterTeamResponse));
-
-        component.onSelectAgeGroup(testTeam, 'ag-1');
-
-        expect(toastShowFn).toHaveBeenCalledWith(
-            expect.stringContaining('maximum of 3'),
-            'danger',
-            expect.any(Number),
-        );
-    });
-
-    it('HTTP error → danger toast with generic message', () => {
+    it('refusal (HTTP 4xx) → no second toast (the interceptor shows the reason); data reloads', () => {
         registerFn.mockReturnValue(throwError(() => new Error('Server error')));
+        const getMetadataFn = TestBed.inject(TeamRegistrationService).getTeamsMetadata as ReturnType<typeof vi.fn>;
+        getMetadataFn.mockClear();
 
         component.onSelectAgeGroup(testTeam, 'ag-1');
 
-        expect(toastShowFn).toHaveBeenCalledWith(
-            'Failed to register team.',
-            'danger',
-            expect.any(Number),
-        );
+        expect(toastShowFn).not.toHaveBeenCalled();
+        expect(getMetadataFn).toHaveBeenCalledTimes(1);
     });
 });

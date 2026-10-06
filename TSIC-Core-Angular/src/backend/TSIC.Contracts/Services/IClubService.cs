@@ -22,11 +22,12 @@ public interface IClubService
     Task<bool> UpdateSelfProfileAsync(string userId, ClubRepProfileUpdateRequest request);
 
     /// <summary>
-    /// Rename a club the authenticated user reps. Allowed only while the club has
-    /// no registered teams (IsInUse=false) and the new name doesn't collide with an
-    /// existing club. Returns Success=false with a Message on any guard failure.
+    /// Rename a club the authenticated user reps, from the event they are registering in
+    /// (<paramref name="currentRegistrationId"/>, the wizard token's regId). Allowed only while that
+    /// event's registration holds none of their teams, and the new name doesn't collide with another
+    /// of their own clubs. Returns Success=false with a Message on any guard failure.
     /// </summary>
-    Task<ClubRenameResponse> RenameClubAsync(string userId, ClubRenameRequest request);
+    Task<ClubRenameResponse> RenameClubAsync(string userId, Guid? currentRegistrationId, ClubRenameRequest request);
 
     /// <summary>
     /// Invalidate cached club search candidates (call after creating a club).

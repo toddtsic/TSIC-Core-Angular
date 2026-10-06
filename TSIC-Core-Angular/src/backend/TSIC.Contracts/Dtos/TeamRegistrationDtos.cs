@@ -122,6 +122,23 @@ public sealed record TeamsMetadataResponse
     // are the SAME rates the server charges, so the team payment's amount tripwire stays quiet.
     public required decimal EffectiveProcessingRate { get; init; }
     public required decimal EffectiveEcheckProcessingRate { get; init; }
+    // Same-name clubs (Todd 2026-10-06). Sign-up lets a rep create a club whose name another club
+    // already uses — typically the rep replacing that club's old rep. This list warns before they
+    // register a team while another rep of the same club name already has teams in that age group here.
+    public required List<SameNameEventTeamDto> SameNameEventTeams { get; init; }
+}
+
+/// <summary>
+/// A team ALREADY registered in this event by another club rep whose club name matches this rep's.
+/// Drives the Add a Team box's "already registered here" warning and its confirm-before-adding.
+/// </summary>
+public sealed record SameNameEventTeamDto
+{
+    public required string TeamName { get; init; }
+    /// The library grad year when the team is library-linked; null otherwise.
+    public string? GradYear { get; init; }
+    public required string AgeGroupName { get; init; }
+    public required string RepName { get; init; }
 }
 
 public sealed record ClubTeamDto
@@ -435,13 +452,6 @@ public sealed record ValidateClubRepResponse
     public required string? ClubName { get; init; }
     public string? Message { get; init; }
 }
-public sealed record CheckExistingRegistrationsResponse
-{
-    public required bool HasConflict { get; init; }
-    public string? OtherRepUsername { get; init; }
-    public int TeamCount { get; init; }
-}
-
 public sealed record RecalculateTeamFeesRequest
 {
     public Guid? JobId { get; init; }
