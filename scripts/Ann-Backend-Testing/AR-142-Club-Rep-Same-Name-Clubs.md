@@ -82,7 +82,7 @@ A club name never stops a club rep. Several reps registering for the same club, 
 
 - **Matching is by exact club name.** "Lax Plus" and "Lax Plus Club" count as different clubs, so they get no warning and no badge.
 - **Director trees group by club name.** Two unrelated clubs that share a name show as one line with the badge. The badge is the prompt to look.
-- **About 99 older clubs** have more than one rep attached to a single club record, with one shared team list. New sign-ups never create this. Those reps can now register alongside each other like any same-name reps.
+- **Older clubs with two reps on one club record:** in currently open events, exactly **one** club has two such reps who both have teams (South Jersey Select, Top Threat Five Star 2026). New sign-ups never create this. Those reps now register alongside each other like any same-name reps.
 - **A renamed club** shows as two clubs in the year-over-year team-retention report, which matches clubs across years by name.
 
 ---

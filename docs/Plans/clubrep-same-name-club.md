@@ -153,7 +153,7 @@ One rule: the loose same-name match (`ClubNameMatcher.IsSameClubName`) only help
 ## Revision: one-club-rep-per-event rule removed (AR-142, Todd 2026-10-06)
 - `RegisterTeamForEventAsync` no longer refuses a team because another rep of the club has teams in the event. Legacy never had the rule (added here 2026-01-04, `ef1a6e32c`), and it matched loosely: anyone ALSO a rep of the club counted, so a person repping two clubs blocked the other club's reps.
 - Removed with it: `GET team-registration/check-existing` (no UI caller), `CheckExistingRegistrationsResponse`, `ITeamRepository.GetTeamsByClubExcludingRegistrationAsync`.
-- New sign-ups never put two reps on one club (sign-up claims only a rep-less, team-less club). About 99 older clubs do; their reps now register side by side like same-name reps.
+- New sign-ups never put two reps on one club (sign-up claims only a rep-less, team-less club). Older shared clubs exist, but in currently open events only ONE has two reps who both have teams (South Jersey Select, Five Star 2026); their reps now register side by side like same-name reps. (A raw count of clubs with 2+ rep rows is meaningless: it counts one person repping two clubs, and reps with no teams.)
 - Left as is (Todd): the two API-only add-club endpoints; library "also rename in this event" doesn't check the event team is the caller's (no UI sends it).
 - Recommendation 2 (Search flag) is met by the CADT "⚠ N reps" badge (Todd).
 - Tester-facing summary: `scripts/Ann-Backend-Testing/AR-142-Club-Rep-Same-Name-Clubs.md`.
