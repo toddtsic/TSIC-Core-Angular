@@ -96,10 +96,15 @@ have gone quiet rather than getting a second ruling.
 |:--|:--|:--|
 | **121** | Registration Links badges | 🔁 Todd's question back to her: *"why remove them if the figures are right?"* |
 | **087** | Email batch summary | Her review + validation — scope widened, one part declined |
-| **123 / 126 / 127** | $0 team table · recruiting gate · height-weight | Built + verified on dev, awaiting her check |
+| **123** | $0 team table | Built + verified on dev, awaiting her check |
 | **132** | Job Clone permissions | Built, **not deployed** — read-and-respond |
 | **108** | Team Breakdown moves with the team | Fixed, **awaiting deploy** — testing early shows old behaviour |
 | **070 / 020** | Staff bar · Vertical Insure address | Marked *awaiting Ann verify* since early September |
 
-⚠ **Two places Todd built something other than Ann's ruling, both in her queue:** **AR-127** (no
-profile-editor strip) and **AR-132** (Edit + Add left ON, where she ruled all three off).
+✅ **AR-126 and AR-127 were VERIFIED AND CLOSED by Ann on 2026-10-06.** ⚠ **AR-127's close
+deliberately ACCEPTS its divergence** — Height/Weight rejoin the recruiting envelope and there is
+**no profile-editor strip**, which is the opposite shape to her 09-30 scope ruling. She was shown the
+divergence twice and closed it anyway, so **the strip is not outstanding work.**
+
+⚠ **One divergence from an Ann ruling is still open and sits in her queue: AR-132** — Edit + Add
+left **ON**, where she ruled all three permissions off.
