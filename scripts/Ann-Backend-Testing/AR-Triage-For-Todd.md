@@ -73,6 +73,7 @@ have gone quiet rather than getting a second ruling.
 
 | AR | Item | Contested since |
 |:--|:--|:--|
+| **129** | Event dates on Role selection — ⚠ **reopened on a PRINCIPLE, not a repeat**: the test is **pertinence, not accuracy**. ⏳ Ann's point 2 of two still to come | 10-06 |
 | **118** | Club filter exists in the API, missing from Search / Teams | 09-30 |
 | **114** | LADT add flow — *"much easier before"* | 09-27 |
 | **115** | Login job list — Brenda already uses the typeahead | 09-27 |
