@@ -16,11 +16,11 @@
 | **Two people register for one club in the same event**, e.g. one handles the boys' teams and one the girls'. | Both register. Each has their own teams and their own bill, and each sees the other's teams, read-only. |
 | **The second person goes to add a team the first may already have entered.** | They're warned and asked first: **Don't add** or **Yes, add it**. |
 | **Two unrelated clubs happen to share a name.** | The newcomer picks **None of these**, which gives them their own new club. |
-| **The director needs to spot possible double entries.** | The club shows **"⚠ N reps"** in the director's search filters. |
+| **The director needs to spot possible double entries.** | The club shows **"⚠ N reps"** on the club in the director's **C-A-D-T** tree (Club â Agegroup â Division â Team). |
 
 ## How it works
 
-**The Club Team Library is now per rep: Club → Club Rep → Team Library.** A club name can have several reps. Each rep has their own team list, and nobody else's changes touch it.
+**The Club Team Library is now per rep: C-CR-TL, Club → Club Rep → Team Library** (the director's C-A-D-T tree is unchanged: Club → Agegroup → Division → Team). A club name can have several reps. Each rep has their own team list, and nobody else's changes touch it.
 
 The design touches **two separate places**, at two different times:
 
@@ -78,7 +78,7 @@ Teams are copied only at Create NEW Club Rep Account. Nothing in the wizard copi
 
 ### 3. Director screens (Search Teams, Search Registrations, schedule screens)
 
-- **"⚠ N reps" badge** on any club in the Club/Agegroup/Division/Team (CADT) filter tree that has more than one rep's teams in the event. The text is always visible, not hover-only. Its tooltip reads *"N club reps entered teams under {club} — check for a team entered twice."*
+- **"⚠ N reps" badge** on any club in the **C-A-D-T** tree (Club â Agegroup â Division â Team) that has more than one rep's teams in the event. The text is always visible, not hover-only. Its tooltip reads *"N club reps entered teams under {club} — check for a team entered twice."*
 - Only directors (and SuperDirector/Superuser) of that event see the badge. Public schedule pages never do.
 - **Rename Club for this event** (registration detail panel, Details tab):
   - Allowed once the rep has at least one team in the event.
@@ -97,7 +97,7 @@ Teams are copied only at Create NEW Club Rep Account. Nothing in the wizard copi
 | **Block 2: a second rep in an event** | **Fixed.** The rule "Only one club representative can register teams per event" is removed. Legacy never had it; it was added in January 2026. It was also over-broad: someone repping two clubs could block the other club's reps. |
 | **Block 3: transferring teams to them** | **Unblocked.** The director's move had no club-name check. The new rep was stuck only because they couldn't sign up to receive the teams. |
 | **Recommendation 1: warn, but let them proceed** | **Done, at two points:** the "Is your club one of these?" question at Create NEW Club Rep Account (section 1), and the age-group warning in the Team Registration Wizard (section 2). |
-| **Recommendation 2: a flag for duplicates in Search** | **Done as the "⚠ N reps" badge** on the club in the director's tree (section 3). It's visible text rather than hover-only, which covers the touch and keyboard concern. Todd ruled this sufficient. |
+| **Recommendation 2: a flag for duplicates in Search** | **Done as the "⚠ N reps" badge** on the club in the director's **C-A-D-T** tree (section 3). It's visible text rather than hover-only, which covers the touch and keyboard concern. Todd ruled this sufficient. |
 | **The "4 minute window"** | **Open.** Nothing in the code has a 4-minute limit. Ann: what did you see, and where? |
 
 **One correction to the report:** a second rep was never blocked at **login**. They got in and were refused on their first **Add**. That's now fixed.
@@ -107,7 +107,7 @@ Teams are copied only at Create NEW Club Rep Account. Nothing in the wizard copi
 ## Known limits (accepted)
 
 - **Matching is by exact club name.** "Lax Plus" and "Lax Plus Club" count as different clubs, so they get no warning and no badge.
-- **Director trees group by club name.** Two unrelated clubs that share a name show as one line with the badge. The badge is the prompt to look.
+- **The C-A-D-T tree groups by club name.** Two unrelated clubs that share a name show as one line with the badge. The badge is the prompt to look.
 - **Older clubs with two reps on one club record:** in currently open events, exactly **one** club has two such reps who both have teams (South Jersey Select, Top Threat Five Star 2026). Create NEW Club Rep Account never creates this. Those reps now register alongside each other like any same-name reps.
 - **A renamed club** shows as two clubs in the year-over-year team-retention report, which matches clubs across years by name.
 
