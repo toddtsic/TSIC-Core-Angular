@@ -249,12 +249,29 @@
   font-size: var(--font-size-xs);
 }
 .reg-group-name { font-weight: var(--font-weight-bold); color: var(--brand-text); }
-.reg-group--own { box-shadow: inset 3px 0 0 var(--bs-success); }
+/* Mine: this side's green — a wash on the header, and a green rail down the header AND its rows. */
+.reg-group--own {
+  background: color-mix(in srgb, var(--bs-success) 14%, var(--brand-surface));
+  box-shadow: inset 4px 0 0 var(--bs-success);
+}
+.reg-group--own .reg-group-name { color: color-mix(in srgb, var(--bs-success) 60%, var(--brand-text)); }
 .reg-group--own .bi { color: var(--bs-success); }
-.reg-group--other { margin-top: var(--space-2); border-top: 1px solid var(--bs-border-color); }
-.reg-group--other .bi { color: var(--brand-text-muted); }
+.reg-row--mine { box-shadow: inset 4px 0 0 var(--bs-success); }
+/* Theirs: grey and quiet, reference only — a grey ground under header and rows, muted names
+   (the muted token holds AA), a grey rail where mine is green. */
+.reg-group--other {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--bs-border-color);
+  background: color-mix(in srgb, var(--bs-body-color) 8%, var(--brand-surface));
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--bs-body-color) 25%, transparent);
+}
+.reg-group--other .reg-group-name, .reg-group--other .bi { color: var(--brand-text-muted); }
 .reg-group-note { flex-basis: 100%; font-size: var(--font-size-2xs); color: var(--brand-text-muted); }
-.reg-row--other .row-name { font-weight: var(--font-weight-medium); }
+.reg-row--other {
+  background: color-mix(in srgb, var(--bs-body-color) 3%, var(--brand-surface));
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--bs-body-color) 25%, transparent);
+}
+.reg-row--other .row-name { font-weight: var(--font-weight-medium); color: var(--brand-text-muted); }
 /* No pencil on another rep's row: hold its place so the names line up with this rep's. */
 .reg-row--other .pencil-gap { flex-shrink: 0; width: 22px; }
 

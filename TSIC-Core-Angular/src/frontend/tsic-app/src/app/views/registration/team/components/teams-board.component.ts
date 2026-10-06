@@ -132,7 +132,7 @@ type BoardSide = 'lib' | 'reg';
           @for (t of registeredRows(); track t.teamId; let i = $index) {
             @let undoMin = undoMinutesLeft(t.teamId);
             @let removable = canRemove() && t.paidTotal === 0;
-            <div class="reg-row" [class.is-open]="renameId() === t.teamId">
+            <div class="reg-row" [class.is-open]="renameId() === t.teamId" [class.reg-row--mine]="otherRepGroups().length > 0">
               @if (renameId() === t.teamId) {
                 <!-- This event's name + level, edited in the row (Todd 2026-09-27, inline, no modal). -->
                 <app-registered-team-inline-editor class="reg-editor-host"
