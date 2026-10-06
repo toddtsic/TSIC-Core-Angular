@@ -141,8 +141,8 @@ type ScheduleRow =
                              the name side (see Score below).
 
                              TWO LINES (see .tn-team): line one is the club, plain text; line
-                             two is the team — the link — then the season-record pill at
-                             the score-side edge (flush right here, flush left on away). With no
+                             two is the team — the link — with the season-record pill on its OUTER
+                             side (before the team here, after it on away). With no
                              club to split off, line one is the whole name and line two holds
                              only the pill. The pill sits OUTSIDE the link span: a button inside
                              a role="button" would be nested interactive content. -->
@@ -165,6 +165,13 @@ type ScheduleRow =
                             <!-- Winner trophy: LAST on line one → flush right, at the score edge. -->
                             @if (isT1Winner(game)) { <i class="bi bi-trophy-fill win-trophy" title="Winner" aria-hidden="true"></i> }
                             @if (n1.club || r1) { <br> }
+                            <!-- Pill FIRST on line two → outer edge, ahead of the team. -->
+                            @if (r1) {
+                                <button type="button" class="record-btn"
+                                        [attr.title]="'View ' + game.t1Name + ' results'"
+                                        [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + r1"
+                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ r1 }}</button>
+                            }
                             @if (n1.club && game.t1Id) {
                                 <span class="team-name tn-team team-link" role="button" tabindex="0"
                                       [attr.title]="'View ' + game.t1Name + ' results'"
@@ -174,12 +181,6 @@ type ScheduleRow =
                                       (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t1Id!)">{{ n1.team }}</span>
                             } @else if (n1.club) {
                                 <span class="team-name tn-team">{{ n1.team }}</span>
-                            }
-                            @if (r1) {
-                                <button type="button" class="record-btn"
-                                        [attr.title]="'View ' + game.t1Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + r1"
-                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ r1 }}</button>
                             }
                         </span>
 
@@ -226,8 +227,8 @@ type ScheduleRow =
                             @if (game.t2SlotLabel) { <span class="seed-tag"><span class="visually-hidden">slot </span>{{ game.t2SlotLabel }}</span> }
                         </span>
 
-                        <!-- Away team — mirror of home: trophy and record pill sit at the
-                             score-side (left) edge. -->
+                        <!-- Away team — mirror of home: trophy at the score-side (left)
+                             edge, record pill after the team on line two. -->
                         <span class="cell cell-away" role="cell" aria-colindex="8">
                             @let n2 = teamParts(game.t2Name, game.t2SlotLabel);
                             @let r2 = game.t2Id ? game.t2Record : null;
@@ -247,13 +248,6 @@ type ScheduleRow =
                             }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             @if (n2.club || r2) { <br> }
-                            <!-- Mirror of home: pill FIRST on line two, at the score-side edge. -->
-                            @if (r2) {
-                                <button type="button" class="record-btn"
-                                        [attr.title]="'View ' + game.t2Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + r2"
-                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ r2 }}</button>
-                            }
                             @if (n2.club && game.t2Id) {
                                 <span class="team-name tn-team team-link" role="button" tabindex="0"
                                       [attr.title]="'View ' + game.t2Name + ' results'"
@@ -263,6 +257,13 @@ type ScheduleRow =
                                       (keydown.space)="$event.preventDefault(); viewTeamResults.emit(game.t2Id!)">{{ n2.team }}</span>
                             } @else if (n2.club) {
                                 <span class="team-name tn-team">{{ n2.team }}</span>
+                            }
+                            <!-- Mirror of home: pill LAST on line two → outer edge, after the team. -->
+                            @if (r2) {
+                                <button type="button" class="record-btn"
+                                        [attr.title]="'View ' + game.t2Name + ' results'"
+                                        [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + r2"
+                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ r2 }}</button>
                             }
                         </span>
 
@@ -548,13 +549,14 @@ type ScheduleRow =
         .cell-away  { text-align: left; }
         .hdr-status,.cell-status{ text-align: center; }
 
-        /* The record pill lives on the team cell's SECOND line, after the team part of the
-           name, at the score-side edge (home flush right, away flush left — see the
-           template). It used to own a track on the outer side of each name; on line two it
-           costs no width, and it stays clear of the score: the scores are on line one, so
-           "2-2-0  4 - 14  3-1-0" never reads as one run of numbers. */
-        .cell-home .record-btn { margin-inline-start: var(--space-1); }
-        .cell-away .record-btn { margin-inline-end: var(--space-1); }
+        /* The record pill lives on the team cell's SECOND line, on the OUTER side of the team
+           part of the name (2026-10-06, Todd): before the team on home, after it on away, so
+           the team names hug the score and the pills sit outboard. On line two it costs no
+           width, and it stays clear of the score: the scores are on line one, so
+           "2-2-0  4 - 14  3-1-0" never reads as one run of numbers. The margin faces the
+           team. */
+        .cell-home .record-btn { margin-inline-end: var(--space-1); }
+        .cell-away .record-btn { margin-inline-start: var(--space-1); }
 
         /* ── Broadsheet dateline ──
            A full-width day "chapter" break. Spans every column (grid-column 1/-1) and
@@ -1002,8 +1004,8 @@ type ScheduleRow =
 
         /* Two-line name (desktop grid): club on line one, plain text (.tn-club); team on line
            two — THE link (primary ink, like the location link → team panel), since the team,
-           not the club, is what the link opens — followed (home) or preceded (away) by the
-           record pill. The row is already two lines tall (date over time), so the second line costs no height, and the name
+           not the club, is what the link opens — preceded (home) or followed (away) by the
+           record pill, on the outer side. The row is already two lines tall (date over time), so the second line costs no height, and the name
            track only has to fit the longer line instead of club + ":" + team.
 
            The split is a <br> inside the inline run. No club (see teamParts) → line one is
@@ -1028,7 +1030,7 @@ type ScheduleRow =
            with every name's length) or sat in the score cell (widened both score tracks on
            every row). Here it rides the CLUB line at the score-side edge — last on home's
            right-aligned line, first on away's left-aligned one — so it lands in one fixed
-           column per side, directly above the record pill, and costs no track width. Gold is
+           column per side, directly above the team line's score-side end, and costs no track width. Gold is
            the only use of --winner-gold on the row. The team link's aria-label already says
            ", winner", so the glyph is aria-hidden. */
         .win-trophy {
