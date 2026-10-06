@@ -221,7 +221,8 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
         <div class="dup-warn" role="alert">
           <i class="bi bi-exclamation-triangle-fill dup-icon" aria-hidden="true"></i>
           <div class="dup-body">
-            <!-- What another rep already did, one line each; then the question; then what it costs. -->
+            <!-- What another rep already did, one line each; then what it costs. Add asks the question,
+                 and only then — a question shows with its answers, never before (Todd 2026-10-06). -->
             @for (g of dupGroups(); track g.repName) {
               <p class="dup-text">
                 <b>{{ g.repName }}</b> has already registered the
@@ -229,7 +230,9 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
                 {{ g.teams.length === 1 ? 'team' : 'teams' }} in the <b class="dup-em">{{ dupAgeGroup() }}</b> age group.
               </p>
             }
-            <p class="dup-q">Do you really want to add the <b class="dup-em">{{ text().trim() }}</b> team?</p>
+            @if (confirmOpen()) {
+              <p class="dup-q">Do you really want to add the <b class="dup-em">{{ text().trim() }}</b> team?</p>
+            }
             <p class="dup-text dup-fee">Adding it creates a separate entry and a separate fee.</p>
             @if (confirmOpen()) {
               <div class="dup-confirm">
@@ -455,13 +458,9 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
       /* Team names and the age group: the facts the rep compares against their own team. */
       .dup-em { font-weight: var(--font-weight-bold); color: var(--bs-warning-text-emphasis); }
       .dup-fee { font-weight: var(--font-weight-bold); }
-      .dup-confirm {
-        margin-top: var(--space-2);
-        padding-top: var(--space-2);
-        border-top: 1px solid color-mix(in srgb, var(--bs-warning) 45%, transparent);
-      }
+      .dup-confirm { margin-top: var(--space-2); }
       .dup-q { font-weight: var(--font-weight-semibold); }
-      .dup-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+      .dup-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
       .btn-dont, .btn-yes {
         height: 30px;
         padding: 0 var(--space-3);
