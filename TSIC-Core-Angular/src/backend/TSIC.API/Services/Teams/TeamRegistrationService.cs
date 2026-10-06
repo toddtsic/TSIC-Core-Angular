@@ -453,7 +453,6 @@ public class TeamRegistrationService : ITeamRegistrationService
             .OrderBy(ct => ct.ClubTeamName)
             .ToList();
 
-        var sameNameLibraryTeams = await GetSameNameLibraryTeamsAsync(effectiveClubId, allClubTeams);
         var sameNameEventTeams = await GetSameNameEventTeamsAsync(jobId, regId, clubName);
 
         _logger.LogInformation("Found {RegisteredCount} registered teams, {DroppedCount} dropped teams, {SuggestionCount} suggestions, {AgeGroupCount} age groups, {LibraryTeamCount} library teams",
@@ -541,22 +540,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             BIncludeTeamDonation = job.BIncludeTeamDonation,
             EffectiveProcessingRate = ccRate,
             EffectiveEcheckProcessingRate = echeckRate,
-            SameNameLibraryTeams = sameNameLibraryTeams,
             SameNameEventTeams = sameNameEventTeams,
         };
-    }
-
-    /// <summary>The same-name clubs' saved teams this rep can pick (see <see cref="SameNameClubLists.LibraryTeams"/>).</summary>
-    private async Task<List<SameNameLibraryTeamDto>> GetSameNameLibraryTeamsAsync(
-        int ownClubId, List<Domain.Entities.ClubTeams> ownLibrary)
-    {
-        if (ownClubId <= 0) return [];
-
-        var sameNameClubs = SameNameClubLists.SameNameClubs(ownClubId, await _clubs.GetClubIdNamesAsync());
-        if (sameNameClubs.Count == 0) return [];
-
-        return SameNameClubLists.LibraryTeams(
-            sameNameClubs, await _clubTeams.GetByClubIdsAsync(sameNameClubs.Keys), ownLibrary);
     }
 
     /// <summary>Same-name reps' teams already in this event (see <see cref="SameNameClubLists.EventTeams"/>).</summary>

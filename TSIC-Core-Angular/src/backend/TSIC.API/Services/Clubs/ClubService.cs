@@ -10,6 +10,7 @@ using TSIC.Application.Services.Shared.Mapping;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.Identity;
+using TSIC.API.Services.Teams;
 
 namespace TSIC.API.Services.Clubs;
 
@@ -22,6 +23,7 @@ public sealed class ClubService : IClubService
     private readonly IClubRepository _clubRepo;
     private readonly IClubRepRepository _clubRepRepo;
     private readonly IRegistrationRepository _registrations;
+    private readonly IClubTeamRepository _clubTeams;
     private readonly IUserRepository _userRepo;
     private readonly IUserPrivilegeLevelService _privilegeService;
     private readonly IUserProfileService _userProfileService;
@@ -32,6 +34,7 @@ public sealed class ClubService : IClubService
         IClubRepository clubRepo,
         IClubRepRepository clubRepRepo,
         IRegistrationRepository registrations,
+        IClubTeamRepository clubTeams,
         IUserRepository userRepo,
         IUserPrivilegeLevelService privilegeService,
         IUserProfileService userProfileService,
@@ -41,6 +44,7 @@ public sealed class ClubService : IClubService
         _clubRepo = clubRepo;
         _clubRepRepo = clubRepRepo;
         _registrations = registrations;
+        _clubTeams = clubTeams;
         _userRepo = userRepo;
         _privilegeService = privilegeService;
         _userProfileService = userProfileService;
@@ -55,6 +59,9 @@ public sealed class ClubService : IClubService
     /// - the user already reps a club of that name → no second club (their own screens find
     ///   "your club" by name, and two of one name would be indistinguishable to them);
     /// - an unclaimed empty club carries exactly the typed name → claimed silently.
+    /// When the rep picked an existing same-name club as theirs (<see cref="ClubRepRegistrationRequest.SourceClubId"/>),
+    /// that club's active library teams are copied into the rep's club — the Teams step then offers them as
+    /// the rep's own. Nothing links the two clubs afterwards.
     /// </summary>
     public async Task<ClubRepRegistrationResponse> RegisterAsync(ClubRepRegistrationRequest request)
     {
@@ -101,6 +108,27 @@ public sealed class ClubService : IClubService
                     Message = "Invalid password for existing account."
                 };
             }
+        }
+
+        // ── The club the rep picked as theirs ───────────────────────────
+        //
+        // Only a club with the same club name: the pick comes from sign-up's same-name list, and an id
+        // posted for any other club must not copy that club's library.
+        List<ClubTeams> sourceTeams = [];
+        if (request.SourceClubId is int sourceClubId)
+        {
+            var source = await _clubRepo.GetByIdAsync(sourceClubId);
+            if (source == null || !ClubNameMatcher.IsSameClubName(source.ClubName, request.ClubName))
+            {
+                return new ClubRepRegistrationResponse
+                {
+                    Success = false,
+                    ClubId = null,
+                    UserId = null,
+                    Message = "The club you picked doesn't have this club name. Pick your club again, or choose \"None of these\"."
+                };
+            }
+            sourceTeams = await _clubTeams.GetByClubIdAsync(sourceClubId);
         }
 
         // ── Which club ─────────────────────────────────────────────────
@@ -209,6 +237,18 @@ public sealed class ClubService : IClubService
             };
             _clubRepRepo.Add(clubRep);
             await _clubRepRepo.SaveChangesAsync();
+        }
+
+        // Copy the picked club's teams (Todd 2026-10-06). Never into the picked club itself — an existing
+        // rep re-registering resolves to their own club, which may be the one they picked.
+        if (sourceTeams.Count > 0 && request.SourceClubId != clubId)
+        {
+            var ownLibrary = await _clubTeams.GetByClubIdAsync(clubId);
+            foreach (var copy in SameNameClubLists.LibraryCopy(sourceTeams, ownLibrary, clubId, user.Id))
+            {
+                _clubTeams.Add(copy);
+            }
+            await _clubTeams.SaveChangesAsync();
         }
 
         scope.Complete();

@@ -7,51 +7,40 @@ using TSIC.Domain.Entities;
 namespace TSIC.API.Services.Teams;
 
 /// <summary>
-/// The team wizard's two same-name-club lists (Todd 2026-10-06), as pure rules over already-loaded data.
-/// Sign-up lets a rep create a club whose name another club already uses — typically the rep replacing
-/// that club's old rep. "Same name" is <see cref="ClubNameMatcher.IsSameClubName"/>: normalized, so
-/// "Fury Lax" and "Fury Lacrosse" are one club, and a filler-only name matches nothing.
+/// The same-name club rules (Todd 2026-10-06), as pure rules over already-loaded data. Sign-up lets a rep
+/// create a club whose name another club already uses — typically the rep replacing that club's old rep.
+/// "Same name" is <see cref="ClubNameMatcher.IsSameClubName"/>: normalized, so "Fury Lax" and
+/// "Fury Lacrosse" are one club, and a filler-only name matches nothing.
 /// </summary>
 public static class SameNameClubLists
 {
-    /// <summary>Every OTHER club whose name is the same club name as <paramref name="ownClubId"/>'s — id → name.</summary>
-    public static Dictionary<int, string> SameNameClubs(int ownClubId, IEnumerable<ClubIdName> clubs)
-    {
-        var all = clubs.ToList();
-        var ownName = all.FirstOrDefault(c => c.ClubId == ownClubId)?.ClubName;
-        return all
-            .Where(c => c.ClubId != ownClubId && ClubNameMatcher.IsSameClubName(c.ClubName, ownName))
-            .ToDictionary(c => c.ClubId, c => c.ClubName);
-    }
-
     /// <summary>
-    /// The same-name clubs' ACTIVE library teams the rep can pick: one per name + grad year, none the rep's own
-    /// library already holds — archived own rows included, since they still reserve that identity and a copy
-    /// would collide with them.
+    /// The library rows sign-up copies from the club the rep picked as theirs: its ACTIVE teams, one per name +
+    /// grad year, none the rep's own library already holds — archived own rows included, since they still
+    /// reserve that identity. A blank-named team is never copied. New rows, owned by <paramref name="targetClubId"/>.
     /// </summary>
-    public static List<SameNameLibraryTeamDto> LibraryTeams(
-        IReadOnlyDictionary<int, string> sameNameClubs,
-        IEnumerable<ClubTeams> theirTeams,
-        IEnumerable<ClubTeams> ownLibrary)
+    public static List<ClubTeams> LibraryCopy(
+        IEnumerable<ClubTeams> sourceTeams, IEnumerable<ClubTeams> ownLibrary, int targetClubId, string userId)
     {
         var ownKeys = ownLibrary
             .Select(ct => IdentityKey(ct.ClubTeamName, ct.ClubTeamGradYear))
             .ToHashSet();
 
-        return theirTeams
-            .Where(ct => ct.Active && sameNameClubs.ContainsKey(ct.ClubId))
+        return sourceTeams
+            .Where(ct => ct.Active && !string.IsNullOrWhiteSpace(ct.ClubTeamName))
             .Where(ct => !ownKeys.Contains(IdentityKey(ct.ClubTeamName, ct.ClubTeamGradYear)))
             .GroupBy(ct => IdentityKey(ct.ClubTeamName, ct.ClubTeamGradYear))
             .Select(g => g.First())
-            .Select(ct => new SameNameLibraryTeamDto
+            .Select(ct => new ClubTeams
             {
-                ClubTeamName = ct.ClubTeamName,
-                ClubTeamGradYear = ct.ClubTeamGradYear,
-                ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay ?? string.Empty,
-                SourceClubName = sameNameClubs[ct.ClubId],
+                ClubId = targetClubId,
+                ClubTeamName = ct.ClubTeamName.Trim(),
+                ClubTeamGradYear = (ct.ClubTeamGradYear ?? string.Empty).Trim(),
+                ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay,
+                Active = true,
+                LebUserId = userId,
+                Modified = DateTime.Now,
             })
-            .OrderBy(t => t.ClubTeamName)
-            .ThenBy(t => t.ClubTeamGradYear)
             .ToList();
     }
 

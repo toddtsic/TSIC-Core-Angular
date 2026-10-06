@@ -43,16 +43,6 @@ public class ClubRepository : IClubRepository
             .AnyAsync(ct => ct.ClubId == clubId, cancellationToken);
     }
 
-    public async Task<List<ClubIdName>> GetClubIdNamesAsync(
-        CancellationToken cancellationToken = default)
-    {
-        return await _context.Clubs
-            .AsNoTracking()
-            .Where(c => c.ClubName != null)
-            .Select(c => new ClubIdName { ClubId = c.ClubId, ClubName = c.ClubName! })
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<Clubs?> GetByNameAsync(
         string clubName,
         CancellationToken cancellationToken = default)

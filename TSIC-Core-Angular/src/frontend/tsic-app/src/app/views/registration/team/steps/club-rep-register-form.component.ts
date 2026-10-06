@@ -36,12 +36,7 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
         line-height: 1.4;
       }
 
-      .use-name-btn:focus-visible {
-        outline: none;
-        box-shadow: var(--shadow-focus);
-      }
-
-      /* ── Same-name clubs panel (informational — never a block) ──────────
+      /* ── Same-name clubs: "Is this your club?" (a choice, never a block) ──
          Mode-adaptive: panel surface inherits from .card-body (white in light,
          dark in dark). Text uses --brand-text. The primary tint is an rgba
          overlay that works over either surface. Do NOT force a palette-locked
@@ -51,47 +46,46 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
       .club-known-panel {
         border: 1px solid rgba(var(--bs-primary-rgb), 0.3);
         border-radius: var(--radius-md);
-        margin-top: var(--space-2);
+        margin: var(--space-2) 0 0;
+        padding: 0;
+        min-width: 0;
         overflow: hidden;
       }
+      /* A legend: float + width make it a normal block inside the fieldset's border. */
       .club-known-header {
+        float: left;
+        width: 100%;
         display: flex;
         align-items: flex-start;
         gap: var(--space-2);
+        margin: 0;
         padding: var(--space-3);
         background: rgba(var(--bs-primary-rgb), 0.08);
         border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.15);
-      }
-      .club-known-header > i { color: var(--bs-primary); margin-top: 2px; flex-shrink: 0; }
-      .club-known-header h6 {
         font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-        margin: 0;
-      }
-      .club-known-header p {
-        font-size: var(--font-size-sm);
-        color: var(--brand-text);
-        margin: var(--space-1) 0 0;
         line-height: var(--line-height-normal);
+        color: var(--brand-text);
       }
+      .club-known-header + * { clear: both; }
+      .club-known-header > i { color: var(--bs-primary); margin-top: 2px; flex-shrink: 0; }
+      .known-q { display: block; font-weight: var(--font-weight-bold); }
+      .known-p { display: block; margin-top: var(--space-1); }
       .known-club-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0;
         padding: var(--space-2) var(--space-3);
         border-bottom: 1px solid var(--border-color);
         font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        cursor: pointer;
       }
-      .known-club-actions {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-      }
-      .known-club-actions .in-use {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--bs-success);
-      }
+      .known-club-row:last-child { border-bottom: none; }
+      .known-club-row:hover { background: rgba(var(--bs-primary-rgb), 0.04); }
+      .known-club-row.is-chosen { background: rgba(var(--bs-primary-rgb), 0.1); }
+      .known-club-row .form-check-input { flex-shrink: 0; margin: 0; }
+      .known-club-row .form-check-input:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
       /* ── Shared ──────────────────────────────────────────── */
       .form-divider { border-color: var(--border-color); opacity: 0.5; }
@@ -192,52 +186,43 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
               }
 
               <!-- ═══ CLUBS ALREADY ON TSIC ═══
-                   Informational, never a block (Todd 2026-10-06): a new rep taking over or joining
-                   a club signs up under its name. "Use this name" makes the name exact, so the Teams
-                   step can offer that club's saved teams to pick. No rep names or emails here. -->
-              @if (similarMatches().length > 0 && !clubSearchLoading()) {
-                <div class="club-known-panel" role="status">
-                  <div class="club-known-header">
+                   A choice, never a block (Todd 2026-10-06): a rep taking over or joining a club picks
+                   WHICH club is theirs, and that club's saved teams are copied into their own — names
+                   aren't unique, so the pick is by club, not by name. "None of these" starts empty.
+                   Create Account waits for an answer. No rep names or emails here. -->
+              @if (similarMatches().length > 0) {
+                <fieldset class="club-known-panel">
+                  <legend class="club-known-header">
                     <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
-                    <div>
-                      @if (similarMatches().length === 1) {
-                        <h6>{{ similarMatches()[0].clubName }} is already on TSIC.</h6>
-                      } @else {
-                        <h6>Clubs with this name are already on TSIC.</h6>
-                      }
-                      <p>
-                        Taking over or joining your club? Go ahead — sign up under your club's name.
-                        When you register teams, the teams already saved under that name will be
-                        there to pick, so there's no retyping.
-                      </p>
-                    </div>
-                  </div>
+                    <span>
+                      <span class="known-q">{{ similarMatches().length === 1 ? 'Is this your club?' : 'Is one of these your club?' }}</span>
+                      <span class="known-p">
+                        Pick your club and its saved teams are copied to your account, ready to register
+                        &mdash; no retyping. Starting a different club that happens to share the name?
+                        Choose <b>None of these</b>.
+                      </span>
+                    </span>
+                  </legend>
                   @for (club of similarMatches(); track club.clubId) {
-                    <div class="known-club-row">
-                      <span class="fw-semibold">{{ club.clubName }}</span>
-                      @if (club.state) {
-                        <span class="text-muted ms-1">({{ club.state }})</span>
-                      }
-                      @if (club.teamCount) {
-                        <span class="text-muted ms-1">&bull; {{ club.teamCount }} {{ club.teamCount === 1 ? 'team' : 'teams' }}</span>
-                      }
-                    </div>
+                    <label class="known-club-row" [class.is-chosen]="clubChoice() === club.clubId">
+                      <input type="radio" class="form-check-input" name="clubChoice"
+                             [checked]="clubChoice() === club.clubId" (change)="chooseClub(club)">
+                      <span>
+                        <span class="fw-semibold">{{ club.clubName }}</span>
+                        @if (club.state) {
+                          <span class="text-muted ms-1">({{ club.state }})</span>
+                        }
+                        <span class="text-muted ms-1">&bull; {{ club.teamCount }} {{ club.teamCount === 1 ? 'saved team' : 'saved teams' }}</span>
+                      </span>
+                    </label>
                   }
-                  <!-- One action per SPELLING, not per club: same-name clubs share it, so a button per
-                       row would fill in the same text and tick every row at once. -->
-                  <div class="known-club-actions">
-                    @for (name of clubSpellings(); track name) {
-                      @if (isTypedName(name)) {
-                        <span class="in-use"><i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>Using &ldquo;{{ name }}&rdquo;</span>
-                      } @else {
-                        <button type="button" class="btn btn-sm btn-outline-primary use-name-btn"
-                                (click)="useClubName(name)">
-                          @if (clubSpellings().length === 1) { Use this name } @else { Use &ldquo;{{ name }}&rdquo; }
-                        </button>
-                      }
-                    }
-                  </div>
-                </div>
+                  <label class="known-club-row" [class.is-chosen]="clubChoice() === 'none'">
+                    <input type="radio" class="form-check-input" name="clubChoice"
+                           [checked]="clubChoice() === 'none'" (change)="clubChoice.set('none')">
+                    <span><span class="fw-semibold">None of these</span>
+                      <span class="text-muted ms-1">&mdash; we're a new club</span></span>
+                  </label>
+                </fieldset>
               }
               }
 
@@ -476,16 +461,23 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
     readonly clubSearchResults = signal<ClubSearchResult[]>([]);
     readonly clubSearchLoading = signal(false);
 
-    /** Same-name clubs only (server: ClubNameMatcher.IsSameClubName) — the "already on TSIC" panel.
-     *  Look-alikes are not listed: the Teams step does not offer their saved teams either. */
+    /** Same-name clubs only (server: ClubNameMatcher.IsSameClubName) — the "Is this your club?" panel. */
     readonly similarMatches = computed(() =>
         this.clubSearchResults().filter(c => c.isExactMatch)
     );
 
-    /** The distinct spellings among those clubs (case counts, spacing doesn't) — one "Use" each. */
-    readonly clubSpellings = computed(() =>
-        [...new Set(this.similarMatches().map(c => c.clubName.trim().replace(/\s+/g, ' ')))]
-    );
+    /** The rep's answer: a listed club's id, 'none' ("None of these"), or null = not answered. */
+    readonly clubChoice = signal<number | 'none' | null>(null);
+
+    /** The picked club while it is still listed — editing the name to another club's drops it. */
+    readonly chosenClub = computed(() => {
+        const choice = this.clubChoice();
+        return typeof choice === 'number' ? this.similarMatches().find(c => c.clubId === choice) ?? null : null;
+    });
+
+    /** Answered, or nothing to answer: no same-name club is listed. */
+    readonly clubChoiceMade = computed(() =>
+        this.similarMatches().length === 0 || this.clubChoice() === 'none' || !!this.chosenClub());
 
     readonly form = this.fb.group({
         clubName: ['', Validators.required],
@@ -550,6 +542,9 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         this.form.controls.clubName.valueChanges.pipe(
             distinctUntilChanged(),
             tap((v) => {
+                // A new name is a new question: "Is this your club?" is answered again. chooseClub
+                // sets its answer after its own setValue, so that answer stands.
+                this.clubChoice.set(null);
                 if (!v || v.trim().length < 3) {
                     this.clubSearchResults.set([]);
                     this.clubSearchLoading.set(false);
@@ -627,18 +622,12 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         });
     }
 
-    /** "Use this name": take an existing club's name exactly, so the Teams step matches it. */
-    useClubName(name: string): void {
+    /** "This is my club": its saved teams come with the rep, and the club name takes its spelling. */
+    chooseClub(club: ClubSearchResult): void {
         const c = this.form.controls.clubName;
-        c.setValue(name);
+        c.setValue(club.clubName);
         c.markAsDirty();
-    }
-
-    /** True when the Club Name input already holds this name exactly (spacing aside). Case counts,
-     *  so "true lacrosse" still offers "Use this name" — the club's own capitalization. */
-    isTypedName(name: string): boolean {
-        const norm = (s: string | null | undefined) => (s ?? '').trim().replace(/\s+/g, ' ');
-        return norm(this.form.controls.clubName.value) === norm(name);
+        this.clubChoice.set(club.clubId);
     }
 
     digitsOnly(controlName: string, event: Event): void {
@@ -648,11 +637,11 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         this.form.get(controlName)?.setValue(digits);
     }
 
-    /** Submit needs a valid form, matching passwords, ToS accepted, and a username not known taken.
-     *  The club name never blocks — the server adds the rep to a club of that name either way. */
+    /** Submit needs a valid form, matching passwords, ToS accepted, a username not known taken, and —
+     *  when same-name clubs are listed — an answer to "Is this your club?". The name itself never blocks. */
     canSubmit(): boolean {
         if (this.usernameStatus() === 'taken') return false;
-        return this.form.valid && !this.passwordMismatch();
+        return this.form.valid && !this.passwordMismatch() && this.clubChoiceMade();
     }
 
     onSubmit(): void {
@@ -683,6 +672,7 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             username: v.username!.trim(),
             password: v.password!,
             acceptedTos: true,
+            sourceClubId: this.chosenClub()?.clubId ?? null,
         };
 
         this.clubService.registerClub(request)

@@ -6,7 +6,6 @@ import type { AgeGroupDto } from './AgeGroupDto';
 import type { ClubTeamDto } from './ClubTeamDto';
 import type { RegisteredTeamDto } from './RegisteredTeamDto';
 import type { SameNameEventTeamDto } from './SameNameEventTeamDto';
-import type { SameNameLibraryTeamDto } from './SameNameLibraryTeamDto';
 import type { SuggestedTeamNameDto } from './SuggestedTeamNameDto';
 import type { UserContactInfoDto } from './UserContactInfoDto';
 export type TeamsMetadataResponse = {
@@ -38,7 +37,6 @@ export type TeamsMetadataResponse = {
     bIncludeTeamDonation: boolean;
     effectiveProcessingRate: number;
     effectiveEcheckProcessingRate: number;
-    sameNameLibraryTeams: Array<SameNameLibraryTeamDto>;
     sameNameEventTeams: Array<SameNameEventTeamDto>;
 };
 

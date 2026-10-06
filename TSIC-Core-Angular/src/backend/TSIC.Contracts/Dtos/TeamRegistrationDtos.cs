@@ -123,25 +123,9 @@ public sealed record TeamsMetadataResponse
     public required decimal EffectiveProcessingRate { get; init; }
     public required decimal EffectiveEcheckProcessingRate { get; init; }
     // Same-name clubs (Todd 2026-10-06). Sign-up lets a rep create a club whose name another club
-    // already uses — typically the rep replacing that club's old rep. These two lists serve that rep:
-    // the first lets them pick the other club's saved teams instead of retyping them; the second
-    // warns before they register a team another rep of the same club name already entered here.
-    public required List<SameNameLibraryTeamDto> SameNameLibraryTeams { get; init; }
+    // already uses — typically the rep replacing that club's old rep. This list warns before they
+    // register a team while another rep of the same club name already has teams in that age group here.
     public required List<SameNameEventTeamDto> SameNameEventTeams { get; init; }
-}
-
-/// <summary>
-/// A team saved in ANOTHER club's library whose club name matches this rep's club. Offered in the Add a
-/// Team box as a pick that fills in name, grad year and level of play; adding it creates the rep's OWN
-/// library copy. Active teams only, one per name + grad year, none the rep's own library already holds.
-/// </summary>
-public sealed record SameNameLibraryTeamDto
-{
-    public required string ClubTeamName { get; init; }
-    public required string ClubTeamGradYear { get; init; }
-    public required string ClubTeamLevelOfPlay { get; init; }
-    /// The club whose library the team came from, for the pick's label.
-    public required string SourceClubName { get; init; }
 }
 
 /// <summary>

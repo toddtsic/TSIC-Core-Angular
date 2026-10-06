@@ -85,6 +85,7 @@ public class ClubRegistrationGateTests
         public required Mock<IClubRepository> ClubRepo { get; init; }
         public required Mock<IClubRepRepository> ClubRepRepo { get; init; }
         public required Mock<IRegistrationRepository> Registrations { get; init; }
+        public required Mock<IClubTeamRepository> ClubTeams { get; init; }
 
         /// <summary>The service created a NEW Clubs row.</summary>
         public void VerifyNewClubCreated() =>
@@ -103,7 +104,8 @@ public class ClubRegistrationGateTests
         ApplicationUser? existingUser = null,
         ClubWithUsageInfo[]? existingUsersClubs = null,
         int[]? unclaimedEmptyClubIds = null,
-        Registrations[]? teamlessRegistrations = null)
+        Registrations[]? teamlessRegistrations = null,
+        Dictionary<int, ClubTeams[]>? libraries = null)
     {
         var clubRepo = new Mock<IClubRepository>();
         clubRepo.Setup(r => r.GetSearchCandidatesAsync(It.IsAny<CancellationToken>()))
@@ -154,6 +156,14 @@ public class ClubRegistrationGateTests
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((teamlessRegistrations ?? []).ToList());
 
+        // Each club's library, by ClubId; a club looked up by id is the matching search candidate.
+        var clubTeams = new Mock<IClubTeamRepository>();
+        clubTeams.Setup(r => r.GetByClubIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, CancellationToken _) => (libraries ?? []).TryGetValue(id, out var lib) ? lib.ToList() : []);
+        clubRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, CancellationToken _) => existingClubs.Where(c => c.ClubId == id)
+                .Select(c => new Clubs { ClubId = c.ClubId, ClubName = c.ClubName }).FirstOrDefault());
+
         var userRepo = new Mock<IUserRepository>();
         userRepo.Setup(r => r.UpdateTosAcceptanceByUserIdAsync(
             It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -163,10 +173,10 @@ public class ClubRegistrationGateTests
 
         var userProfileService = new Mock<IUserProfileService>();
 
-        var svc = new ClubService(userManager, clubRepo.Object, clubRepRepo.Object, registrations.Object,
+        var svc = new ClubService(userManager, clubRepo.Object, clubRepRepo.Object, registrations.Object, clubTeams.Object,
             userRepo.Object, privilegeService.Object, userProfileService.Object, cache);
 
-        return new Fixture { Svc = svc, ClubRepo = clubRepo, ClubRepRepo = clubRepRepo, Registrations = registrations };
+        return new Fixture { Svc = svc, ClubRepo = clubRepo, ClubRepRepo = clubRepRepo, Registrations = registrations, ClubTeams = clubTeams };
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -448,5 +458,67 @@ public class ClubRegistrationGateTests
         handEdited.Assignment.Should().Be("Director note");
         handEdited.RegistrationCategory.Should().Be("Other");
         f.ClubRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  "THIS IS MY CLUB" — the picked club's teams are copied
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// SCENARIO: A rep taking over Charlotte Fury picks the existing Charlotte Fury as their club.
+    /// EXPECTED: their own club is created, and the picked club's active teams are copied into it.
+    /// </summary>
+    [Fact(DisplayName = "Picked club: its active teams are copied into the rep's new club")]
+    public async Task PickedClub_TeamsCopied()
+    {
+        var library = new[]
+        {
+            new ClubTeams { ClubTeamId = 10, ClubId = 1, ClubTeamName = "2030 Blue", ClubTeamGradYear = "2030", Active = true },
+            new ClubTeams { ClubTeamId = 11, ClubId = 1, ClubTeamName = "2029 Gold", ClubTeamGradYear = "2029", Active = true },
+            new ClubTeams { ClubTeamId = 12, ClubId = 1, ClubTeamName = "2027 Old", ClubTeamGradYear = "2027", Active = false },
+        };
+        var f = CreateService([ExistingClub], libraries: new() { [1] = library });
+
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury") with { SourceClubId = 1 });
+
+        result.Success.Should().BeTrue();
+        f.VerifyNewClubCreated();
+        f.ClubTeams.Verify(r => r.Add(It.Is<ClubTeams>(t => t.ClubId != 1 && t.ClubTeamId == 0 && t.Active)), Times.Exactly(2));
+        f.ClubTeams.Verify(r => r.Add(It.Is<ClubTeams>(t => t.ClubTeamName == "2027 Old")), Times.Never);
+        f.ClubTeams.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// SCENARIO: The rep answers "None of these — we're a new club".
+    /// EXPECTED: their own club, empty.
+    /// </summary>
+    [Fact(DisplayName = "None of these: no teams copied")]
+    public async Task NoneOfThese_NothingCopied()
+    {
+        var library = new[] { new ClubTeams { ClubTeamId = 10, ClubId = 1, ClubTeamName = "2030 Blue", ClubTeamGradYear = "2030", Active = true } };
+        var f = CreateService([ExistingClub], libraries: new() { [1] = library });
+
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury"));
+
+        result.Success.Should().BeTrue();
+        f.ClubTeams.Verify(r => r.Add(It.IsAny<ClubTeams>()), Times.Never);
+    }
+
+    /// <summary>
+    /// SCENARIO: The request names a club whose name is NOT the club name typed (a forged or stale id).
+    /// EXPECTED: refused before any account or club is created — an id never copies an unrelated library.
+    /// </summary>
+    [Fact(DisplayName = "Picked club of another name: refused, nothing created or copied")]
+    public async Task PickedClub_OtherName_Refused()
+    {
+        var library = new[] { new ClubTeams { ClubTeamId = 50, ClubId = 5, ClubTeamName = "Storm 2030", ClubTeamGradYear = "2030", Active = true } };
+        var storm = new ClubSearchCandidate { ClubId = 5, ClubName = "Raleigh Storm", State = "NC", TeamCount = 1, HasRep = true };
+        var f = CreateService([ExistingClub, storm], libraries: new() { [5] = library });
+
+        var result = await f.Svc.RegisterAsync(MakeRequest("Charlotte Fury") with { SourceClubId = 5 });
+
+        result.Success.Should().BeFalse();
+        f.VerifyNoClubCreated();
+        f.ClubTeams.Verify(r => r.Add(It.IsAny<ClubTeams>()), Times.Never);
     }
 }

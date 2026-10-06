@@ -23,6 +23,13 @@ public record ClubRepRegistrationRequest
     /// On success the service stamps AspNetUsers.bTSICWaiverSigned + TSICWaiverSigned_TS.
     /// </summary>
     public required bool AcceptedTos { get; init; }
+
+    /// <summary>
+    /// The existing same-name club the rep picked as theirs ("This is my club"); its active library teams are
+    /// copied into the rep's club so the Teams step offers them. Null = "None of these — we're a new club",
+    /// or no same-name club exists. The server re-checks the club has the same club name.
+    /// </summary>
+    public int? SourceClubId { get; init; }
 }
 
 public class ClubRepRegistrationRequestValidator : AbstractValidator<ClubRepRegistrationRequest>

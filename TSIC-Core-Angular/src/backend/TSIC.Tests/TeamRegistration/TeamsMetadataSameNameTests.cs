@@ -10,12 +10,13 @@ using Xunit;
 namespace TSIC.Tests.TeamRegistration;
 
 /// <summary>
-/// TEAM WIZARD — SAME-NAME CLUB LISTS (Todd 2026-10-06)
+/// SAME-NAME CLUBS (Todd 2026-10-06)
 ///
 /// Sign-up lets a rep create a club whose name another club already uses — typically the rep replacing
-/// that club's old rep. The Teams step then carries two lists:
-///   1. the other same-name clubs' saved teams, to pick instead of retyping;
-///   2. teams other same-name reps already registered in THIS event, to warn before a double entry.
+/// that club's old rep. Two rules serve that rep:
+///   1. sign-up copies the library of the club they picked as theirs into their own club;
+///   2. the Teams step lists teams other same-name reps already registered in THIS event, to warn
+///      before a double entry.
 /// "Same name" is normalized ("Fury Lax" = "Fury Lacrosse"); a filler-only name matches nothing.
 /// </summary>
 public class TeamsMetadataSameNameTests
@@ -30,8 +31,6 @@ public class TeamsMetadataSameNameTests
         Active = active
     };
 
-    private static ClubIdName Club(int id, string name) => new() { ClubId = id, ClubName = name };
-
     private static OtherClubRepTeamInfo EventTeam(string club, string team, string rep, string? grad = "2030",
         string ag = "2030") => new()
     {
@@ -44,79 +43,55 @@ public class TeamsMetadataSameNameTests
     };
 
     // ═══════════════════════════════════════════════════════════════════
-    //  LIST 1 — other same-name clubs' saved teams
+    //  RULE 1 — sign-up copies the picked club's library
     // ═══════════════════════════════════════════════════════════════════
 
-    [Fact(DisplayName = "Same-name clubs: every OTHER club of that name, normalized; never the rep's own")]
-    public void SameNameClubs_AllOthersNormalized()
+    [Fact(DisplayName = "Library copy: the picked club's active teams become new rows of the rep's club")]
+    public void LibraryCopy_ActiveTeamsIntoRepsClub()
     {
-        var clubs = new[]
+        var theirs = new[]
         {
-            Club(1, "Fury Lacrosse"),   // own
-            Club(2, "Fury Lacrosse"),   // exact
-            Club(3, "Fury Lax"),        // normalizes the same
-            Club(4, "Fury Lacrosse NJ"),// a different club
-            Club(5, "Storm Lacrosse"),
+            Lib(20, 2, "Fury 2030 Blue", "2030", lop: "5"),
+            Lib(21, 2, "Fury 2029 Gold", "2029", lop: null),
         };
 
-        var result = SameNameClubLists.SameNameClubs(1, clubs);
+        var result = SameNameClubLists.LibraryCopy(theirs, [], targetClubId: 1, userId: "rep-1");
 
-        result.Keys.Should().BeEquivalentTo([2, 3]);
+        result.Select(t => (t.ClubId, t.ClubTeamId, t.ClubTeamName, t.ClubTeamGradYear, t.ClubTeamLevelOfPlay, t.Active, t.LebUserId))
+            .Should().BeEquivalentTo([
+                (1, 0, "Fury 2030 Blue", "2030", (string?)"5", true, (string?)"rep-1"),
+                (1, 0, "Fury 2029 Gold", "2029", (string?)null, true, (string?)"rep-1"),
+            ]);
     }
 
-    [Fact(DisplayName = "Same-name clubs: a filler-only name matches nothing")]
-    public void SameNameClubs_FillerOnlyMatchesNothing()
+    [Fact(DisplayName = "Library copy: archived and blank-named teams are not copied")]
+    public void LibraryCopy_SkipsArchivedAndBlank()
     {
-        var clubs = new[] { Club(1, "Lacrosse Club"), Club(2, "The Lacrosse Club") };
+        var theirs = new[]
+        {
+            Lib(20, 2, "Fury 2030 Blue", "2030", active: false),
+            Lib(21, 2, "  ", "2030"),
+        };
 
-        SameNameClubLists.SameNameClubs(1, clubs).Should().BeEmpty();
+        SameNameClubLists.LibraryCopy(theirs, [], 1, "rep-1").Should().BeEmpty();
     }
 
-    [Fact(DisplayName = "Library list: every same-name club's active teams, each tagged with its source club")]
-    public void LibraryTeams_FromEverySameNameClub()
+    [Fact(DisplayName = "Library copy: one row per name + grad year")]
+    public void LibraryCopy_DedupesNamePlusGradYear()
     {
-        var sameName = new Dictionary<int, string> { [2] = "Fury Lacrosse", [3] = "Fury Lax" };
         var theirs = new[]
         {
             Lib(20, 2, "Fury 2030 Blue", "2030"),
-            Lib(30, 3, "Fury 2029 Gold", "2029"),
+            Lib(21, 2, "fury  2030 blue ", "2030"),
+            Lib(22, 2, "Fury 2030 Blue", "2031"),   // different grad year = different team
         };
 
-        var result = SameNameClubLists.LibraryTeams(sameName, theirs, []);
-
-        result.Select(t => (t.ClubTeamName, t.SourceClubName)).Should().BeEquivalentTo(
-            [("Fury 2029 Gold", "Fury Lax"), ("Fury 2030 Blue", "Fury Lacrosse")]);
+        SameNameClubLists.LibraryCopy(theirs, [], 1, "rep-1").Should().HaveCount(2);
     }
 
-    [Fact(DisplayName = "Library list: archived teams are left out")]
-    public void LibraryTeams_ExcludesArchived()
+    [Fact(DisplayName = "Library copy: teams the rep's library already holds are skipped — archived own rows too")]
+    public void LibraryCopy_SkipsOwnLibrary()
     {
-        var sameName = new Dictionary<int, string> { [2] = "Fury Lacrosse" };
-        var theirs = new[] { Lib(20, 2, "Fury 2030 Blue", "2030", active: false) };
-
-        SameNameClubLists.LibraryTeams(sameName, theirs, []).Should().BeEmpty();
-    }
-
-    [Fact(DisplayName = "Library list: the same team on two lists appears once")]
-    public void LibraryTeams_DedupesNamePlusGradYear()
-    {
-        var sameName = new Dictionary<int, string> { [2] = "Fury Lacrosse", [3] = "Fury Lax" };
-        var theirs = new[]
-        {
-            Lib(20, 2, "Fury 2030 Blue", "2030"),
-            Lib(30, 3, "fury  2030 blue ", "2030"),
-            Lib(31, 3, "Fury 2030 Blue", "2031"),   // different grad year = different team
-        };
-
-        var result = SameNameClubLists.LibraryTeams(sameName, theirs, []);
-
-        result.Should().HaveCount(2);
-    }
-
-    [Fact(DisplayName = "Library list: teams the rep's own library holds are left out — archived own rows too")]
-    public void LibraryTeams_ExcludesOwnLibrary()
-    {
-        var sameName = new Dictionary<int, string> { [2] = "Fury Lacrosse" };
         var theirs = new[]
         {
             Lib(20, 2, "Fury 2030 Blue", "2030"),
@@ -129,22 +104,12 @@ public class TeamsMetadataSameNameTests
             Lib(11, 1, "Fury 2029 Gold", "2029", active: false),
         };
 
-        var result = SameNameClubLists.LibraryTeams(sameName, theirs, own);
-
-        result.Select(t => t.ClubTeamName).Should().BeEquivalentTo(["Fury 2028 Red"]);
-    }
-
-    [Fact(DisplayName = "Library list: a team of a club that is not a same-name club is ignored")]
-    public void LibraryTeams_IgnoresOtherClubs()
-    {
-        var sameName = new Dictionary<int, string> { [2] = "Fury Lacrosse" };
-        var theirs = new[] { Lib(90, 9, "Storm 2030", "2030") };
-
-        SameNameClubLists.LibraryTeams(sameName, theirs, []).Should().BeEmpty();
+        SameNameClubLists.LibraryCopy(theirs, own, 1, "rep-1").Select(t => t.ClubTeamName)
+            .Should().BeEquivalentTo(["Fury 2028 Red"]);
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  LIST 2 — same-name reps' teams already in this event
+    //  RULE 2 — same-name reps' teams already in this event
     // ═══════════════════════════════════════════════════════════════════
 
     [Fact(DisplayName = "Event list: teams of every other same-name rep, each with its rep's name")]

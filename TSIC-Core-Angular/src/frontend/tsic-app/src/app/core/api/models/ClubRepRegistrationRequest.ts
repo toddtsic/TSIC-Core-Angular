@@ -16,5 +16,6 @@ export type ClubRepRegistrationRequest = {
     postalCode: string;
     cellphone: string;
     acceptedTos: boolean;
+    sourceClubId?: number | null;
 };
 

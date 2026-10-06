@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
-import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto, SameNameEventTeamDto, SameNameLibraryTeamDto } from '@core/api';
+import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto, SameNameEventTeamDto } from '@core/api';
 import { formatLop } from '@shared/teams/lop-choices';
 import { ToastService } from '@shared-ui/toast.service';
 import { type LibraryRegisterRequest } from './library-segment.types';
@@ -101,7 +101,6 @@ type BoardSide = 'lib' | 'reg';
           [ageGroups]="ageGroups()"
           [clubName]="clubName()"
           [eventName]="eventName()"
-          [sameNameLibraryTeams]="sameNameLibraryTeams()"
           [sameNameEventTeams]="sameNameEventTeams()"
           [actionInProgress]="actionInProgress()"
           (started)="addStarted.emit()"
@@ -222,8 +221,6 @@ export class TeamsBoardComponent {
     readonly ageGroups = input<readonly AgeGroupDto[]>([]);
     readonly eventName = input('this event');
     readonly clubName = input('');
-    /** Other same-name clubs' saved teams — the add row's "From another … list" (Todd 2026-10-06). */
-    readonly sameNameLibraryTeams = input<readonly SameNameLibraryTeamDto[]>([]);
     /** Teams other same-name reps already registered here — the add row's duplicate warning. */
     readonly sameNameEventTeams = input<readonly SameNameEventTeamDto[]>([]);
     /** Team registration open AND the director allows adds. */

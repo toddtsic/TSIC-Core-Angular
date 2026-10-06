@@ -3,25 +3,11 @@ using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
 
-/// <summary>A club's id and library name — the minimum for matching club names in memory.</summary>
-public record ClubIdName
-{
-    public required int ClubId { get; init; }
-    public required string ClubName { get; init; }
-}
-
 /// <summary>
 /// Repository for managing Clubs entity data access.
 /// </summary>
 public interface IClubRepository
 {
-    /// <summary>
-    /// Every club's id and name, AsNoTracking. Club-name matching is normalized (ClubNameMatcher, an
-    /// Application concern), so callers filter this in memory rather than the database matching names.
-    /// </summary>
-    Task<List<ClubIdName>> GetClubIdNamesAsync(
-        CancellationToken cancellationToken = default);
-
     /// <summary>
     /// Get club by ID.
     /// </summary>

@@ -118,3 +118,18 @@ A new rep replacing their club's old rep has never used TSIC. "Create NEW Club R
   - zztest_f2 in lftc-summer-2027, 2029: lists both Erin accounts' teams. 2030: the same. 2031: nothing. The confirm asks "Is ZZ Fresh Name a different team from those?" with focus on Don't add. 390px: no overflow.
   - Sign-up: "top tier national" lists the 3 Top Tier National clubs. "Top Tier", "Lacrosse Club" and "LC" list nothing.
   - zztest_f7: a rename moves the registration's club_name, and renaming back restores it.
+
+## Revision: "Is this your club?" copies the picked club's library (Todd 2026-10-06)
+Names aren't a club's identity: two unrelated clubs can share one. So the Teams step no longer offers every same-name club's teams.
+- **Sign-up:** when same-name clubs exist, the rep answers "Is this your club?" by picking one club (by ClubId) or **None of these — we're a new club**. Create Account waits for an answer. Picking fills in that club's spelling, and editing the name clears the answer.
+- **Server:** `ClubRepRegistrationRequest.SourceClubId`. The server refuses a club that isn't the same club name, then copies its ACTIVE library teams into the rep's club (one per name + grad year, skipping ones the rep already has and blank names). This happens once; nothing links the clubs afterwards. No DDL.
+- **Removed:** `SameNameLibraryTeams`/`SameNameLibraryTeamDto`, `GetClubIdNamesAsync`/`ClubIdName`, and the Add row's "From another … list". The Add row is back to master's list plus the age-group warning.
+- **Still name-based:** the duplicate warning (`SameNameEventTeams`).
+- **Verified:**
+  - Backend: 1230/1231 pass. The one failure is `EventBrowseTests` "Expired job with a game in the past 9 months", which `c78b33aa4` broke (the test sets no EventEndDate).
+  - `npm run build`: all 4 prebuild gates pass.
+  - Playwright:
+    - zztest_f4 picked Top Tier National (IN). Club 2287's 4 teams were copied into club 2469 with grad year and LOP, and the Teams step offers them as their own.
+    - zztest_f5 chose None of these and got an empty club 2470.
+    - A brand-new name gets no question.
+    - The age-group warning is unchanged.

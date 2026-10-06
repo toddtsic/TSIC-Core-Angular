@@ -24,7 +24,7 @@ import type { LibraryRegisterRequest } from '../components/library-segment.types
 import type { TeamAddedEvent } from '../components/team-add-row.component';
 import { TeamRenameConfirmComponent, renameSuccessMessage, type TeamRenameConfirmation } from '@shared/teams/team-rename-confirm.component';
 import { clubTeamArchiveLockReason, clubTeamDeleteLockReason, clubTeamEditLockReason, type ClubTeamLockContext } from '@shared/teams/club-team-locks';
-import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto, SameNameEventTeamDto, SameNameLibraryTeamDto } from '@core/api';
+import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto, SameNameEventTeamDto } from '@core/api';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
 
 /**
@@ -76,7 +76,6 @@ type TeamsSegment = 'library' | 'registered';
             [ageGroups]="ageGroups()"
             [eventName]="eventName()"
             [clubName]="clubName()"
-            [sameNameLibraryTeams]="sameNameLibraryTeams()"
             [sameNameEventTeams]="sameNameEventTeams()"
             [canRegister]="canRegisterTeam()"
             [canRemove]="canRemoveTeam()"
@@ -1006,8 +1005,6 @@ export class TeamTeamsStepComponent implements OnInit {
      *  straight to the library fly-in's muted Dropped section. */
     private readonly _droppedTeams = signal<RegisteredTeamDto[]>([]);
     private readonly _clubTeams = signal<ClubTeamDto[]>([]);
-    /** Other same-name clubs' saved teams, to pick instead of retyping (Todd 2026-10-06). */
-    readonly sameNameLibraryTeams = signal<SameNameLibraryTeamDto[]>([]);
     /** Teams other same-name reps already registered in this event — warn before a double entry. */
     readonly sameNameEventTeams = signal<SameNameEventTeamDto[]>([]);
 
@@ -1701,7 +1698,6 @@ export class TeamTeamsStepComponent implements OnInit {
                     this.stampUndoDeadlines(meta.registeredTeams || []);
                     this._droppedTeams.set(meta.droppedTeams || []);
                     this._clubTeams.set(meta.clubTeams || []);
-                    this.sameNameLibraryTeams.set(meta.sameNameLibraryTeams || []);
                     this.sameNameEventTeams.set(meta.sameNameEventTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);
                     this.state.applyTeamsMetadata(meta);
