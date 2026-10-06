@@ -135,12 +135,7 @@ type ScheduleRow =
                         </span>
 
                         <!-- Home team. The cell is ONE INLINE TEXT RUN (see .cell-home in the
-                             styles), so star, name and annotation flow and wrap together.
-                             That is what keeps the star beside its team: as a flex sibling it
-                             anchored to the name ELEMENT's edge, and a wrapped name's element
-                             fills the whole column while its text sits ragged inside it,
-                             stranding the star ~90px away. Inline content has no element edge
-                             to anchor to.
+                             styles), so name, annotation and trophy flow and wrap together.
 
                              The bracket badge is not in here: it rides in the score cell, on
                              the name side (see Score below).
@@ -154,14 +149,6 @@ type ScheduleRow =
                         <span class="cell cell-home" role="cell" aria-colindex="4">
                             @let n1 = teamParts(game.t1Name, game.t1SlotLabel);
                             @let r1 = game.t1Id ? game.t1Record : null;
-                            @if (game.t1Id) {
-                                <button type="button" class="team-star"
-                                        [class.is-on]="isFollowed(game.t1Id)"
-                                        [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
-                                        (click)="onStarClick(game.t1Id!)">
-                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
-                                </button>
-                            }
                             @if (n1.club) {
                                 <span class="team-name tn-club">{{ n1.club }}</span>
                             } @else if (game.t1Id) {
@@ -239,34 +226,12 @@ type ScheduleRow =
                             @if (game.t2SlotLabel) { <span class="seed-tag"><span class="visually-hidden">slot </span>{{ game.t2SlotLabel }}</span> }
                         </span>
 
-                        <!-- Away team. The star PRECEDES the name here exactly as it does on
-                             the home side — deliberately NOT mirrored.
-
-                             Inline flow puts "first" at the start of line one and "last" at
-                             the end of the last line. A mirrored away cell therefore put its
-                             star after the final character of a wrapped name, and when the
-                             name filled the track (which fit-content guarantees for whichever
-                             name is longest) there was no room left, so the star dropped to a
-                             line of its own below the team. The home side never showed this
-                             because its star was already first.
-
-                             There is no inline arrangement that is both mirrored and always
-                             on the first line, so first-line wins: "the star precedes the
-                             team name" is one rule for both sides, and the star is invisible
-                             at rest anyway unless the team is followed. -->
+                        <!-- Away team — mirror of home: trophy and record pill sit at the
+                             score-side (left) edge. -->
                         <span class="cell cell-away" role="cell" aria-colindex="8">
                             @let n2 = teamParts(game.t2Name, game.t2SlotLabel);
                             @let r2 = game.t2Id ? game.t2Record : null;
-                            @if (game.t2Id) {
-                                <button type="button" class="team-star"
-                                        [class.is-on]="isFollowed(game.t2Id)"
-                                        [attr.aria-label]="(isFollowed(game.t2Id) ? 'Unfollow ' : 'Follow ') + game.t2Name"
-                                        (click)="onStarClick(game.t2Id!)">
-                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
-                                </button>
-                            }
-                            <!-- Winner trophy: FIRST on line one (after the at-rest zero-width star) →
-                                 flush left, at the score edge. Mirror of home. -->
+                            <!-- Winner trophy: FIRST on line one → flush left, at the score edge. -->
                             @if (isT2Winner(game)) { <i class="bi bi-trophy-fill win-trophy" title="Winner" aria-hidden="true"></i> }
                             @if (n2.club) {
                                 <span class="team-name tn-club">{{ n2.club }}</span>
@@ -367,14 +332,6 @@ type ScheduleRow =
                             <span class="card-team-name">
                                 @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                                 @if (game.t1Id) {
-                                    <button type="button" class="team-star"
-                                            [class.is-on]="isFollowed(game.t1Id)"
-                                            [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
-                                            (click)="onStarClick(game.t1Id!)">
-                                        <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
-                                    </button>
-                                }
-                                @if (game.t1Id) {
                                     <button type="button" class="team-name team-link"
                                             [attr.title]="'View ' + game.t1Name + ' results'"
                                             [attr.aria-label]="'View ' + game.t1Name + ' results' + (isT1Winner(game) ? ', winner' : '')"
@@ -399,14 +356,6 @@ type ScheduleRow =
                         <div class="card-team-row">
                             <span class="card-team-name">
                                 @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
-                                @if (game.t2Id) {
-                                    <button type="button" class="team-star"
-                                            [class.is-on]="isFollowed(game.t2Id)"
-                                            [attr.aria-label]="(isFollowed(game.t2Id) ? 'Unfollow ' : 'Follow ') + game.t2Name"
-                                            (click)="onStarClick(game.t2Id!)">
-                                        <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
-                                    </button>
-                                }
                                 @if (game.t2Id) {
                                     <button type="button" class="team-name team-link"
                                             [attr.title]="'View ' + game.t2Name + ' results'"
@@ -917,10 +866,8 @@ type ScheduleRow =
            doesn't read like a round-robin game. Neutral + palette-responsive; null slotLabel
            (round-robin/consolation) renders nothing. In the desktop grid it rides in the
            score cell on the name side (see Score columns); in the mobile cards it leads the
-           name. text-indent: 0 because an inline-block inherits its parent's text-indent —
-           the away cell's hanging indent once pushed the label text out of its own border. */
+           name. */
         .seed-tag {
-            text-indent: 0;
             display: inline-block;
             padding: 0 var(--space-1);
             margin-right: var(--space-1);
@@ -954,9 +901,6 @@ type ScheduleRow =
            row needs calming, take it out of something that is not carrying meaning. */
         .record-btn {
             appearance: none;
-            /* An inline-block inherits text-indent; the away cell's hanging indent would
-               shove the label out of its own border. */
-            text-indent: 0;
             padding: 0 var(--space-2);
             border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-full);
@@ -993,32 +937,17 @@ type ScheduleRow =
             .record-btn { transition: none !important; }
         }
 
-        /* ONE INLINE TEXT RUN, not a flex row. Star, name and annotation flow and wrap
+        /* ONE INLINE TEXT RUN, not a flex row. Trophy, name and annotation flow and wrap
            together as text, line two carrying the team part and the record pill. (The
            bracket badge is NOT in here; it rides in the score cell.)
 
-           Flex was the wrong container the moment names started wrapping, and it failed twice
-           the same way. A flex item anchors to the NAME ELEMENT's edge, but a wrapped name's
-           element fills the entire column while its text sits ragged inside it. So whichever
-           sibling sat on the ragged side stranded itself ~90px from the team: first the win
-           caret, then (after moving the caret inline) the follow star. Reordering only ever
-           moved the problem to the other side, because each cell has a flush edge and a
-           ragged one and flex siblings can only ever hug the flush one.
+           Flex was the wrong container the moment names started wrapping. A flex item
+           anchors to the NAME ELEMENT's edge, but a wrapped name's element fills the entire
+           column while its text sits ragged inside it, so a sibling on the ragged side
+           stranded itself ~90px from the team. Inline flow has no element edge to anchor to.
 
-           Inline flow has no element edge to anchor to. The star lands immediately beside the
-           name's TEXT and stays there through any amount of wrapping. Both sides read
-           star · name — see the away cell in the template for why that is not mirrored.
-
-           The star keeps vertical-align: middle from its base rule, which centres it on the
-           baseline of whatever line it sits on. Since it is always first, that is always the
-           FIRST line — so it tracks the row's line rather than drifting with row height.
-
-           Alignment is unchanged: .cell-home is text-align: right, .cell-away left (set with
-           the column rules), and .team-link is text-align: inherit.
-           .team-link also needs display: inline so its text participates in the run rather
-           than forming an atomic inline-block that fills the column all over again.
-           .team-star keeps vertical-align: middle from its base rule — that is what stopped
-           it reading low on the baseline, which is the reason flex was reached for. */
+           Alignment: .cell-home is text-align: right, .cell-away left (set with the column
+           rules), and .team-link is text-align: inherit. */
         .cell-home,
         .cell-away {
             display: block;
@@ -1038,40 +967,11 @@ type ScheduleRow =
             text-overflow: clip;
         }
 
-        /* HANGING INDENT — away side only.
-
-           The star is the first thing in this cell, so it occupies the start of line one.
-           Line two has no star and so started at the cell's left edge, i.e. LEFT of where
-           line one's text began: a left-aligned column with a ragged LEFT edge, which reads
-           as broken ("Spirit" outdented under "Philly Blast Lacrosse:2034").
-
-           The padding pushes every line in by the star's footprint; the negative text-indent
-           pulls the FIRST line back out so the star still begins at the cell edge and nothing
-           moves on unwrapped rows. Continuation lines then align under the name's first
-           character.
-
-           Home needs none of this and must not have it: home is right-aligned, so every line
-           is already flush on the right and the star simply extends line one further left —
-           which is what a ragged left edge is supposed to do.
-
-           One known imperfection, rare and better than the outdent: an unresolved feed
-           renders no star at all, leaving its line one outdented by the footprint. */
-        .cell-away {
-            /* .team-star is an 18px box with margin: 0 4px */
-            --star-footprint: 26px;
-            padding-inline-start: var(--star-footprint);
-            text-indent: calc(-1 * var(--star-footprint));
-        }
-
         /* There is deliberately NO "display: inline" rule for .team-link here any more. There
            was one, and it never did anything: in the desktop grid the name used to be a
            <button>, and a button is an ATOMIC inline-level box that no display value can
-           make flow as text. So the name was a single unbreakable brick sharing a line with
-           the star. Whenever star + brick exceeded the track the brick dropped to a line of
-           its own, leaving line 1 holding nothing but an invisible star — which read as a
-           name sitting a line lower than its own row, wrapped its text inside a box that was
-           already on the wrong line, and under nowrap collapsed the whole name to "...".
-           Three separate symptoms, one cause.
+           make flow as text. So the name was a single unbreakable brick that dropped to a
+           line of its own whenever it shared line one with anything too wide for the track.
 
            The desktop name is now a span with role="button" + tabindex, so its text really
            does join this cell's inline run. The mobile cards keep real <button>s: each team
@@ -1106,9 +1006,8 @@ type ScheduleRow =
            record pill. The row is already two lines tall (date over time), so the second line costs no height, and the name
            track only has to fit the longer line instead of club + ":" + team.
 
-           The split is a <br> inside the inline run, so the star stays on line one and the
-           away hanging indent puts line two under the club's first character. No club (see
-           teamParts) → line one is the whole name, line two only the pill. */
+           The split is a <br> inside the inline run. No club (see teamParts) → line one is
+           the whole name, line two only the pill. */
         /* Unlinked team line (unresolved feed) stays secondary ink; the LINKED team line takes
            the .team-link primary treatment below. */
         .tn-team {
@@ -1131,12 +1030,7 @@ type ScheduleRow =
            right-aligned line, first on away's left-aligned one — so it lands in one fixed
            column per side, directly above the record pill, and costs no track width. Gold is
            the only use of --winner-gold on the row. The team link's aria-label already says
-           ", winner", so the glyph is aria-hidden. text-indent: 0 on the icon and its ::before
-           box: away's hanging indent is inherited otherwise (the old empty-badge bug). */
-        .win-trophy,
-        .win-trophy::before {
-            text-indent: 0;
-        }
+           ", winner", so the glyph is aria-hidden. */
         .win-trophy {
             color: var(--winner-gold);
             font-size: var(--font-size-xs);
@@ -1175,92 +1069,21 @@ type ScheduleRow =
             border-radius: var(--radius-sm);
         }
 
-        /* Team star — follow/unfollow shortcut. Black-tie: the filled (followed) state
-           is strong ink (black in light, white in dark — --score-strong flips with the
-           theme), NOT gold. Gold now means "won" and nothing else; the fill-vs-outline
-           shape alone carries the followed state. */
-        .team-star {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 18px;
-            height: 18px;
-            padding: 0;
-            margin: 0 4px;
-            border: none;
-            background: transparent;
-            color: var(--bs-secondary-color);
-            font-size: var(--font-size-xs);
-            cursor: pointer;
-            opacity: 0.55;
-            transition: opacity 0.15s, color 0.15s, transform 0.15s;
-            vertical-align: middle;
-        }
         /* Bootstrap Icons ships .bi::before with vertical-align: -.125em (verified in
            bootstrap-icons.css, alongside line-height: 1). That nudge assumes the icon sits
            INLINE BESIDE TEXT at the same size, where dropping the ink is what makes a glyph
            optically centre on a lowercase run.
 
-           These three buttons are inline-flex with align-items: center, so flex has already
+           These buttons are inline-flex with align-items: center, so flex has already
            centred the icon's BOX. Bootstrap's nudge then lands on top of a centring that
-           already happened and drives the ink ~0.125em below the middle — about 1.5px at
-           --font-size-xs, which is exactly the amount the follow stars were reading low by.
-           Cancel it wherever we do the centring ourselves.
+           already happened and drives the ink ~0.125em (~1.5px at --font-size-xs) below the
+           middle. Cancel it wherever we do the centring ourselves.
 
            Deliberately NOT applied to .loc-icon: that one really is inline beside text, and
            it carries its own tuned offset on top. It still wants Bootstrap's behaviour. */
-        .team-star .bi::before,
         .status-key .bi::before,
         .score-pencil .bi::before {
             vertical-align: 0;
-        }
-
-        .team-star:hover {
-            opacity: 1;
-            color: var(--score-strong);
-        }
-        .team-star.is-on {
-            opacity: 1;
-            color: var(--score-strong);
-        }
-        .team-star:focus-visible {
-            outline: none;
-            box-shadow: var(--shadow-focus);
-            opacity: 1;
-            border-radius: 50%;
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .team-star { transition: none !important; }
-        }
-
-        /* Stars rest INVISIBLE in the desktop ledger and appear on row hover. Two per row
-           over 20 rows is 40 outlines competing with the score; at rest they carry no
-           information, since the state that matters (this team is one of mine) is the
-           FILLED star, which stays lit via .is-on below.
-
-           Gated on (hover: hover) so a touch device — which never fires row hover — keeps
-           them visible, and scoped to .game-row so the mobile cards are untouched.
-           Opacity only, never display/visibility: the button must stay focusable, and
-           :focus-visible brings it back for keyboard users mid-tab-order.
-
-           An invisible star also takes NO SPACE at rest: zero width and margin, so the away
-           name sits against its badge instead of 26px of empty box. It opens back up on row
-           hover / keyboard focus (the name steps aside to make room) and stays open for a
-           followed team. The away hanging indent tracks the same states via
-           --star-footprint, or wrapped lines would indent under a star that isn't there. */
-        @media (hover: hover) {
-            .game-row .team-star { opacity: 0; }
-            .game-row .team-star:not(.is-on) { width: 0; margin: 0; overflow: hidden; }
-            .game-row:hover .team-star,
-            .game-row .team-star:focus-visible { width: 18px; margin: 0 4px; }
-            .game-row:hover .team-star,
-            .game-row .team-star:focus-visible,
-            .game-row .team-star.is-on { opacity: 1; }
-
-            .game-row .cell-away { --star-footprint: 0px; }
-            .game-row:hover .cell-away,
-            .game-row .cell-away:has(.team-star.is-on),
-            .game-row .cell-away:has(.team-star:focus-visible) { --star-footprint: 26px; }
         }
 
         /* Wraps internally for the same reason the name does: it is the other
@@ -1666,8 +1489,6 @@ export class GamesTabComponent {
     readonly games = input<ViewGameDto[]>([]);
     readonly canScore = input<boolean>(false);
     readonly isLoading = input<boolean>(false);
-    /** TeamIds the current user is following (parent owns the set). */
-    readonly followedTeamIds = input<readonly string[]>([]);
 
     // ── Outputs ──
     /** Pencil clicked — the host opens the score sheet. The whole game goes up rather than
@@ -1676,11 +1497,8 @@ export class GamesTabComponent {
     readonly scoreGame = output<ViewGameDto>();
     readonly editGame = output<number>();
     readonly viewTeamResults = output<string>();
-    /** Emits the teamId when the user clicks a star — parent toggles the set. */
-    readonly toggleFollow = output<string>();
 
     // ── Derived ──
-    private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
 
     /** Games interleaved with day datelines — the Broadsheet grouping (see ScheduleRow).
      *  Two passes: count games per day, then emit a `day` row at each date change. */
@@ -1704,16 +1522,6 @@ export class GamesTabComponent {
         }
         return out;
     });
-
-    isFollowed(teamId: string | null | undefined): boolean {
-        return !!teamId && this.followedSet().has(teamId);
-    }
-
-    onStarClick(teamId: string, event?: Event): void {
-        // Stops the click from also firing the team-results navigation on the sibling span.
-        event?.stopPropagation();
-        if (teamId) this.toggleFollow.emit(teamId);
-    }
 
     // ══════════════════════════════════════════════════════════════════
     // Team labels
