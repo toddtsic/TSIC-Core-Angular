@@ -495,6 +495,20 @@ should say which rule wins where.
 
 ---
 
+**💡 PROPOSED RECONCILIATION WITH D-31 (Claude, 10-06) — NOT RULED. Ann left it open; recorded so it is not re-derived.**
+
+**The two may not actually conflict. The difference is WHY the action is unavailable:**
+
+| | Case | Treatment |
+|:--|:--|:--|
+| **D-31** | **A DIRECTOR'S SETTING** switched off a capability that normally exists | **Stay visible, DISABLED, with the reason** — the user needs to know why, or they ask support |
+| **D-42** | **ONE ROW'S OWN FACTS** — this player is registered elsewhere, so deleting here was never applicable | **OMIT the control** — there is no policy to explain, and a greyed-out trash can on every such row is a control that means nothing |
+
+**So the rule would be: disable-with-a-reason when a DIRECTOR removed the capability; omit when the action simply DOES NOT APPLY to that row.**
+
+- ✅ **This also sits with Ann's own noise rule (AR-129): a disabled control repeated down a list is exactly the kind of extra that is not pertinent there.**
+- ⏳ **WHAT ANN STILL HAS TO SAY:** ✅ **if the reading is right, D-42 can be filed with this distinction as the rule.** ⛔ **If she meant something stronger — trash cans absent EVEN WHEN a director closed deletion — then D-42 is a genuine AMENDMENT to D-31 and must be filed as one.**
+
 ## N · Validation on optional player fields
 
 ### D-43 · ✅ FILED IN AR-148 (10-06, part 1; location confirmed as Edit Family Account → Player information) · Email accepts any text
