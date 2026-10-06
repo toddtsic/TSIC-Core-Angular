@@ -96,7 +96,7 @@ have gone quiet rather than getting a second ruling.
 
 | AR | Item | What is needed |
 |:--|:--|:--|
-| **132** | Job Clone permissions | 🟡 **Acknowledged 10-06, NOT tested** — cannot be exercised until the next **job clone**, and still not deployed. ❓ Whether she accepts **Edit + Add staying ON** against her all-three-off ruling is unstated |
+| **132** | Job Clone permissions | 🟡 **Acknowledged 10-06, NOT tested** — cannot be exercised until the next **job clone**, and still not deployed. ✅ **Design ACCEPTED 10-06** — Edit + Add ON, Delete OFF; her all-three-off ruling is superseded |
 | **108** | Team Breakdown moves with the team | Fixed, **awaiting deploy** — testing early shows old behaviour |
 
 ✅ **AR-126 and AR-127 were VERIFIED AND CLOSED by Ann on 2026-10-06.** ⚠ **AR-127's close
