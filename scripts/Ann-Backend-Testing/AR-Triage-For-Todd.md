@@ -62,6 +62,7 @@ queues are not confused.
 | 18 | **120** | Confirmation screen presentation | ✅ | Three changes; check whether email and online share a template |
 | 19 | **130** | Chelsea navigation | ✅ mostly done | Ruled 10-02, two parts built |
 | 20 | **103** | Club rep name in parentheses | ✅ | Small |
+| 20b | **121** | Strip the badges and role list | ✅ answered 10-06 | Ann ruled: these are **links, not information surfaces** — a duplicated figure drifts even once fixed. ⚠ **Check 5 (fly-in count: KEEP and CORRECT) is still outstanding and still counts Waitlisted + Dropped** |
 | 21 | **143b** | Collapse Add-a-Team to a popup | ⚠️ ruling | The design half of 143 — ⛔ **do not let it close the bug in 143a** |
 | 22 | **143c** | **Remove the Club Teams Library** | ⚠️ big ruling | Retires draft **group D** (10 parked items) and moots **AR-131** and **AR-106**. Decide what happens to **existing library data** — hiding the surface is reversible, deleting is not |
 
@@ -94,7 +95,6 @@ have gone quiet rather than getting a second ruling.
 
 | AR | Item | What is needed |
 |:--|:--|:--|
-| **121** | Registration Links badges | 🔁 Todd's question back to her: *"why remove them if the figures are right?"* |
 | **087** | Email batch summary | Her review + validation — scope widened, one part declined |
 | **132** | Job Clone permissions | Built, **not deployed** — read-and-respond |
 | **108** | Team Breakdown moves with the team | Fixed, **awaiting deploy** — testing early shows old behaviour |
