@@ -22,27 +22,43 @@
 
 **The Club Team Library is now per rep: Club → Club Rep → Team Library.** A club name can have several reps. Each rep has their own team list, and nobody else's changes touch it.
 
-**How a new rep gets their own copy of the club's teams:**
-1. At sign-up, the rep picks their club from **"Is your club one of these?"**. Each row shows how many active teams that club has.
-2. When the account is created, that club's **active** teams are **copied** into the new rep's own library: name, grad year and level of play.
+The design touches **two separate places**, at two different times:
+
+| | **Create NEW Club Rep Account** | **Team Registration Wizard** |
+|---|---|---|
+| **When** | **Once**, when the person becomes a club rep | **Every event** the rep registers teams for |
+| **What it decides** | **Which club** this rep is, and **what's in their library** | **Which teams** go into this event |
+| **What changed** | Asks "Is your club one of these?", and copies the picked club's teams into the rep's own library | Shows other reps of the same club name, and warns before a possible duplicate team |
+| **Can it block?** | **No.** A club name never refuses an account. | **No.** The warning asks, and the rep decides. |
+
+### At Create NEW Club Rep Account: how a new rep gets their own copy of the club's teams
+
+1. The rep types their club name. Clubs with that name that are already on TSIC appear under **"Is your club one of these?"**, each with how many active teams it has.
+2. The rep picks one, or picks **None of these**.
+3. When the account is created, the picked club's **active** teams are **copied** into the new rep's own library: name, grad year and level of play.
    - Archived teams aren't copied.
    - Teams with no name aren't copied.
    - A team the rep already has (same name and grad year) isn't copied twice.
-3. On the Teams step, those teams are the rep's **own choices** in Add a Team, so there's nothing to retype.
 4. The copy happens **once**. After that the two lists are separate: renaming, archiving or adding teams in one never changes the other.
 
 A rep who picks **None of these** starts with an empty library.
 
-A club name never stops a club rep. Instead of blocking, the system **warns the people who can act on it**:
-- The **rep** is asked before adding a team that may already be entered.
-- The **director** sees a badge on any club that has more than one rep in the event.
+### In the Team Registration Wizard: using that library in each event
+
+1. On the Teams step, the copied teams are the rep's **own choices** in Add a Team, so there's nothing to retype.
+2. If another rep with the **same exact club name** already has teams in this event:
+   - the rep sees those teams, read-only and not on their bill;
+   - picking an age group where that rep has teams brings up the duplicate warning, which asks before adding.
+3. The director sees **"⚠ N reps"** on that club in the event's search filters.
+
+Nothing in the wizard copies teams or changes another rep's library.
 
 ---
 
 ## The rules
 
 1. **Every rep has their own club and their own bill.** A new rep never shares another rep's club, team list, or balance.
-2. **A similar name only helps a new rep find their club at sign-up.** After that, the **exact** club name is what counts.
+2. **A similar name only helps a new rep find their club at Create NEW Club Rep Account.** After that, the **exact** club name is what counts.
 3. **One rep's teams are never another rep's to manage.** Each rep sees the other reps' teams in the event, but can't edit, drop or pay for them.
 4. **Warn, never block.** Each warning ends in a choice the person can make, never in a dead end.
 
@@ -50,7 +66,7 @@ A club name never stops a club rep. Instead of blocking, the system **warns the 
 
 ## What each person sees
 
-### 1. A new rep signs up ("Create NEW Club Rep Account")
+### 1. Create NEW Club Rep Account (once, when the person becomes a club rep)
 
 - The whole form shows from the start. A line at the top reads *"Already have a club rep account? Sign in or reset your password."*
 - As the rep types the club name, clubs with that name that are already on TSIC appear under **"Is your club one of these?"** (or "Is this your club?" when there is one). Each row shows the club's state, number of teams and when it last registered. Rep names and emails are never shown.
@@ -60,7 +76,7 @@ A club name never stops a club rep. Instead of blocking, the system **warns the 
 - The copy happens once. The two clubs aren't linked afterwards.
 - A name nobody else uses gets no question at all.
 
-### 2. The rep adds teams (Teams step)
+### 2. Team Registration Wizard, Teams step (every event)
 
 - **"Registering as {club}"** bar at the top:
   - **Rename** is offered while the rep has **no teams in this event**. It renames the club for this event and in the rep's Club Team Library; events where the rep already has teams keep their name.
@@ -76,7 +92,7 @@ A club name never stops a club rep. Instead of blocking, the system **warns the 
   - Each other rep below, in grey and read-only: *"Registered and paid for by {rep} — not on your bill."*
   - The team count and the payment step cover the rep's **own** teams only.
 
-### 3. The director (Search Teams, Search Registrations, schedule screens)
+### 3. Director screens (Search Teams, Search Registrations, schedule screens)
 
 - **"⚠ N reps" badge** on any club in the Club/Agegroup/Division/Team (CADT) filter tree that has more than one rep's teams in the event. The text is always visible, not hover-only. Its tooltip reads *"N club reps entered teams under {club} — check for a team entered twice."*
 - Only directors (and SuperDirector/Superuser) of that event see the badge. Public schedule pages never do.
@@ -93,10 +109,10 @@ A club name never stops a club rep. Instead of blocking, the system **warns the 
 
 | Ann's point | Where it stands |
 |---|---|
-| **Block 1: creating a new account** | **Fixed.** A club name never refuses sign-up (section 1). |
+| **Block 1: creating a new account** | **Fixed.** A club name never refuses Create NEW Club Rep Account (section 1). |
 | **Block 2: a second rep in an event** | **Fixed.** The rule "Only one club representative can register teams per event" is removed. Legacy never had it; it was added in January 2026. It was also over-broad: someone repping two clubs could block the other club's reps. |
 | **Block 3: transferring teams to them** | **Unblocked.** The director's move had no club-name check. The new rep was stuck only because they couldn't sign up to receive the teams. |
-| **Recommendation 1: warn, but let them proceed** | **Done, at two points:** the sign-up question (section 1) and the age-group warning before a possible duplicate team (section 2). |
+| **Recommendation 1: warn, but let them proceed** | **Done, at two points:** the "Is your club one of these?" question at Create NEW Club Rep Account (section 1), and the age-group warning in the Team Registration Wizard (section 2). |
 | **Recommendation 2: a flag for duplicates in Search** | **Done as the "⚠ N reps" badge** on the club in the director's tree (section 3). It's visible text rather than hover-only, which covers the touch and keyboard concern. Todd ruled this sufficient. |
 | **The "4 minute window"** | **Open.** Nothing in the code has a 4-minute limit. Ann: what did you see, and where? |
 
@@ -108,7 +124,7 @@ A club name never stops a club rep. Instead of blocking, the system **warns the 
 
 - **Matching is by exact club name.** "Lax Plus" and "Lax Plus Club" count as different clubs, so they get no warning and no badge.
 - **Director trees group by club name.** Two unrelated clubs that share a name show as one line with the badge. The badge is the prompt to look.
-- **Older clubs with two reps on one club record:** in currently open events, exactly **one** club has two such reps who both have teams (South Jersey Select, Top Threat Five Star 2026). New sign-ups never create this. Those reps now register alongside each other like any same-name reps.
+- **Older clubs with two reps on one club record:** in currently open events, exactly **one** club has two such reps who both have teams (South Jersey Select, Top Threat Five Star 2026). Create NEW Club Rep Account never creates this. Those reps now register alongside each other like any same-name reps.
 - **A renamed club** shows as two clubs in the year-over-year team-retention report, which matches clubs across years by name.
 
 ---
@@ -117,21 +133,21 @@ A club name never stops a club rep. Instead of blocking, the system **warns the 
 
 Test locally. Use made-up accounts and an event you own. Each step says what you should see.
 
-### A. Sign-up with an existing club name
+### A. Create NEW Club Rep Account: an existing club name
 1. Start **Create NEW Club Rep Account** and type the name of a club already on TSIC.
    → **"Is your club one of these?"** lists it, with its state, team count and last registered date. **Create Account** is disabled.
 2. Pick the club.
    → The Club Name box locks to that club's exact name.
 3. Pick **None of these**, then pick the club again.
    → None unlocks the box and brings your typing back; picking again locks it.
-4. Pick the club, finish and create the account. Go to the Teams step.
+4. Pick the club, finish and create the account. Then open the Team Registration Wizard for an event and go to the Teams step.
    → Your library already has that club's teams.
 5. Repeat with a new rep, choosing **None of these**.
    → The new rep gets an empty club.
 6. Type a name nobody uses.
    → No question appears.
 
-### B. Two reps of the same club in one event
+### B. Team Registration Wizard: two reps of the same club in one event
 1. Rep A registers a team in age group X.
 2. Rep B, with the same exact club name, opens the Teams step in that event.
    → Registered Teams shows "You (B)" in green and rep A's group in grey: "Registered and paid for by A — not on your bill."
@@ -144,7 +160,7 @@ Test locally. Use made-up accounts and an event you own. Each step says what you
 6. Rep B starts a team in an age group where rep A has none.
    → No warning.
 
-### C. Rename from the Teams step
+### C. Team Registration Wizard: renaming the club on the Teams step
 1. As a rep with no teams in the event:
    → The bar shows **Rename**. Rename the club, and the page reloads under the new name.
 2. Rename to another rep's exact club name in this event.
@@ -154,7 +170,7 @@ Test locally. Use made-up accounts and an event you own. Each step says what you
 4. Add one team.
    → **Rename** is replaced by "ask the event director".
 
-### D. Director checks
+### D. Director screens
 1. Open **Search Teams** for the event.
    → The club has "⚠ 2 reps", and hovering or focusing it shows the tooltip.
 2. Open the rep's registration → **Details** → **Rename Club** → a new name.
