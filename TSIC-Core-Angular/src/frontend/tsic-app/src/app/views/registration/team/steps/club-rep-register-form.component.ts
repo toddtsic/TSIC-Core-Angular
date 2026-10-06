@@ -1,5 +1,6 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, OnInit, output, signal, computed, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, catchError, tap, map } from 'rxjs/operators';
 import { of } from 'rxjs';
@@ -24,7 +25,7 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
 @Component({
     selector: 'app-club-rep-register-form',
     standalone: true,
-    imports: [ReactiveFormsModule, TosContentComponent],
+    imports: [ReactiveFormsModule, TosContentComponent, DatePipe],
     styles: [`
       :host { display: block; }
 
@@ -67,7 +68,10 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
       }
       .known-club-row:last-child { border-bottom: none; }
       .known-club-row:hover { background: rgba(var(--bs-primary-rgb), 0.04); }
-      .known-club-row.is-chosen { background: rgba(var(--bs-primary-rgb), 0.1); }
+      .known-club-row.is-chosen {
+        background: rgba(var(--bs-primary-rgb), 0.12);
+        box-shadow: inset 4px 0 0 var(--bs-primary);
+      }
       .known-club-row .form-check-input { flex-shrink: 0; margin: 0; }
       .known-club-row .form-check-input:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
@@ -196,7 +200,10 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
                         @if (club.state) {
                           <span class="text-muted ms-1">({{ club.state }})</span>
                         }
-                        <span class="text-muted ms-1">&bull; {{ club.teamCount }} {{ club.teamCount === 1 ? 'team' : 'teams' }}</span>
+                        <span class="text-muted ms-1">&bull; {{ club.activeTeamCount }} {{ club.activeTeamCount === 1 ? 'team' : 'teams' }}</span>
+                        @if (club.lastRegistered) {
+                          <span class="text-muted ms-1">&bull; last registered {{ club.lastRegistered | date: 'MMM y' }}</span>
+                        }
                       </span>
                     </label>
                   }
@@ -448,7 +455,9 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
 
     /** Same-name clubs only (server: ClubNameMatcher.IsSameClubName) — the "Is this your club?" panel. */
     readonly similarMatches = computed(() =>
-        this.clubSearchResults().filter(c => c.isExactMatch)
+        // A club with no active teams has nothing to bring — picking it is "None of these". Server order:
+        // most recently registered first, untouched copies already folded into their source.
+        this.clubSearchResults().filter(c => c.isExactMatch && (c.activeTeamCount ?? 0) > 0)
     );
 
     /** The rep's answer: a listed club's id, 'none' ("None of these"), or null = not answered. */

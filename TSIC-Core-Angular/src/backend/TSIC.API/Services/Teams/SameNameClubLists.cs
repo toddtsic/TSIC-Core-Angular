@@ -45,6 +45,55 @@ public static class SameNameClubLists
     }
 
     /// <summary>
+    /// Sign-up's "Is your club one of these?" list (Todd 2026-10-06), from the club search's results. Each
+    /// same-name club carries its ACTIVE team count (what a pick copies) and when it last registered a team.
+    /// Clubs whose active teams are IDENTICAL (name + grad year) show once — a fresh copy is its source until
+    /// either is edited — keeping the most recently registered (then the oldest club). A club with no active
+    /// teams is never folded: it has nothing to tell apart, and an empty club stays claimable. Same-name clubs
+    /// come first, most recently registered first; the other results follow unchanged.
+    /// </summary>
+    public static List<ClubSearchResult> ForSignUp(
+        IReadOnlyList<ClubSearchResult> results,
+        IEnumerable<ClubTeams> libraries,
+        IReadOnlyDictionary<int, DateTime> lastRegistered)
+    {
+        var activeKeys = libraries
+            .Where(ct => ct.Active && !string.IsNullOrWhiteSpace(ct.ClubTeamName))
+            .GroupBy(ct => ct.ClubId)
+            .ToDictionary(g => g.Key, g => g
+                .Select(ct => IdentityKey(ct.ClubTeamName, ct.ClubTeamGradYear))
+                .Distinct()
+                .OrderBy(k => k, StringComparer.Ordinal)
+                .ToList());
+
+        var annotated = results
+            .Select(r => r.IsExactMatch
+                ? r with
+                {
+                    ActiveTeamCount = activeKeys.TryGetValue(r.ClubId, out var keys) ? keys.Count : 0,
+                    LastRegistered = lastRegistered.TryGetValue(r.ClubId, out var last) ? last : null,
+                }
+                : r)
+            .ToList();
+
+        static DateTime Recency(ClubSearchResult r) => r.LastRegistered ?? DateTime.MinValue;
+
+        var folded = annotated
+            .Where(r => r.IsExactMatch && r.ActiveTeamCount > 0)
+            .GroupBy(r => string.Join("\n", activeKeys[r.ClubId]))
+            .SelectMany(g => g.OrderByDescending(Recency).ThenBy(r => r.ClubId).Skip(1))
+            .Select(r => r.ClubId)
+            .ToHashSet();
+
+        var sameName = annotated
+            .Where(r => r.IsExactMatch && !folded.Contains(r.ClubId))
+            .OrderByDescending(Recency)
+            .ThenBy(r => r.ClubId);
+
+        return [.. sameName, .. annotated.Where(r => !r.IsExactMatch)];
+    }
+
+    /// <summary>
     /// Teams other club reps already registered in this event under the same club name as this rep's
     /// registration. Matched on the event's club_name on both sides: that is the club's identity inside the
     /// event, and a director's per-event rename that sets two reps apart is respected.

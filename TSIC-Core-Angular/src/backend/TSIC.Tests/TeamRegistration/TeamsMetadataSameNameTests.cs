@@ -1,5 +1,6 @@
 using FluentAssertions;
 using TSIC.API.Services.Teams;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
@@ -106,6 +107,69 @@ public class TeamsMetadataSameNameTests
 
         SameNameClubLists.LibraryCopy(theirs, own, 1, "rep-1").Select(t => t.ClubTeamName)
             .Should().BeEquivalentTo(["Fury 2028 Red"]);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  SIGN-UP LIST — "Is your club one of these?"
+    // ═══════════════════════════════════════════════════════════════════
+
+    private static ClubSearchResult Found(int id, bool sameName = true) => new()
+    {
+        ClubId = id, ClubName = "Fury Lacrosse", TeamCount = 0, MatchScore = 100, IsExactMatch = sameName
+    };
+
+    [Fact(DisplayName = "Sign-up list: each same-name club carries its active team count and last registration")]
+    public void ForSignUp_Annotates()
+    {
+        var libs = new[] { Lib(1, 1, "2030", "2030"), Lib(2, 1, "2029", "2029"), Lib(3, 1, "2027", "2027", active: false) };
+        var when = new DateTime(2026, 9, 1);
+
+        var result = SameNameClubLists.ForSignUp([Found(1)], libs, new Dictionary<int, DateTime> { [1] = when });
+
+        result.Single().ActiveTeamCount.Should().Be(2);
+        result.Single().LastRegistered.Should().Be(when);
+    }
+
+    [Fact(DisplayName = "Sign-up list: an untouched copy shows once — the club that registered teams is kept")]
+    public void ForSignUp_FoldsIdenticalLists()
+    {
+        var libs = new[]
+        {
+            Lib(1, 1, "2030", "2030"), Lib(2, 1, "2029", "2029"),   // the original, registered last month
+            Lib(3, 2, "2029", "2029"), Lib(4, 2, " 2030 ", "2030"), // its fresh copy, never registered
+        };
+
+        var result = SameNameClubLists.ForSignUp([Found(2), Found(1)], libs,
+            new Dictionary<int, DateTime> { [1] = new DateTime(2026, 9, 1) });
+
+        result.Select(r => r.ClubId).Should().Equal(1);
+    }
+
+    [Fact(DisplayName = "Sign-up list: a copy with teams archived stays listed; most recently registered first")]
+    public void ForSignUp_EditedCopyStaysListed_RecentFirst()
+    {
+        var libs = new[]
+        {
+            Lib(1, 1, "2030", "2030"), Lib(2, 1, "2029", "2029"),                     // the old club
+            Lib(3, 2, "2030", "2030"), Lib(4, 2, "2029", "2029", active: false),      // the new rep archived 2029
+        };
+
+        var result = SameNameClubLists.ForSignUp([Found(1), Found(2)], libs, new Dictionary<int, DateTime>
+        {
+            [1] = new DateTime(2024, 5, 1),
+            [2] = new DateTime(2026, 9, 1),
+        });
+
+        result.Select(r => r.ClubId).Should().Equal(2, 1);
+    }
+
+    [Fact(DisplayName = "Sign-up list: clubs with no active teams are never folded; other results follow unchanged")]
+    public void ForSignUp_EmptyClubsKept_OthersAfter()
+    {
+        var result = SameNameClubLists.ForSignUp([Found(9, sameName: false), Found(1), Found(2)], [],
+            new Dictionary<int, DateTime>());
+
+        result.Select(r => (r.ClubId, r.ActiveTeamCount)).Should().Equal((1, 0), (2, 0), (9, (int?)null));
     }
 
     // ═══════════════════════════════════════════════════════════════════

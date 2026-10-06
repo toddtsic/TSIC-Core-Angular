@@ -11,5 +11,7 @@ export type ClubSearchResult = {
     isRelatedClub?: boolean;
     isExactMatch?: boolean;
     isClaimable?: boolean;
+    activeTeamCount?: number | null;
+    lastRegistered?: string | null;
 };
 

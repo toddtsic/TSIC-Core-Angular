@@ -374,8 +374,7 @@ public sealed class ClubService : IClubService
             {
                 var compositeScore = ClubNameMatcher.CalculateCompositeScore(query, c.ClubName);
                 var isRelated = ClubNameMatcher.AreRelatedClubs(query, c.ClubName);
-                // The same rule as the team wizard's same-name lists, so sign-up's "Use this name"
-                // offers exactly the clubs whose saved teams the Teams step will offer.
+                // The same club name, normalized — the clubs sign-up asks "Is your club one of these?" about.
                 var isExact = ClubNameMatcher.IsSameClubName(query, c.ClubName);
 
                 return new ClubSearchResult
@@ -398,7 +397,12 @@ public sealed class ClubService : IClubService
             .Take(10)
             .ToList();
 
-        return results;
+        var sameNameIds = results.Where(r => r.IsExactMatch).Select(r => r.ClubId).ToList();
+        if (sameNameIds.Count == 0) return results;
+
+        var libraries = await _clubTeams.GetByClubIdsAsync(sameNameIds);
+        var lastRegistered = await _clubTeams.GetLastRegisteredByClubIdsAsync(sameNameIds);
+        return SameNameClubLists.ForSignUp(results, libraries, lastRegistered);
     }
 
     // Self-profile read/write is role-neutral ApplicationUser mutation — owned by

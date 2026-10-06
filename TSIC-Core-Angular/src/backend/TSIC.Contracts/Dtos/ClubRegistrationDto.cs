@@ -127,6 +127,12 @@ public record ClubSearchResult
     /// </summary>
     public bool IsClaimable { get; init; }
 
+    /// <summary>Same-name clubs only: the ACTIVE library teams — what sign-up copies if the rep picks this club.</summary>
+    public int? ActiveTeamCount { get; init; }
+
+    /// <summary>Same-name clubs only: when the club last registered a team in any event; null = never.</summary>
+    public DateTime? LastRegistered { get; init; }
+
     // No rep name or email: the club search is anonymous (sign-up runs before login), and a
     // public type-ahead returning them handed out every club rep's contact details.
 }

@@ -160,6 +160,11 @@ public class ClubRegistrationGateTests
         var clubTeams = new Mock<IClubTeamRepository>();
         clubTeams.Setup(r => r.GetByClubIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((int id, CancellationToken _) => (libraries ?? []).TryGetValue(id, out var lib) ? lib.ToList() : []);
+        clubTeams.Setup(r => r.GetByClubIdsAsync(It.IsAny<IEnumerable<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<int> ids, CancellationToken _) =>
+                ids.SelectMany(id => (libraries ?? []).TryGetValue(id, out var lib) ? lib : []).ToList());
+        clubTeams.Setup(r => r.GetLastRegisteredByClubIdsAsync(It.IsAny<IEnumerable<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<int, DateTime>());
         clubRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((int id, CancellationToken _) => existingClubs.Where(c => c.ClubId == id)
                 .Select(c => new Clubs { ClubId = c.ClubId, ClubName = c.ClubName }).FirstOrDefault());
