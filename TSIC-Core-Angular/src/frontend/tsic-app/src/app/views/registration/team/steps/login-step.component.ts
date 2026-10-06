@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, output, signal, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ClubService } from '@infrastructure/services/club.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
@@ -30,7 +30,7 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
 @Component({
     selector: 'app-trw-login-step',
     standalone: true,
-    imports: [FormsModule, LoginComponent, ClubRepRegisterFormComponent, HeadshotUploadComponent, PhonePipe],
+    imports: [FormsModule, RouterLink, LoginComponent, ClubRepRegisterFormComponent, HeadshotUploadComponent, PhonePipe],
     styles: [`
       :host { display: block; }
 
@@ -62,6 +62,35 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
 
       .create-cta {
         text-align: center;
+      }
+
+      /* Create view: "Already have a club rep account? Sign in or reset your password." */
+      .have-account {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text-muted);
+        margin: 0 0 var(--space-3);
+      }
+      .have-account a,
+      .have-account .link-btn {
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-medium);
+        text-decoration: underline;
+      }
+      .have-account a:hover,
+      .have-account .link-btn:hover { text-decoration: none; }
+      .have-account .link-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: inherit;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      .have-account a:focus-visible,
+      .have-account .link-btn:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+        border-radius: var(--radius-sm);
       }
       .create-cta p {
         color: var(--brand-text-muted);
@@ -292,6 +321,12 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
               </h5>
             </div>
             <div class="card-body bg-neutral-0">
+              <p class="have-account">
+                Already have a club rep account?
+                <button type="button" class="link-btn" (click)="showSignIn()">Sign in</button>
+                or
+                <a routerLink="/forgot-password" [queryParams]="forgotPasswordQueryParams()">reset your password</a>.
+              </p>
               <app-club-rep-register-form
                 mode="create"
                 (registered)="onRegistered()" />
@@ -471,6 +506,16 @@ export class TeamLoginStepComponent implements OnInit {
 
     /** Open the inline create-account sub-view (from the sign-in gate). */
     showCreateAccount(): void { this.viewOverride.set('create'); }
+
+    /** Create view's "Already have a club rep account?" → back to the sign-in gate. */
+    showSignIn(): void { this.viewOverride.set(null); }
+
+    /** Forgot-password is a top-level route; hand it this job so "Back to Sign In" returns here
+     *  (the same params the sign-in form's own "Forgot your password?" link carries). */
+    readonly forgotPasswordQueryParams = computed(() => {
+        const jobPath = this.state.jobPath();
+        return jobPath ? { jobPath } : {};
+    });
 
     // ── Inline edit toggles (in-place; no view change) ────────────────────────
     startEditProfile(): void { this.editingProfile.set(true); }

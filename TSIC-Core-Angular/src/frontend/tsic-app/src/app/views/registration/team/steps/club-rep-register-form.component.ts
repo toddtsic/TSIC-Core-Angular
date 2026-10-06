@@ -13,22 +13,13 @@ import { USERNAME_PATTERN } from '@shared-ui/validators/username.validators';
 import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdateRequest, ClubSearchResult } from '@core/api';
 
 /**
- * Club decision state:
- * - 'pending' — matches found, user hasn't confirmed "create new" yet
- * - 'new'     — user confirmed "create new" against the matches
- * - 'clear'   — no matches found, auto-approved for new club
- */
-type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
-
-/**
- * Club rep self-registration / profile-edit form with single-tier similarity gate.
+ * Club rep self-registration / profile-edit form.
  * Renders form fields only — the consumer owns the title and card chrome.
  *
- * 65%+ match — surfaces existing clubs and asks the rep to either contact
- *   the existing rep (if one is theirs) or confirm "create new" (e.g. a
- *   regional chapter of a national org legitimately registering as a sibling).
- *
- * Below 65% — no friction, new club created automatically.
+ * A club name never blocks sign-up (Todd 2026-10-06). 65%+ matches surface as a friendly
+ * "already on TSIC" panel — typically a new rep taking over from their club's old rep —
+ * with "Use this name" so the Teams step can offer that club's saved teams. The server
+ * silently claims an unclaimed empty club of exactly the typed name.
  */
 @Component({
     selector: 'app-club-rep-register-form',
@@ -45,102 +36,59 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
         line-height: 1.4;
       }
 
-      /* ── Similar-clubs panel (single tier, 65%+) ────────────────────────
+      .use-name-btn:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+      }
+
+      /* ── Same-name clubs panel (informational — never a block) ──────────
          Mode-adaptive: panel surface inherits from .card-body (white in light,
-         dark in dark). Text uses --brand-text. The yellow/red tints are rgba
-         overlays that work over either surface. Do NOT force a palette-locked
+         dark in dark). Text uses --brand-text. The primary tint is an rgba
+         overlay that works over either surface. Do NOT force a palette-locked
          background here — the dark theme overrides .card-body with !important
          and a locked-white panel breaks the cascade for descendant text.
-         See feedback_neutral0_text_color_trap.md.
       */
-      .club-similar-panel {
-        border: 2px solid var(--bs-warning);
+      .club-known-panel {
+        border: 1px solid rgba(var(--bs-primary-rgb), 0.3);
         border-radius: var(--radius-md);
         margin-top: var(--space-2);
         overflow: hidden;
       }
-      /* Hard-block modifier: exact-normalized duplicate. Cannot be created. */
-      .club-similar-panel--exact { border-color: var(--bs-danger); }
-      .club-similar-panel--exact .club-similar-header {
-        background: rgba(var(--bs-danger-rgb), 0.18);
-        border-bottom-color: rgba(var(--bs-danger-rgb), 0.3);
-      }
-      .club-similar-header {
-        padding: var(--space-3);
-        background: rgba(var(--bs-warning-rgb), 0.18);
-        border-bottom: 1px solid rgba(var(--bs-warning-rgb), 0.25);
-      }
-      .club-similar-header h6 {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-        margin: 0 0 var(--space-2);
-      }
-      .club-similar-header p {
-        font-size: var(--font-size-sm);
-        color: var(--brand-text);
-        margin: var(--space-2) 0 0;
-        line-height: var(--line-height-normal);
-      }
-      .similar-club-row {
-        padding: var(--space-3);
-        border-bottom: 1px solid var(--border-color);
-      }
-      .similar-club-row:last-child { border-bottom: none; }
-      .rep-contact {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        margin-top: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        background: rgba(var(--bs-primary-rgb), 0.08);
-        border-radius: var(--radius-sm);
-        font-size: var(--font-size-sm);
-      }
-      .rep-contact i { color: var(--bs-primary); flex-shrink: 0; }
-      .rep-contact a {
-        color: var(--bs-primary);
-        text-decoration: none;
-        font-weight: var(--font-weight-medium);
-      }
-      .rep-contact a:hover { text-decoration: underline; }
-      .similar-confirm-bar {
-        padding: var(--space-3);
-        background: rgba(var(--bs-warning-rgb), 0.06);
-        text-align: center;
-      }
-
-      /* ── Decision confirmation bars ──────────────────────── */
-      .club-decision-bar {
+      .club-known-header {
         display: flex;
         align-items: flex-start;
         gap: var(--space-2);
         padding: var(--space-3);
-        border-radius: var(--radius-md);
-        margin-top: var(--space-2);
+        background: rgba(var(--bs-primary-rgb), 0.08);
+        border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.15);
       }
-      .club-decision-bar i { margin-top: 2px; flex-shrink: 0; }
-      .decision-confirmed {
-        background: rgba(var(--bs-success-rgb), 0.06);
-        border: 1px solid rgba(var(--bs-success-rgb), 0.15);
-      }
-      .decision-confirmed i { color: var(--bs-success); }
-      .decision-new-info {
-        background: rgba(var(--bs-primary-rgb), 0.04);
-        border: 1px solid rgba(var(--bs-primary-rgb), 0.12);
-      }
-      .decision-new-info i { color: var(--bs-primary); }
-      .decision-body { flex: 1; min-width: 0; }
-      .decision-title {
+      .club-known-header > i { color: var(--bs-primary); margin-top: 2px; flex-shrink: 0; }
+      .club-known-header h6 {
         font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
+        font-weight: var(--font-weight-bold);
         color: var(--brand-text);
+        margin: 0;
       }
-      .decision-detail {
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-        margin-top: 2px;
+      .club-known-header p {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        margin: var(--space-1) 0 0;
         line-height: var(--line-height-normal);
+      }
+      .known-club-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border-bottom: 1px solid var(--border-color);
+        font-size: var(--font-size-sm);
+      }
+      .known-club-row:last-child { border-bottom: none; }
+      .known-club-row .in-use {
+        font-size: var(--font-size-xs);
+        color: var(--bs-success);
+        white-space: nowrap;
       }
 
       /* ── Shared ──────────────────────────────────────────── */
@@ -161,32 +109,6 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
         padding: var(--space-1) 0;
       }
       .value-prop i { color: var(--bs-success); }
-      .match-confidence {
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        padding: 2px var(--space-2);
-        border-radius: var(--radius-full);
-        white-space: nowrap;
-      }
-      .confidence-exact {
-        background: var(--bs-danger);
-        color: var(--neutral-0);
-      }
-      .confidence-high {
-        background: rgba(var(--bs-danger-rgb), 0.15);
-        color: var(--bs-danger);
-      }
-      .confidence-medium {
-        background: rgba(var(--bs-warning-rgb), 0.18);
-        color: var(--bs-warning);
-      }
-      .mega-club-tag {
-        font-size: var(--font-size-xs);
-        padding: 1px var(--space-2);
-        border-radius: var(--radius-full);
-        background: rgba(var(--bs-info-rgb), 0.1);
-        color: var(--bs-info);
-      }
 
       /* ── ToS acceptance row (above Create Account) ─────── */
       .tos-acceptance-row {
@@ -267,167 +189,52 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                 </div>
               }
 
-              <!-- ═══ SIMILAR / EXACT MATCH PANEL ═══
-                   Exact-normalized match → hard block (no Create-new button, danger framing).
-                   Otherwise → similarity surface with Create-new available. -->
-              @if (similarMatches().length > 0 && !clubSearchLoading()
-                   && clubDecision() !== 'new' && clubDecision() !== 'claim') {
-                <div class="club-similar-panel"
-                     [class.club-similar-panel--exact]="exactMatch() !== null && claimableMatch() === null">
-                  <div class="club-similar-header">
-                    @if (claimableMatch(); as claimable) {
-                      <h6><i class="bi bi-hand-index me-2 text-primary"></i>This club has no representative yet</h6>
+              <!-- ═══ CLUBS ALREADY ON TSIC ═══
+                   Informational, never a block (Todd 2026-10-06): a new rep taking over or joining
+                   a club signs up under its name. "Use this name" makes the name exact, so the Teams
+                   step can offer that club's saved teams to pick. No rep names or emails here. -->
+              @if (similarMatches().length > 0 && !clubSearchLoading()) {
+                <div class="club-known-panel" role="status">
+                  <div class="club-known-header">
+                    <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+                    <div>
+                      @if (similarMatches().length === 1) {
+                        <h6>{{ similarMatches()[0].clubName }} is already on TSIC.</h6>
+                      } @else {
+                        <h6>Clubs with names like this are already on TSIC.</h6>
+                      }
                       <p>
-                        <strong>"{{ claimable.clubName }}" is set up, but no one reps it and it has
-                        no teams.</strong> Usually that means it was created ready for its rep to take over.
+                        Taking over or joining your club? Go ahead — sign up under your club's name.
+                        When you register teams, the teams already saved under that name will be
+                        there to pick, so there's no retyping.
                       </p>
-                      <p>
-                        <strong>Only continue if this is genuinely your club.</strong> If it isn't,
-                        register under a name that identifies your own organization instead.
-                      </p>
-                      <p>
-                        Confirm below and you'll be this club's representative. Your teams will
-                        register under this name.
-                      </p>
-                    } @else if (exactMatch(); as exact) {
-                      <h6><i class="bi bi-shield-exclamation me-2 text-danger"></i>This club is already registered</h6>
-                      <p>
-                        <strong>"{{ exact.clubName }}" already has a registered rep</strong> —
-                        that rep is responsible for registering teams under this club. Creating a
-                        duplicate account would bypass them and split team history.
-                      </p>
-                      <p>
-                        If you have a team that should play for this club, contact the existing
-                        rep below — they handle the registration.
-                      </p>
-                      <p>
-                        <strong>If you're a different regional chapter</strong> of a national
-                        organization, register with a name that distinguishes your region
-                        (e.g. "Aacme Lacrosse NJ").
-                      </p>
-                    } @else {
-                      <h6><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Similar clubs already on file</h6>
-                      <p>
-                        <strong>If one of these IS your club</strong>, please contact that rep below
-                        instead of creating a duplicate — duplicate clubs can't share team history.
-                      </p>
-                      <p>
-                        <strong>If you're a different regional chapter</strong> of a national organization
-                        (e.g. "Aacme Lax NJ" vs "Aacme Lax MA"), that's expected — each chapter has its
-                        own account so families and tournament directors reach the right rep. Go ahead
-                        and create yours.
-                      </p>
-                      <p>
-                        <strong>National-org reps:</strong> please don't register on behalf of local
-                        chapters. Local reps need to own their teams and contact info directly.
-                      </p>
-                    }
+                    </div>
                   </div>
-                  @for (club of displayedMatches(); track club.clubId) {
-                    <div class="similar-club-row">
-                      <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                          <span class="fw-semibold">{{ club.clubName }}</span>
-                          @if (club.state) {
-                            <span class="text-muted ms-1 small">({{ club.state }})</span>
-                          }
-                          @if (club.teamCount) {
-                            <span class="text-muted small ms-1">&bull; {{ club.teamCount }} teams</span>
-                          }
-                        </div>
-                        <div class="d-flex align-items-center gap-1">
-                          @if (club.isRelatedClub) {
-                            <span class="mega-club-tag"><i class="bi bi-diagram-3 me-1"></i>Same org</span>
-                          }
-                          @if (club.isExactMatch && club.isClaimable) {
-                            <span class="match-confidence confidence-high">Unclaimed</span>
-                          } @else if (club.isExactMatch) {
-                            <span class="match-confidence confidence-exact">Already registered</span>
-                          } @else if (club.matchScore >= 85) {
-                            <span class="match-confidence confidence-high">Very similar</span>
-                          } @else {
-                            <span class="match-confidence confidence-medium">Similar</span>
-                          }
-                        </div>
+                  @for (club of similarMatches(); track club.clubId) {
+                    <div class="known-club-row">
+                      <div>
+                        <span class="fw-semibold">{{ club.clubName }}</span>
+                        @if (club.state) {
+                          <span class="text-muted ms-1">({{ club.state }})</span>
+                        }
+                        @if (club.teamCount) {
+                          <span class="text-muted ms-1">&bull; {{ club.teamCount }} {{ club.teamCount === 1 ? 'team' : 'teams' }}</span>
+                        }
                       </div>
-                      @if (club.repEmail) {
-                        <div class="rep-contact">
-                          <i class="bi bi-envelope"></i>
-                          <div>
-                            @if (club.repName) {
-                              <span>{{ club.repName }}</span>
-                              <span class="text-muted mx-1">&mdash;</span>
-                            }
-                            <a [href]="'mailto:' + club.repEmail
-                              + '?subject=Request to join ' + encodeURIComponent(club.clubName)
-                              + '&body=' + encodeURIComponent(getEmailBody(club))">
-                              {{ club.repEmail }}
-                            </a>
-                          </div>
-                        </div>
+                      @if (isTypedName(club.clubName)) {
+                        <span class="in-use"><i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>Using this name</span>
+                      } @else {
+                        <button type="button" class="btn btn-sm btn-outline-primary use-name-btn"
+                                (click)="useClubName(club.clubName)">
+                          Use this name
+                        </button>
                       }
                     </div>
                   }
-                  @if (claimableMatch(); as claimable) {
-                    <div class="similar-confirm-bar">
-                      <button type="button" class="btn btn-sm btn-primary fw-medium"
-                              (click)="confirmClaim(claimable.clubId)">
-                        <i class="bi bi-hand-index me-1"></i>Yes — this is my club
-                      </button>
-                      <div class="small text-muted mt-1">
-                        You'll fill in your details next, then create your account.
-                      </div>
-                    </div>
-                  } @else if (exactMatch() === null) {
-                    <div class="similar-confirm-bar">
-                      <button type="button" class="btn btn-sm btn-outline-primary fw-medium"
-                              (click)="confirmNewClub()">
-                        <i class="bi bi-plus-circle me-1"></i>None of these are my club — create new
-                      </button>
-                      <div class="small text-muted mt-1">This starts a new account for your club.</div>
-                    </div>
-                  }
-                </div>
-              }
-
-              <!-- ═══ NEW CLUB CONFIRMED ═══ -->
-              @if (clubDecision() === 'new' && similarMatches().length > 0) {
-                <div class="club-decision-bar decision-new-info">
-                  <i class="bi bi-plus-circle-fill"></i>
-                  <div class="decision-body">
-                    <div class="decision-title">New club: {{ form.controls.clubName.value }}</div>
-                    <div class="decision-detail">
-                      Starting fresh. Teams you add will carry forward to future events automatically.
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-sm btn-link text-muted p-0 flex-shrink-0"
-                          (click)="resetClubDecision()" aria-label="Go back to club selection">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                </div>
-              }
-
-              <!-- ═══ CLAIM CONFIRMED ═══ -->
-              @if (clubDecision() === 'claim') {
-                <div class="club-decision-bar decision-new-info">
-                  <i class="bi bi-hand-index-fill"></i>
-                  <div class="decision-body">
-                    <div class="decision-title">Taking over: {{ form.controls.clubName.value }}</div>
-                    <div class="decision-detail">
-                      You'll be this club's representative. Teams you add will carry forward to
-                      future events automatically.
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-sm btn-link text-muted p-0 flex-shrink-0"
-                          (click)="resetClubDecision()" aria-label="Go back to club selection">
-                    <i class="bi bi-pencil"></i>
-                  </button>
                 </div>
               }
               }
 
-              @if (isEdit() || clubDecision() === 'clear' || clubDecision() === 'new'
-                   || clubDecision() === 'claim') {
                 <hr class="form-divider my-3">
                 <h6 class="form-section-title">
                   <i class="bi bi-person-vcard me-2"></i>Club Rep Details
@@ -612,14 +419,11 @@ type ClubDecision = 'pending' | 'new' | 'clear' | 'claim';
                   } @else {
                     @if (isEdit()) {
                       <i class="bi bi-check-lg me-1"></i>Save Changes
-                    } @else if (clubDecision() === 'claim') {
-                      <i class="bi bi-person-plus-fill me-1"></i>Create Account &amp; Take Over Club
                     } @else {
                       <i class="bi bi-person-plus-fill me-1"></i>Create Account
                     }
                   }
                 </button>
-              }
       </form>
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -665,49 +469,11 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
     // Club search state
     readonly clubSearchResults = signal<ClubSearchResult[]>([]);
     readonly clubSearchLoading = signal(false);
-    readonly clubDecision = signal<ClubDecision>('pending');
 
-    /** All 65%+ matches — surfaced in a single panel; "Very similar" pill on 85%+ */
+    /** All 65%+ matches — the "already on TSIC" panel. */
     readonly similarMatches = computed(() =>
         this.clubSearchResults().filter(c => c.matchScore >= 65)
     );
-
-    /** First exact-normalized match if any. When present, registration is hard-blocked. */
-    readonly exactMatch = computed(() =>
-        this.clubSearchResults().find(c => c.isExactMatch) ?? null
-    );
-
-    /** The club name the currently-displayed results were fetched for. */
-    readonly lastSearchedClubName = signal('');
-
-    /** Empty-shell club being offered for claim. Requires the typed name to BE the club's
-     *  name, not merely normalize to it: "lacrosse"/"lc"/"club" are filler words, so
-     *  "True Lacrosse" normalizes identically to "True" and would otherwise offer the shell
-     *  to the whole True Lacrosse population. You should have to know a club's real name to
-     *  claim it. The server enforces the same rule on the write. */
-    readonly claimableMatch = computed(() => {
-        const typed = this.lastSearchedClubName().trim();
-        if (!typed) return null;
-        return this.clubSearchResults().find(c =>
-            c.isExactMatch
-            && c.isClaimable
-            && c.clubName.trim().toLowerCase() === typed.toLowerCase()
-        ) ?? null;
-    });
-
-    /** Club the rep chose to take over. Set by the panel decision, consumed by submit. */
-    readonly claimedClubId = signal<number | null>(null);
-
-    /** Rows to render in the panel: the claimable club when one is on offer — the row MUST be
-     *  the club the button acts on, or the panel describes one club and claims another;
-     *  otherwise only the exact match when blocked (the other similars are noise once the user
-     *  can't proceed); otherwise all 65%+ matches. */
-    readonly displayedMatches = computed(() => {
-        const claimable = this.claimableMatch();
-        if (claimable) return [claimable];
-        const exact = this.exactMatch();
-        return exact ? [exact] : this.similarMatches();
-    });
 
     readonly form = this.fb.group({
         clubName: ['', Validators.required],
@@ -774,7 +540,6 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             tap((v) => {
                 if (!v || v.trim().length < 3) {
                     this.clubSearchResults.set([]);
-                    this.clubDecision.set('pending');
                     this.clubSearchLoading.set(false);
                 }
             }),
@@ -782,19 +547,12 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             filter((v): v is string => !!v && v.trim().length >= 3),
             tap(() => this.clubSearchLoading.set(true)),
             switchMap(name => this.clubService.searchClubs(name.trim()).pipe(
-                catchError(() => of([] as ClubSearchResult[])),
-                // Carry the query alongside its results so the claim check can compare against
-                // the name these results were actually fetched for, never a later keystroke.
-                map(results => ({ query: name.trim(), results }))
+                catchError(() => of([] as ClubSearchResult[]))
             )),
             takeUntilDestroyed(this.destroyRef)
-        ).subscribe(({ query, results }) => {
+        ).subscribe(results => {
             this.clubSearchLoading.set(false);
-            this.lastSearchedClubName.set(query);
             this.clubSearchResults.set(results);
-
-            const hasSimilar = results.some(r => r.matchScore >= 65);
-            this.clubDecision.set(hasSimilar ? 'pending' : 'clear');
         });
 
         // Live username-availability probe — mirrors the club-name search above so the rep
@@ -833,9 +591,6 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         // Gender is collected on create only; disable so the edit form excludes it.
         this.form.controls.gender.disable();
 
-        // canSubmit() gates on clubDecision; 'clear' skips the club-search gate entirely.
-        this.clubDecision.set('clear');
-
         const data = this.existing();
         if (data) {
             this.form.patchValue({
@@ -860,16 +615,17 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         });
     }
 
-    /** Pre-fill a mailto body to make contacting the rep as easy as possible */
-    getEmailBody(club: ClubSearchResult): string {
-        return `Hi${club.repName ? ' ' + club.repName : ''},\n\n`
-             + `I'm trying to register as a rep for ${club.clubName} on TSIC. `
-             + `Could you help me get added to the club?\n\n`
-             + `Thanks!`;
+    /** "Use this name": take an existing club's name exactly, so the Teams step matches it. */
+    useClubName(name: string): void {
+        const c = this.form.controls.clubName;
+        c.setValue(name);
+        c.markAsDirty();
     }
 
-    encodeURIComponent(value: string): string {
-        return encodeURIComponent(value);
+    /** True when the Club Name input already holds this name (ignoring case and spacing). */
+    isTypedName(name: string): boolean {
+        const norm = (s: string | null | undefined) => (s ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+        return norm(this.form.controls.clubName.value) === norm(name);
     }
 
     digitsOnly(controlName: string, event: Event): void {
@@ -879,36 +635,11 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         this.form.get(controlName)?.setValue(digits);
     }
 
-    confirmNewClub(): void {
-        this.claimedClubId.set(null);
-        this.clubDecision.set('new');
-    }
-
-    /** Panel DECISION, not the submit: records which shell club she's taking over and reveals
-     *  the rep-details fields. The actual write happens on the form's one submit button, the
-     *  same shape as confirmNewClub — so the panel never renders a button that needs a form
-     *  the user cannot see yet. */
-    confirmClaim(clubId: number): void {
-        this.claimedClubId.set(clubId);
-        this.clubDecision.set('claim');
-    }
-
-    resetClubDecision(): void {
-        this.claimedClubId.set(null);
-        this.clubDecision.set('pending');
-    }
-
-    /** Submit is allowed when: clear (no matches), or new (confirmed against similar matches), passwords match, and ToS accepted.
-     *  Exact-normalized match always blocks (cannot be bypassed — backend agrees). */
+    /** Submit needs a valid form, matching passwords, ToS accepted, and a username not known taken.
+     *  The club name never blocks — the server adds the rep to a club of that name either way. */
     canSubmit(): boolean {
         if (this.usernameStatus() === 'taken') return false;
-        const decision = this.clubDecision();
-        // A confirmed claim is the one case where an exact match does NOT block: she is
-        // taking over that club, not creating a duplicate of it.
-        if (decision !== 'claim' && this.exactMatch() !== null) return false;
-        return (decision === 'clear' || decision === 'new' || decision === 'claim')
-            && this.form.valid
-            && !this.passwordMismatch();
+        return this.form.valid && !this.passwordMismatch();
     }
 
     onSubmit(): void {
@@ -920,9 +651,6 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         }
 
         if (this.form.invalid || !this.canSubmit() || this.passwordMismatch()) return;
-
-        const claimClubId = this.clubDecision() === 'claim' ? this.claimedClubId() : null;
-        const claiming = claimClubId !== null;
 
         this.saving.set(true);
         this.errorMsg.set(null);
@@ -941,10 +669,6 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             postalCode: v.postalCode!.trim(),
             username: v.username!.trim(),
             password: v.password!,
-            // Claiming links her to a club that already exists, so there is no new club to
-            // confirm. The server re-checks that the club is genuinely unclaimed.
-            confirmedNewClub: !claiming,
-            existingClubId: claimClubId,
             acceptedTos: true,
         };
 
@@ -956,12 +680,6 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
                         // Backend has already stamped bTSICWaiverSigned + timestamp.
                         // Auto-login and emit registered — no separate ToS step.
                         this.autoLoginAndEmit(request.username, request.password);
-                    } else if (resp.similarClubs?.length) {
-                        this.saving.set(false);
-                        // Backend gate caught something the frontend missed
-                        this.clubSearchResults.set(resp.similarClubs as ClubSearchResult[]);
-                        this.clubDecision.set('pending');
-                        this.errorMsg.set(resp.message || null);
                     } else {
                         this.saving.set(false);
                         this.errorMsg.set(resp.message || 'Registration failed.');

@@ -31,6 +31,8 @@ interface CadtFlatNode {
   /** Agegroup-level flags for filter flag pruning (set on agegroup nodes only). */
   isWaitlist?: boolean;
   isDropped?: boolean;
+  /** Club nodes: club reps entering teams under this name. Admin trees only — 0 elsewhere. */
+  repCount?: number;
 }
 
 export interface CadtSelectionEvent {
@@ -123,6 +125,15 @@ export interface CadtSelectionEvent {
 
               <!-- Name -->
               <span class="tree-name" (click)="toggleExpand(node)">{{ node.name }}</span>
+
+              <!-- Several reps under one club name (Todd 2026-10-06): an early warning that the
+                   same team may be entered twice. The server sends the count to admins only. -->
+              @if ((node.repCount ?? 0) >= 2) {
+                <span class="tree-reps"
+                      [title]="node.repCount + ' club reps entered teams under ' + node.name + ' — check for a team entered twice.'">
+                  <span aria-hidden="true">&#9888;</span> {{ node.repCount }} reps
+                </span>
+              }
 
               <!-- Count badges -->
               <span class="tree-badges">
@@ -332,6 +343,19 @@ export interface CadtSelectionEvent {
 
     .tree-root-chevron.expanded {
       transform: rotate(90deg);
+    }
+
+    .tree-reps {
+      flex-shrink: 0;
+      padding: 0 var(--space-1);
+      border: 1px solid var(--bs-warning);
+      border-radius: var(--radius-full);
+      background: color-mix(in srgb, var(--bs-warning) 16%, var(--bs-body-bg));
+      color: var(--bs-warning-text-emphasis);
+      font-size: 0.65rem;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: help;
     }
 
     .tree-badges {
@@ -608,7 +632,8 @@ export class CadtTreeFilterComponent implements OnChanges {
         color: null,
         teamCount: club.teamCount ?? 0,
         playerCount: club.playerCount ?? 0,
-        descendantIds: clubDescendants
+        descendantIds: clubDescendants,
+        repCount: club.repCount ?? 0
       });
 
       for (const ag of club.agegroups ?? []) {
