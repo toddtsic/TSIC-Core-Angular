@@ -38,8 +38,8 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
       }
       /* Locked to the picked club's name (Todd 2026-10-06): reads as set, not as a field to type in. */
       .field-input--hero[readonly] {
-        background: rgba(var(--bs-primary-rgb), 0.08);
-        border-color: rgba(var(--bs-primary-rgb), 0.35);
+        background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface));
+        border-color: color-mix(in srgb, var(--bs-primary) 45%, var(--bs-border-color));
         font-weight: var(--font-weight-semibold);
         cursor: default;
       }
@@ -79,9 +79,9 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
         cursor: pointer;
       }
       .known-club-row:last-child { border-bottom: none; }
-      .known-club-row:hover { background: rgba(var(--bs-primary-rgb), 0.04); }
+      .known-club-row:hover { background: color-mix(in srgb, var(--bs-primary) 4%, transparent); }
       .known-club-row.is-chosen {
-        background: rgba(var(--bs-primary-rgb), 0.12);
+        background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
         box-shadow: inset 4px 0 0 var(--bs-primary);
       }
       .known-club-row .form-check-input { flex-shrink: 0; margin: 0; }
