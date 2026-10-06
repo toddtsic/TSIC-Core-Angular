@@ -77,6 +77,7 @@ type TeamsSegment = 'library' | 'registered';
             [eventName]="eventName()"
             [clubName]="clubName()"
             [sameNameEventTeams]="sameNameEventTeams()"
+            [repName]="repName()"
             [canRegister]="canRegisterTeam()"
             [canRemove]="canRemoveTeam()"
             [renameLockReason]="canEditTeam() ? null : 'Editing closed by the director'"
@@ -1007,6 +1008,11 @@ export class TeamTeamsStepComponent implements OnInit {
     private readonly _clubTeams = signal<ClubTeamDto[]>([]);
     /** Teams other same-name reps already registered in this event — warn before a double entry. */
     readonly sameNameEventTeams = signal<SameNameEventTeamDto[]>([]);
+    /** The signed-in rep's name — heads their own group when other reps share the club name. */
+    readonly repName = computed(() => {
+        const c = this.state.clubRepContact();
+        return c ? `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() : '';
+    });
 
     readonly droppedTeams = computed(() => this._droppedTeams());
 

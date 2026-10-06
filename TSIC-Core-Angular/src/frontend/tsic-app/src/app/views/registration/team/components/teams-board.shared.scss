@@ -234,6 +234,30 @@
 
 .reg-editor-host { grid-column: 1 / -1; min-width: 0; }
 
+/* Same-name club, more than one rep here (Todd 2026-10-06): a header per rep across the full row —
+   this rep's own group first, in this side's color; other reps' groups muted, with who pays. */
+.reg-group {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+  row-gap: 2px;
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  border-bottom: 1px solid var(--bs-border-color);
+  background: color-mix(in srgb, var(--bs-body-color) 3%, var(--brand-surface));
+  font-size: var(--font-size-xs);
+}
+.reg-group-name { font-weight: var(--font-weight-bold); color: var(--brand-text); }
+.reg-group--own { box-shadow: inset 3px 0 0 var(--bs-success); }
+.reg-group--own .bi { color: var(--bs-success); }
+.reg-group--other { margin-top: var(--space-2); border-top: 1px solid var(--bs-border-color); }
+.reg-group--other .bi { color: var(--brand-text-muted); }
+.reg-group-note { flex-basis: 100%; font-size: var(--font-size-2xs); color: var(--brand-text-muted); }
+.reg-row--other .row-name { font-weight: var(--font-weight-medium); }
+/* No pencil on another rep's row: hold its place so the names line up with this rep's. */
+.reg-row--other .pencil-gap { flex-shrink: 0; width: 22px; }
+
 .row-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 
 

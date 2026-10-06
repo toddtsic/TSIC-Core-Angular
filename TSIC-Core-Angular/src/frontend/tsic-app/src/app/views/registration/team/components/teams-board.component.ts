@@ -115,10 +115,18 @@ type BoardSide = 'lib' | 'reg';
         <!-- One line per team, in columns (Ann 2026-09-27 — scans like prod's grid): the rows share
              the body's tracks (subgrid), so the badges and names line up down the list. No money per row
              (Ann/Todd 2026-09-27) — the Payment step's grid carries it. -->
-        <div class="panel-body reg-grid" [class.is-short]="registeredRows().length <= 3">
-          @if (registeredRows().length > 0) {
+        <div class="panel-body reg-grid" [class.is-short]="registeredRows().length + sameNameEventTeams().length <= 3">
+          @if (registeredRows().length > 0 || otherRepGroups().length > 0) {
             <div class="reg-cols" aria-hidden="true">
               <span class="col-num">#</span><span title="Age group">AG</span><span>Team</span><span class="col-lop">LOP</span>
+            </div>
+          }
+          @if (otherRepGroups().length > 0) {
+            <!-- Other reps share this club name here (Todd 2026-10-06): each rep's teams under their
+                 own name, this rep's first — one list would read as one club's bill. -->
+            <div class="reg-group reg-group--own">
+              <i class="bi bi-person-fill" aria-hidden="true"></i>
+              <span class="reg-group-name">You{{ repName() ? ' (' + repName() + ')' : '' }}</span>
             </div>
           }
           @for (t of registeredRows(); track t.teamId; let i = $index) {
@@ -193,6 +201,25 @@ type BoardSide = 'lib' | 'reg';
               </span>
             </div>
           }
+          @for (g of otherRepGroups(); track g.repName) {
+            <div class="reg-group reg-group--other">
+              <i class="bi bi-person" aria-hidden="true"></i>
+              <span class="reg-group-name">{{ g.repName }}</span>
+              <span class="reg-group-note">Registered and paid for by {{ g.repName }} &mdash; not on your bill.</span>
+            </div>
+            @for (t of g.teams; track $index) {
+              <!-- Read-only: another rep's team — no pencil, no trash, no level of play. -->
+              <div class="reg-row reg-row--other">
+                <span class="reg-num"></span>
+                <span class="reg-ag">
+                  <span class="ag-badge" [style.background]="agBg(ageGroupColors().get(t.ageGroupName))"
+                        [style.color]="agText(ageGroupColors().get(t.ageGroupName))">{{ t.ageGroupName }}</span>
+                </span>
+                <span class="reg-team"><span class="pencil-gap" aria-hidden="true"></span><span class="row-name" [attr.title]="t.teamName">{{ t.teamName }}</span></span>
+                <span class="reg-lop"></span>
+              </div>
+            }
+          }
         </div>
       </section>
     </div>
@@ -223,6 +250,8 @@ export class TeamsBoardComponent {
     readonly clubName = input('');
     /** Teams other same-name reps already registered here — the add row's duplicate warning. */
     readonly sameNameEventTeams = input<readonly SameNameEventTeamDto[]>([]);
+    /** The signed-in rep's name — heads their own group when other reps' groups follow. */
+    readonly repName = input('');
     /** Team registration open AND the director allows adds. */
     readonly canRegister = input(false);
     /** The director's own remove toggle (unpaid rows); the mistake-undo is separate. */
@@ -276,6 +305,27 @@ export class TeamsBoardComponent {
     /** This event's teams, by age group then name — the shape a director reads them in. */
     readonly registeredRows = computed(() => [...this.registeredTeams()].sort((a, b) =>
         (a.ageGroupName ?? '').localeCompare(b.ageGroupName ?? '') || a.teamName.localeCompare(b.teamName)));
+
+    /**
+     * Other same-name reps' teams in this event, one group per rep (Todd 2026-10-06) — read-only, shown
+     * under the rep's own so a shared club name never reads as one list. Same order as registeredRows.
+     */
+    readonly otherRepGroups = computed(() => {
+        const byRep = new Map<string, SameNameEventTeamDto[]>();
+        for (const t of this.sameNameEventTeams()) {
+            const rep = t.repName.trim() || 'Another club rep';
+            byRep.set(rep, [...(byRep.get(rep) ?? []), t]);
+        }
+        return [...byRep].map(([repName, teams]) => ({
+            repName,
+            teams: [...teams].sort((a, b) =>
+                a.ageGroupName.localeCompare(b.ageGroupName) || a.teamName.localeCompare(b.teamName)),
+        }));
+    });
+
+    /** Another rep's team has no color of its own here: borrow the age group's from a team of ours. */
+    readonly ageGroupColors = computed(() =>
+        new Map(this.registeredTeams().map(t => [t.ageGroupName ?? '', t.ageGroupColor ?? null])));
 
     /** Age-group badge: the age group's own color, text picked for contrast (the scheduling helper). */
     agBg(color: string | null | undefined): string { return color || 'var(--bs-secondary-bg)'; }
