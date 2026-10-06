@@ -14,7 +14,6 @@ import {
     ClubRepClubDto,
     ClubTeamDto,
     ClubTeamEventHistoryDto,
-    CheckExistingRegistrationsResponse,
     UpdateClubTeamRequest,
     RenameClubTeamRequest,
     RenameRegisteredTeamRequest,
@@ -191,29 +190,6 @@ export class TeamRegistrationService {
     updateClubName(oldClubName: string, newClubName: string): Observable<void> {
         const request = { oldClubName, newClubName };
         return this.http.patch<void>(`${this.apiUrl}/update-club-name`, request);
-    }
-
-    /**
-     * Check for existing registrations that may conflict with a new registration.
-     *
-     * Calls GET /api/team-registration/check-existing with jobPath and clubName.
-     * Returns summary indicating whether conflicts exist and details if present.
-     * Backend validates jobPath is non-empty and matches registration context.
-     *
-     * @param jobPath - The event identifier (e.g., "aim-cac-2026")
-     * @param clubName - The club name to check
-     */
-    checkExistingRegistrations(
-        jobPath: string,
-        clubName: string,
-    ): Observable<CheckExistingRegistrationsResponse> {
-        const params = new HttpParams()
-            .set('jobPath', jobPath)
-            .set('clubName', clubName);
-        return this.http.get<CheckExistingRegistrationsResponse>(
-            `${this.apiUrl}/check-existing`,
-            { params },
-        );
     }
 
     /**

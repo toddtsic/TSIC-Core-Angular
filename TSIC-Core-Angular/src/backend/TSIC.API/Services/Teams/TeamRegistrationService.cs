@@ -277,59 +277,6 @@ public class TeamRegistrationService : ITeamRegistrationService
         return clubs;
     }
 
-    public async Task<CheckExistingRegistrationsResponse> CheckExistingRegistrationsAsync(string jobPath, string clubName, string userId)
-    {
-        _logger.LogInformation("Checking existing registrations for user {UserId}, job {JobPath}, club {ClubName}", userId, jobPath, clubName);
-
-        // Get club rep association
-        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
-        var clubRep = myClubs.FirstOrDefault(c => string.Equals(c.ClubName, clubName, StringComparison.OrdinalIgnoreCase));
-
-        if (clubRep == null)
-        {
-            _logger.LogWarning("User {UserId} is not a rep for club {ClubName}", userId, clubName);
-            throw new InvalidOperationException("User is not authorized for this club");
-        }
-
-        // Get job ID
-        var jobId = await _jobs.GetJobIdByPathAsync(jobPath);
-        if (jobId == null)
-        {
-            _logger.LogWarning("Job not found: {JobPath}", jobPath);
-            throw new InvalidOperationException($"Event not found: {jobPath}");
-        }
-
-        // Get current user's registration for this event (if exists)
-        var currentUserRegistration = await _registrations.GetClubRepRegistrationAsync(userId, jobId.Value);
-
-        var otherRepTeams = await _teams.GetTeamsByClubExcludingRegistrationAsync(
-            jobId.Value,
-            clubRep.ClubId,
-            currentUserRegistration?.RegistrationId);
-
-        if (otherRepTeams.Any())
-        {
-            var otherRepUsername = otherRepTeams[0].Username ?? "another club rep";
-            _logger.LogInformation("Found conflict: {OtherRep} has {Count} teams registered for job {JobId} club {ClubId}",
-                otherRepUsername, otherRepTeams.Count, jobId, clubRep.ClubId);
-
-            return new CheckExistingRegistrationsResponse
-            {
-                HasConflict = true,
-                OtherRepUsername = otherRepUsername,
-                TeamCount = otherRepTeams.Count
-            };
-        }
-
-        _logger.LogInformation("No conflicts found for user {UserId}, job {JobPath}, club {ClubName}", userId, jobPath, clubName);
-        return new CheckExistingRegistrationsResponse
-        {
-            HasConflict = false,
-            OtherRepUsername = null,
-            TeamCount = 0
-        };
-    }
-
     public async Task<TeamsMetadataResponse> GetTeamsMetadataAsync(Guid regId, string userId, bool bPayBalanceDue = false)
     {
         _logger.LogInformation("Getting teams metadata for regId: {RegId}, user: {UserId}, bPayBalanceDue: {BPayBalanceDue}",
@@ -686,21 +633,9 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Event does not have a league configured");
         }
 
-        // CRITICAL BUSINESS RULE: One club rep per event
-        var existingTeamsForClub = await _teams.GetTeamsByClubExcludingRegistrationAsync(jobId, effectiveClubId, clubRepRegistration.RegistrationId);
-
-        // Validate one-rep-per-event rule
-        var differentRepTeams = existingTeamsForClub
-            .Where(t => t.ClubrepRegistrationid != clubRepRegistration.RegistrationId)
-            .ToList();
-
-        if (differentRepTeams.Any())
-        {
-            var otherRepUsername = differentRepTeams[0].Username ?? "another club rep";
-            _logger.LogWarning("One-rep-per-event violation: User {UserId} (regId {RegistrationId}) attempted to register team for event {JobId} club {ClubId}, but {OtherRepUser} already has teams registered",
-                userId, clubRepRegistration.RegistrationId, jobId, effectiveClubId, otherRepUsername);
-            throw new InvalidOperationException($"Only one club representative can register teams per event. {otherRepUsername} has already registered teams for this club in this event. Please contact your organization administrator.");
-        }
+        // No one-rep-per-event rule (AR-142, Todd 2026-10-06): several reps of one club registering in
+        // one event is normal, and legacy never refused it. The Teams step's duplicate warning and the
+        // director's "N reps" badge surface the case instead.
 
         // Validate age group
         var ageGroup = await _agegroups.GetByIdAsync(request.AgeGroupId);

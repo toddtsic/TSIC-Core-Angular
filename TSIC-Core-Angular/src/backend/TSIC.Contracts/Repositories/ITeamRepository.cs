@@ -67,17 +67,6 @@ public record AvailableTeamQueryResult
 public interface ITeamRepository
 {
     /// <summary>
-    /// Get teams by club and job, excluding specific registration.
-    /// Used for checking conflicts when multiple club reps try to register teams.
-    /// Joins to Registrations → ClubReps to verify club association.
-    /// </summary>
-    Task<List<TeamWithRegistrationInfo>> GetTeamsByClubExcludingRegistrationAsync(
-        Guid jobId,
-        int clubId,
-        Guid? excludeRegistrationId = null,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Every on-the-books team (active, not DROPPED; waitlisted included — it is still an entry and a
     /// fee) in the job that belongs to an active club rep registration OTHER than
     /// <paramref name="excludeRegistrationId"/>, with that registration's club_name and rep. The caller
@@ -677,14 +666,6 @@ public record OtherClubRepTeamInfo
     public required string AgegroupName { get; init; }
     public string? RepFirstName { get; init; }
     public string? RepLastName { get; init; }
-}
-
-public record TeamWithRegistrationInfo
-{
-    public required Guid TeamId { get; init; }
-    public required string TeamName { get; init; }
-    public string? Username { get; init; }
-    public Guid? ClubrepRegistrationid { get; init; }
 }
 
 /// <summary>

@@ -502,35 +502,6 @@ public class TeamRepository : ITeamRepository
         return (scheduled, nextDate);
     }
 
-    public async Task<List<TeamWithRegistrationInfo>> GetTeamsByClubExcludingRegistrationAsync(
-        Guid jobId,
-        int clubId,
-        Guid? excludeRegistrationId = null,
-        CancellationToken cancellationToken = default)
-    {
-        var query = from t in _context.Teams
-                    join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
-                    where t.JobId == jobId
-                      && t.ClubrepRegistrationid != null
-                      && _context.ClubReps.Any(cr => cr.ClubRepUserId == reg.UserId && cr.ClubId == clubId)
-                    select new TeamWithRegistrationInfo
-                    {
-                        TeamId = t.TeamId,
-                        TeamName = t.TeamName ?? string.Empty,
-                        Username = reg.User != null ? reg.User.UserName : null,
-                        ClubrepRegistrationid = t.ClubrepRegistrationid
-                    };
-
-        if (excludeRegistrationId.HasValue)
-        {
-            query = query.Where(t => t.ClubrepRegistrationid != excludeRegistrationId.Value);
-        }
-
-        return await query
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<List<OtherClubRepTeamInfo>> GetOtherClubRepTeamsInJobAsync(
         Guid jobId,
         Guid excludeRegistrationId,

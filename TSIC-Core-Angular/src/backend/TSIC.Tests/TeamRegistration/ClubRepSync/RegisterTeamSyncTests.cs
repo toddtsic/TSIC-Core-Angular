@@ -99,11 +99,6 @@ public class RegisterTeamSyncTests
             .Setup(jl => jl.GetPrimaryLeagueForJobAsync(TestJobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(TestLeagueId);
 
-        teamRepo
-            .Setup(t => t.GetTeamsByClubExcludingRegistrationAsync(
-                TestJobId, 1, TestRegId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<TeamWithRegistrationInfo>());
-
         agRepo
             .Setup(a => a.GetByIdAsync(TestAgegroupId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Agegroups

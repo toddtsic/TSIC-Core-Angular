@@ -121,13 +121,7 @@ public class MaxTeamsPerClubTests
             .Setup(jl => jl.GetPrimaryLeagueForJobAsync(TestJobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(TestLeagueId);
 
-        // 7. GetTeamsByClubExcludingRegistrationAsync → no conflicts (one-rep-per-event passes)
-        teamRepo
-            .Setup(t => t.GetTeamsByClubExcludingRegistrationAsync(
-                TestJobId, 1, TestRegId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<TeamWithRegistrationInfo>());
-
-        // 8. GetByIdAsync → agegroup with the specified MaxTeamsPerClub
+        // 7. GetByIdAsync → agegroup with the specified MaxTeamsPerClub
         agRepo
             .Setup(a => a.GetByIdAsync(TestAgegroupId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Agegroups
@@ -140,7 +134,7 @@ public class MaxTeamsPerClubTests
                 Modified = DateTime.UtcNow,
             });
 
-        // 9. KEY MOCK — GetRegisteredCountForClubRepAndAgegroupAsync
+        // 8. KEY MOCK — GetRegisteredCountForClubRepAndAgegroupAsync
         teamRepo
             .Setup(t => t.GetRegisteredCountForClubRepAndAgegroupAsync(
                 TestJobId, TestAgegroupId, TestRegId, It.IsAny<CancellationToken>()))

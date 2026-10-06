@@ -171,7 +171,6 @@ export type { ChatMessageDto } from './models/ChatMessageDto';
 export type { ChatPageDto } from './models/ChatPageDto';
 export type { ChatPreferencesDto } from './models/ChatPreferencesDto';
 export type { ChatReadStateDto } from './models/ChatReadStateDto';
-export type { CheckExistingRegistrationsResponse } from './models/CheckExistingRegistrationsResponse';
 export type { CheckinStateDto } from './models/CheckinStateDto';
 export type { ChecklistAgegroupDivisionsDto } from './models/ChecklistAgegroupDivisionsDto';
 export type { ChecklistAgegroupPoolsDto } from './models/ChecklistAgegroupPoolsDto';

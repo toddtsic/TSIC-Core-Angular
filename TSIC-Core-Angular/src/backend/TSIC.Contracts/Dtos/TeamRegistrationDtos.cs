@@ -452,13 +452,6 @@ public sealed record ValidateClubRepResponse
     public required string? ClubName { get; init; }
     public string? Message { get; init; }
 }
-public sealed record CheckExistingRegistrationsResponse
-{
-    public required bool HasConflict { get; init; }
-    public string? OtherRepUsername { get; init; }
-    public int TeamCount { get; init; }
-}
-
 public sealed record RecalculateTeamFeesRequest
 {
     public Guid? JobId { get; init; }
