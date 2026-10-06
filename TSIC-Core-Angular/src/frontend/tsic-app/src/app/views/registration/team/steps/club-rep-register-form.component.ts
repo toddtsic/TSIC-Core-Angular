@@ -622,9 +622,10 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         c.markAsDirty();
     }
 
-    /** True when the Club Name input already holds this name (ignoring case and spacing). */
+    /** True when the Club Name input already holds this name exactly (spacing aside). Case counts,
+     *  so "true lacrosse" still offers "Use this name" — the club's own capitalization. */
     isTypedName(name: string): boolean {
-        const norm = (s: string | null | undefined) => (s ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+        const norm = (s: string | null | undefined) => (s ?? '').trim().replace(/\s+/g, ' ');
         return norm(this.form.controls.clubName.value) === norm(name);
     }
 

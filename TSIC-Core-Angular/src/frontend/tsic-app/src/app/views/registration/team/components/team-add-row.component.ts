@@ -646,6 +646,8 @@ export class TeamAddRowComponent implements OnChanges {
      * this name (case/spacing-insensitive), so typing a library name IS picking it.
      */
     readonly base = computed<ClubTeamDto | null>(() => {
+        // An empty row started from nothing — even if a library row's name is blank (one exists in prod data).
+        if (!this.text().trim()) return null;
         const c = this.chosen();
         if (c && sameLibraryText(c.clubTeamName, this.text())) return c;
         const same = this.available().filter(t => sameLibraryText(t.clubTeamName, this.text()));
