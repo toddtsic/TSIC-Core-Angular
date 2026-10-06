@@ -113,7 +113,11 @@ public sealed class ClubService : IClubService
         // ── The club the rep picked as theirs ───────────────────────────
         //
         // Only a club with the same club name: the pick comes from sign-up's same-name list, and an id
-        // posted for any other club must not copy that club's library.
+        // posted for any other club must not copy that club's library. A pick also fixes the name: the rep
+        // registers under the picked club's EXACT name (Todd 2026-10-06), whatever the request typed — the
+        // club name is the identity everywhere after sign-up (the duplicate warning, the director's trees),
+        // and the loose same-name match only helps the rep find their club.
+        var clubName = request.ClubName.Trim();
         List<ClubTeams> sourceTeams = [];
         if (request.SourceClubId is int sourceClubId)
         {
@@ -128,6 +132,7 @@ public sealed class ClubService : IClubService
                     Message = "The club you picked doesn't have this club name. Pick your club again, or choose \"None of these\"."
                 };
             }
+            clubName = source.ClubName.Trim();
             sourceTeams = await _clubTeams.GetByClubIdAsync(sourceClubId);
         }
 
@@ -145,7 +150,7 @@ public sealed class ClubService : IClubService
         {
             var ownClubs = await _clubRepRepo.GetClubsForUserAsync(existingUser.Id);
             var ownSameName = ownClubs.FirstOrDefault(c =>
-                ClubNameMatcher.IsSameClubName(c.ClubName, request.ClubName));
+                ClubNameMatcher.IsSameClubName(c.ClubName, clubName));
             if (ownSameName != null)
             {
                 clubId = ownSameName.ClubId;
@@ -160,7 +165,7 @@ public sealed class ClubService : IClubService
         // search's IsClaimable is display data; IsUnclaimedEmptyAsync is the gate.
         if (clubId == 0)
         {
-            var typed = request.ClubName.Trim();
+            var typed = clubName;
             var shell = (await SearchClubsAsync(typed, null)).FirstOrDefault(c =>
                 c.IsExactMatch
                 && c.IsClaimable
@@ -216,7 +221,7 @@ public sealed class ClubService : IClubService
             // Create new club
             var club = new Domain.Entities.Clubs
             {
-                ClubName = request.ClubName,
+                ClubName = clubName,
                 LebUserId = user.Id,
                 Modified = DateTime.Now
             };

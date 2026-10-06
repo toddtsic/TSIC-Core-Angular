@@ -176,19 +176,32 @@ public class TeamsMetadataSameNameTests
     //  RULE 2 — same-name reps' teams already in this event
     // ═══════════════════════════════════════════════════════════════════
 
-    [Fact(DisplayName = "Event list: teams of every other same-name rep, each with its rep's name")]
+    [Fact(DisplayName = "Event list: teams of every other rep under the exact club name, each with its rep's name")]
     public void EventTeams_EveryOtherSameNameRep()
     {
         var others = new[]
         {
             EventTeam("Fury Lacrosse", "Fury 2030 Blue", "Jane Smith"),
-            EventTeam("Fury Lax", "Fury 2030 Blue", "Bob Jones"),
+            EventTeam("Fury Lacrosse", "Fury 2029 Gold", "Bob Jones"),
             EventTeam("Storm Lacrosse", "Storm 2030", "Ann Lee"),
         };
 
         var result = SameNameClubLists.EventTeams("Fury Lacrosse", others);
 
         result.Select(t => t.RepName).Should().BeEquivalentTo(["Jane Smith", "Bob Jones"]);
+    }
+
+    [Fact(DisplayName = "Event list: a merely similar club name is a different club — exact name only, as the director's tree groups")]
+    public void EventTeams_SimilarNameNotMatched()
+    {
+        var others = new[]
+        {
+            EventTeam("Fury Lax", "Fury 2030 Blue", "Bob Jones"),        // normalizes to the same club
+            EventTeam("Fury Lacrosse Club", "Fury 2030 Blue", "Ann Lee"), // filler word added
+            EventTeam("fury lacrosse", "Fury 2030 Blue", "Cal Diaz"),     // the tree splits on case too
+        };
+
+        SameNameClubLists.EventTeams("Fury Lacrosse", others).Should().BeEmpty();
     }
 
     [Fact(DisplayName = "Event list: a waitlisted team reads its age group without the WAITLIST prefix")]

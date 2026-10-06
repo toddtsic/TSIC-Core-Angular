@@ -494,6 +494,22 @@ public class ClubRegistrationGateTests
     }
 
     /// <summary>
+    /// SCENARIO: The rep typed "Charlotte Fury LC" and picked the existing Charlotte Fury.
+    /// EXPECTED: their club takes the PICKED club's exact name — the name is the identity after sign-up.
+    /// </summary>
+    [Fact(DisplayName = "Picked club: the new club takes the picked club's exact name, not the typed one")]
+    public async Task PickedClub_TakesItsExactName()
+    {
+        var library = new[] { new ClubTeams { ClubTeamId = 10, ClubId = 1, ClubTeamName = "2030 Blue", ClubTeamGradYear = "2030", Active = true } };
+        var f = CreateService([ExistingClub], libraries: new() { [1] = library });
+
+        var result = await f.Svc.RegisterAsync(MakeRequest("  charlotte fury LC ") with { SourceClubId = 1 });
+
+        result.Success.Should().BeTrue();
+        f.ClubRepo.Verify(r => r.Add(It.Is<Clubs>(c => c.ClubName == "Charlotte Fury")), Times.Once);
+    }
+
+    /// <summary>
     /// SCENARIO: The rep answers "None of these — we're a new club".
     /// EXPECTED: their own club, empty.
     /// </summary>

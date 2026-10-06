@@ -133,3 +133,11 @@ Names aren't a club's identity: two unrelated clubs can share one. So the Teams 
     - zztest_f5 chose None of these and got an empty club 2470.
     - A brand-new name gets no question.
     - The age-group warning is unchanged.
+
+## Revision: the exact club name is the identity (Todd 2026-10-06)
+One rule: the loose same-name match (`ClubNameMatcher.IsSameClubName`) only helps a rep FIND their club at sign-up; after that the EXACT club name is the identity.
+- **Sign-up:** picking a club from "Is your club one of these?" locks the Club Name box to that club's exact name (read-only, with a line: pick **None of these** to use a different name). Picking another club switches it; **None of these** unlocks it and puts back what the rep had typed. The server stamps the picked club's exact name on the new club, whatever the request typed.
+- **Duplicate warning** (`SameNameClubLists.EventTeams`): exact `club_name`, compared ordinally — the way the director's CADT trees group clubs — so the rep's warning and the director's "⚠ N reps" badge always agree. A merely similar name ("Lax Plus Club" vs "Lax Plus") is a different club.
+- **Registered Teams** groups by rep when other reps share the club name: "You (name)" first in green with every action; other reps read-only in grey, "Registered and paid for by X — not on your bill." Payment shows only the rep's own teams.
+- **Duplicate warning UI:** facts, the question, the bold fee line, and **Don't add** / **Yes, add it** together as soon as it shows; + Add and ✕ are held until it is answered. Don't add clears the row.
+- Verified: backend 1236/1237 (the one failure is EventBrowse, from `c78b33aa4`, not this branch); `npm run build` passes the gates.

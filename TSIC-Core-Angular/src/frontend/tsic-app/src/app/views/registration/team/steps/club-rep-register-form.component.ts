@@ -36,6 +36,18 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
         font-size: var(--font-size-base);
         line-height: 1.4;
       }
+      /* Locked to the picked club's name (Todd 2026-10-06): reads as set, not as a field to type in. */
+      .field-input--hero[readonly] {
+        background: rgba(var(--bs-primary-rgb), 0.08);
+        border-color: rgba(var(--bs-primary-rgb), 0.35);
+        font-weight: var(--font-weight-semibold);
+        cursor: default;
+      }
+      .club-name-locked {
+        margin-top: var(--space-1);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+      }
 
       /* ── Same-name clubs: "Is your club one of these?" (a choice, never a block) ──
          The question is the site's informational callout (.tsic-callout--info); the
@@ -161,7 +173,16 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
                 <input #clubNameInput class="field-input field-input--hero" formControlName="clubName"
                        placeholder="Start typing your club name..."
                        autocomplete="off"
+                       [readOnly]="!!chosenClub()"
+                       [attr.aria-describedby]="chosenClub() ? 'club-name-locked' : null"
                        [class.is-invalid]="showError('clubName')" />
+                @if (chosenClub()) {
+                  <!-- A picked club fixes the name (Todd 2026-10-06): its teams register under its exact name. -->
+                  <div class="club-name-locked" id="club-name-locked">
+                    <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>Your club's name, from the club you picked.
+                    To use a different name, pick <b>None of these</b>.
+                  </div>
+                }
                 @if (errorText('clubName'); as msg) { <div class="field-error">{{ msg }}</div> }
               </div>
 
@@ -209,7 +230,7 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
                   }
                   <label class="known-club-row" [class.is-chosen]="clubChoice() === 'none'">
                     <input type="radio" class="form-check-input" name="clubChoice"
-                           [checked]="clubChoice() === 'none'" (change)="clubChoice.set('none')">
+                           [checked]="clubChoice() === 'none'" (change)="chooseNone()">
                     <span><span class="fw-semibold">None of these</span>
                       <span class="text-muted ms-1">&mdash; we're a new club</span></span>
                   </label>
@@ -536,8 +557,8 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         this.form.controls.clubName.valueChanges.pipe(
             distinctUntilChanged(),
             tap((v) => {
-                // A new name is a new question: "Is this your club?" is answered again. chooseClub
-                // sets its answer after its own setValue, so that answer stands.
+                // A new name is a new question: "Is this your club?" is answered again. Only the rep's
+                // typing gets here — chooseClub / chooseNone set the name without an event.
                 this.clubChoice.set(null);
                 if (!v || v.trim().length < 3) {
                     this.clubSearchResults.set([]);
@@ -616,12 +637,28 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         });
     }
 
-    /** "This is my club": its saved teams come with the rep, and the club name takes its spelling. */
+    /** What the rep typed before picking a club — "None of these" hands it back. */
+    private typedClubName = '';
+
+    /**
+     * "This is my club": its teams come with the rep, and the club name becomes its EXACT name and locks
+     * (Todd 2026-10-06) — the server stamps that name too. Set without an event: the list stays as the
+     * typed search found it, so the rep can switch picks, and the set name doesn't clear the answer.
+     */
     chooseClub(club: ClubSearchResult): void {
         const c = this.form.controls.clubName;
-        c.setValue(club.clubName);
+        if (typeof this.clubChoice() !== 'number') this.typedClubName = c.value ?? '';
+        c.setValue(club.clubName, { emitEvent: false });
         c.markAsDirty();
         this.clubChoice.set(club.clubId);
+    }
+
+    /** "None of these": the name unlocks and goes back to what the rep typed. */
+    chooseNone(): void {
+        if (typeof this.clubChoice() === 'number') {
+            this.form.controls.clubName.setValue(this.typedClubName, { emitEvent: false });
+        }
+        this.clubChoice.set('none');
     }
 
     digitsOnly(controlName: string, event: Event): void {

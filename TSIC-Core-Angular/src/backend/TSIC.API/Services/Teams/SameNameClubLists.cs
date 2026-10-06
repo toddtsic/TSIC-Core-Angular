@@ -9,8 +9,10 @@ namespace TSIC.API.Services.Teams;
 /// <summary>
 /// The same-name club rules (Todd 2026-10-06), as pure rules over already-loaded data. Sign-up lets a rep
 /// create a club whose name another club already uses — typically the rep replacing that club's old rep.
-/// "Same name" is <see cref="ClubNameMatcher.IsSameClubName"/>: normalized, so "Fury Lax" and
-/// "Fury Lacrosse" are one club, and a filler-only name matches nothing.
+/// One rule: the EXACT club name is the identity; the loose match only helps a rep FIND their club. At
+/// sign-up "same name" is <see cref="ClubNameMatcher.IsSameClubName"/> — normalized, so "Fury Lax" and
+/// "Fury Lacrosse" are offered together, and a filler-only name matches nothing — and a pick takes the
+/// picked club's exact name. Inside an event (<see cref="EventTeams"/>) only the exact name matches.
 /// </summary>
 public static class SameNameClubLists
 {
@@ -96,7 +98,11 @@ public static class SameNameClubLists
     /// <summary>
     /// Teams other club reps already registered in this event under the same club name as this rep's
     /// registration. Matched on the event's club_name on both sides: that is the club's identity inside the
-    /// event, and a director's per-event rename that sets two reps apart is respected.
+    /// event, and a director's per-event rename that sets two reps apart is respected. The EXACT name
+    /// (Todd 2026-10-06), compared as the director's CADT trees group it — ordinal, so the rep's warning and
+    /// the director's "reps" badge always agree — not the loose sign-up match: a rep who chose "None of
+    /// these" under a merely similar name ("Lax Plus Club" vs "Lax Plus") said they are a different club,
+    /// and a rep who picked their club at sign-up carries its exact name.
     /// </summary>
     public static List<SameNameEventTeamDto> EventTeams(
         string? clubName, IEnumerable<OtherClubRepTeamInfo> otherRepTeams)
@@ -104,7 +110,7 @@ public static class SameNameClubLists
         if (string.IsNullOrWhiteSpace(clubName)) return [];
 
         return otherRepTeams
-            .Where(t => ClubNameMatcher.IsSameClubName(t.ClubName, clubName))
+            .Where(t => string.Equals(t.ClubName, clubName, StringComparison.Ordinal))
             .Select(t => new SameNameEventTeamDto
             {
                 TeamName = t.TeamName,
