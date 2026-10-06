@@ -20,6 +20,19 @@
 
 ## How it works
 
+**The Club Team Library is now per rep: Club → Club Rep → Team Library.** A club name can have several reps. Each rep has their own team list, and nobody else's changes touch it.
+
+**How a new rep gets their own copy of the club's teams:**
+1. At sign-up, the rep picks their club from **"Is your club one of these?"**. Each row shows how many active teams that club has.
+2. When the account is created, that club's **active** teams are **copied** into the new rep's own library: name, grad year and level of play.
+   - Archived teams aren't copied.
+   - Teams with no name aren't copied.
+   - A team the rep already has (same name and grad year) isn't copied twice.
+3. On the Teams step, those teams are the rep's **own choices** in Add a Team, so there's nothing to retype.
+4. The copy happens **once**. After that the two lists are separate: renaming, archiving or adding teams in one never changes the other.
+
+A rep who picks **None of these** starts with an empty library.
+
 A club name never stops a club rep. Instead of blocking, the system **warns the people who can act on it**:
 - The **rep** is asked before adding a team that may already be entered.
 - The **director** sees a badge on any club that has more than one rep in the event.
