@@ -76,19 +76,21 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
         line-height: var(--line-height-normal);
       }
       .known-club-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: var(--space-2);
         padding: var(--space-2) var(--space-3);
         border-bottom: 1px solid var(--border-color);
         font-size: var(--font-size-sm);
       }
-      .known-club-row:last-child { border-bottom: none; }
-      .known-club-row .in-use {
-        font-size: var(--font-size-xs);
+      .known-club-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+      }
+      .known-club-actions .in-use {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
         color: var(--bs-success);
-        white-space: nowrap;
       }
 
       /* ── Shared ──────────────────────────────────────────── */
@@ -212,25 +214,29 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
                   </div>
                   @for (club of similarMatches(); track club.clubId) {
                     <div class="known-club-row">
-                      <div>
-                        <span class="fw-semibold">{{ club.clubName }}</span>
-                        @if (club.state) {
-                          <span class="text-muted ms-1">({{ club.state }})</span>
-                        }
-                        @if (club.teamCount) {
-                          <span class="text-muted ms-1">&bull; {{ club.teamCount }} {{ club.teamCount === 1 ? 'team' : 'teams' }}</span>
-                        }
-                      </div>
-                      @if (isTypedName(club.clubName)) {
-                        <span class="in-use"><i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>Using this name</span>
-                      } @else {
-                        <button type="button" class="btn btn-sm btn-outline-primary use-name-btn"
-                                (click)="useClubName(club.clubName)">
-                          Use this name
-                        </button>
+                      <span class="fw-semibold">{{ club.clubName }}</span>
+                      @if (club.state) {
+                        <span class="text-muted ms-1">({{ club.state }})</span>
+                      }
+                      @if (club.teamCount) {
+                        <span class="text-muted ms-1">&bull; {{ club.teamCount }} {{ club.teamCount === 1 ? 'team' : 'teams' }}</span>
                       }
                     </div>
                   }
+                  <!-- One action per SPELLING, not per club: same-name clubs share it, so a button per
+                       row would fill in the same text and tick every row at once. -->
+                  <div class="known-club-actions">
+                    @for (name of clubSpellings(); track name) {
+                      @if (isTypedName(name)) {
+                        <span class="in-use"><i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>Using &ldquo;{{ name }}&rdquo;</span>
+                      } @else {
+                        <button type="button" class="btn btn-sm btn-outline-primary use-name-btn"
+                                (click)="useClubName(name)">
+                          @if (clubSpellings().length === 1) { Use this name } @else { Use &ldquo;{{ name }}&rdquo; }
+                        </button>
+                      }
+                    }
+                  </div>
                 </div>
               }
               }
@@ -474,6 +480,11 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
      *  Look-alikes are not listed: the Teams step does not offer their saved teams either. */
     readonly similarMatches = computed(() =>
         this.clubSearchResults().filter(c => c.isExactMatch)
+    );
+
+    /** The distinct spellings among those clubs (case counts, spacing doesn't) — one "Use" each. */
+    readonly clubSpellings = computed(() =>
+        [...new Set(this.similarMatches().map(c => c.clubName.trim().replace(/\s+/g, ' ')))]
     );
 
     readonly form = this.fb.group({
