@@ -31,27 +31,7 @@ The design touches **two separate places**, at two different times:
 | **What changed** | Asks "Is your club one of these?", and copies the picked club's teams into the rep's own library | Shows other reps of the same club name, and warns before a possible duplicate team |
 | **Can it block?** | **No.** A club name never refuses an account. | **No.** The warning asks, and the rep decides. |
 
-### At Create NEW Club Rep Account: how a new rep gets their own copy of the club's teams
-
-1. The rep types their club name. Clubs with that name that are already on TSIC appear under **"Is your club one of these?"**, each with how many active teams it has.
-2. The rep picks one, or picks **None of these**.
-3. When the account is created, the picked club's **active** teams are **copied** into the new rep's own library: name, grad year and level of play.
-   - Archived teams aren't copied.
-   - Teams with no name aren't copied.
-   - A team the rep already has (same name and grad year) isn't copied twice.
-4. The copy happens **once**. After that the two lists are separate: renaming, archiving or adding teams in one never changes the other.
-
-A rep who picks **None of these** starts with an empty library.
-
-### In the Team Registration Wizard: using that library in each event
-
-1. On the Teams step, the copied teams are the rep's **own choices** in Add a Team, so there's nothing to retype.
-2. If another rep with the **same exact club name** already has teams in this event:
-   - the rep sees those teams, read-only and not on their bill;
-   - picking an age group where that rep has teams brings up the duplicate warning, which asks before adding.
-3. The director sees **"⚠ N reps"** on that club in the event's search filters.
-
-Nothing in the wizard copies teams or changes another rep's library.
+Teams are copied only at Create NEW Club Rep Account. Nothing in the wizard copies teams or changes another rep's library.
 
 ---
 
@@ -69,15 +49,19 @@ Nothing in the wizard copies teams or changes another rep's library.
 ### 1. Create NEW Club Rep Account (once, when the person becomes a club rep)
 
 - The whole form shows from the start. A line at the top reads *"Already have a club rep account? Sign in or reset your password."*
-- As the rep types the club name, clubs with that name that are already on TSIC appear under **"Is your club one of these?"** (or "Is this your club?" when there is one). Each row shows the club's state, number of teams and when it last registered. Rep names and emails are never shown.
+- As the rep types the club name, clubs with that name that are already on TSIC appear under **"Is your club one of these?"** (or "Is this your club?" when there is one). Each row shows the club's state, number of active teams and when it last registered. Rep names and emails are never shown.
 - The rep **must answer** before **Create Account** works:
-  - **Pick a club:** that club's saved teams are copied into the new rep's own club, so nothing has to be retyped. The Club Name box **locks** to that club's exact name.
-  - **None of these, we're a new club:** the box unlocks, the rep's own typing comes back, and they get a new, empty club.
-- The copy happens once. The two clubs aren't linked afterwards.
+  - **Pick a club:** the Club Name box **locks** to that club's exact name.
+  - **None of these, we're a new club:** the box unlocks, the rep's own typing comes back, and they start with an empty library.
 - A name nobody else uses gets no question at all.
+- **The copy.** When the account is created, the picked club's **active** teams are copied into the new rep's own library: name, grad year and level of play.
+  - Archived teams and teams with no name aren't copied.
+  - A team the rep already has (same name and grad year) isn't copied twice.
+  - It happens **once**. After that the two lists are separate: renaming, archiving or adding teams in one never changes the other.
 
 ### 2. Team Registration Wizard, Teams step (every event)
 
+- **Add a Team** offers the rep's own library, including any teams copied at Create NEW Club Rep Account, so there's nothing to retype.
 - **"Registering as {club}"** bar at the top:
   - **Rename** is offered while the rep has **no teams in this event**. It renames the club for this event and in the rep's Club Team Library; events where the rep already has teams keep their name.
   - Once the rep has a team in this event, the bar instead reads *"To rename your club for this event, ask the event director."*
