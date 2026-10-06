@@ -109,3 +109,12 @@ A new rep replacing their club's old rep has never used TSIC. "Create NEW Club R
   - CADT: Search Teams (director) shows "⚠ 2 reps" on Top Tier National. The anonymous job-filter-tree carries no rep counts. A director's job-filter-tree carries them.
 - Found in the walkthrough: real prod data has a blank-named library team (ClubTeamId 16165, club 2297). It seeded an empty Add row with a bogus note and LOP. Guarded in `08102d7da`.
 - Real duplicate found: lftc-summer-2027 "Top Tier National 2029/2030" is registered twice, by the same person under two accounts (TopTierSports, cclacrosse1).
+
+## Review fixes after the Playwright pass (Todd 2026-10-06)
+1. **The duplicate warning compares by AGE GROUP, not team name.** The same team carries different names on different lists ("Top Tier National 2029" in the event vs "2029" in a library), so a name match missed the real case. Once the Add row has a name and an age group, other same-name reps' teams in that age group are listed, rep by rep, and Add asks first. A WAITLIST twin counts as its age group. The name-based "Registered here by…" tags in the dropdown are gone: one rule, no name matching. Accepted cost: a club fielding two teams in one age group through two reps answers the question once. The comparison uses the age-group NAME, waitlist prefix stripped (the server already sends it stripped), not the ID. Waitlist twins have different IDs.
+2. **Club rename re-stamps the rep's teamless event registrations.** Their club name follows, and so do Assignment and RegistrationCategory where they still carry the old name. A registration with any team keeps its name (the lock is unchanged). One save.
+3. **Sign-up lists same-name clubs only** (`ClubNameMatcher.IsSameClubName`, the same rule as the Teams step's same-name lists). Look-alikes are no longer listed.
+- Verified: backend suite 1231/1231 (new rename test); `npm run build` passes all 4 prebuild gates; `team-add-row.same-name.spec.ts` 7/7. Playwright:
+  - zztest_f2 in lftc-summer-2027, 2029: lists both Erin accounts' teams. 2030: the same. 2031: nothing. The confirm asks "Is ZZ Fresh Name a different team from those?" with focus on Don't add. 390px: no overflow.
+  - Sign-up: "top tier national" lists the 3 Top Tier National clubs. "Top Tier", "Lacrosse Club" and "LC" list nothing.
+  - zztest_f7: a rename moves the registration's club_name, and renaming back restores it.

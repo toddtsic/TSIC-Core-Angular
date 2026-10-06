@@ -44,33 +44,30 @@ export function ageGroupFromTeamName(ageGroups: readonly AgeGroupDto[], teamName
     return longest.ageGroupId;
 }
 
-/** Team-name identity for "the same team": trimmed, case- and inner-space-insensitive. */
+/** Trimmed, case- and inner-space-insensitive. */
 const teamKey = (s: string | null | undefined): string => (s ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
-/** A grad year that says something; blank and N/A say nothing. */
-const gradKey = (s: string | null | undefined): string => {
-    const k = teamKey(s);
-    return k === teamKey(GRAD_YEAR_NA) ? '' : k;
-};
+/** An age group's identity across its WAITLIST twin: WAITLIST - 2029 is 2029. */
+const ageGroupKey = (name: string | null | undefined): string => teamKey(ageGroupLabel({ ageGroupName: name ?? '' }));
+
+/** One other same-name rep and the teams they registered in one age group. */
+export interface RepAgeGroupTeams { repName: string; teams: string[]; }
 
 /**
- * The other same-name reps who already registered this team in this event (Todd 2026-10-06), each
- * named once. Same team = same name (ignoring case and spacing), and the same grad year when both
- * sides have one — a grad year missing on either side doesn't set them apart.
+ * The other same-name reps who already registered teams in this age group here (Todd 2026-10-06),
+ * each rep once, with their teams. Compared by AGE GROUP, never by team name: the same team carries
+ * different names on different lists ("Top Tier National 2029" vs "2029"). A WAITLIST twin counts
+ * as its age group.
  */
-export function repsHoldingTeam(eventTeams: readonly SameNameEventTeamDto[], name: string, gradYear: string | null | undefined): string[] {
-    const n = teamKey(name);
-    if (!n) return [];
-    const g = gradKey(gradYear);
-    const reps = eventTeams
-        .filter(e => teamKey(e.teamName) === n && (!g || !gradKey(e.gradYear) || gradKey(e.gradYear) === g))
-        .map(e => e.repName.trim() || 'another rep');
-    return [...new Set(reps)];
-}
-
-/** "Jane", "Jane and Bob", "Jane, Bob and Ann". */
-export function joinNames(names: readonly string[]): string {
-    if (names.length <= 1) return names[0] ?? '';
-    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[], ageGroupName: string | null | undefined): RepAgeGroupTeams[] {
+    const ag = ageGroupKey(ageGroupName);
+    if (!ag) return [];
+    const byRep = new Map<string, string[]>();
+    for (const e of eventTeams) {
+        if (ageGroupKey(e.ageGroupName) !== ag) continue;
+        const rep = e.repName.trim() || 'another rep';
+        byRep.set(rep, [...(byRep.get(rep) ?? []), e.teamName.trim()]);
+    }
+    return [...byRep].map(([repName, teams]) => ({ repName, teams }));
 }
 
 /** One combobox line: a team from the rep's own library, or from another same-name club's list. */
@@ -81,8 +78,6 @@ interface AddOption {
     name: string;
     grad: string;
     lop: string | null | undefined;
-    /** Other same-name reps who already registered this team here. */
-    heldBy: string[];
 }
 
 /**
@@ -169,9 +164,6 @@ interface AddOption {
                       (mouseenter)="activeIndex.set(i)"
                       (click)="pick(o)">
                     <span class="opt-name">{{ o.name }}</span>
-                    @if (o.heldBy.length) {
-                      <span class="opt-held"><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>Registered here by {{ joinNames(o.heldBy) }}</span>
-                    }
                     <span class="opt-meta">
                       <span class="meta-pair"><span class="meta-key">Grad</span>{{ o.grad || '—' }}</span>
                       <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(o.lop) || '—' }}</span>
@@ -238,18 +230,27 @@ interface AddOption {
         }
       </div>
 
-      <!-- Another rep of this club already registered a team by this name here (Todd 2026-10-06):
-           said loudly, and Add asks first — a second entry is a second fee and a headache for the
-           tournament. Never a dead end: a genuinely different team still goes in. -->
-      @if (heldBy().length > 0) {
+      <!-- Another rep of this club already registered teams in this age group here (Todd 2026-10-06):
+           said loudly, with their teams, and Add asks first — a second entry is a second fee and a
+           headache for the tournament. Never a dead end: a genuinely different team still goes in. -->
+      @if (dupGroups().length > 0) {
         <div class="dup-warn" role="alert">
           <i class="bi bi-exclamation-triangle-fill dup-icon" aria-hidden="true"></i>
           <div class="dup-body">
-            <p class="dup-text">
-              <b>{{ text().trim() }}</b> looks like it's already registered in this event by
-              {{ heldBy().length === 1 ? 'another' : 'other' }} {{ clubName() }} {{ heldBy().length === 1 ? 'rep' : 'reps' }},
-              <b>{{ joinNames(heldBy()) }}</b>. Registering it again creates a second entry and a second fee.
-            </p>
+            @if (dupGroups().length === 1) {
+              <p class="dup-text">
+                Another {{ clubName() }} rep, <b>{{ dupGroups()[0].repName }}</b>, already registered
+                {{ teamCount(dupGroups()[0].teams.length) }} in <b>{{ dupAgeGroup() }}</b>: {{ dupGroups()[0].teams.join(', ') }}.
+              </p>
+            } @else {
+              <p class="dup-text">Other {{ clubName() }} reps already registered teams in <b>{{ dupAgeGroup() }}</b>:</p>
+              <ul class="dup-list">
+                @for (g of dupGroups(); track g.repName) {
+                  <li><b>{{ g.repName }}</b>, {{ teamCount(g.teams.length) }}: {{ g.teams.join(', ') }}</li>
+                }
+              </ul>
+            }
+            <p class="dup-text">Adding another creates a separate entry and a separate fee.</p>
             @if (confirmOpen()) {
               <div class="dup-confirm">
                 <p class="dup-q">{{ confirmQuestion() }}</p>
@@ -433,16 +434,6 @@ interface AddOption {
         cursor: default;
       }
       .combo-group:first-child { margin-top: 0; border-top: none; }
-      .opt-held {
-        display: inline-flex;
-        align-items: baseline;
-        gap: var(--space-1);
-        margin-left: auto;
-        font-size: var(--font-size-2xs);
-        font-weight: var(--font-weight-semibold);
-        color: var(--bs-warning-text-emphasis);
-        white-space: nowrap;
-      }
       .meta-pair { display: inline-flex; align-items: baseline; gap: var(--space-1); }
       .meta-key { text-transform: uppercase; letter-spacing: 0.06em; font-weight: var(--font-weight-semibold); opacity: 0.7; }
 
@@ -496,6 +487,13 @@ interface AddOption {
       .dup-icon { flex-shrink: 0; margin-top: 2px; color: var(--bs-warning-text-emphasis); font-size: var(--font-size-base); }
       .dup-body { flex: 1; min-width: 0; }
       .dup-text, .dup-q { margin: 0; font-size: var(--font-size-sm); line-height: var(--line-height-normal); }
+      .dup-text + .dup-text { margin-top: var(--space-1); }
+      .dup-list {
+        margin: var(--space-1) 0;
+        padding-left: var(--space-4);
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-normal);
+      }
       .dup-confirm {
         margin-top: var(--space-2);
         padding-top: var(--space-2);
@@ -522,7 +520,6 @@ interface AddOption {
       @media (max-width: 575.98px) {
         .f--ag { flex-basis: 100%; }
         .combo-opt { flex-wrap: wrap; }
-        .opt-held { margin-left: 0; order: 3; flex-basis: 100%; }
         .btn-add-team { flex: 1 1 100%; height: 36px; }
       }
     `],
@@ -558,7 +555,6 @@ export class TeamAddRowComponent implements OnChanges {
     optionId(i: number): string { return `${this.inputId}-opt-${i}`; }
 
     readonly formatLop = formatLop;
-    readonly joinNames = joinNames;
     readonly lopChoices = LOP_CHOICES;
     readonly gradYearOptions = libraryGradYearOptions();
 
@@ -614,21 +610,18 @@ export class TeamAddRowComponent implements OnChanges {
     });
 
     /** The dropdown: the rep's own teams, then other same-name clubs' — every one until the rep types,
-     *  then the ones whose name or grad year contain it. Each carries who already registered it here. */
+     *  then the ones whose name or grad year contain it. */
     readonly options = computed<AddOption[]>(() => {
         const q = norm(this.text());
         const all = !q || !!this.base() || !!this.otherPick();
         const hit = (name: string, grad: string | null | undefined) => all || norm(name).includes(q) || norm(grad).includes(q);
-        const held = this.sameNameEventTeams();
         const own = this.available().filter(t => hit(t.clubTeamName, t.clubTeamGradYear)).map<AddOption>(t => ({
             key: `o${t.clubTeamId}`, own: t, other: null,
             name: t.clubTeamName, grad: t.clubTeamGradYear ?? '', lop: t.clubTeamLevelOfPlay,
-            heldBy: repsHoldingTeam(held, t.clubTeamName, t.clubTeamGradYear),
         }));
         const others = this.otherAvailable().filter(t => hit(t.clubTeamName, t.clubTeamGradYear)).map<AddOption>(t => ({
             key: `x${teamKey(t.clubTeamName)}|${teamKey(t.clubTeamGradYear)}`, own: null, other: t,
             name: t.clubTeamName, grad: t.clubTeamGradYear ?? '', lop: t.clubTeamLevelOfPlay,
-            heldBy: repsHoldingTeam(held, t.clubTeamName, t.clubTeamGradYear),
         }));
         return [...own, ...others];
     });
@@ -717,15 +710,22 @@ export class TeamAddRowComponent implements OnChanges {
         return null;
     });
 
-    /** Other same-name reps who already registered this name + grad year here. */
-    readonly heldBy = computed(() => repsHoldingTeam(this.sameNameEventTeams(), this.text(), this.gradYear()));
+    /** The picked age group as the rep reads it (a WAITLIST twin shows its parent's name). */
+    readonly dupAgeGroup = computed(() => {
+        const ag = this.ageGroups().find(a => a.ageGroupId === this.ageGroupId());
+        return ag ? ageGroupLabel(ag) : '';
+    });
+
+    /** Other same-name reps' teams in the picked age group — once the row has a name and an age group. */
+    readonly dupGroups = computed(() =>
+        this.text().trim() ? otherRepsInAgeGroup(this.sameNameEventTeams(), this.dupAgeGroup()) : []);
 
     readonly confirmQuestion = computed(() => {
-        const reps = this.heldBy();
-        return reps.length === 1
-            ? `Is this a different team from ${reps[0]}'s?`
-            : `Is this a different team from the one ${joinNames(reps)} registered?`;
+        const n = this.dupGroups().reduce((sum, g) => sum + g.teams.length, 0);
+        return `Is ${this.text().trim()} a different team from ${n === 1 ? 'that one' : 'those'}?`;
     });
+
+    teamCount(n: number): string { return n === 1 ? '1 team' : `${n} teams`; }
 
     /** What's still needed, in order — the disabled Add's tooltip. null = ready. */
     readonly missing = computed<string | null>(() => {
@@ -827,7 +827,7 @@ export class TeamAddRowComponent implements OnChanges {
     add(confirmed = false): void {
         if (this.busy() || !this.canAdd()) return;
         this.closeList();
-        if (this.heldBy().length > 0 && !confirmed) {
+        if (this.dupGroups().length > 0 && !confirmed) {
             // Ask first; "Don't add" is the default and takes the focus.
             this.confirmOpen.set(true);
             afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>('.btn-dont')?.focus(),

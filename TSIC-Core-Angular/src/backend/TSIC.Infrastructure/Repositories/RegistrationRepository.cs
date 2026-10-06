@@ -1389,6 +1389,19 @@ public partial class RegistrationRepository : IRegistrationRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<List<Registrations>> GetTeamlessClubRepRegistrationsByClubNameAsync(string userId, string clubName, CancellationToken cancellationToken = default)
+    {
+        var name = clubName.Trim();
+        // Tracked: the caller re-stamps the club name. No team of any kind (dropped included) on the
+        // registration — a schedule, roster or invoice may already print a registration that has one.
+        return await _context.Registrations
+            .Where(r => r.UserId == userId
+                && r.RoleId == Domain.Constants.RoleConstants.ClubRep
+                && r.ClubName != null && r.ClubName.Trim() == name
+                && !_context.Teams.Any(t => t.ClubrepRegistrationid == r.RegistrationId))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<RegistrationBasicInfo?> GetRegistrationBasicInfoAsync(Guid registrationId, string userId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations

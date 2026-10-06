@@ -201,7 +201,7 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
                       @if (similarMatches().length === 1) {
                         <h6>{{ similarMatches()[0].clubName }} is already on TSIC.</h6>
                       } @else {
-                        <h6>Clubs with names like this are already on TSIC.</h6>
+                        <h6>Clubs with this name are already on TSIC.</h6>
                       }
                       <p>
                         Taking over or joining your club? Go ahead — sign up under your club's name.
@@ -470,9 +470,10 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
     readonly clubSearchResults = signal<ClubSearchResult[]>([]);
     readonly clubSearchLoading = signal(false);
 
-    /** All 65%+ matches — the "already on TSIC" panel. */
+    /** Same-name clubs only (server: ClubNameMatcher.IsSameClubName) — the "already on TSIC" panel.
+     *  Look-alikes are not listed: the Teams step does not offer their saved teams either. */
     readonly similarMatches = computed(() =>
-        this.clubSearchResults().filter(c => c.matchScore >= 65)
+        this.clubSearchResults().filter(c => c.isExactMatch)
     );
 
     readonly form = this.fb.group({

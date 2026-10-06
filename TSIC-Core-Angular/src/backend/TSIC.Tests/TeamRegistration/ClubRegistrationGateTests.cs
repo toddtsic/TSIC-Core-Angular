@@ -84,6 +84,7 @@ public class ClubRegistrationGateTests
         public required ClubService Svc { get; init; }
         public required Mock<IClubRepository> ClubRepo { get; init; }
         public required Mock<IClubRepRepository> ClubRepRepo { get; init; }
+        public required Mock<IRegistrationRepository> Registrations { get; init; }
 
         /// <summary>The service created a NEW Clubs row.</summary>
         public void VerifyNewClubCreated() =>
@@ -101,7 +102,8 @@ public class ClubRegistrationGateTests
         ClubSearchCandidate[] existingClubs,
         ApplicationUser? existingUser = null,
         ClubWithUsageInfo[]? existingUsersClubs = null,
-        int[]? unclaimedEmptyClubIds = null)
+        int[]? unclaimedEmptyClubIds = null,
+        Registrations[]? teamlessRegistrations = null)
     {
         var clubRepo = new Mock<IClubRepository>();
         clubRepo.Setup(r => r.GetSearchCandidatesAsync(It.IsAny<CancellationToken>()))
@@ -147,6 +149,11 @@ public class ClubRegistrationGateTests
             It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(true);
 
+        var registrations = new Mock<IRegistrationRepository>();
+        registrations.Setup(r => r.GetTeamlessClubRepRegistrationsByClubNameAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((teamlessRegistrations ?? []).ToList());
+
         var userRepo = new Mock<IUserRepository>();
         userRepo.Setup(r => r.UpdateTosAcceptanceByUserIdAsync(
             It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -156,10 +163,10 @@ public class ClubRegistrationGateTests
 
         var userProfileService = new Mock<IUserProfileService>();
 
-        var svc = new ClubService(userManager, clubRepo.Object, clubRepRepo.Object,
+        var svc = new ClubService(userManager, clubRepo.Object, clubRepRepo.Object, registrations.Object,
             userRepo.Object, privilegeService.Object, userProfileService.Object, cache);
 
-        return new Fixture { Svc = svc, ClubRepo = clubRepo, ClubRepRepo = clubRepRepo };
+        return new Fixture { Svc = svc, ClubRepo = clubRepo, ClubRepRepo = clubRepRepo, Registrations = registrations };
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -403,5 +410,43 @@ public class ClubRegistrationGateTests
         results.Single(r => r.ClubId == 1).IsExactMatch.Should().BeTrue();
         results.Single(r => r.ClubId == 1).IsClaimable.Should().BeFalse("it has a rep and teams");
         results.Single(r => r.ClubId == 7).IsClaimable.Should().BeTrue();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  RENAME — teamless event registrations take the new name
+    // ═══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// SCENARIO: A rep with no teams yet renames their club while already registered in an event.
+    /// EXPECTED: the event registration's club name follows the rename; Assignment and the category
+    /// follow only where they carried the old name; a hand-edited value is left alone.
+    /// </summary>
+    [Fact(DisplayName = "Rename: a teamless event registration takes the new club name")]
+    public async Task Rename_RestampsTeamlessRegistrations()
+    {
+        var own = new ClubWithUsageInfo { ClubId = 1, ClubName = "Old Name", IsInUse = false };
+        var stamped = new Registrations
+        {
+            ClubName = "Old Name", Assignment = "Old Name", RegistrationCategory = "Club Rep: Old Name"
+        };
+        var handEdited = new Registrations
+        {
+            ClubName = "Old Name", Assignment = "Director note", RegistrationCategory = "Other"
+        };
+        var f = CreateService([], existingUsersClubs: [own], teamlessRegistrations: [stamped, handEdited]);
+        f.ClubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Clubs { ClubId = 1, ClubName = "Old Name" });
+
+        var result = await f.Svc.RenameClubAsync("user-1",
+            new ClubRenameRequest { CurrentClubName = "Old Name", NewClubName = "New Name" });
+
+        result.Success.Should().BeTrue();
+        stamped.ClubName.Should().Be("New Name");
+        stamped.Assignment.Should().Be("New Name");
+        stamped.RegistrationCategory.Should().Be("Club Rep: New Name");
+        handEdited.ClubName.Should().Be("New Name");
+        handEdited.Assignment.Should().Be("Director note");
+        handEdited.RegistrationCategory.Should().Be("Other");
+        f.ClubRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

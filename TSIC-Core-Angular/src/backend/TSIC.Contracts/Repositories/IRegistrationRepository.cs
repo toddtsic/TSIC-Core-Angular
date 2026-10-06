@@ -247,6 +247,13 @@ public interface IRegistrationRepository
     Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The user's club-rep registrations (any event) still carrying <paramref name="clubName"/> that have
+    /// no teams at all. Tracked — a club rename re-stamps them, so the event the rep is standing in
+    /// takes the new name before its first team (Todd 2026-10-06).
+    /// </summary>
+    Task<List<Registrations>> GetTeamlessClubRepRegistrationsByClubNameAsync(string userId, string clubName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get registration basic info (ClubName, JobId) by registration ID and user ID.
     /// Used for authorization checks.
     /// </summary>

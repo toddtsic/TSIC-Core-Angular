@@ -106,10 +106,10 @@ public record ClubSearchResult
     public bool IsRelatedClub { get; init; }
 
     /// <summary>
-    /// True when this club's normalized name is identical to the query's
-    /// (token sets match — covers exact text, case/whitespace differences,
-    /// filler-only suffixes like "LC", and word reordering). Informational:
-    /// a same-name club never refuses sign-up.
+    /// True when this club has the same club name as the query (ClubNameMatcher.IsSameClubName:
+    /// token sets match — covers exact text, case/whitespace differences, filler-only suffixes
+    /// like "LC", and word reordering; a filler-only name matches nothing). Sign-up lists only
+    /// these. Informational: a same-name club never refuses sign-up.
     /// </summary>
     public bool IsExactMatch { get; init; }
 

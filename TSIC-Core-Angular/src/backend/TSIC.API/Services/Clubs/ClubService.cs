@@ -21,6 +21,7 @@ public sealed class ClubService : IClubService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IClubRepository _clubRepo;
     private readonly IClubRepRepository _clubRepRepo;
+    private readonly IRegistrationRepository _registrations;
     private readonly IUserRepository _userRepo;
     private readonly IUserPrivilegeLevelService _privilegeService;
     private readonly IUserProfileService _userProfileService;
@@ -30,6 +31,7 @@ public sealed class ClubService : IClubService
         UserManager<ApplicationUser> userManager,
         IClubRepository clubRepo,
         IClubRepRepository clubRepRepo,
+        IRegistrationRepository registrations,
         IUserRepository userRepo,
         IUserPrivilegeLevelService privilegeService,
         IUserProfileService userProfileService,
@@ -38,6 +40,7 @@ public sealed class ClubService : IClubService
         _userManager = userManager;
         _clubRepo = clubRepo;
         _clubRepRepo = clubRepRepo;
+        _registrations = registrations;
         _userRepo = userRepo;
         _privilegeService = privilegeService;
         _userProfileService = userProfileService;
@@ -331,7 +334,9 @@ public sealed class ClubService : IClubService
             {
                 var compositeScore = ClubNameMatcher.CalculateCompositeScore(query, c.ClubName);
                 var isRelated = ClubNameMatcher.AreRelatedClubs(query, c.ClubName);
-                var isExact = ClubNameMatcher.IsExactNormalizedMatch(query, c.ClubName);
+                // The same rule as the team wizard's same-name lists, so sign-up's "Use this name"
+                // offers exactly the clubs whose saved teams the Teams step will offer.
+                var isExact = ClubNameMatcher.IsSameClubName(query, c.ClubName);
 
                 return new ClubSearchResult
                 {
@@ -397,7 +402,8 @@ public sealed class ClubService : IClubService
     /// <summary>
     /// Rename a club the caller reps (the library name — Clubs.ClubName). Locked once the club has
     /// registered teams (IsInUse, found by id). Inside an event the club's name is the club rep
-    /// registration's club_name, which this never touches; a Director or Superuser renames that per event.
+    /// registration's club_name: this re-stamps the rep's TEAMLESS registrations only (the event they
+    /// are entering); one with teams is the event's record, which a Director or Superuser renames.
     /// </summary>
     public async Task<ClubRenameResponse> RenameClubAsync(string userId, ClubRenameRequest request)
     {
@@ -455,9 +461,26 @@ public sealed class ClubService : IClubService
             return new ClubRenameResponse { Success = false, Message = "Club not found." };
         }
 
+        // The event the rep is standing in already has their registration, stamped with the old name
+        // when they entered it. Teamless registrations take the new name too (Todd 2026-10-06) —
+        // otherwise their first teams go in, and print on schedules, under the old one. One with any
+        // team keeps its name: that is the event's record, renamed per event by a director.
+        var oldName = target.ClubName;
+        var teamless = await _registrations.GetTeamlessClubRepRegistrationsByClubNameAsync(userId, oldName);
+        foreach (var reg in teamless)
+        {
+            reg.ClubName = next;
+            if (string.Equals(reg.Assignment, oldName, StringComparison.Ordinal)) reg.Assignment = next;
+            if (string.Equals(reg.RegistrationCategory, $"Club Rep: {oldName}", StringComparison.Ordinal))
+                reg.RegistrationCategory = $"Club Rep: {next}";
+            reg.LebUserId = userId;
+            reg.Modified = DateTime.Now;
+        }
+
         club.ClubName = next;
         club.LebUserId = userId;
         club.Modified = DateTime.Now;
+        // One save: the club and its registrations share the request's DbContext.
         await _clubRepo.SaveChangesAsync();
         InvalidateSearchCache();
 
