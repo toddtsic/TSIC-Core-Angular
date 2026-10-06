@@ -351,7 +351,7 @@ note and the **Edit Family Account** note. Both are marked ⭐ below.
 |:--|--:|:--|
 | **J** · DOB on the player form ⭐ | 2 | ✅ **filed as AR-134** (both items, merged) |
 | **K** · Family account editing ⭐ | 4 | ✅ **filed as AR-135** (all four, one item) |
-| **L** · Saved changes not reflected | 2 | ⏳ to review |
+| **L** · Saved changes not reflected | 2 | ✅ **filed as AR-149** (both parts) |
 | **M** · Player selection screen | 2 | ⏳ to review |
 | **N** · Optional-field validation | 2 | ✅ **filed as AR-148** (both parts) |
 | **O** · Coach registration | 4 | ✅ **filed — AR-136, AR-137, AR-138, AR-139** |
@@ -369,8 +369,8 @@ note and the **Edit Family Account** note. Both are marked ⭐ below.
 | D-37 | The **pencils next to pick players** must edit too | ✅ **AR-135** (point 3) |
 | D-38 | **Admin editing consistent across the account** *(recast 10-03)* | ✅ **AR-135** (point 4) |
 | | **L · Saved changes not reflected** | |
-| D-39 | **General sweep**: a save should display immediately, without leaving and returning | |
-| D-40 | USA Lacrosse validation runs against the **old** number after it is changed | 🔴 wrong result |
+| D-39 | **General sweep**: a save should display immediately | ✅ **AR-149** (part 1) |
+| D-40 | USA Lacrosse validation runs against the **old** number | ✅ **AR-149** (part 2) |
 | | **M · Player selection screen** | |
 | D-41 | Lock icon has no hover and no explanation | |
 | D-42 | Show a trash can **only** for players not registered elsewhere | |
@@ -454,7 +454,7 @@ two set how admin-side name editing is allowed to work at all.
 
 ## L · Saved changes not reflected until you leave and come back
 
-### D-39 · General sweep — a save should display immediately
+### D-39 · ✅ FILED IN AR-149 (10-06, part 1) · General sweep — a save should display immediately
 *"Many entries should have the ability to update the information without leaving and returning… under
 Configure/Job Settings/General changing the Event Name… It should immediately display updates upon
 Save, but it doesn't… the Event Name in the dropdown of roles requires a complete refresh.
@@ -465,7 +465,7 @@ Two examples given — **the General settings screen**, and the **Event Name in 
 which needs a full refresh. ⚠ **The ask is explicitly a sweep, not a single fix**, and the cost named
 is **a user who thinks the save failed** and does it again.
 
-### D-40 · USA Lacrosse validation uses the old number 🔴
+### D-40 · ✅ FILED IN AR-149 (10-06, part 2 — ranked FIRST: it blocks AR-134) · USA Lacrosse validation uses the old number 🔴
 *"Another example, is USA Lacrosse number changing in player details doesn't look for the new
 information when validating. The validation is incorrect in this circumstance."*
 
