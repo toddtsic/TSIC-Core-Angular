@@ -677,6 +677,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         return paymentMethod ?? string.Empty;
     }
 
+    /// <summary>
+    /// The one format for a transaction's date and time in every token table (AR-120): "10/6/2026 4:00 AM".
+    /// No time-zone label (Todd 2026-10-07).
+    /// </summary>
+    private static HtmlTableBuilder.Cell FormatTransactionTime(DateTime? createdate) =>
+        HtmlTableBuilder.NoWrap(createdate?.ToString("M/d/yyyy h:mm tt") ?? string.Empty);
+
     private async Task<string> BuildAccountingTableHtmlAsync(List<Guid> registrationIds, Guid paymentMethodCreditCardId, bool emailMode)
     {
         var rows = await _repo.GetAccountingTransactionsAsync(registrationIds);
@@ -696,8 +703,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 HtmlTableBuilder.NoWrap(row.AId.ToString()),
                 WebUtility.HtmlEncode(row.RegistrantName ?? string.Empty),
                 WebUtility.HtmlEncode(FormatPaymentMethod(row, paymentMethodCreditCardId)),
-                // Date-only: the timestamp is ARB-sweep noise (4:00 AM) on a receipt.
-                HtmlTableBuilder.NoWrap(row.Createdate?.ToString("M/d/yyyy") ?? string.Empty),
+                FormatTransactionTime(row.Createdate),
                 HtmlTableBuilder.FormatCurrency(paid));
         }
         table.FooterRow("Total", string.Empty, string.Empty, string.Empty, HtmlTableBuilder.FormatCurrency(paidSum));
@@ -859,8 +865,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                     WebUtility.HtmlEncode(FormatPaymentMethod(r, paymentMethodCreditCardId)),
                     HtmlTableBuilder.FormatCurrency(r.Dueamt ?? 0m),
                     HtmlTableBuilder.FormatCurrency(r.Payamt ?? 0m),
-                    // Date-only: the timestamp is batch/sweep noise on a receipt.
-                    HtmlTableBuilder.NoWrap(r.Createdate?.ToString("M/d/yyyy") ?? string.Empty),
+                    FormatTransactionTime(r.Createdate),
                     HtmlTableBuilder.FormatCurrency(owes));
             }
         }
