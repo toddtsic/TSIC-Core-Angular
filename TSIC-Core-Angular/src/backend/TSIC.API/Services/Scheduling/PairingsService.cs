@@ -1,3 +1,4 @@
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -283,23 +284,29 @@ public sealed class PairingsService : IPairingsService
         return newRecords.Select(p => MapToDto(p, [])).ToList();
     }
 
-    // ── Add Single Pairing ──
+    // ── Add Consolation ──
 
-    public async Task<PairingDto> AddSinglePairingAsync(
-        Guid jobId, string userId, AddSinglePairingRequest request, CancellationToken ct = default)
+    public async Task<PairingDto> AddConsolationPairingAsync(
+        Guid jobId, string userId, AddConsolationPairingRequest request, CancellationToken ct = default)
     {
         var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
-        var (maxGame, maxRound) = await _pairingsRepo.GetMaxGameAndRoundAsync(
-            leagueId, season, request.TeamCount, ct);
+        var table = await _pairingsRepo.GetPairingsAsync(leagueId, season, request.TeamCount, ct);
+
+        // Consolation games run in sequence: 1v2, 3v4, 5v6, ... capped at the team count.
+        var t1 = HighestConsolationSlot(table) + 1;
+        var t2 = t1 + 1;
+        if (t2 > request.TeamCount)
+            throw new InvalidOperationException(
+                $"All consolation games for a {request.TeamCount}-team table already exist.");
 
         var pairing = new PairingsLeagueSeason
         {
-            GameNumber = maxGame + 1,
-            Rnd = maxRound + 1,
-            T1 = 0,
-            T2 = 0,
-            T1Type = "T",
-            T2Type = "T",
+            GameNumber = table.Count == 0 ? 1 : table.Max(p => p.GameNumber) + 1,
+            Rnd = table.Count == 0 ? 1 : table.Max(p => p.Rnd) + 1,
+            T1 = t1,
+            T2 = t2,
+            T1Type = GameRoundTypes.Consolation,
+            T2Type = GameRoundTypes.Consolation,
             LeagueId = leagueId,
             Season = season,
             TCnt = request.TeamCount,
@@ -313,39 +320,22 @@ public sealed class PairingsService : IPairingsService
         return MapToDto(pairing, []);
     }
 
-    // ── Edit Pairing ──
-
-    public async Task EditPairingAsync(
-        string userId, EditPairingRequest request, CancellationToken ct = default)
-    {
-        var pairing = await _pairingsRepo.GetByIdAsync(request.Ai, ct)
-            ?? throw new KeyNotFoundException($"Pairing {request.Ai} not found.");
-
-        if (request.GameNumber.HasValue) pairing.GameNumber = request.GameNumber.Value;
-        if (request.Rnd.HasValue) pairing.Rnd = request.Rnd.Value;
-        if (request.T1.HasValue) pairing.T1 = request.T1.Value;
-        if (request.T2.HasValue) pairing.T2 = request.T2.Value;
-        if (request.T1Type != null) pairing.T1Type = request.T1Type;
-        if (request.T2Type != null) pairing.T2Type = request.T2Type;
-        if (request.T1GnoRef.HasValue) pairing.T1GnoRef = request.T1GnoRef;
-        if (request.T2GnoRef.HasValue) pairing.T2GnoRef = request.T2GnoRef;
-        if (request.T1CalcType != null) pairing.T1CalcType = request.T1CalcType;
-        if (request.T2CalcType != null) pairing.T2CalcType = request.T2CalcType;
-        if (request.T1Annotation != null) pairing.T1Annotation = request.T1Annotation;
-        if (request.T2Annotation != null) pairing.T2Annotation = request.T2Annotation;
-
-        pairing.LebUserId = userId;
-        pairing.Modified = DateTime.Now;
-
-        await _pairingsRepo.SaveChangesAsync(ct);
-    }
-
     // ── Delete Single ──
 
     public async Task DeletePairingAsync(int ai, CancellationToken ct = default)
     {
         var pairing = await _pairingsRepo.GetByIdAsync(ai, ct)
             ?? throw new KeyNotFoundException($"Pairing {ai} not found.");
+
+        // Only the last consolation game may go — a hole mid-sequence is never refilled.
+        if (pairing.T1Type == GameRoundTypes.Consolation)
+        {
+            var table = await _pairingsRepo.GetPairingsAsync(
+                pairing.LeagueId, pairing.Season, pairing.TCnt ?? 0, ct);
+            if (HighestConsolationSlot(table) > Math.Max(pairing.T1, pairing.T2))
+                throw new InvalidOperationException(
+                    "Only the last consolation game can be deleted.");
+        }
 
         _pairingsRepo.Remove(pairing);
         await _pairingsRepo.SaveChangesAsync(ct);
@@ -420,6 +410,13 @@ public sealed class PairingsService : IPairingsService
         // Return refreshed team list
         return await GetDivisionTeamsAsync(jobId, divId, ct);
     }
+
+    /// <summary>Highest slot number used by a consolation game in the table; 0 when none.</summary>
+    private static int HighestConsolationSlot(IEnumerable<PairingsLeagueSeason> table) =>
+        table.Where(p => p.T1Type == GameRoundTypes.Consolation)
+             .Select(p => Math.Max(p.T1, p.T2))
+             .DefaultIfEmpty(0)
+             .Max();
 
     private static PairingDto MapToDto(
         PairingsLeagueSeason p, HashSet<(int Rnd, int T1, int T2)> scheduledKeys)
