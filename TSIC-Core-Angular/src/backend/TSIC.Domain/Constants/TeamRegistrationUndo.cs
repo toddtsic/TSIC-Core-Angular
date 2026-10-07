@@ -12,7 +12,7 @@ namespace TSIC.Domain.Constants;
 /// </summary>
 public static class TeamRegistrationUndo
 {
-    /// <summary>60 minutes while Todd tests the undo (2026-09-26; was 20). Tighten before it ships.</summary>
+    /// <summary>60 minutes — Todd's ruled value (2026-10-07, AR-146).</summary>
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(60);
 
     /// <summary>Not yet placed by the director: no division, the Unassigned holding division, or a waitlist.</summary>
