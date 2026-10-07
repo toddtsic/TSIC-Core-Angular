@@ -105,7 +105,7 @@
                     {{ reg.title }}
                   </span>
                   @if (reg.detail) {
-                  <span class="role-card-detail">{{ reg.detail }}</span>
+                  <span class="role-card-detail" [class.role-card-detail--event]="reg.detailIsEvent">{{ reg.detail }}</span>
                   }
                   @if (reg.dateLabel || reg.teamLabel) {
                   <span class="role-card-meta">

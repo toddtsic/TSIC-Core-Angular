@@ -18,6 +18,8 @@ export interface RoleRow extends RegistrationDto {
   title: string;
   /** The colon-mashed tail (player name, age group, team) — never the date/count, which follow. */
   detail: string;
+  /** Club Rep: the detail is the event the rep is picking — read as half the name, not a caption (Todd 2026-10-07). */
+  detailIsEvent: boolean;
   dateLabel: string;
   teamLabel: string | null;
 }
@@ -128,6 +130,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
       ...reg,
       title,
       detail,
+      detailIsEvent: isClubRep,
       dateLabel: formatEventDates(reg.eventStartDate, reg.eventEndDate),
       teamLabel: isClubRep && n !== null && n !== undefined
         ? (n === 0 ? 'no teams yet' : `${n} ${n === 1 ? 'team' : 'teams'}`)

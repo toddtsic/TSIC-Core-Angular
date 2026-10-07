@@ -214,6 +214,14 @@
   font-size: var(--font-size-sm);
   color: var(--brand-text-muted);
   line-height: 1.3;
+
+  // Club Rep: the event is what the rep is picking ("Summer 2027" under "Lax By The Sea"), so it
+  // reads as the second half of the name, not a caption. Order unchanged (Todd 2026-10-07).
+  &--event {
+    font-size: inherit;
+    color: var(--brand-text);
+    font-weight: var(--font-weight-medium);
+  }
 }
 
 .role-card-arrow {
