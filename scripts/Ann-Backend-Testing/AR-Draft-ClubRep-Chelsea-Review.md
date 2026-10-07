@@ -53,8 +53,8 @@ overpayment question came out of D-25 as its own item).
 | | **C · Team counts** | |
 | D-08 | Roles list count removed; fly-in count **corrected** | ✅ **AR-121** (checks 4–5) |
 | | **D · Club Team Library** | 🅿 **not filed — UX replaced** |
-| D-09 | Remove "Currently in" | 🅿 |
-| D-10 | Library reachable with no active role | 🅿 *recheck — capability* |
+| D-09 | Remove "Currently in" | ✅ **AR-152** (part 2) |
+| D-10 | Library reachable with no active role | ✅ **AR-152** (part 1) |
 | D-11 | Grad Year / LOP should not display | 🅿 |
 | D-12 | Archive model | 🅿 |
 | D-13 | Duplicate team names allowed | 🅿 *recheck — capability* |
