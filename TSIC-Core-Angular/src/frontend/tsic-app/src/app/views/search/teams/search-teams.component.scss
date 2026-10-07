@@ -40,6 +40,34 @@
 
 // Filter panel, form-group, filter-row — all provided by global _utilities.scss
 
+// ── Free-text search (AR-118) — same look as Search Registrations' Name input ──
+.form-group-text {
+  margin-bottom: var(--space-3);
+
+  .text-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .text-input-icon {
+    position: absolute;
+    left: var(--space-2);
+    color: var(--bs-secondary-color);
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  input.form-control {
+    padding-left: calc(var(--space-2) + 13px + var(--space-3)) !important;
+
+    &::placeholder {
+      color: var(--bs-secondary-color);
+      opacity: 0.6;
+    }
+  }
+}
+
 // ── Results Container ──
 .results-container {
   position: relative;

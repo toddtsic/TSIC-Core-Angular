@@ -14,5 +14,6 @@ export type TeamSearchRequest = {
     teamIds?: any[] | null;
     cadtTeamIds?: any[] | null;
     waitlistScheduledStatus?: string | null;
+    text?: string | null;
 };
 
