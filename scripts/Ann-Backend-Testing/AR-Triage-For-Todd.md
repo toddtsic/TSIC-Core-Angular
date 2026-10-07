@@ -1,6 +1,7 @@
 # AR Triage — ranked for Todd
 
-**Snapshot: 2026-10-06.** Built from `After-Release-Punchlist.md` at that moment.
+**Snapshot: 2026-10-07.** Rebuilt from `After-Release-Punchlist.md` at that moment, replacing the
+10-06 snapshot — seven items changed state in between.
 ⚠ **State changes constantly** — rulings land, items close, Ann verifies — so **rebuild this from the
 punchlist rather than trusting a copy more than a few days old.**
 
@@ -13,58 +14,67 @@ queues are not confused.
 
 ---
 
-## Band 1 — happening right now
+## 📣 Read this first — the top of the queue is no longer on fire
+
+**Both items that were band 1 on 10-06 are now BUILT and waiting on a deploy, not on you.**
+**AR-144** (insurance never offered to club-rep team players) was fixed 10-07; **AR-142** (duplicate
+club names) was built 10-06 and merged. 🎯 **So nothing in this queue is actively costing money or
+blocking a registration today** — the first thing that needs your keyboard is a time-bound
+commitment, not an emergency.
+
+⚠ **Deploy is now the critical path for five items, not code:** AR-142, AR-144, AR-118, AR-120
+(part 3), AR-132. **Ann cannot verify any of them until they land, and testing early shows old
+behaviour.**
+
+---
+
+## Band 1 — time-bound commitments
 
 | # | AR | Item | Ready? | Note |
 |:--|:--|:--|:--|:--|
-| 1 | **144** | Insurance never offered to club-rep team players | ⚠️ pick a fix | **D2 is taking registrations today.** The offer is fetched once per flow — every registration that passes it is lost permanently. Pickleball already has the fix |
-| 2 | **142** | Duplicate **club** names blocked | ⚠️ ruling | Support email already arriving (`SLS inquiry`). Blocks account creation, a 2nd registration, and team transfer |
-| 3 | **143a** | Teams screen does not reflect other reps' actions | ✅ it is a defect | Waitlisted teams do not show. Counts refresh, the listing does not. Reps act on a false picture — and multi-rep is the **normal** case per AR-142 |
+| 1 | **128** | USA Lacrosse team-level override not ported | ⚠️ spec | ⏰ **STEPS needs it soon.** The legacy control is the spec; *"suppress validation for one team"* |
 
-## Band 2 — time-bound
+## Band 2 — wrong figures on customer-facing screens
 
 | # | AR | Item | Ready? | Note |
 |:--|:--|:--|:--|:--|
-| 4 | **128** | USA Lacrosse team-level override not ported | ⚠️ spec | **STEPS needs it soon.** The legacy control is the spec; *"suppress validation"* needs its meaning pinned |
+| 2 | **122** | Payment screen columns + figures | ✅ #1 #2 #4 · ⚠️ #3 | #3 is the owed-vs-LADT-fee design conflict — the only part that needs you |
+| 3 | **125** | Search summary counts Corrections | ⚠️ ground 1 only | **Ground 2 closed 10-07** — a Correction is a payment by design. Ground 1, remove vs role-gate, is still yours |
+| 4 | **124** | Overpayment not shown | ⚠️ policy | Research found **nobody overpaid** (136/136 paid what was billed). A policy answer, not a bug |
 
-## Band 3 — wrong figures on customer-facing screens
-
-| # | AR | Item | Ready? | Note |
-|:--|:--|:--|:--|:--|
-| 5 | **119** | Paid total overstated by adjustments | ✅ ruled | Ann ruled: adjustments are never a Paid amount. **Guard:** removing them must not change Owed |
-| 6 | **125** | Search summary counts Corrections | ✅ ground 2 · ⚠️ ground 1 | Same rule as 119. Ground 1 (remove vs role-gate) is Todd's |
-| 7 | **122** | Payment screen columns + figures | ✅ #1 #2 #4 · ⚠️ #3 | #3 is the owed-vs-LADT-fee design conflict |
-| 8 | **124** | Overpayment not shown | ⚠️ policy | Research found **nobody overpaid** — this is now a policy answer, not a bug |
-
-## Band 4 — blocked users, no workaround
+## Band 3 — blocked users, no workaround
 
 | # | AR | Item | Ready? | Note |
 |:--|:--|:--|:--|:--|
-| 9 | **133** | League/A/D/T tree undiscoverable | ⚠️ check first | **Ann flagged this important to users.** Check whether **All** already fails to expand fully — may be a cheap bug fix before any redesign |
-| 10 | **135** | Family cannot correct name / DOB / gender | ⚠️ snapshot? | Blocks USA Lacrosse validation. Key question: do registrations **copy** these fields or **read** the account? |
-| 11 | **137** | Coach cannot edit own name | ⚠️ permission? | Same block, other side of the house. **Rule with 135** |
-| 12 | **134** | DOB not visible at date entry | ✅ spec given | Prevents the mismatch in the first place |
-| 13 | **139** | No admin coach lookup / reconcile | ⚠️ find vs build | With 137 this is a dead end with nobody holding a tool |
+| 5 | **135** | Family cannot correct name / DOB / gender | ⚠️ snapshot? | Blocks USA Lacrosse validation. ⭐ starred by Ann |
+| 6 | **137** | Coach cannot edit own name | ⚠️ permission? | Same block, other side of the house. **Rule with 135** |
+| 7 | **139** | No admin coach lookup / reconcile | ⚠️ find vs build | With 137 this is a dead end with nobody holding the fix |
+| 8 | **152** | Club Rep Library unreachable with no role | ⚠️ routing | **Part 1.** A rep with no active registrations cannot reach or create their library — the preparation case AR-106 was closed on |
+| 9 | **151** | Privilege-separation refusals | ⚠️ ruling + check | Four parts. The copy is three strings, but the **check fix must ship with it** or the new wording is false on a mixed account. See its own FOR TODD TO CONSIDER block |
+| 10 | **133** | League/A/D/T tree undiscoverable | ⚠️ check first | 📣 **Ann flagged this important to users** |
+| 11 | **134** | DOB not visible at date entry | ✅ spec given | Prevents the 135 mismatch in the first place |
 
-## Band 5 — unblocks the above, then friction
-
-| # | AR | Item | Ready? | Note |
-|:--|:--|:--|:--|:--|
-| 14 | **141** | `424242424242` for SuperUser | ⚠️ guards | Makes 137 / 139 / 140 testable at all. Server-side role check, mark the record, exclude from reconcile |
-| 15 | **140** | Remove the one-time emailed code | ⚠️ ruling | Removes a verification step. One question decides it: **can the address be changed in-flow?** |
-| 16 | **138** | Coach flow — edit on the first screen | ✅ | **Decides where 137 lands** — do them together or 137 moves twice |
-| 17 | **136** | Edit Staff Account menu | ✅ copy AR-112 | The door; **137 is the room** |
-
-## Band 6 — polish and decisions with no clock
+## Band 4 — unblocks the above, then friction
 
 | # | AR | Item | Ready? | Note |
 |:--|:--|:--|:--|:--|
-| 18 | **120** | Confirmation screen presentation | ✅ | Three changes; check whether email and online share a template |
-| 19 | **130** | Chelsea navigation | ✅ mostly done | Ruled 10-02, two parts built |
-| 20 | **103** | Club rep name in parentheses | ✅ | Small |
-| 20b | **121** | Strip the badges and role list | ✅ answered 10-06 | Ann ruled: these are **links, not information surfaces** — a duplicated figure drifts even once fixed. ⚠ **Check 5 (fly-in count: KEEP and CORRECT) is still outstanding and still counts Waitlisted + Dropped** |
-| 21 | **143b** | Collapse Add-a-Team to a popup | ⚠️ ruling | The design half of 143 — ⛔ **do not let it close the bug in 143a** |
-| 22 | **143c** | **Remove the Club Teams Library** | ⚠️ big ruling | Retires draft **group D** (10 parked items) and moots **AR-131** and **AR-106**. Decide what happens to **existing library data** — hiding the surface is reversible, deleting is not |
+| 12 | **141** | Test card for SuperUser | ⚠️ guards | Makes 137 / 139 / 140 testable at all. Scope it server-side |
+| 13 | **140** | Remove the one-time emailed code | ⚠️ ruling | Removes a verification step. One question decides it |
+| 14 | **138** | Coach flow — edit on the first screen | ✅ | **Decides where 137 lands** — do them together |
+| 15 | **136** | Edit Staff Account menu | ✅ copy AR-112 | The door; **137 is the room** |
+
+## Band 5 — polish and decisions with no clock
+
+| # | AR | Item | Ready? | Note |
+|:--|:--|:--|:--|:--|
+| 16 | **149** | Saved changes do not appear until you leave and come back | ⚠️ sweep | **Part 2 first** — a validator reading a stale USA Lacrosse number is a wrong RESULT, not a wrong picture. It blocks 134 |
+| 17 | **148** | Email accepts anything; phone rejects its own format | ✅ likely | Check the order of formatting vs validation on the phone field first; that is probably the whole of it |
+| 18 | **145** | USA Lacrosse `Email?` flag misses `Other issue?` | ⚠️ | 📎 two screenshots in `images/` |
+| 19 | **147** | Concluded site collapses to one line | ⚠️ needs prod | Mechanism researched; the scope question needs prod |
+| 20 | **152** | Drop "Currently in" from the library | ⚠️ ruling | **Part 2.** ⚠ This asks you to remove wording **you added deliberately on 09-27**, for the same reason Ann now gives — that the page belongs to no one event |
+| 21 | **143** | Collapse Add-a-Team to a `+` and a popup | ⚠️ ruling | **REC 1 only.** Ann held the item open 10-07 and **ACCEPTED the library ruling**; she reviews REC 1 with Chelsea. The stale-listing defect claim is **withdrawn** |
+| 22 | **130** | Chelsea navigation | ✅ mostly done | Ruled 10-02, two parts built |
+| 23 | **111** | Reply-To on human-sent mail | ⏸ held open | A real inbox, not the Email Log. Ann emailed you the example |
 
 ## Last — ruled, then contested, and quiet since
 
@@ -73,36 +83,55 @@ have gone quiet rather than getting a second ruling.
 
 | AR | Item | Contested since |
 |:--|:--|:--|
-| **129** | Event dates on Role selection — ⚠ **reopened on a PRINCIPLE, not a repeat**: the test is **pertinence, not accuracy**. ⏳ Ann's point 2 of two still to come | 10-06 |
-| **118** | Club filter exists in the API, missing from Search / Teams | 09-30 |
+| **129** | Event dates on Role selection — ⚠ **reopened on a PRINCIPLE, not a repeat**: the test is **pertinence, not accuracy**, and her point 2 of two has not arrived | 10-06 |
 | **114** | LADT add flow — *"much easier before"* | 09-27 |
 | **115** | Login job list — Brenda already uses the typeahead | 09-27 |
-| **111** | Reply-To on human-sent mail — a real inbox, not the Email Log | 09-27 |
+
+✅ **AR-118 came OFF this list on 10-07** — you built the free-text Search over team, club and club
+rep name and verified it locally. **That was the contested half:** the capability existed in the API
+and was simply missing from that screen.
+
+⚠ **One collision worth deciding once rather than twice. Ann's 10-06 placement rule** — *"payment
+figures on the payment screen, team counts on the teams screen, dates on the banners"* — **is the
+same argument AR-129 makes, and AR-121 was closed against it on 10-07.** 🎯 **Her rule and that
+closure cannot both stand on the role-selection screen.**
 
 ---
 
 ## Three things to say with it
 
-- **Needs judgment, not keyboard:** **142, 124, 140, 143c**, and the four contested. These will not
-  move no matter how much time is spent coding.
-- **Two coupling traps:** **137 before 138** means doing it twice; building **143's popup** without
-  fixing **143a** leaves the screen wrong for anyone who does not click it.
-- **Urgency stops after band 3.** Everything from band 4 down is real, but nothing is on fire — if
-  only bands 1–3 land this week, that is the right outcome.
+- **Needs judgment, not keyboard:** **124, 140, 151, 152 part 2, 143 REC 1**, and the three
+  contested. These will not move no matter how much time is spent coding.
+- **Two coupling traps:** **137 before 138** means doing it twice; **151's copy without its check
+  fix** ships a message that is FALSE on any account already holding two role types.
+- **Deploy, not code, is the bottleneck this week.** Five built items are waiting on it, and Ann
+  cannot verify any of them until they land.
 
 ---
 
-## Not on this list — waiting on Ann
+## Not on this list — waiting on Ann, or on a deploy
 
 | AR | Item | What is needed |
 |:--|:--|:--|
-| **132** | Job Clone permissions | 🟡 **Acknowledged 10-06, NOT tested** — cannot be exercised until the next **job clone**, and still not deployed. ✅ **Design ACCEPTED 10-06** — Edit + Add ON, Delete OFF; her all-three-off ruling is superseded |
-| **108** | Team Breakdown moves with the team | Fixed, **awaiting deploy** — testing early shows old behaviour |
+| **142** | Duplicate club names | ✅ **BUILT 10-06, merged, NOT DEPLOYED.** 📎 Design + how-to-test doc: `AR-142-Club-Rep-Same-Name-Clubs.html`. ⚠ **Standing gate: no further club-rep items are considered until this response is fully vetted** |
+| **144** | Insurance never offered to club-rep team players | ✅ **FIXED 10-07, NOT DEPLOYED** — Ann to verify |
+| **118** | Free-text Search on Search / Teams | ✅ **BUILT + verified locally 10-07, NOT DEPLOYED** |
+| **120** | Confirmation screen presentation | ✅ **DONE 10-07** — part 3 not deployed |
+| **132** | Job Clone permissions | 🟡 Built, pushed, **NOT DEPLOYED** — cannot be exercised until the next **job clone**. ⚠ **Still diverges from Ann's ruling:** Edit + Add left ON where she ruled all three off |
+| **108** | Team Breakdown moves with the team | 🟡 Fixed, **awaiting deploy** — testing early shows old behaviour |
+| **103** | Club rep name in parentheses | ✅ **DONE** — on prod since 10-05, Ann to verify |
+| **151** | Privilege-separation refusals | ❓ **Ann owes two answers:** login-vs-sign-up, and which reading her SuperUser example meant |
+| **152** | Club Rep Library | ❓ **Ann owes:** whether the age-group badge goes with the "Currently in" wording |
 
-✅ **AR-126 and AR-127 were VERIFIED AND CLOSED by Ann on 2026-10-06.** ⚠ **AR-127's close
-deliberately ACCEPTS its divergence** — Height/Weight rejoin the recruiting envelope and there is
-**no profile-editor strip**, which is the opposite shape to her 09-30 scope ruling. She was shown the
-divergence twice and closed it anyway, so **the strip is not outstanding work.**
+⚠ **Two state cells in the punchlist's own table are STALE and read as open when the entry says
+otherwise: AR-127** (heading says VERIFIED BY ANN 10-06 — CLOSED) **and AR-131** (heading says
+WON'T DO, researched 10-02). ⚙ **AR-142's heading also still reads `UNRESEARCHED` although the body
+carries the 10-06 build.** **Trust the entry, not the row, until they are reconciled.**
 
-⚠ **One divergence from an Ann ruling is still open and sits in her queue: AR-132** — Edit + Add
-left **ON**, where she ruled all three permissions off.
+⚪ **Draft D-13 — duplicate team names in the library — was CLOSED 10-07 as NOT A PROBLEM.** The data
+already carries **144 same-name groups in the library** and **703 across registered teams**, one row
+per age cohort, separated by Grad Year. **Nothing to build.**
+
+🗑 **AR-150 was REMOVED at Ann's request on 10-07** (admin Delete for a team with no accounting).
+**The number is retired and must not be reassigned** — the gap between AR-149 and AR-151 is a
+removal, not a renumbering.
