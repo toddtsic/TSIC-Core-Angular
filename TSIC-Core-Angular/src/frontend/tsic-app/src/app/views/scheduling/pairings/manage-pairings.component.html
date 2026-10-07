@@ -168,15 +168,18 @@
                             }
                         </div>
 
-                        <!-- Add Single -->
+                        <!-- Add Consolation: next pair in sequence, capped at the team count -->
                         <button class="btn btn-sm btn-outline-secondary"
-                                (click)="addSingle()"
-                                [disabled]="isAddingSingle() || teamCount() === 0"
-                                title="Add one blank pairing row">
-                            @if (isAddingSingle()) {
+                                (click)="addConsolation()"
+                                [disabled]="isAddingConsolation() || !nextConsolation()"
+                                [title]="nextConsolation() ? 'Add consolation game' : 'All consolation games added'">
+                            @if (isAddingConsolation()) {
                                 <span class="spinner-border spinner-border-sm"></span>
                             } @else {
                                 <i class="bi bi-plus"></i>
+                            }
+                            @if (nextConsolation(); as next) {
+                                {{ next.t1 }} v {{ next.t2 }}
                             }
                         </button>
 
@@ -237,8 +240,7 @@
                                     </thead>
                                     <tbody>
                                         @for (p of roundRobinPairings(); track p.ai) {
-                                            <tr [class]="roundClass(p.rnd)"
-                                                (dblclick)="startEdit(p.ai)">
+                                            <tr [class]="roundClass(p.rnd)">
                                                 <td class="col-gno">{{ p.gameNumber }}</td>
                                                 <td class="col-rnd">{{ p.rnd }}</td>
                                                 <td class="col-team">{{ p.t1 }}</td>
@@ -275,9 +277,11 @@
                         @if (bracketPairings().length > 0) {
                             <div class="section-label">
                                 <i class="bi bi-trophy me-1"></i> Championship
-                                <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">
-                                    {{ selectedStrategyLabel() }}
-                                </span>
+                                @if (bracketPairings().length > consolationPairings().length) {
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">
+                                        {{ selectedStrategyLabel() }}
+                                    </span>
+                                }
                             </div>
                             <div class="table-scroll-wrapper">
                                 <table class="table table-sm table-hover pairings-table mb-0">
@@ -295,8 +299,7 @@
                                     </thead>
                                     <tbody>
                                         @for (p of bracketPairings(); track p.ai) {
-                                            <tr [class]="roundClass(p.rnd)"
-                                                (dblclick)="startEdit(p.ai)">
+                                            <tr [class]="roundClass(p.rnd)">
                                                 <td class="col-gno">{{ p.gameNumber }}</td>
                                                 <td class="col-rnd">{{ p.rnd }}</td>
                                                 <td class="col-team-wide">
@@ -344,11 +347,14 @@
                                                     }
                                                 </td>
                                                 <td class="col-actions">
-                                                    <button class="icon-btn icon-btn-sm icon-btn-danger"
-                                                            (click)="deletePairing(p.ai); $event.stopPropagation()"
-                                                            title="Delete pairing">
-                                                        <i class="bi bi-x-lg"></i>
-                                                    </button>
+                                                    <!-- Consolation: only the last pair is deletable, so the sequence never gaps -->
+                                                    @if (p.t1Type !== 'C' || isLastConsolation(p)) {
+                                                        <button class="icon-btn icon-btn-sm icon-btn-danger"
+                                                                (click)="deletePairing(p.ai); $event.stopPropagation()"
+                                                                title="Delete pairing">
+                                                            <i class="bi bi-x-lg"></i>
+                                                        </button>
+                                                    }
                                                 </td>
                                             </tr>
                                         }

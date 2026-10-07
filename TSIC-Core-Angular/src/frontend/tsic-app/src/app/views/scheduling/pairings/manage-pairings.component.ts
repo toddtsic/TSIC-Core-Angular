@@ -94,8 +94,8 @@ export class ManagePairingsComponent implements OnInit {
         ?? this.selectedStrategy()
     );
 
-    // ── Add Single ──
-    readonly isAddingSingle = signal(false);
+    // ── Add Consolation ──
+    readonly isAddingConsolation = signal(false);
 
     // ── Tip ──
     readonly showTip = signal(true);
@@ -103,10 +103,6 @@ export class ManagePairingsComponent implements OnInit {
     // ── Remove All ──
     readonly isRemovingAll = signal(false);
     readonly showRemoveConfirm = signal(false);
-
-    // ── Inline editing ──
-    readonly editingAi = signal<number | null>(null);
-    readonly isSavingEdit = signal(false);
 
     // ── Division Teams ──
     readonly divisionTeams = signal<DivisionTeamDto[]>([]);
@@ -116,16 +112,34 @@ export class ManagePairingsComponent implements OnInit {
         Array.from({ length: this.divisionTeams().length }, (_, i) => i + 1)
     );
 
-    // ── Computed: separate round-robin from bracket pairings ──
+    // ── Computed: separate round-robin from championship pairings ──
     readonly roundRobinPairings = computed(() =>
         this.pairings().filter(p => p.t1Type === 'T' && p.t2Type === 'T')
     );
 
+    // Championship = bracket + consolation games: both are seeded by Bracket Seeds.
     readonly bracketPairings = computed(() =>
         this.pairings().filter(p => p.t1Type !== 'T' || p.t2Type !== 'T')
     );
 
+    readonly consolationPairings = computed(() =>
+        this.pairings().filter(p => p.t1Type === 'C')
+    );
+
     readonly teamCount = computed(() => this.divisionResponse()?.teamCount ?? 0);
+
+    /** Highest slot used by a consolation game; 0 when none. */
+    private readonly highestConsolationSlot = computed(() =>
+        this.consolationPairings().reduce((max, p) => Math.max(max, p.t1, p.t2), 0)
+    );
+
+    /** Next consolation pair (1v2, 3v4, ...) or null once it would pass the team count.
+     *  Mirrors the server, which picks the pair authoritatively. */
+    readonly nextConsolation = computed(() => {
+        const t1 = this.highestConsolationSlot() + 1;
+        const t2 = t1 + 1;
+        return t2 <= this.teamCount() ? { t1, t2 } : null;
+    });
 
     ngOnInit(): void {
         this.loadAgegroups();
@@ -187,7 +201,6 @@ export class ManagePairingsComponent implements OnInit {
     onEventSelected(): void {
         this.selectedDivision.set(null);
         this.selectedAgegroupId.set(null);
-        this.editingAi.set(null);
         this.divisionResponse.set(null);
         this.pairings.set([]);
         this.whoPlaysWhoMatrix.set(null);
@@ -213,7 +226,6 @@ export class ManagePairingsComponent implements OnInit {
     onDivisionSelected(event: { division: DivisionSummaryDto; agegroupId: string }): void {
         this.selectedDivision.set(event.division);
         this.selectedAgegroupId.set(event.agegroupId);
-        this.editingAi.set(null);
         this.whoPlaysWhoMatrix.set(null);
         this.divisionTeams.set([]);
         this.loadDivisionPairings(event.division.divId);
@@ -319,19 +331,22 @@ export class ManagePairingsComponent implements OnInit {
         });
     }
 
-    // ── Add Single Pairing ──
+    // ── Add Consolation ──
 
-    addSingle(): void {
+    addConsolation(): void {
         const tc = this.teamCount();
-        if (tc === 0) return;
+        if (tc === 0 || !this.nextConsolation()) return;
 
-        this.isAddingSingle.set(true);
-        this.svc.addSingle({ teamCount: tc }).subscribe({
+        this.isAddingConsolation.set(true);
+        this.svc.addConsolation({ teamCount: tc }).subscribe({
             next: (pairing) => {
                 this.pairings.update(curr => [...curr, pairing]);
-                this.isAddingSingle.set(false);
+                this.isAddingConsolation.set(false);
             },
-            error: () => this.isAddingSingle.set(false)
+            error: (err) => {
+                this.isAddingConsolation.set(false);
+                this.toast.show(err?.error?.message || 'Failed to add consolation game.', 'danger', 5000);
+            }
         });
     }
 
@@ -366,46 +381,14 @@ export class ManagePairingsComponent implements OnInit {
         this.svc.deletePairing(ai).subscribe({
             next: () => {
                 this.pairings.update(curr => curr.filter(p => p.ai !== ai));
-            }
-        });
-    }
-
-    // ── Inline editing ──
-
-    startEdit(ai: number): void {
-        this.editingAi.set(ai);
-    }
-
-    cancelEdit(): void {
-        this.editingAi.set(null);
-        // Reload to discard changes
-        const div = this.selectedDivision();
-        if (div) this.loadDivisionPairings(div.divId);
-    }
-
-    saveEdit(pairing: PairingDto): void {
-        this.isSavingEdit.set(true);
-        this.svc.editPairing({
-            ai: pairing.ai,
-            gameNumber: pairing.gameNumber,
-            rnd: pairing.rnd,
-            t1: pairing.t1,
-            t2: pairing.t2,
-            t1Type: pairing.t1Type,
-            t2Type: pairing.t2Type,
-            t1GnoRef: pairing.t1GnoRef,
-            t2GnoRef: pairing.t2GnoRef,
-            t1CalcType: pairing.t1CalcType,
-            t2CalcType: pairing.t2CalcType,
-            t1Annotation: pairing.t1Annotation,
-            t2Annotation: pairing.t2Annotation
-        }).subscribe({
-            next: () => {
-                this.editingAi.set(null);
-                this.isSavingEdit.set(false);
             },
-            error: () => this.isSavingEdit.set(false)
+            error: (err) => this.toast.show(err?.error?.message || 'Failed to delete pairing.', 'danger', 5000)
         });
+    }
+
+    /** Only the last consolation game may be deleted — a hole mid-sequence is never refilled. */
+    isLastConsolation(p: PairingDto): boolean {
+        return Math.max(p.t1, p.t2) === this.highestConsolationSlot();
     }
 
     // ── Division Teams modal ──

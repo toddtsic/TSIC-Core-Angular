@@ -111,34 +111,22 @@ public class PairingsController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>POST /api/pairings/add-single — Add one blank pairing row.</summary>
-    [HttpPost("add-single")]
-    public async Task<ActionResult<PairingDto>> AddSingle(
-        [FromBody] AddSinglePairingRequest request, CancellationToken ct)
+    /// <summary>POST /api/pairings/add-consolation — Add the next consolation game (1v2, 3v4, ...).</summary>
+    [HttpPost("add-consolation")]
+    public async Task<ActionResult<PairingDto>> AddConsolation(
+        [FromBody] AddConsolationPairingRequest request, CancellationToken ct)
     {
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
-        var result = await _pairingsService.AddSinglePairingAsync(jobId!.Value, userId!, request, ct);
-        return Ok(result);
-    }
-
-    /// <summary>PUT /api/pairings — Inline edit a pairing.</summary>
-    [HttpPut]
-    public async Task<ActionResult> EditPairing(
-        [FromBody] EditPairingRequest request, CancellationToken ct)
-    {
-        var (_, userId, error) = await ResolveContext();
-        if (error != null) return error;
-
         try
         {
-            await _pairingsService.EditPairingAsync(userId!, request, ct);
-            return NoContent();
+            var result = await _pairingsService.AddConsolationPairingAsync(jobId!.Value, userId!, request, ct);
+            return Ok(result);
         }
-        catch (KeyNotFoundException)
+        catch (InvalidOperationException ex)
         {
-            return NotFound();
+            return BadRequest(new { message = ex.Message });
         }
     }
 
@@ -157,6 +145,10 @@ public class PairingsController : ControllerBase
         catch (KeyNotFoundException)
         {
             return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
     }
 

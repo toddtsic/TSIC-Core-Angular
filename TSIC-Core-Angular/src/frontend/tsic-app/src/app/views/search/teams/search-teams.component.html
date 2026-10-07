@@ -98,6 +98,22 @@
       <div class="section-card">
         <div class="section-card-header">Core</div>
         <div class="section-card-body">
+          <!-- Free text (AR-118): with Active + Inactive, one club's playing AND dropped teams. -->
+          <div class="form-group form-group-text">
+            <label for="filterText">Search</label>
+            <div class="text-input-wrap">
+              <svg class="text-input-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="filterText" class="form-control"
+                placeholder="Team, club or club rep"
+                [value]="searchRequest().text ?? ''"
+                (input)="updateText($any($event.target).value)"
+                (keydown.enter)="executeSearch()" />
+            </div>
+          </div>
+
           <div class="filter-row-5">
             <div class="form-group">
               <label>Active Status</label>

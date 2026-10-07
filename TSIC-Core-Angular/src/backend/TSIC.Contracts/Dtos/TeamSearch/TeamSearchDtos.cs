@@ -28,6 +28,9 @@ public record TeamSearchRequest
 
     // Single-value DDL: "WAITLISTED", "NOT_WAITLISTED", "SCHEDULED", "NOT_SCHEDULED"
     public string? WaitlistScheduledStatus { get; init; }
+
+    // Free text: team name, club name or club rep name contains it (AR-118)
+    public string? Text { get; init; }
 }
 
 /// <summary>

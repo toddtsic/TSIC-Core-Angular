@@ -9,8 +9,7 @@ import type {
     PairingDto,
     AddPairingBlockRequest,
     AddSingleEliminationRequest,
-    AddSinglePairingRequest,
-    EditPairingRequest,
+    AddConsolationPairingRequest,
     RemoveAllPairingsRequest,
     DivisionTeamDto,
     EditDivisionTeamRequest,
@@ -26,8 +25,7 @@ export type {
     PairingDto,
     AddPairingBlockRequest,
     AddSingleEliminationRequest,
-    AddSinglePairingRequest,
-    EditPairingRequest,
+    AddConsolationPairingRequest,
     RemoveAllPairingsRequest,
     DivisionTeamDto,
     EditDivisionTeamRequest,
@@ -65,12 +63,8 @@ export class PairingsService {
         return this.http.post<PairingDto[]>(`${this.apiUrl}/add-elimination`, request);
     }
 
-    addSingle(request: AddSinglePairingRequest): Observable<PairingDto> {
-        return this.http.post<PairingDto>(`${this.apiUrl}/add-single`, request);
-    }
-
-    editPairing(request: EditPairingRequest): Observable<void> {
-        return this.http.put<void>(this.apiUrl, request);
+    addConsolation(request: AddConsolationPairingRequest): Observable<PairingDto> {
+        return this.http.post<PairingDto>(`${this.apiUrl}/add-consolation`, request);
     }
 
     deletePairing(ai: number): Observable<void> {

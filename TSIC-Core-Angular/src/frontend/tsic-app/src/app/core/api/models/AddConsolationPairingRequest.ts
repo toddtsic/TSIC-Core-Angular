@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AddSinglePairingRequest = {
+export type AddConsolationPairingRequest = {
     teamCount: number;
 };
 

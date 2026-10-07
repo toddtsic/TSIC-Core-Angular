@@ -99,31 +99,12 @@ public record AddSingleEliminationRequest
 }
 
 /// <summary>
-/// Add one blank pairing row for manual entry.
+/// Add the next consolation game (1v2, then 3v4, 5v6, ...) to a pairing table.
+/// The server picks the pair; the table's team count caps the sequence.
 /// </summary>
-public record AddSinglePairingRequest
+public record AddConsolationPairingRequest
 {
     public required int TeamCount { get; init; }
-}
-
-/// <summary>
-/// Inline edit of an existing pairing row.
-/// </summary>
-public record EditPairingRequest
-{
-    public required int Ai { get; init; }
-    public int? GameNumber { get; init; }
-    public int? Rnd { get; init; }
-    public int? T1 { get; init; }
-    public int? T2 { get; init; }
-    public string? T1Type { get; init; }
-    public string? T2Type { get; init; }
-    public int? T1GnoRef { get; init; }
-    public int? T2GnoRef { get; init; }
-    public string? T1CalcType { get; init; }
-    public string? T2CalcType { get; init; }
-    public string? T1Annotation { get; init; }
-    public string? T2Annotation { get; init; }
 }
 
 /// <summary>

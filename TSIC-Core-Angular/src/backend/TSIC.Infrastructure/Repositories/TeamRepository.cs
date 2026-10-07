@@ -1050,6 +1050,18 @@ public class TeamRepository : ITeamRepository
         if (request.ClubNames?.Count > 0)
             query = query.Where(x => x.r != null && request.ClubNames.Contains(x.r.ClubName!));
 
+        // Free text (AR-118): one club's active AND dropped teams in one list, with the header
+        // totals and Export scoped to it. A dropped team keeps its club-rep link, so it matches.
+        if (!string.IsNullOrWhiteSpace(request.Text))
+        {
+            var text = request.Text.Trim();
+            query = query.Where(x =>
+                (x.t.TeamName != null && x.t.TeamName.Contains(text))
+                || (x.r != null && x.r.ClubName != null && x.r.ClubName.Contains(text))
+                || (x.u != null && ((x.u.FirstName != null && x.u.FirstName.Contains(text))
+                    || (x.u.LastName != null && x.u.LastName.Contains(text)))));
+        }
+
         if (request.LevelOfPlays?.Count > 0)
             query = query.Where(x => x.t.LevelOfPlay != null && request.LevelOfPlays.Contains(x.t.LevelOfPlay));
 

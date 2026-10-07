@@ -229,6 +229,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 			}
 		};
 
+		if (req.text?.trim()) chips.push({ category: 'Search', label: req.text.trim(), filterKey: 'text', value: req.text.trim() });
 		addArrayChips('LOP', 'levelOfPlays', req.levelOfPlays, opts?.levelOfPlays);
 		addArrayChips('Status', 'activeStatuses', req.activeStatuses, opts?.activeStatuses);
 		addArrayChips('Pay', 'payStatuses', req.payStatuses, opts?.payStatuses);
@@ -436,6 +437,13 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		// Single-value DDL — clear the field
 		if (chip.filterKey === 'waitlistScheduledStatus') {
 			this.searchRequest.update(req => ({ ...req, waitlistScheduledStatus: null }));
+			this.executeSearch();
+			return;
+		}
+
+		// Free text — clear it
+		if (chip.filterKey === 'text') {
+			this.searchRequest.update(req => ({ ...req, text: null }));
 			this.executeSearch();
 			return;
 		}
@@ -712,6 +720,11 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		});
 	}
 
+	/** Free text (AR-118) — staged like the other filters; Enter or Search runs it. */
+	updateText(value: string): void {
+		this.searchRequest.update(req => ({ ...req, text: value }));
+	}
+
 	updateMultiSelect(field: keyof TeamSearchRequest, values: string[]): void {
 		this.searchRequest.update(req => {
 			const updated = { ...req, [field]: values ?? [] };
@@ -739,7 +752,8 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 			payStatuses: clean(req.payStatuses),
 			paymentTypes: clean(req.paymentTypes),
 			cadtTeamIds: clean(req.cadtTeamIds),
-			waitlistScheduledStatus: req.waitlistScheduledStatus || undefined
+			waitlistScheduledStatus: req.waitlistScheduledStatus || undefined,
+			text: req.text?.trim() || undefined
 		};
 	}
 }

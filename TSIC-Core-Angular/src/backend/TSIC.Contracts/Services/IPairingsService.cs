@@ -46,16 +46,12 @@ public interface IPairingsService
         Guid jobId, string userId, AddSingleEliminationRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Add a single blank pairing row for manual entry.
+    /// Add the next consolation game (C▸C) to the table: 1v2, then 3v4, 5v6, ... in its own
+    /// round (highest round + 1). Throws InvalidOperationException once the next pair would
+    /// exceed the table's team count.
     /// </summary>
-    Task<PairingDto> AddSinglePairingAsync(
-        Guid jobId, string userId, AddSinglePairingRequest request, CancellationToken ct = default);
-
-    /// <summary>
-    /// Inline edit of an existing pairing.
-    /// </summary>
-    Task EditPairingAsync(
-        string userId, EditPairingRequest request, CancellationToken ct = default);
+    Task<PairingDto> AddConsolationPairingAsync(
+        Guid jobId, string userId, AddConsolationPairingRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Delete a single pairing by primary key.
