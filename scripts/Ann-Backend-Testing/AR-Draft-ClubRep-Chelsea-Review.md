@@ -57,7 +57,7 @@ overpayment question came out of D-25 as its own item).
 | D-10 | Library reachable with no active role | ✅ **AR-152** (part 1) |
 | D-11 | Grad Year / LOP should not display | 🅿 |
 | D-12 | Archive model | 🅿 |
-| D-13 | Duplicate team names allowed | 🅿 *recheck — capability* |
+| D-13 | Duplicate team names allowed | ⚪ **CLOSED — NOT A PROBLEM** (Ann, 10-07) |
 | D-14 | Age group for teams that have none | 🅿 *recheck — capability* |
 | D-15 | Colour circles on Registered Teams only | 🅿 |
 | D-16 | Register card — register fields only | 🅿 |
@@ -170,7 +170,22 @@ One coherent change, assembled from four notes:
 
 ❓ One line reads *"Can't archive a team if it has a trash can"* — the rule it states is unclear.
 
-### D-13 · Duplicate team names must be allowed in the Library
+### D-13 · ⚪ CLOSED — NOT A PROBLEM (Ann, 10-07) · Duplicate team names must be allowed in the Library
+
+**✅ RULED BY ANN 10-07 after the data was checked: *"There isn't a problem then. You can enter the same team name as long as the grad year is different."*** ⛔ **Not to be filed as a punchlist item.**
+
+**📊 WHAT THE DATA SHOWED (dev TSICV5, measured 10-07) — duplicates are ALREADY stored and already routine.**
+
+| Where | Scope | Found |
+|:--|:--|:--|
+| **`Clubs.ClubTeams`** (the library) | same club + same team name, 2+ rows | **144 name-groups / 319 rows** |
+| **`Leagues.teams`** (registered) | same club + same team name, 2+ age groups in ONE event | **703 name-groups / 192 jobs / 227 clubs** |
+
+- 🎯 **THE SHAPE IS THE ANSWER: in every top library example the ROW COUNT EQUALS THE DISTINCT GRAD-YEAR COUNT** — GRIT Lacrosse *"Dallas"* 8 rows / 8 grad years; M&D DC *"Black"* 6/6; Mad Dog North NJ *"Nnj"* 6/6; x-Treme *"Elite"* 5/5; CT Grizzlies *"Navy"* 5/5. **Clubs keep ONE ROW PER AGE COHORT UNDER A SINGLE NAME, separated by Grad Year.**
+- **Named registered-team examples:** Nor'easter *"Nor'easter Power"* across 2031/2032/2033/2034 and *"Nor'easter NORTH"* across 2033/2034/WAITLIST-2032 (Ghost Games 2026); DEWLAX *"CT"* across 2033/2034/2035; Long Island Top Guns *"Black"* across 2027/2028; Monsignor Slade *"Road Runners"* across SEVEN age groups, boys and girls (AAYSA Fall 2021).
+- ⚠ **STRUCTURAL NOTE, WORTH KEEPING: `Clubs.ClubTeams` HAS NO AGE-GROUP COLUMN** — only `ClubTeamName`, `ClubTeamGradYear`, `ClubTeamLevelOfPlay`. **The age group is chosen at REGISTRATION, never stored on the library team.** 🎯 **So inside the library, Grad Year is the only thing separating *"Black 2028"* from *"Black 2030"*, which is exactly why the data looks as it does.** ⚙ **Same ground as AR-131** (editing a library team's LOP/Grad Year mints a second row — ⛔ closed 10-02 works-as-designed).
+- ⚠ **THE ONE THING NOT VERIFIED, recorded so nobody assumes it was: the SAME name with the SAME grad year was never tested.** ✅ *"As long as the grad year is different"* **is the pattern the DATA shows, not a uniqueness rule read in code.** ⏳ **If a rep is ever refused a duplicate name, that is the case to check.**
+- ⚙ **Incidental: library team names are stored with TRAILING WHITESPACE** (`"Dallas "`, `"Black "`, `"Navy "`). **Harmless for display, but an exact-match duplicate check would miss `"Black"` vs `"Black "`.**
 Clubs **reuse one team name across different age groups** routinely. Creating a team with a name
 that already exists needs to work.
 
