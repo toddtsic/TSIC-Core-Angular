@@ -1203,12 +1203,17 @@ public partial class RegistrationRepository : IRegistrationRepository
         var cutoff = DateTime.Now.AddHours(24);
         return await _context.Registrations
             .AsNoTracking()
+            // Offered while the LATER of the team's Expireondate and the job's EventEndDate is past
+            // the cutoff (Todd 2026-10-07, AR-144). A club-rep team is created with Expireondate =
+            // its creation instant, so the team date alone shut its paying players out; the event
+            // end carries them. Later-of > cutoff ≡ either > cutoff; a NULL on one side defers to
+            // the other, both NULL → no offer.
             .Where(r => r.JobId == jobId
                 && r.FamilyUserId == familyUserId
                 && r.FeeTotal > 0
                 && r.RegsaverPolicyId == null
                 && r.AssignedTeam != null
-                && r.AssignedTeam.Expireondate > cutoff)
+                && (r.AssignedTeam.Expireondate > cutoff || r.Job.EventEndDate > cutoff))
             .Select(r => new EligibleInsuranceRegistration
             {
                 RegistrationId = r.RegistrationId,
