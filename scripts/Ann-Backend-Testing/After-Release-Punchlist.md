@@ -4476,6 +4476,17 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 
 **✅ RECOMMENDED FIX FOR PART 4, and it composes with the part-3 ruling rather than conflicting with it: call `ValidatePrivilegeForRegistrationAsync` on all three paths**, with the **any-registration-of-type** test from the follow-on section above rather than first-registration equality. 🎯 **Then one rule governs every door, the message the user gets is the same sentence everywhere, and Ann's copy becomes true on every path instead of only two.**
 
+
+#### ⏳ FOR TODD TO CONSIDER — the five open points on this item, pulled out of the parts above so none of them is buried
+
+| | Point | Who owes it | Why it matters |
+|:--|:--|:--|:--|
+| **1** | **Login screen, or sign-up only?** All three messages fire on the **sign-up / account-creation** forms. The login screen is a different surface with its own message. | **Ann** (confirmed 10-07 she will answer) | Decides whether this is 3 strings or 4+ |
+| **2** | **Which reading was the SuperUser example?** **(A)** one account holding both a Superuser and a Club Rep registration — a real hole — or **(B)** a SuperUser creating a SEPARATE club rep account and logging in as it — not a hole at all. | **Ann** | ⛔ **If B, part 4 has nothing to fix** |
+| **3** | **How many MIXED accounts already exist?** The lock keys on the OLDEST registration, so on a mixed account Ann's new sentence is false. **NOT MEASURED.** | needs a query | Decides whether 3b is an edge case or a population — **and whether a cleanup pass is needed instead of a sign-up refusal** |
+| **4** | **Does any ADMIN screen insert `ClubReps` rows?** The club-rep management and Change Team-Club Assignments screens were **not read**. | needs a read | Decides whether part 4 is **latent** (API-only today) or **already reachable by clicking** |
+| **5** | **Should the adult path allow SAME-role reuse?** Club Rep and Family both let a returning user sign up with their existing username after a password check; the adult path refuses it outright on Identity uniqueness. | **Todd** — policy | ⛔ **Part 3's message cannot ship until this is settled** — it would tell a returning coach their own username is not a Coach/Staff username |
+
 - **Severity**: 🟡 **on the wording — copy and clarity on a refusal the user cannot act on as written.** 🔴 **on the three faults behind it: the Coach/Staff message does not exist, the proposed sentence is FALSE on a mixed account, and the rule is not consulted AT ALL on the three in-app paths.** ⚠ **Nothing is mis-saved and no money is wrong.**
 - **Status**: 🔴 **OPEN — filed 10-07 (Ann), surfaces located, UNMEASURED on the mixed-account population.** ⛔ **ONE ITEM BY ANN'S INSTRUCTION (10-07) — a split of part 4 into its own entry was recommended and DECLINED.** **For Todd:** ⏳ **the check fix (any-registration-of-type, not first-registration) should land WITH the copy — shipping the copy alone makes the message wrong on mixed accounts.** ✅ **Parts 1–2 are three string edits (`ClubService.cs:96`, `FamilyService.cs:365`, `:408`).** ⏳ **Part 3 needs the privilege lookup ADDED to `AdultRegistrationService` plus the same-role-reuse ruling.** ⏳ **Part 4 needs the same call on `add-club`, `initialize-registration` and `register-existing`.** ❓ **Ann owes TWO confirmations: login-vs-sign-up, and which reading (A or B) her SuperUser example meant.** ⏳ **Still to establish: the mixed-account count, and whether any admin screen inserts `ClubReps` rows.**
 
