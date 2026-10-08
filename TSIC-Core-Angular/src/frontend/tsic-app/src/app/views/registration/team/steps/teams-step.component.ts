@@ -485,12 +485,11 @@ type TeamsSegment = 'library' | 'registered';
     }
 
 @if (pendingRemove()) {
-      <!-- The dialog says what the rep pressed: Undo (the mistake window) or Remove (the director's toggle). -->
-      @let undoing = isUndo(pendingRemove()!);
+      <!-- One word for both ways in — the mistake window and the director's toggle (AR-154). -->
       <confirm-dialog
-        [title]="undoing ? 'Undo Registration' : 'Remove Team'"
+        title="Remove Team"
         [message]="removeMessage(pendingRemove()!)"
-        [confirmLabel]="undoing ? 'Undo' : 'Remove'"
+        confirmLabel="Remove"
         confirmVariant="danger"
         (confirmed)="confirmRemove()"
         (cancelled)="cancelRemove()" />
@@ -1238,12 +1237,6 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly gridUndoDeadlines = computed<ReadonlyMap<string, number>>(() =>
         this.canRegisterTeam() ? this.undoDeadlines() : new Map());
 
-    /** The row's button read Undo, not Remove: the board's own rule (Remove wins when the director allows it). */
-    isUndo(team: RegisteredTeamDto): boolean {
-        const removable = this.canRemoveTeam() && team.paidTotal === 0;
-        return !removable && (this.gridUndoDeadlines().get(team.teamId) ?? 0) > this.clock();
-    }
-
     private stampUndoDeadlines(teams: readonly RegisteredTeamDto[]): void {
         const received = Date.now();
         const map = new Map<string, number>();
@@ -1757,9 +1750,7 @@ export class TeamTeamsStepComponent implements OnInit {
         const frees = team.isWaitlisted
             ? `It comes off the ${ag} waitlist.`
             : `Its place in ${ag} opens up for another team.`;
-        return this.isUndo(team)
-            ? `Undo registering <strong>${team.teamName}</strong> for ${this.eventName()}? ${frees}`
-            : `Remove <strong>${team.teamName}</strong> from ${this.eventName()}? ${frees}`;
+        return `Remove <strong>${team.teamName}</strong> from ${this.eventName()}? ${frees}`;
     }
 
     // ── Private ─────────────────────────────────────────────────────

@@ -55,7 +55,7 @@ import { contrastText } from '../../../scheduling/shared/utils/scheduling-helper
           <p class="ie-move-how">
             @if (undoMinutes() > 0) {
               To play in {{ yr }}:
-              <button type="button" class="btn-link" [disabled]="saving()" (click)="undo.emit()">Undo this registration</button>
+              <button type="button" class="btn-link" [disabled]="saving()" (click)="undo.emit()">Remove this team</button>
               and register it again in {{ yr }}.
             } @else {
               Only the event director can move a team to another age group.
@@ -234,7 +234,7 @@ export class RegisteredTeamInlineEditorComponent implements OnInit {
     /** Landed — carries the toast text; the host reloads, then shows it. */
     readonly saved = output<string>();
     readonly cancelled = output<void>();
-    /** "Undo this registration" — the host runs its usual remove confirm. */
+    /** "Remove this team" — the host runs its usual remove confirm. */
     readonly undo = output<void>();
 
     readonly lopChoices = LOP_CHOICES;

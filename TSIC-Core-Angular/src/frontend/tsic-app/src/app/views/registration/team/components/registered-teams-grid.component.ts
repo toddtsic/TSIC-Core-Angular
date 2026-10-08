@@ -100,7 +100,7 @@ export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
                 <span class="fw-semibold">{{ data.teamName }}</span>
                 <!-- The mistake-undo's clock, in words: touch has no tooltip (TeamRegistrationUndo). -->
                 @if (!directorRemovable && undoMin > 0) {
-                  <span class="undo-tag">undo &middot; {{ undoMin }} min</span>
+                  <span class="undo-tag">remove &middot; {{ undoMin }} min</span>
                 }
                 @if (showRename()) {
                   <button type="button" class="btn-inline-rename"

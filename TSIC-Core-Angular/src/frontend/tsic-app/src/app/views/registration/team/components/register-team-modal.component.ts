@@ -92,9 +92,9 @@ interface ModalRow {
                   </span>
                   @if (undoMin > 0) {
                     <button type="button" class="btn-undo" [disabled]="actionInProgress()"
-                            [attr.aria-label]="'Undo registering ' + team.clubTeamName + ', ' + undoMin + ' minutes left'"
+                            [attr.aria-label]="'Remove ' + team.clubTeamName + ', ' + undoMin + ' minutes left'"
                             (click)="undo.emit(reg)">
-                      <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Undo &middot; {{ undoMin }} min
+                      <i class="bi bi-trash3" aria-hidden="true"></i>Remove &middot; {{ undoMin }} min
                     </button>
                   }
                 </div>
