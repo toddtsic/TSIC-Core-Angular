@@ -135,7 +135,6 @@ export class AdultWizardStateService {
      */
     private readonly _accountHydrated = signal(false);
     readonly accountHydrated = this._accountHydrated.asReadonly();
-    markAccountHydrated(): void { this._accountHydrated.set(true); }
 
     /**
      * The server's one-account-one-type answer for the signed-in account (AR-151): the sentence
@@ -146,21 +145,39 @@ export class AdultWizardStateService {
     readonly accountTypeRefusal = this._accountTypeRefusal.asReadonly();
 
     /**
-     * Load everything a returning, already-signed-in user needs — the same three calls
-     * `AccountStepComponent.onLoginContinue()` makes after the embedded login, minus that
-     * step's own view state.
+     * Load everything a returning, already-signed-in user needs: existing registration
+     * (which also carries the AR-151 one-account-one-type answer) and stored profile.
+     * The ONE hydration path — the wizard calls it for a kept coach session, and the
+     * Account step calls it after the embedded login and on arrival.
      *
      * Lives here, and is called by the wizard rather than a step, because a deep link
      * (`?step=profile`) can land the user past the Account step entirely — so anything hung
-     * off that step's lifecycle may simply never run. Idempotent: returns immediately once
-     * hydrated, so the step's own resume and this one cannot double-fetch.
+     * off that step's lifecycle may simply never run.
+     *
+     * Shares the in-flight promise. A kept session used to fetch everything twice: the
+     * wizard started this, the Account step's ngOnInit saw `accountHydrated` still false
+     * (the first run had not finished) and started its own — and whichever finished last
+     * overwrote the profile fields. The hydrated flag alone cannot dedupe a call that is
+     * still running; the promise can.
+     *
+     * Registration FIRST: a refused account (family, club rep, admin...) must not have its
+     * profile loaded into this wizard. A refusal leaves the session un-hydrated, so a
+     * second sign-in with the right account runs the whole thing again.
      */
-    async resumeAuthenticatedSession(jobPath: string, roleKey: string): Promise<void> {
-        if (this._accountHydrated()) return;
+    resumeAuthenticatedSession(jobPath: string, roleKey: string): Promise<void> {
+        if (this._accountHydrated()) return Promise.resolve();
+        this._hydration ??= this.hydrate(jobPath, roleKey)
+            .finally(() => { this._hydration = null; });
+        return this._hydration;
+    }
+    private _hydration: Promise<void> | null = null;
+
+    private async hydrate(jobPath: string, roleKey: string): Promise<void> {
         this.setMode('login');
         this.populateFromAuth();
-        await this.loadSelfProfile();
         await this.loadExistingRegistration(jobPath, roleKey);
+        if (this._accountTypeRefusal()) return;
+        await this.loadSelfProfile();
         this._accountHydrated.set(true);
     }
 
@@ -864,6 +881,7 @@ export class AdultWizardStateService {
         this._hasExistingRegistration.set(false);
         this._existingRegistrationIds.set([]);
         this._accountHydrated.set(false);
+        this._hydration = null;
         this._formValues.set({});
         this._waiverAcceptance.set({});
         this._availableTeams.set([]);

@@ -207,7 +207,11 @@ export class ClientHeaderBarComponent {
         } else if (role === Roles.Staff) {
             // Staff = a self-rostered coach; the adult wizard REQUIRES ?role=<key> or it
             // shows an "incomplete link" error, so the coach roleKey must ride the URL.
-            items.push({ icon: 'bi-person-gear', label: 'My Registration', route: 'registration/adult?role=coach&step=profile' });
+            items.push({ icon: 'bi-person-badge', label: 'My Registration', route: 'registration/adult?role=coach&step=profile' });
+            // The coach's twin of Edit Family Account (AR-136): the wizard's Account step, whose
+            // summary carries Edit Your Info (contact/address) and the headshot. Ungated, like the
+            // family's — it is the coach's own record, not the event's registration window.
+            items.push({ icon: 'bi-person-gear', label: 'Edit Staff Account', route: 'registration/adult?role=coach&step=account' });
             // Same live-ARB suppression as the player branch. No adult is placed on an ARB plan
             // today, but the gate is free and holds if that ever changes.
             if ((pulse.myRegistrationOwedTotal ?? 0) > 0 && !pulse.myHasLiveArbSubscription) {

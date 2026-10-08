@@ -29,7 +29,9 @@ import { FormFieldDataService } from '@infrastructure/services/form-field-data.s
 
                 @if (auth.isAuthenticated()) {
                     <!-- Returning user: review-your-info summary, with optional inline edit. -->
-                    @if (state.selfProfileLoading()) {
+                    <!-- Held until hydration settles: the summary is the user's stored profile, and
+                         showing it half-loaded means a blank card the user can click Edit on. -->
+                    @if (!state.accountHydrated()) {
                         <div class="summary-loading">
                             <span class="spinner-border spinner-border-sm me-2"></span>Loading your account...
                         </div>
@@ -647,13 +649,12 @@ export class AccountStepComponent implements OnInit {
      */
     async onLoginContinue(): Promise<void> {
         this.signInRefusal.set(null);
-        this.state.setMode('login');
-        this.state.populateFromAuth();
-        // Prefill Profile with existing registration data (teams, form values,
-        // waivers) if the user already registered for this role on this job.
-        // FIRST: it also carries the one-account-one-type answer (AR-151) — a family, club rep,
+        // Prefill Profile with existing registration data (teams, form values, waivers) and
+        // load the stored profile. Shared with the wizard's own resume for a kept coach
+        // session, so arriving here while that is in flight joins it instead of re-fetching.
+        // It also carries the one-account-one-type answer (AR-151) — a family, club rep,
         // admin or other-type login is signed straight back out, before anything of theirs loads.
-        await this.state.loadExistingRegistration(
+        await this.state.resumeAuthenticatedSession(
             this.state.jobPath(),
             this.state.roleKey(),
         );
@@ -663,11 +664,7 @@ export class AccountStepComponent implements OnInit {
             this.state.setMode('create');
             this.state.setUsername('');
             this.signInRefusal.set(refusal);
-            return;
         }
-        this.accountView.set('summary');
-        await this.state.loadSelfProfile();
-        this.state.markAccountHydrated();
     }
 
     /** Summary "Continue" — proceed to the job-specific Profile step. */
