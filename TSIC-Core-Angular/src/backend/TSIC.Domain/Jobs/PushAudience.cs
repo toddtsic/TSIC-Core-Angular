@@ -47,4 +47,28 @@ public static class PushAudienceResolver
         // Club, camp, sales — and any type added later. The flag is what makes it real.
         _ => teamsEnabled ? PushAudience.Teams : PushAudience.None
     };
+
+    /// <summary>
+    /// The audiences a SEND goes to. Differs from <see cref="Resolve"/> in one case only: a
+    /// tournament or league sends to BOTH apps, Events first. A tournament's TSIC-Teams pool is
+    /// the phones that hearted one of its teams from a Teams login (Device_Teams rows stamped
+    /// with a RegistrationId), so the heart is the opt-in and the job's Teams flag is NOT
+    /// consulted here - that flag governs Teams-app ACCESS to the site, not who hears about a
+    /// score. Every other job type returns exactly what <see cref="Resolve"/> returns, as one
+    /// element, or nothing for None.
+    ///
+    /// Kept separate from <see cref="Resolve"/> on purpose: the push screen's counts, the
+    /// Teams-app alert scoping and the readiness readout all hold one audience and keep doing
+    /// so. Only the three send paths (score result, event-wide alert, team alert) call this.
+    /// </summary>
+    public static IReadOnlyList<PushAudience> ResolveSendAudiences(int jobTypeId, bool teamsEnabled)
+    {
+        var primary = Resolve(jobTypeId, teamsEnabled);
+        return primary switch
+        {
+            PushAudience.None => [],
+            PushAudience.Events => [PushAudience.Events, PushAudience.Teams],
+            _ => [primary]
+        };
+    }
 }

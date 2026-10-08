@@ -63,7 +63,7 @@ public class PushNotificationService : IPushNotificationService
     public async Task<int> SendPushToAllAsync(
         Guid jobId, string userId, string pushText, CancellationToken ct = default)
     {
-        var (audience, _) = await ResolveAudienceAsync(jobId, ct);
+        var (audience, flags) = await ResolveAudienceAsync(jobId, ct);
 
         // A job feeding neither app has no pool to fall back to. Refuse rather than quietly
         // recording an audit row for a broadcast that went nowhere.
@@ -101,6 +101,31 @@ public class PushNotificationService : IPushNotificationService
             + "for job {JobId} by user {UserId}",
             deviceCount, tokens.Count, audience, jobId, userId);
 
+        // Second pass for the other app, if the job feeds one (tournament/league -> Teams).
+        // Runs AFTER the primary send is delivered and its audit row saved; its own failure is
+        // logged and changes nothing above. Not counted, not recorded: the screen and the
+        // history grid report the primary audience only (Todd, 2026-10-08).
+        foreach (var extra in SecondaryAudiences(audience, flags))
+        {
+            try
+            {
+                var extraTokens = await GetPoolAsync(extra, jobId, ct);
+                if (extraTokens.Count == 0) continue;
+
+                var extraDelivered = await _firebasePushService.SendToDevicesAsync(
+                    extra, extraTokens, jobName, pushText, jobLogoUrl, ct: ct);
+
+                _logger.LogInformation(
+                    "Push notification also delivered to {Delivered} of {Attempted} {Audience} devices "
+                    + "for job {JobId} by user {UserId}",
+                    extraDelivered, extraTokens.Count, extra, jobId, userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Secondary {Audience} push failed for job {JobId}", extra, jobId);
+            }
+        }
+
         return deviceCount;
     }
 
@@ -129,7 +154,7 @@ public class PushNotificationService : IPushNotificationService
             throw new InvalidOperationException(
                 $"Select at most {MaxTeamsPerSend} teams at a time, or send to the whole event.");
 
-        var (audience, _) = await ResolveAudienceAsync(jobId, ct);
+        var (audience, flags) = await ResolveAudienceAsync(jobId, ct);
 
         if (audience == PushAudience.None)
             throw new InvalidOperationException(
@@ -198,6 +223,32 @@ public class PushNotificationService : IPushNotificationService
             + "for job {JobId} by user {UserId}",
             totalDelivered, audience, owned.Count, jobId, userId);
 
+        // Second pass for the other app (tournament/league -> Teams), after the primary send
+        // and its per-team audit rows are saved. One deduped batch for the selected teams: a
+        // phone that hearted two of them from the Teams app gets one notification. No audit
+        // rows and no effect on the counts above (Todd, 2026-10-08). Own try/catch.
+        foreach (var extra in SecondaryAudiences(audience, flags))
+        {
+            try
+            {
+                var extraRows = await _repo.GetTeamTokensAsync(jobId, extra, owned, ct);
+                var extraTokens = extraRows.Select(r => r.Token).Distinct(StringComparer.Ordinal).ToList();
+                if (extraTokens.Count == 0) continue;
+
+                var extraDelivered = await _firebasePushService.SendToDevicesAsync(
+                    extra, extraTokens, jobName, pushText, jobLogoUrl, ct: ct);
+
+                _logger.LogInformation(
+                    "Push notification also delivered to {Delivered} {Audience} devices across {Teams} team(s) "
+                    + "for job {JobId} by user {UserId}",
+                    extraDelivered, extra, owned.Count, jobId, userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Secondary {Audience} team push failed for job {JobId}", extra, jobId);
+            }
+        }
+
         return new SendTeamsPushResponse
         {
             DeviceCount = totalDelivered,
@@ -219,6 +270,20 @@ public class PushNotificationService : IPushNotificationService
         if (flags == null) return (PushAudience.None, null);
 
         return (PushAudienceResolver.Resolve(flags.Value.JobTypeId, flags.Value.TeamsEnabled), flags);
+    }
+
+    /// <summary>
+    /// The audiences a send reaches beyond the one <see cref="ResolveAudienceAsync"/> named.
+    /// Empty for every job but tournament/league, where it is [Teams]. Goes through
+    /// <see cref="PushAudienceResolver.ResolveSendAudiences"/> so the rule lives in one place.
+    /// </summary>
+    private static IEnumerable<PushAudience> SecondaryAudiences(
+        PushAudience primary, (int JobTypeId, bool EventsEnabled, bool TeamsEnabled)? flags)
+    {
+        if (flags == null) return [];
+        return PushAudienceResolver
+            .ResolveSendAudiences(flags.Value.JobTypeId, flags.Value.TeamsEnabled)
+            .Where(a => a != primary);
     }
 
     private async Task<int> CountPoolAsync(PushAudience audience, Guid jobId, CancellationToken ct) =>

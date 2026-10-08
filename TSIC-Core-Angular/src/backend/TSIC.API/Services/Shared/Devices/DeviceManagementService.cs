@@ -75,14 +75,15 @@ public sealed class DeviceManagementService : IDeviceManagementService
     }
 
     public async Task<ToggleTeamSubscriptionResponse> ToggleTeamSubscriptionAsync(
-        ToggleTeamSubscriptionRequest request, Guid jobId, CancellationToken ct = default)
+        ToggleTeamSubscriptionRequest request, Guid jobId, Guid? registrationId = null, CancellationToken ct = default)
     {
         // Ensure device exists
         var device = await _deviceRepo.GetOrCreateDeviceByTokenAsync(request.DeviceToken, request.DeviceType, ct);
         await _deviceRepo.SaveChangesAsync(ct);
 
-        // Toggle the subscription
-        await _deviceRepo.ToggleDeviceTeamAsync(device.Id, request.TeamId, ct);
+        // Toggle the subscription. registrationId is the one thing that separates a TSIC-Teams
+        // heart from a TSIC-Events heart on the shared table (see PushAudience).
+        await _deviceRepo.ToggleDeviceTeamAsync(device.Id, request.TeamId, registrationId, ct);
         await _deviceRepo.SaveChangesAsync(ct);
 
         // Return updated list

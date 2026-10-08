@@ -43,7 +43,7 @@ public interface IDeviceRepository
 
     Task<Devices> GetOrCreateDeviceByTokenAsync(string deviceToken, string deviceType, CancellationToken ct = default);
     Task AddDeviceJobIfNotExistsAsync(string deviceId, Guid jobId, CancellationToken ct = default);
-    Task<bool> ToggleDeviceTeamAsync(string deviceId, Guid teamId, CancellationToken ct = default);
+    Task<bool> ToggleDeviceTeamAsync(string deviceId, Guid teamId, Guid? registrationId = null, CancellationToken ct = default);
 
     /// <summary>
     /// Idempotent team subscribe. Sync cannot use ToggleDeviceTeamAsync -- that DELETES the

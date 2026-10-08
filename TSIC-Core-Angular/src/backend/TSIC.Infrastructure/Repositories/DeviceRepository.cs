@@ -79,11 +79,23 @@ public class DeviceRepository : IDeviceRepository
         if (!exists) _context.DeviceJobs.Add(new DeviceJobs { Id = Guid.NewGuid(), DeviceId = deviceId, JobId = jobId, Modified = DateTime.Now });
     }
 
-    public async Task<bool> ToggleDeviceTeamAsync(string deviceId, Guid teamId, CancellationToken ct = default)
+    public async Task<bool> ToggleDeviceTeamAsync(string deviceId, Guid teamId, Guid? registrationId = null, CancellationToken ct = default)
     {
+        // A heart is per phone per team, so the key is (device, team) whatever the row carries.
+        // Un-heart removes the row whether it was written by the Events toggle (null
+        // RegistrationId), by a Teams heart (stamped), or by device/sync at a Teams login.
         var existing = await _context.DeviceTeams.FirstOrDefaultAsync(dt => dt.DeviceId == deviceId && dt.TeamId == teamId, ct);
         if (existing != null) { _context.DeviceTeams.Remove(existing); return false; }
-        _context.DeviceTeams.Add(new DeviceTeams { Id = Guid.NewGuid(), DeviceId = deviceId, TeamId = teamId, Modified = DateTime.Now });
+        _context.DeviceTeams.Add(new DeviceTeams
+        {
+            Id = Guid.NewGuid(),
+            DeviceId = deviceId,
+            TeamId = teamId,
+            // Null = TSIC-Events heart (Events pool). Set = TSIC-Teams heart (Teams pool,
+            // Teams sender). The caller decides from the bearer; this method only records it.
+            RegistrationId = registrationId,
+            Modified = DateTime.Now
+        });
         return true;
     }
 
