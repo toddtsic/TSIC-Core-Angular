@@ -24,6 +24,12 @@ public interface IAdultRegistrationRepository
     Task<bool> HasExistingRegistrationAsync(string userId, Guid jobId, string roleId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Does the account hold ANY registration in one of these roles — any job, active or not?
+    /// The account-type test the sign-up form uses on an existing username (AR-151).
+    /// </summary>
+    Task<bool> HasRegistrationInRolesAsync(string userId, IReadOnlyCollection<string> roleIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get a registration with its job for confirmation display (read-only).
     /// </summary>
     Task<Registrations?> GetRegistrationWithJobAsync(Guid registrationId, CancellationToken cancellationToken = default);

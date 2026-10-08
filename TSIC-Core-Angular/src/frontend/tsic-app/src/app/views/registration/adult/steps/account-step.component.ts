@@ -371,7 +371,7 @@ import { FormFieldDataService } from '@infrastructure/services/form-field-data.s
                                     @if (state.usernameStatus() === 'checking') {
                                         <small class="wizard-tip"><span class="spinner-border spinner-border-sm me-1"></span>Checking availability…</small>
                                     } @else if (state.usernameStatus() === 'taken') {
-                                        <small class="wizard-tip text-danger">That username is already taken — choose another.</small>
+                                        <small class="wizard-tip text-danger">That username is already in use. If it's yours, go back and sign in with it — otherwise choose another.</small>
                                     } @else if (state.usernameStatus() === 'available') {
                                         <small class="wizard-tip text-success">Username is available.</small>
                                     } @else {

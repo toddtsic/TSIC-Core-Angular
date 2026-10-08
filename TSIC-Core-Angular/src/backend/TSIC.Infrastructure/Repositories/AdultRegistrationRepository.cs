@@ -88,6 +88,13 @@ public class AdultRegistrationRepository : IAdultRegistrationRepository
             .AnyAsync(r => r.UserId == userId && r.JobId == jobId && r.RoleId == roleId && r.BActive == true, cancellationToken);
     }
 
+    public async Task<bool> HasRegistrationInRolesAsync(string userId, IReadOnlyCollection<string> roleIds, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .AnyAsync(r => r.UserId == userId && r.RoleId != null && roleIds.Contains(r.RoleId), cancellationToken);
+    }
+
     public async Task<Registrations?> GetRegistrationWithJobAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations

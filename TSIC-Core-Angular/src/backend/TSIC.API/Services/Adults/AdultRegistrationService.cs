@@ -260,6 +260,22 @@ public class AdultRegistrationService : IAdultRegistrationService
         var roleId = resolution.RoleId;
         var roleType = ResolveRoleTypeFromId(roleId);
 
+        // An existing username never creates or reuses an account here (AR-151, Todd 2026-10-08):
+        // a returning adult signs in through the form's Sign In door. Without this, Identity refused
+        // at CreateAsync with a bare "Username 'x' is already taken." Same-type is tested FIRST and
+        // on ANY registration, so an account holding this type alongside another is never told it
+        // is "not a {type} username". The same-type reply matches the form's live username check
+        // word for word and never names the account's type to an anonymous caller.
+        var existingUser = await _userManager.FindByNameAsync(request.Username.Trim());
+        if (existingUser != null)
+        {
+            var accountType = AccountTypeLabel(roleType);
+            var sameType = await _repo.HasRegistrationInRolesAsync(existingUser.Id, AccountTypeRoleIds(roleType), cancellationToken);
+            throw new InvalidOperationException(sameType
+                ? "That username is already in use. If it's yours, go back and sign in with it — otherwise choose another."
+                : $"This is not a {accountType} username. Please enter a {accountType} username or create a NEW {accountType} account.");
+        }
+
         // Team selection is required when the resolver says so (every coach key).
         if (resolution.NeedsTeamSelection && (request.TeamIdsCoaching == null || request.TeamIdsCoaching.Count == 0))
         {
@@ -1706,6 +1722,29 @@ public class AdultRegistrationService : IAdultRegistrationService
         RoleConstants.Recruiter => AdultRoleType.Recruiter,
         RoleConstants.Staff => AdultRoleType.Staff,
         _ => AdultRoleType.UnassignedAdult
+    };
+
+    /// <summary>
+    /// The account type a sign-up form is for, as the refusal names it. A club coach
+    /// (UnassignedAdult) and a tournament/league coach (Staff) are one type.
+    /// </summary>
+    private static string AccountTypeLabel(AdultRoleType roleType) => roleType switch
+    {
+        AdultRoleType.Referee => "Referee",
+        AdultRoleType.Recruiter => "Recruiter",
+        _ => "Coach/Staff"
+    };
+
+    private static readonly string[] CoachStaffRoleIds = [RoleConstants.UnassignedAdult, RoleConstants.Staff];
+    private static readonly string[] RefereeRoleIds = [RoleConstants.Referee];
+    private static readonly string[] RecruiterRoleIds = [RoleConstants.Recruiter];
+
+    /// <summary>The roles that make an existing account the same type as this form's.</summary>
+    private static string[] AccountTypeRoleIds(AdultRoleType roleType) => roleType switch
+    {
+        AdultRoleType.Referee => RefereeRoleIds,
+        AdultRoleType.Recruiter => RecruiterRoleIds,
+        _ => CoachStaffRoleIds
     };
 
     /// <summary>
