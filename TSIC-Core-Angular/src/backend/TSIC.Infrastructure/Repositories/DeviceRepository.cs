@@ -38,6 +38,14 @@ public class DeviceRepository : IDeviceRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<DeviceTeams>> GetDeviceTeamsByRegistrationAsync(
+        Guid registrationId, CancellationToken ct = default)
+    {
+        return await _context.DeviceTeams
+            .Where(dt => dt.RegistrationId == registrationId)
+            .ToListAsync(ct);
+    }
+
     public async Task<List<DeviceRegistrationIds>> GetDeviceRegistrationIdsByRegistrationAsync(
         Guid registrationId, CancellationToken ct = default)
     {
