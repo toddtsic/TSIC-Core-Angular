@@ -257,7 +257,7 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
                       } @else if (usernameStatus() === 'checking') {
                         <div class="small text-muted mt-1"><span class="spinner-border spinner-border-sm me-1"></span>Checking availability…</div>
                       } @else if (usernameStatus() === 'taken') {
-                        <div class="field-error">That username is already taken — choose another.</div>
+                        <div class="field-error">That username is already in use. If it's yours, sign in with it — otherwise choose another.</div>
                       }
                     </div>
                     <div class="col-6">
