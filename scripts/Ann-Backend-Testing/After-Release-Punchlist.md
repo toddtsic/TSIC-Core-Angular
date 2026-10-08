@@ -4800,6 +4800,8 @@ There is no disadvantage when registration opens — a few keystrokes per team, 
 
 **🔬 TO VERIFY (Ann):** sign in as `truelacrossetest` on **Lax For The Cure: Fall Showcase 2026** → Teams step → Madii Fowler's group shows **WAITLIST - 2028** and **WAITLIST - 2029** on the two *True LI* rows → in Add a Team type `2028 Test`, pick **2028** → two warning lines, one per age group as above.
 
+**✅ FOLLOW-UP BUILT + VERIFIED 10-08 (Todd) — other reps' teams carry their OWN age-group color.** The list had no color, so the board borrowed it from one of the rep's own teams in that age group and showed **grey wherever the rep had none** (Madii's 2028–2035 rows). `SameNameEventTeamDto` now carries `ageGroupColor`, read from the age group. ✅ **Todd saw it on screen: every row of Madii's group colored, WAITLIST rows included.**
+
 
 ### AR-154: ✅ BUILT (Todd, 10-08) — RELABEL ONLY, "Undo" → "Remove" on every surface · filed 10-08 (Ann) · [Team Registration / Registered Teams] Rename the "Undo" control to "Delete" or "Remove" — Undo reads as undoing the action and confuses
 
@@ -4814,6 +4816,7 @@ There is no disadvantage when registration opens — a few keystrokes per team, 
   - **Inline editor** — *"Undo this registration and register it again in {year}"* → **"Remove this team and register it again in {year}"**.
 
 **🔬 TO VERIFY (Ann):** as a club rep on an event with Delete OFF, register a team → the Registered Teams row shows **remove · N min** → click the trash can → the dialog reads **Remove Team** / **Remove**.
+- ⚙ **Found alongside, fixed 10-08:** every trash can on the Teams board hovered **green** (the pencil's color) — the success hover out-specified the danger one. **It now hovers red.**
 
 - **Topic**: the label on the control a club rep gets on a team they **just registered**, inside the 60-minute window
 - **Reported by**: Ann, 10-08. ✅ **Surfaces located at filing; the wording judgement is hers.**
