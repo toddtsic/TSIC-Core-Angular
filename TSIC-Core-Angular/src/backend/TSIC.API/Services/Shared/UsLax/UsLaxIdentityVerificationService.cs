@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Caching.Memory;
 using TSIC.Contracts.Services;
+using TSIC.Domain.UsLax;
 
 namespace TSIC.API.Services.Shared.UsLax;
 
@@ -104,6 +105,17 @@ public class UsLaxIdentityVerificationService : IUsLaxIdentityVerificationServic
             {
                 Status = UsLaxVerifyBeginStatus.MembershipInvalid,
                 Message = "Enter a valid USA Lacrosse number (6–12 digits)."
+            };
+        }
+
+        // Test number: no vendor call, no code. Lands on the "continue unverified" path, which is
+        // exactly what submit records for it.
+        if (padded == UsLaxEligibilityPolicy.TestMembershipNumber)
+        {
+            return new UsLaxVerifyBeginResult
+            {
+                Status = UsLaxVerifyBeginStatus.EmailUnavailable,
+                Message = "Test membership number — validation bypassed."
             };
         }
 

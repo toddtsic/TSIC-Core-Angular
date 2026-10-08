@@ -18,6 +18,7 @@ using TSIC.Contracts.Services;
 using TSIC.Domain.Adults;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
+using TSIC.Domain.UsLax;
 using TSIC.Infrastructure.Data.Identity;
 
 namespace TSIC.API.Services.Adults;
@@ -1446,6 +1447,13 @@ public class AdultRegistrationService : IAdultRegistrationService
             expDate = verified.ExpDate;
             idVerified = true;
             idVerifiedTs = DateTime.Now;
+        }
+        else if (string.Equals(sportAssnId, UsLaxEligibilityPolicy.TestMembershipNumber, StringComparison.Ordinal))
+        {
+            // Test number bypasses the vendor, as on the player path and in legacy's coach
+            // validator (ValidationCoachRemoteController). Recorded unverified, expiry unknown.
+            expDate = null;
+            idVerified = false;
         }
         else
         {
