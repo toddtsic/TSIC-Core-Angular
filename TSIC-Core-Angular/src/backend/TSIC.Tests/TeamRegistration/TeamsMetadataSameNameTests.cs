@@ -204,12 +204,12 @@ public class TeamsMetadataSameNameTests
         SameNameClubLists.EventTeams("Fury Lacrosse", others).Should().BeEmpty();
     }
 
-    [Fact(DisplayName = "Event list: a waitlisted team reads its age group without the WAITLIST prefix")]
-    public void EventTeams_StripsWaitlistPrefix()
+    [Fact(DisplayName = "Event list: a waitlisted team reads its TRUE age group, WAITLIST prefix kept")]
+    public void EventTeams_KeepsWaitlistPrefix()
     {
         var others = new[] { EventTeam("Fury Lacrosse", "Fury 2030 Blue", "Jane Smith", ag: "WAITLIST - 2030") };
 
-        SameNameClubLists.EventTeams("Fury Lacrosse", others).Single().AgeGroupName.Should().Be("2030");
+        SameNameClubLists.EventTeams("Fury Lacrosse", others).Single().AgeGroupName.Should().Be("WAITLIST - 2030");
     }
 
     [Fact(DisplayName = "Event list: no club name on the rep's registration means no list")]

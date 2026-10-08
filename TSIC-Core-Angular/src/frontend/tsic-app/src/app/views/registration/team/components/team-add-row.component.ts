@@ -49,25 +49,28 @@ const teamKey = (s: string | null | undefined): string => (s ?? '').trim().repla
 /** An age group's identity across its WAITLIST twin: WAITLIST - 2029 is 2029. */
 const ageGroupKey = (name: string | null | undefined): string => teamKey(ageGroupLabel({ ageGroupName: name ?? '' }));
 
-/** One other same-name rep and the teams they registered in one age group. */
-export interface RepAgeGroupTeams { repName: string; teams: string[]; }
+/** One other same-name rep and the teams they registered in one TRUE age group ("WAITLIST - 2029" stays itself). */
+export interface RepAgeGroupTeams { repName: string; ageGroupName: string; teams: string[]; }
 
 /**
  * The other same-name reps who already registered teams in this age group here (Todd 2026-10-06),
- * each rep once, with their teams. Compared by AGE GROUP, never by team name: the same team carries
- * different names on different lists ("Top Tier National 2029" vs "2029"). A WAITLIST twin counts
- * as its age group.
+ * one entry per rep per true age group, with their teams. Compared by AGE GROUP, never by team name:
+ * the same team carries different names on different lists ("Top Tier National 2029" vs "2029"). A
+ * WAITLIST twin counts as its age group for the match, but is shown in its true one (Todd 2026-10-08).
  */
 export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[], ageGroupName: string | null | undefined): RepAgeGroupTeams[] {
     const ag = ageGroupKey(ageGroupName);
     if (!ag) return [];
-    const byRep = new Map<string, string[]>();
+    const byRepAndAg = new Map<string, RepAgeGroupTeams>();
     for (const e of eventTeams) {
         if (ageGroupKey(e.ageGroupName) !== ag) continue;
-        const rep = e.repName.trim() || 'another rep';
-        byRep.set(rep, [...(byRep.get(rep) ?? []), e.teamName.trim()]);
+        const repName = e.repName.trim() || 'another rep';
+        const trueAg = e.ageGroupName.trim();
+        const key = `${repName}\n${trueAg}`;
+        const entry = byRepAndAg.get(key);
+        byRepAndAg.set(key, { repName, ageGroupName: trueAg, teams: [...(entry?.teams ?? []), e.teamName.trim()] });
     }
-    return [...byRep].map(([repName, teams]) => ({ repName, teams }));
+    return [...byRepAndAg.values()];
 }
 
 /**
@@ -225,11 +228,11 @@ export function otherRepsInAgeGroup(eventTeams: readonly SameNameEventTeamDto[],
           <i class="bi bi-exclamation-triangle-fill dup-icon" aria-hidden="true"></i>
           <div class="dup-body">
             <!-- What another rep already did, one line each; then the question; then what it costs. -->
-            @for (g of dupGroups(); track g.repName) {
+            @for (g of dupGroups(); track g.repName + '|' + g.ageGroupName) {
               <p class="dup-text">
                 <b>{{ g.repName }}</b> has already registered the
                 @for (t of g.teams; track $index) {<b class="dup-em">{{ t }}</b>{{ $last ? '' : ($index === g.teams.length - 2 ? ' and ' : ', ') }}}
-                {{ g.teams.length === 1 ? 'team' : 'teams' }} in the <b class="dup-em">{{ dupAgeGroup() }}</b> age group.
+                {{ g.teams.length === 1 ? 'team' : 'teams' }} in the <b class="dup-em">{{ g.ageGroupName }}</b> age group.
               </p>
             }
             <p class="dup-q">Do you really want to add the <b class="dup-em">{{ text().trim() }}</b> team?</p>

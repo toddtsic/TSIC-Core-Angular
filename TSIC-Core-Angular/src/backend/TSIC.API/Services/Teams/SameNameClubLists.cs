@@ -1,7 +1,6 @@
 using TSIC.Application.Services.Clubs;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
-using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Teams;
@@ -102,7 +101,8 @@ public static class SameNameClubLists
     /// (Todd 2026-10-06), compared as the director's CADT trees group it — ordinal, so the rep's warning and
     /// the director's "reps" badge always agree — not the loose sign-up match: a rep who chose "None of
     /// these" under a merely similar name ("Lax Plus Club" vs "Lax Plus") said they are a different club,
-    /// and a rep who picked their club at sign-up carries its exact name.
+    /// and a rep who picked their club at sign-up carries its exact name. Each team carries its TRUE age group
+    /// (Todd 2026-10-08) — a waitlisted team reads "WAITLIST - 2029", never a bare "2029".
     /// </summary>
     public static List<SameNameEventTeamDto> EventTeams(
         string? clubName, IEnumerable<OtherClubRepTeamInfo> otherRepTeams)
@@ -115,7 +115,7 @@ public static class SameNameClubLists
             {
                 TeamName = t.TeamName,
                 GradYear = t.GradYear,
-                AgeGroupName = AgegroupConstants.StripWaitlistPrefix(t.AgegroupName),
+                AgeGroupName = t.AgegroupName,
                 RepName = $"{t.RepFirstName} {t.RepLastName}".Trim(),
             })
             .OrderBy(t => t.TeamName)
