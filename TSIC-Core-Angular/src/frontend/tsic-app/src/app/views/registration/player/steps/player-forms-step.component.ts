@@ -157,25 +157,34 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
 
     <!-- Shared field-row template (used by both plain and recruiting groups) -->
     <ng-template #fieldRowTpl let-field let-pid="pid">
-      <!-- DOB beside the USA Lacrosse number: not in any form definition. Prefilled from the
+      <!-- DOB above the USA Lacrosse number: not in any form definition. Prefilled from the
            account; the value here is what USA Lacrosse is checked against, and the account is
-           updated only when USA Lacrosse confirms it. -->
+           updated only when USA Lacrosse confirms it. The pair shares ONE grid cell — as two
+           cells, the 2-column grid put DOB beside the field before it, not above the number. -->
       @if (showUsLaxDob(pid, field)) {
-        <div class="field-row">
-          <label class="field-label" [for]="'field-' + pid + '-uslax-dob'">
-            Date of Birth
-            @if (!usLaxDob(pid)) {
-              <span class="req-star">*</span>
-            }
-          </label>
-          <input type="date" class="field-input"
-                 [id]="'field-' + pid + '-uslax-dob'"
-                 [ngModel]="usLaxDob(pid)"
-                 (ngModelChange)="setUsLaxDob(pid, $event)"
-                 [class.is-required]="!usLaxDob(pid)">
-          <div class="field-help">Must match USA Lacrosse's record. A corrected date updates the player's account once USA Lacrosse confirms it.</div>
+        <div class="uslax-pair">
+          <div class="field-row">
+            <label class="field-label" [for]="'field-' + pid + '-uslax-dob'">
+              Date of Birth
+              @if (!usLaxDob(pid)) {
+                <span class="req-star">*</span>
+              }
+            </label>
+            <input type="date" class="field-input"
+                   [id]="'field-' + pid + '-uslax-dob'"
+                   [ngModel]="usLaxDob(pid)"
+                   (ngModelChange)="setUsLaxDob(pid, $event)"
+                   [class.is-required]="!usLaxDob(pid)">
+            <div class="field-help">Must match USA Lacrosse's record. A corrected date updates the player's account once USA Lacrosse confirms it.</div>
+          </div>
+          <ng-container *ngTemplateOutlet="fieldCoreTpl; context: { $implicit: field, pid: pid }"></ng-container>
         </div>
+      } @else {
+        <ng-container *ngTemplateOutlet="fieldCoreTpl; context: { $implicit: field, pid: pid }"></ng-container>
       }
+    </ng-template>
+
+    <ng-template #fieldCoreTpl let-field let-pid="pid">
       <div class="field-row" [class.field-row--wide]="getFieldType(field) === 'textarea' || getFieldType(field) === 'upload'">
         @if (getFieldType(field) !== 'checkbox') {
           <label class="field-label" [for]="'field-' + pid + '-' + field.name">
@@ -486,6 +495,11 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
       }
       .field-row--wide {
         grid-column: 1 / -1;
+      }
+      .uslax-pair {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
       }
 
       /* field-label, req-star, field-input, field-select,
