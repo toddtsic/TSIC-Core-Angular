@@ -4727,7 +4727,7 @@ There is no disadvantage when registration opens — a few keystrokes per team, 
 **🔬 TO VERIFY (Ann):** sign in as a club rep on an event where some library teams are already registered → open **Club Team Library** from the menu → no row says *"Currently in"*; a registered team's Archive icon is greyed, and hovering or tapping it names the event.
 
 
-### AR-153: 🔴 OPEN — filed 10-08 (Ann), from her AR-142 vetting · 🔴 PRIVACY: one club rep can see another club rep's teams AND NAME · [Club Rep registration] Cut the same-name disclosure back to a warning — remove the other rep's team list, keep the admin flag
+### AR-153: ✅ RULED (Todd, 10-08) — privacy: NOT A DEFECT, the list and the warning STAY · ✅ BUILT: other reps' teams now show their TRUE age group (WAITLIST included) · filed 10-08 (Ann), from her AR-142 vetting · [Club Rep registration] Cut the same-name disclosure back to a warning — remove the other rep's team list, keep the admin flag
 
 - **Topic**: what a club rep is SHOWN when another rep has registered under the same or a similar club name in the same event — the **choices offered** and the **list of the other rep's teams**
 - **Reported by**: Ann, 10-08, after **testing every aspect of the AR-142 build**. ✅ **This IS her AR-142 vetting** — the gate Todd set is satisfied by it.
@@ -4758,7 +4758,47 @@ There is no disadvantage when registration opens — a few keystrokes per team, 
   - ⚙ **AND THE MATCHING MAKES IT WORSE RATHER THAN BETTER: the list is keyed on CLUB NAME** (`GetOtherClubRepTeamsInJobAsync`), **so near-duplicate club spellings each bring their own rep and their own teams.** ⚠ **AR-142 deliberately allowed duplicate and near-duplicate club names, so the population this list draws from is the one that change grew.**
   - ✅ **Her conclusion is the same either way: *"Not needed."*** 🎯 **So the ruling does not have to settle the privacy question to act** — **two independent grounds point at removing the list, and only one of them is contestable.**
 - **Severity**: 🔴 **One customer's registration data — team names, age groups and the rep's NAME — is shown to a different club rep who reached it by registering under a similar club name.** ⚠ **Nothing is mis-saved and no money is wrong; the harm is disclosure.**
-- **Status**: 🔴 **OPEN — filed 10-08 from Ann's AR-142 vetting.** **For Todd:** ⏳ **the privacy half (2) is the part that should not wait on the design half (1)** — **removing the list and `repName` is a narrow change; replacing the choices with a warning is a UX decision.** ✅ **AR-142's vetting gate is satisfied by this item** — further club-rep items are no longer held behind it. ⚙ **Related: AR-142** (the build this vets).
+- **Status**: ✅ **RULED 10-08 — see the ruling below.** ~~🔴 OPEN — the privacy half should not wait on the design half~~ **superseded by the ruling.** ✅ **AR-142's vetting gate is satisfied by this item.** ⚙ **Related: AR-142** (the build this vets).
+
+**✅ RULING (Todd, 10-08) — NOT A DEFECT. The other rep's list and the duplicate warning STAY, choices included.**
+
+| | Ann's ask | Ruling |
+|:--|:--|:--|
+| **1** | Warning only, no choices | **Not changed.** The warning still asks *Don't add / Yes, add it* |
+| **2** | Remove the other rep's team list (and `repName`) | **Not changed — not a privacy problem** |
+| **3** | Keep the admin flag | ✅ Kept, unchanged |
+
+**WHY IT IS NOT A PRIVACY PROBLEM.** Nothing private is shown. **Team names and age groups go public on the event's schedule and standings.** The rep's name is the person running a club's entry in a public tournament — business contact, not personal data. **No email, no phone, no money, no player data.** ⛔ *"Privacy violation"* was the wrong label, and this entry repeated it at filing without testing it.
+
+**WHY THE LIST EXISTS — THE MEGA-CLUB CASE.** The corporate rep of a large club registers the slate; the local rep then comes in and wants in. **Seeing what corporate already entered is what stops the local rep entering the same team a second time** — a second entry, a second fee, and director cleanup.
+
+**📊 SCALE (local DB, measured 10-08).** Counted only reps who **have teams** (active, not DROPPED) under the **exact same club name** in the same event:
+
+| | Count |
+|:--|:--|
+| **Open events with 2+ such reps** | **4 club names — 3 real** (Top Tier National · lftc-summer-2027; Lax Plus Club · lftc-fallshowcase-2026; South Jersey Select · topthreat-fivestar-2026) + True Lacrosse = **Ann's test account** |
+| **All events since 2021** | **~64** club-name/event pairs — **2–6 a season, under legacy too** |
+| **Who those reps are** | **The same organisation — often the same person on two usernames** (`Kknapp` ×2, `alimolgano@aol.com` ×2, `stephaniebagnasco20`/`22`, `kstorer`/`kimstorer`, `UE Lacrosse`/`urbanelitelacrosse@gmail.com`). **No pair reads as rival factions.** |
+
+**🎯 AND THE PROBLEM THE LIST PREVENTS IS REAL — IT IS IN THE DATA RIGHT NOW.** Same club name, same age group, **same team name, entered by two different reps**:
+
+| Event | Team | Entered twice by |
+|:--|:--|:--|
+| lftc-summer-2027 | **Top Tier National 2029** and **2030** | `TopTierSports` (07-20) **and** `cclacrosse1` (07-30) — all four on the waitlist |
+| lftc-fallshowcase-2026 | **Lax Plus 2028 Black** and **2029 Black** | `kmullady44` (01-20) **and** `IWLCALaxPlus` (06-25); 2028 Black **a third time** by `melnord4` (12-17-25) |
+| lftc-fallshowcase-2026 | **2028 True Ballers** | `madii_maas` (corporate, 11-17-25) **and `truelacrossetest` — Ann's test, 10-08** |
+
+- **12 exact-name double entries across all events**, plus more under variant names (*"3d Garden State"* vs *"3d Garden State 2029"*, *"Saltwater Lax"* vs *"Saltwater Lacrosse"*).
+- ✅ **Every real one PREDATES the 10-06 warning** — they were made when a rep could not see the other rep's entries. **The only double entry made since the warning exists is the test one.**
+- ⏳ **For the director of lftc-summer-2027 and lftc-fallshowcase-2026:** the Top Tier National and Lax Plus doubles above are live and worth a look — the *"⚠ N reps"* flag in Search Teams marks both clubs.
+
+**✅ BUILT (10-08) — THE OTHER REP'S TEAMS SHOW THEIR TRUE AGE GROUP.** Found while reproducing this item: the list showed Madii Fowler's waitlisted *True LI 2028* and *True LI 2029* as plain **2028** / **2029**, while the rep's own waitlisted team correctly read **WAITLIST - 2028**. **Ruled (Todd): the list shows the truth.**
+
+- **Your Registered Teams** — another rep's waitlisted team now reads **WAITLIST - 2028**.
+- **The duplicate warning** — one line per true age group: *"Madii Fowler has already registered the 2028 True Ballers team in the **2028** age group."* / *"…the True LI 2028 team in the **WAITLIST - 2028** age group."* A waitlisted twin still triggers the warning.
+- Files: `SameNameClubLists.cs` (stopped stripping the prefix), `team-add-row.component.ts` (warning), tests `TeamsMetadataSameNameTests.cs` (`EventTeams_KeepsWaitlistPrefix`) and `team-add-row.same-name.spec.ts`.
+
+**🔬 TO VERIFY (Ann):** sign in as `truelacrossetest` on **Lax For The Cure: Fall Showcase 2026** → Teams step → Madii Fowler's group shows **WAITLIST - 2028** and **WAITLIST - 2029** on the two *True LI* rows → in Add a Team type `2028 Test`, pick **2028** → two warning lines, one per age group as above.
 
 
 ### AR-154: 🔴 OPEN — filed 10-08 (Ann) · ⚠ COLLIDES WITH THE AR-146 RULING — "Undo" was chosen BECAUSE it is not Delete · [Team Registration / Registered Teams] Rename the "Undo" control to "Delete" or "Remove" — Undo reads as undoing the action and confuses
