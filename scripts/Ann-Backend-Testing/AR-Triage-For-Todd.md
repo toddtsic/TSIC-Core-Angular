@@ -14,9 +14,9 @@ queues are not confused.
 
 ---
 
-## 📣 Read this first — the top of the queue is no longer on fire
+## Read this first — what is waiting on a deploy, not on Todd
 
-**Both items that were band 1 on 10-06 are now BUILT and waiting on a deploy, not on you.**
+**Both items that led the queue on 10-06 are now BUILT and waiting on a deploy, not on you.**
 **AR-144** (insurance never offered to club-rep team players) was fixed 10-07; **AR-142** (duplicate
 club names) was built 10-06 and merged. 🎯 **So nothing in this queue is actively costing money or
 blocking a registration today** — the first thing that needs your keyboard is a time-bound
@@ -28,13 +28,13 @@ behaviour.**
 
 ---
 
-## Band 1 — time-bound commitments
+## Time-bound commitments
 
 | # | AR | Item | Ready? | Note |
 |:--|:--|:--|:--|:--|
 | 1 | **128** | USA Lacrosse team-level override not ported | ⚠️ spec | ⏰ **STEPS needs it soon.** The legacy control is the spec; *"suppress validation for one team"* |
 
-## Band 2 — wrong figures on customer-facing screens
+## Money and figures
 
 | # | AR | Item | Ready? | Note |
 |:--|:--|:--|:--|:--|
@@ -42,7 +42,7 @@ behaviour.**
 | 3 | **125** | Search summary counts Corrections | ⚠️ ground 1 only | **Ground 2 closed 10-07** — a Correction is a payment by design. Ground 1, remove vs role-gate, is still yours |
 | 4 | **124** | Overpayment not shown | ⚠️ policy | Research found **nobody overpaid** (136/136 paid what was billed). A policy answer, not a bug |
 
-## Band 3 — blocked users, no workaround
+## Blocked users
 
 | # | AR | Item | Ready? | Note |
 |:--|:--|:--|:--|:--|
@@ -54,7 +54,7 @@ behaviour.**
 | 10 | **133** | League/A/D/T tree undiscoverable | ⚠️ check first | 📣 **Ann flagged this important to users** |
 | 11 | **134** | DOB not visible at date entry | ✅ spec given | Prevents the 135 mismatch in the first place |
 
-## Band 4 — unblocks the above, then friction
+## Testability and enablers
 
 | # | AR | Item | Ready? | Note |
 |:--|:--|:--|:--|:--|
@@ -63,7 +63,7 @@ behaviour.**
 | 14 | **138** | Coach flow — edit on the first screen | ✅ | **Decides where 137 lands** — do them together |
 | 15 | **136** | Edit Staff Account menu | ✅ copy AR-112 | The door; **137 is the room** |
 
-## Band 5 — polish and decisions with no clock
+## Presentation and copy
 
 | # | AR | Item | Ready? | Note |
 |:--|:--|:--|:--|:--|
@@ -76,7 +76,7 @@ behaviour.**
 | 22 | **130** | Chelsea navigation | ✅ mostly done | Ruled 10-02, two parts built |
 | 23 | **111** | Reply-To on human-sent mail | ⏸ held open | A real inbox, not the Email Log. Ann emailed you the example |
 
-## Last — ruled, then contested, and quiet since
+## Reconsider
 
 ⚠ **These read as settled in the status column and are not.** Todd ruled, Ann pushed back, and they
 have gone quiet rather than getting a second ruling.
