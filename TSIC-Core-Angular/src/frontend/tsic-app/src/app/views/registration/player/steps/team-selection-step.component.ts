@@ -1133,6 +1133,8 @@ export class TeamSelectionStepComponent {
                 divisionName: null,
                 startDate: null,
                 endDate: null,
+                // Display-only placement row; never read by the USA Lacrosse DOB gate.
+                usLaxValidationDisabled: false,
             });
         }
         return out;

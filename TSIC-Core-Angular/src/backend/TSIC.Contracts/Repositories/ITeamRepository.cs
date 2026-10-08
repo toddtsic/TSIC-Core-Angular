@@ -59,6 +59,7 @@ public record AvailableTeamQueryResult
     public DateTime? EndDate { get; init; }
     public decimal? PerRegistrantFee { get; init; }
     public string? ClubName { get; init; }
+    public bool UsLaxValidationDisabled { get; init; }
 }
 
 /// <summary>

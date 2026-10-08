@@ -231,7 +231,8 @@ public class TeamRepository : ITeamRepository
                 StartDate = t.Startdate,
                 EndDate = t.Enddate,
                 PerRegistrantFee = t.PerRegistrantFee,
-                ClubName = t.ClubrepRegistrationid != null ? t.ClubrepRegistration!.ClubName : null
+                ClubName = t.ClubrepRegistrationid != null ? t.ClubrepRegistration!.ClubName : null,
+                UsLaxValidationDisabled = t.BDoNotValidateUslaxNumber == true
             })
             .ToListAsync(cancellationToken);
     }

@@ -95,7 +95,8 @@ public class TeamLookupService : ITeamLookupService
                 StartDate = t.StartDate,
                 EndDate = t.EndDate,
                 PerRegistrantFee = t.PerRegistrantFee,
-                ClubName = t.ClubName
+                ClubName = t.ClubName,
+                UsLaxValidationDisabled = t.UsLaxValidationDisabled
             };
         }).ToList();
 

@@ -21,6 +21,7 @@ export type {
     PreSubmitPlayerRegistrationRequestDto,
     PreSubmitPlayerRegistrationResponseDto,
     PreSubmitTeamSelectionDto,
+    PreSubmitPlayerDobDto,
     PreSubmitInsuranceDto,
     PreSubmitValidationErrorDto,
     PlayerRegConfirmationDto,

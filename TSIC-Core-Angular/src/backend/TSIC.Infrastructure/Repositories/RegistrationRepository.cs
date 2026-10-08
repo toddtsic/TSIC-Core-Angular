@@ -4282,6 +4282,22 @@ public partial class RegistrationRepository : IRegistrationRepository
             .ToListAsync(ct);
     }
 
+    public async Task<bool> StageFamilyPlayerDobAsync(
+        string familyUserId, string playerUserId, DateTime dob, CancellationToken ct = default)
+    {
+        var isFamilyMember = await _context.FamilyMembers
+            .AsNoTracking()
+            .AnyAsync(fm => fm.FamilyUserId == familyUserId && fm.FamilyMemberUserId == playerUserId, ct);
+        if (!isFamilyMember) return false;
+
+        var user = await _context.AspNetUsers.FirstOrDefaultAsync(u => u.Id == playerUserId, ct);
+        if (user is null) return false;
+
+        user.Dob = dob.Date;
+        user.Modified = DateTime.Now;
+        return true;
+    }
+
     public async Task UpdateSportAssnIdExpDateAsync(Guid registrationId, DateTime newExpiryDate, CancellationToken ct = default)
     {
         // ExecuteUpdate avoids loading the whole entity into the change tracker.
