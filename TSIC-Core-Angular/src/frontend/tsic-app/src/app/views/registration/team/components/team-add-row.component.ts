@@ -532,7 +532,8 @@ export class TeamAddRowComponent implements OnChanges {
     readonly activeIndex = signal(-1);
     readonly saving = signal(false);
     readonly errorMsg = signal<string | null>(null);
-    /** Registered this visit, until the step's reload says so — keeps them out of the list meanwhile. */
+    /** Registered this visit, until the step's reload says so — keeps them out of the list meanwhile.
+     *  Cleared on every reload (ngOnChanges), or a removed team stays "registered" (AR-155). */
     private readonly justAdded = signal<ReadonlySet<number>>(new Set());
 
     readonly busy = computed(() => this.saving() || this.actionInProgress());
@@ -824,6 +825,8 @@ export class TeamAddRowComponent implements OnChanges {
     private focusWhenFree = false;
 
     ngOnChanges(changes: SimpleChanges): void {
+        // The step's reload is the truth now: it carries every add and drops every remove (AR-155).
+        if (changes['registeredTeams']) this.justAdded.set(new Set());
         if (changes['actionInProgress'] && !this.actionInProgress() && this.focusWhenFree) this.focusName();
     }
 
