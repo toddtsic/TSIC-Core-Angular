@@ -180,9 +180,12 @@ export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
               </span>
             </ng-template>
           </e-column>
-          <e-column field="depositDue" headerText="Deposit Due" width="75" textAlign="Right" format="C2"
+          <!-- feeBaseColumns (payment step, AR-122): the two columns show the LADT fee amounts
+               (deposit / balanceDue) instead of the net-of-paid figures. Field swap only — the
+               aggregate footer is keyed by field, so each mode totals its own figure. -->
+          <e-column [field]="feeBaseColumns() ? 'deposit' : 'depositDue'" headerText="Deposit Due" width="75" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
-          <e-column field="additionalDue" [headerText]="balanceHeader()" width="75" textAlign="Right" format="C2"
+          <e-column [field]="feeBaseColumns() ? 'balanceDue' : 'additionalDue'" [headerText]="balanceHeader()" width="75" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
           <!-- Total Fee = structural sum (Deposit + BalanceDue), not feeTotal which is
                phase-aware (deposit-phase total = deposit + processing). The field stays
@@ -532,8 +535,12 @@ export class RegisteredTeamsGridComponent {
 
     // Column visibility flags
     readonly showStructure = input(false); // per-row Fee Status (phase-keyed amounts) — Teams step only
-    readonly showDeposit = input(false);   // net-of-paid deposit (DepositDue) — Payment step
-    readonly showBalance = input(false);   // net-of-paid balance (AdditionalDue) — Payment step
+    readonly showDeposit = input(false);   // Deposit Due column
+    readonly showBalance = input(false);   // Balance Due / Additional Fees column
+    // false = those two columns show what is still owed (DepositDue / AdditionalDue — the
+    // director's fly-in); true = the LADT fee amounts (Deposit / BalanceDue — the rep's
+    // payment step, Ann's AR-122 ruling).
+    readonly feeBaseColumns = input(false);
     readonly showOwed = input(false);
     readonly showProcessing = input(false);
     readonly showPaid = input(true);
