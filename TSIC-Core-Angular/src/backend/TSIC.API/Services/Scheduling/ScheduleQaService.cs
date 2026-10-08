@@ -155,11 +155,30 @@ public sealed class ScheduleQaService : IScheduleQaService
                     $"and carry no distinct seeds to tell them apart — one bracket looks placed twice."));
             }
 
-            // (2) Completeness — every non-optional template game must be placed.
+            // (2) Completeness — every non-optional template game must be placed, unless it is
+            //     a bye: a short field (3 teams in an SE4, 6 in an SE8) leaves the top seeds'
+            //     first game unplayed, and the director seeds those teams straight into the
+            //     next round instead. The game is a bye when every slot its winner would fill is
+            //     on a placed game that carries director seed intent for that slot.
+            var winnerRoutesBySource = routes
+                .Where(r => string.Equals(r.SourceResult, "Winner", StringComparison.OrdinalIgnoreCase))
+                .ToLookup(r => r.SourceTemplateGameId);
+            var templateById = games.ToDictionary(g => g.TemplateGameId);
+            bool IsBye(TSIC.Domain.Entities.TemplateGames g)
+            {
+                var outs = winnerRoutesBySource[g.TemplateGameId].ToList();
+                return outs.Count > 0 && outs.All(r =>
+                {
+                    var tgt = templateById[r.TargetTemplateGameId];
+                    return placedByKey.TryGetValue((tgt.RoundType, minLabels[tgt.TemplateGameId]), out var tgtRows)
+                        && tgtRows.Any(p => seededSlots.Contains((p.Gid, (int)r.TargetSlot)));
+                });
+            }
+
             foreach (var g in games)
             {
                 if (g.IsOptional) continue; // bronze may legitimately be absent
-                if (!placedByKey.ContainsKey((g.RoundType, minLabels[g.TemplateGameId])))
+                if (!placedByKey.ContainsKey((g.RoundType, minLabels[g.TemplateGameId])) && !IsBye(g))
                 {
                     findings.Add(Finding("warning", "Incomplete", null,
                         $"Template {g.RoundType} game (slot label {minLabels[g.TemplateGameId]}) is not placed on the schedule."));
