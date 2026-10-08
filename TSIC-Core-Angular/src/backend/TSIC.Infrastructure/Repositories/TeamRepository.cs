@@ -544,6 +544,7 @@ public class TeamRepository : ITeamRepository
                 TeamName = t.TeamName ?? string.Empty,
                 GradYear = t.ClubTeam != null ? t.ClubTeam.ClubTeamGradYear : null,
                 AgegroupName = t.Agegroup.AgegroupName ?? string.Empty,
+                AgeGroupColor = t.Agegroup.Color,
                 RepFirstName = reg.User != null ? reg.User.FirstName : null,
                 RepLastName = reg.User != null ? reg.User.LastName : null
             })

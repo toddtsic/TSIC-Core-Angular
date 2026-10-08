@@ -138,6 +138,8 @@ public sealed record SameNameEventTeamDto
     /// The library grad year when the team is library-linked; null otherwise.
     public string? GradYear { get; init; }
     public required string AgeGroupName { get; init; }
+    /// The age group's own badge color, so another rep's team colors like ours (null = none set).
+    public required string? AgeGroupColor { get; init; }
     public required string RepName { get; init; }
 }
 

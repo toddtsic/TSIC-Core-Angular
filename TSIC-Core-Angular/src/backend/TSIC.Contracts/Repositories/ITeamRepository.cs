@@ -671,6 +671,7 @@ public record OtherClubRepTeamInfo
     /// The library team's grad year when the team is library-linked; null otherwise.
     public string? GradYear { get; init; }
     public required string AgegroupName { get; init; }
+    public string? AgeGroupColor { get; init; }
     public string? RepFirstName { get; init; }
     public string? RepLastName { get; init; }
 }

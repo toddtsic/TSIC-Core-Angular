@@ -116,6 +116,7 @@ public static class SameNameClubLists
                 TeamName = t.TeamName,
                 GradYear = t.GradYear,
                 AgeGroupName = t.AgegroupName,
+                AgeGroupColor = t.AgeGroupColor,
                 RepName = $"{t.RepFirstName} {t.RepLastName}".Trim(),
             })
             .OrderBy(t => t.TeamName)

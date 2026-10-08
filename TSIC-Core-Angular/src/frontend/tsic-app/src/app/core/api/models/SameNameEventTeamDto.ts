@@ -6,6 +6,7 @@ export type SameNameEventTeamDto = {
     teamName: string;
     gradYear?: string | null;
     ageGroupName: string;
+    ageGroupColor: string | null;
     repName: string;
 };
 

@@ -10,7 +10,7 @@ import { otherRepsInAgeGroup } from './team-add-row.component';
  * on different lists ("Top Tier National 2029" vs "2029").
  */
 const held = (teamName: string, repName: string, ageGroupName = '2029'): SameNameEventTeamDto => ({
-    teamName, repName, gradYear: null, ageGroupName,
+    teamName, repName, gradYear: null, ageGroupName, ageGroupColor: null,
 });
 
 describe('otherRepsInAgeGroup', () => {

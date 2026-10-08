@@ -212,8 +212,7 @@ type BoardSide = 'lib' | 'reg';
               <div class="reg-row reg-row--other">
                 <span class="reg-num"></span>
                 <span class="reg-ag">
-                  <span class="ag-badge" [style.background]="agBg(ageGroupColors().get(t.ageGroupName))"
-                        [style.color]="agText(ageGroupColors().get(t.ageGroupName))">{{ t.ageGroupName }}</span>
+                  <span class="ag-badge" [style.background]="agBg(t.ageGroupColor)" [style.color]="agText(t.ageGroupColor)">{{ t.ageGroupName }}</span>
                 </span>
                 <span class="reg-team"><span class="pencil-gap" aria-hidden="true"></span><span class="row-name" [attr.title]="t.teamName">{{ t.teamName }}</span></span>
                 <span class="reg-lop"></span>
@@ -322,10 +321,6 @@ export class TeamsBoardComponent {
                 a.ageGroupName.localeCompare(b.ageGroupName) || a.teamName.localeCompare(b.teamName)),
         }));
     });
-
-    /** Another rep's team has no color of its own here: borrow the age group's from a team of ours. */
-    readonly ageGroupColors = computed(() =>
-        new Map(this.registeredTeams().map(t => [t.ageGroupName ?? '', t.ageGroupColor ?? null])));
 
     /** Age-group badge: the age group's own color, text picked for contrast (the scheduling helper). */
     agBg(color: string | null | undefined): string { return color || 'var(--bs-secondary-bg)'; }
