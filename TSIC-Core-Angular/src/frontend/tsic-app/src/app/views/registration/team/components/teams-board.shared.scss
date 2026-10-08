@@ -440,7 +440,7 @@
   cursor: pointer;
 
   &:hover:not(:disabled):not(.is-locked) { background: color-mix(in srgb, var(--bs-success) 10%, transparent); color: var(--bs-success); }
-  &--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--bs-danger) 10%, transparent); color: var(--bs-danger); }
+  &--danger:hover:not(:disabled):not(.is-locked) { background: color-mix(in srgb, var(--bs-danger) 10%, transparent); color: var(--bs-danger); }
   &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   &:disabled { opacity: 0.3; cursor: default; }
   &.is-locked { opacity: 0.4; cursor: help; }
