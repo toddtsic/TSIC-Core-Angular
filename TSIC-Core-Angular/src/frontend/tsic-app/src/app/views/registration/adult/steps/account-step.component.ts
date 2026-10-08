@@ -204,6 +204,10 @@ import { FormFieldDataService } from '@infrastructure/services/form-field-data.s
                         </p>
                     </div>
 
+                    @if (signInRefusal()) {
+                        <div class="alert alert-danger py-2 small" role="alert">{{ signInRefusal() }}</div>
+                    }
+
                     <app-login
                         [theme]="''"
                         [embedded]="true"
@@ -559,6 +563,8 @@ export class AccountStepComponent implements OnInit {
     readonly showCreateForm = signal(false);
     /** Returning-user view: 'summary' (review) or 'edit' (update contact/address). */
     readonly accountView = signal<'summary' | 'edit'>('summary');
+    /** A sign-in refused as the wrong account type (AR-151) — shown above the Sign In box. */
+    readonly signInRefusal = signal<string | null>(null);
     readonly tosError = signal<string | null>(null);
     // reference.States, same as every other address form. This step used to carry its own
     // 51-entry array (US + DC, no provinces, no territories) — one of three divergent lists.
@@ -640,16 +646,27 @@ export class AccountStepComponent implements OnInit {
      * the returning user can review/correct their info first.
      */
     async onLoginContinue(): Promise<void> {
+        this.signInRefusal.set(null);
         this.state.setMode('login');
         this.state.populateFromAuth();
-        this.accountView.set('summary');
-        await this.state.loadSelfProfile();
         // Prefill Profile with existing registration data (teams, form values,
         // waivers) if the user already registered for this role on this job.
+        // FIRST: it also carries the one-account-one-type answer (AR-151) — a family, club rep,
+        // admin or other-type login is signed straight back out, before anything of theirs loads.
         await this.state.loadExistingRegistration(
             this.state.jobPath(),
             this.state.roleKey(),
         );
+        const refusal = this.state.accountTypeRefusal();
+        if (refusal) {
+            this.auth.logoutLocal();
+            this.state.setMode('create');
+            this.state.setUsername('');
+            this.signInRefusal.set(refusal);
+            return;
+        }
+        this.accountView.set('summary');
+        await this.state.loadSelfProfile();
         this.state.markAccountHydrated();
     }
 

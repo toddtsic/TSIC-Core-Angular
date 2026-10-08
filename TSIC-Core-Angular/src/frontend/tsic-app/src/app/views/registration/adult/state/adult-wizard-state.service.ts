@@ -138,6 +138,14 @@ export class AdultWizardStateService {
     markAccountHydrated(): void { this._accountHydrated.set(true); }
 
     /**
+     * The server's one-account-one-type answer for the signed-in account (AR-151): the sentence
+     * to show when it is a different type (family, club rep, admin, another adult type). Null =
+     * allowed. Set by loadExistingRegistration; the submit enforces it server-side regardless.
+     */
+    private readonly _accountTypeRefusal = signal<string | null>(null);
+    readonly accountTypeRefusal = this._accountTypeRefusal.asReadonly();
+
+    /**
      * Load everything a returning, already-signed-in user needs — the same three calls
      * `AccountStepComponent.onLoginContinue()` makes after the embedded login, minus that
      * step's own view state.
@@ -514,6 +522,7 @@ export class AdultWizardStateService {
             const existing = await firstValueFrom(
                 this.api.getMyExistingRegistration(jobPath, roleKey),
             );
+            this._accountTypeRefusal.set(existing.accountTypeRefusal ?? null);
             if (!existing.hasExisting) {
                 this._hasExistingRegistration.set(false);
                 this._existingRegistrationIds.set([]);
@@ -539,7 +548,8 @@ export class AdultWizardStateService {
                 this._waiverAcceptance.set({ ...existing.waiverAcceptance });
             }
         } catch {
-            // Non-fatal — user registers as fresh.
+            // Non-fatal — user registers as fresh. (The submit still enforces the type rule.)
+            this._accountTypeRefusal.set(null);
             this._hasExistingRegistration.set(false);
             this._existingRegistrationIds.set([]);
         }

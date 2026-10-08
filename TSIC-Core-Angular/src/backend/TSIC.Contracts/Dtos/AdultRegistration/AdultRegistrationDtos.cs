@@ -348,6 +348,12 @@ public record AdultExistingRegistrationDto
 
     /// <summary>Waiver acceptance state (from first row).</summary>
     public Dictionary<string, bool>? WaiverAcceptance { get; init; }
+
+    /// <summary>
+    /// Set when the signed-in account is a DIFFERENT type and may not register here (one account,
+    /// one type — AR-151): the sentence to show. The wizard signs the user out on it. Null = allowed.
+    /// </summary>
+    public string? AccountTypeRefusal { get; init; }
 }
 
 // ── Role config (new unified contract) ────────────────────────────

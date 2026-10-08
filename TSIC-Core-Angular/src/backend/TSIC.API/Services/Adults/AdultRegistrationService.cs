@@ -404,6 +404,11 @@ public class AdultRegistrationService : IAdultRegistrationService
                 + "Please sign in with a different account, or create a new account to register.");
         }
 
+        // One account, one type — same gate as PreSubmitAsync, before the deactivate.
+        var typeRefusal = await AccountTypeRefusalAsync(userId, roleType, cancellationToken);
+        if (typeRefusal != null)
+            throw new InvalidOperationException(typeRefusal);
+
         // Edit semantics: soft-delete any existing active registrations for
         // (user, job, role) before creating fresh rows. Matches legacy
         // EditLoggedInStaff pattern so returning users can add/remove teams.
@@ -442,6 +447,20 @@ public class AdultRegistrationService : IAdultRegistrationService
         // Resolve role per the same security model used elsewhere.
         var resolution = ResolveAdultRole(jobData, roleKey);
         var roleType = ResolveRoleTypeFromId(resolution.RoleId);
+
+        // Called right after sign-in: a different-type account is told now, not at submit
+        // (PreSubmitAsync still enforces it — this is the early answer, not the gate).
+        var typeRefusal = await AccountTypeRefusalAsync(userId, roleType, cancellationToken);
+        if (typeRefusal != null)
+        {
+            return new AdultExistingRegistrationDto
+            {
+                HasExisting = false,
+                RegistrationIds = [],
+                TeamIds = [],
+                AccountTypeRefusal = typeRefusal,
+            };
+        }
 
         // All active rows for (user, job, role). Staff → N rows; others → 0 or 1.
         var regs = await _repo.GetTrackedActiveByRoleAsync(userId, jobData.JobId, resolution.RoleId, cancellationToken);
@@ -973,6 +992,12 @@ public class AdultRegistrationService : IAdultRegistrationService
                     "This account has no first or last name on file, so it cannot be registered. "
                     + "Please sign in with a different account, or create a new account to register.");
             }
+
+            // One account, one type — the write chokepoint for the signed-in path. Same reason as
+            // the name guard for running BEFORE the deactivate below.
+            var typeRefusal = await AccountTypeRefusalAsync(userId, roleType, cancellationToken);
+            if (typeRefusal != null)
+                throw new InvalidOperationException(typeRefusal);
 
             // Login-mode: create/recreate the registrations NOW (user exists).
             //
@@ -1746,6 +1771,25 @@ public class AdultRegistrationService : IAdultRegistrationService
         AdultRoleType.Recruiter => RecruiterRoleIds,
         _ => CoachStaffRoleIds
     };
+
+    /// <summary>
+    /// One account, one type (AR-151 part 4, Todd 2026-10-08: "DIRECTOR SHOULDN'T BE COACH").
+    /// A SIGNED-IN account may register here only if it already holds this form's type, or holds
+    /// no type at all. A family login, a club rep, an admin or another adult type is refused — the
+    /// form's own Sign In box accepts any login, so this is the gate. Null = allowed.
+    /// Same-type is tested first, so an account already mixed before this rule keeps its access.
+    /// </summary>
+    private async Task<string?> AccountTypeRefusalAsync(string userId, AdultRoleType roleType, CancellationToken cancellationToken)
+    {
+        var sameTypeRoleIds = AccountTypeRoleIds(roleType);
+        if (await _repo.HasRegistrationInRolesAsync(userId, sameTypeRoleIds, cancellationToken))
+            return null;
+        if (!await _repo.HoldsOtherAccountTypeAsync(userId, sameTypeRoleIds, cancellationToken))
+            return null;
+
+        var accountType = AccountTypeLabel(roleType);
+        return $"This is not a {accountType} username. Please enter a {accountType} username or create a NEW {accountType} account.";
+    }
 
     /// <summary>
     /// Metadata-lookup key for <c>Jobs.AdultProfileMetadataJson</c>. Staff uses the
