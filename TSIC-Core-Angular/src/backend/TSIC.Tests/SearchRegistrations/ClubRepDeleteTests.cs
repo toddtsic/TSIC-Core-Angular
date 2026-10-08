@@ -41,6 +41,9 @@ public class ClubRepDeleteTests
         deviceRepo.Setup(d => d.GetDeviceRegistrationIdsByRegistrationAsync(
                 It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<DeviceRegistrationIds>());
+        deviceRepo.Setup(d => d.GetDeviceTeamsByRegistrationAsync(
+                It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<DeviceTeams>());
 
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo,

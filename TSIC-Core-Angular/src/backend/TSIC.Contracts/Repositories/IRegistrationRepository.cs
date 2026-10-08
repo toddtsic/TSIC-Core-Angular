@@ -774,6 +774,15 @@ public interface IRegistrationRepository
         IReadOnlyCollection<string> userIds, CancellationToken ct = default);
 
     /// <summary>
+    /// Stage a USA-Lacrosse-confirmed DOB correction onto a player's account — tracked, NOT saved;
+    /// it commits with the caller's SaveChangesAsync, so an aborted PreSubmit persists nothing.
+    /// Refuses (returns false) unless the player is a member of THIS family: PreSubmit does not
+    /// otherwise prove the player ids it is sent belong to the caller, and identity is an AND.
+    /// </summary>
+    Task<bool> StageFamilyPlayerDobAsync(
+        string familyUserId, string playerUserId, DateTime dob, CancellationToken ct = default);
+
+    /// <summary>
     /// Write a new SportAssnIdexpDate to a single registration. Used by USLax reconciliation
     /// when a MemberPing returns an exp_date and the member is involved as a Player.
     /// </summary>

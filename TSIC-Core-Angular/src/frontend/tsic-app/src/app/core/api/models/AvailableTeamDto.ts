@@ -25,5 +25,6 @@ export type AvailableTeamDto = {
     endDate?: string | null;
     perRegistrantFee?: number | null;
     clubName?: string | null;
+    usLaxValidationDisabled: boolean;
 };
 

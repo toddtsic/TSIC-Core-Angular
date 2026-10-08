@@ -25,9 +25,9 @@ interface LibRow {
  *   mode 'board' — the Teams step's left side. Three piles: Registered (collapsed, read-only, top),
  *                  Available Teams (open, with Register), Archived (collapsed, bottom).
  *   mode 'page'  — the standalone library page. ONE list of every active team, no Register and no
- *                  Registered pile; Archived kept. A team registered for the signed-in event reads
- *                  "registered in [age group]" — the badge is why its Archive is greyed (Todd
- *                  2026-09-27: a tooltip says nothing on touch).
+ *                  Registered pile; Archived kept. No event notation on a row (AR-152, 2026-10-08):
+ *                  a team registered for the signed-in event shows only a greyed Archive, whose
+ *                  tooltip and tap toast name the event.
  *
  * Host is display: contents, so on the board the header and the panel land in the board's grid
  * (headers level across both sides). Owns no domain state: the parent runs every mutation.
@@ -120,12 +120,9 @@ interface LibRow {
               } @else {
               <div class="row-main">
                 <div class="row-text">
-                  @if (row.registered) {
-                    <!-- Page only: registered for the signed-in event — the reason Archive is greyed. -->
-                    <ng-container *ngTemplateOutlet="regNameLine; context: { $implicit: row }" />
-                  } @else {
-                    <span class="row-name" [attr.title]="team.clubTeamName">{{ team.clubTeamName }}</span>
-                  }
+                  <!-- No event notation on the page (Ann/Todd 2026-10-08, AR-152): the library is a
+                       neutral resource. A greyed Archive names the event in its tooltip and toast. -->
+                  <span class="row-name" [attr.title]="team.clubTeamName">{{ team.clubTeamName }}</span>
                   <span class="row-meta">
                     <span class="meta-pair"><span class="meta-key">Grad</span>{{ team.clubTeamGradYear || '—' }}</span>
                     <span class="meta-pair"><span class="meta-key">LOP</span>{{ formatLop(team.clubTeamLevelOfPlay) || '—' }}</span>
@@ -225,9 +222,7 @@ interface LibRow {
       @let r = row.registered;
       <span class="row-name-line">
         <span class="row-name" [attr.title]="row.team.clubTeamName">{{ row.team.clubTeamName }}</span>
-        <!-- Page: "Currently in" (Todd 2026-09-27) — the page is about no one event, so "registered"
-             begs "for what?"; the hover and the Archive lock name the event. -->
-        <span class="reg-in" [attr.title]="'Registered for ' + eventName() + ' in ' + r.ageGroupName">{{ isPage() ? 'Currently in' : 'registered in' }}
+        <span class="reg-in" [attr.title]="'Registered for ' + eventName() + ' in ' + r.ageGroupName">registered in
           <span class="ag-badge" [style.background]="agBg(r.ageGroupColor)" [style.color]="agText(r.ageGroupColor)">{{ r.ageGroupName }}</span></span>
       </span>
     </ng-template>

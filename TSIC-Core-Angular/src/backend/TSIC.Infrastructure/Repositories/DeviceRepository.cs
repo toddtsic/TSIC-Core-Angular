@@ -38,6 +38,14 @@ public class DeviceRepository : IDeviceRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<DeviceTeams>> GetDeviceTeamsByRegistrationAsync(
+        Guid registrationId, CancellationToken ct = default)
+    {
+        return await _context.DeviceTeams
+            .Where(dt => dt.RegistrationId == registrationId)
+            .ToListAsync(ct);
+    }
+
     public async Task<List<DeviceRegistrationIds>> GetDeviceRegistrationIdsByRegistrationAsync(
         Guid registrationId, CancellationToken ct = default)
     {
@@ -71,11 +79,23 @@ public class DeviceRepository : IDeviceRepository
         if (!exists) _context.DeviceJobs.Add(new DeviceJobs { Id = Guid.NewGuid(), DeviceId = deviceId, JobId = jobId, Modified = DateTime.Now });
     }
 
-    public async Task<bool> ToggleDeviceTeamAsync(string deviceId, Guid teamId, CancellationToken ct = default)
+    public async Task<bool> ToggleDeviceTeamAsync(string deviceId, Guid teamId, Guid? registrationId = null, CancellationToken ct = default)
     {
+        // A heart is per phone per team, so the key is (device, team) whatever the row carries.
+        // Un-heart removes the row whether it was written by the Events toggle (null
+        // RegistrationId), by a Teams heart (stamped), or by device/sync at a Teams login.
         var existing = await _context.DeviceTeams.FirstOrDefaultAsync(dt => dt.DeviceId == deviceId && dt.TeamId == teamId, ct);
         if (existing != null) { _context.DeviceTeams.Remove(existing); return false; }
-        _context.DeviceTeams.Add(new DeviceTeams { Id = Guid.NewGuid(), DeviceId = deviceId, TeamId = teamId, Modified = DateTime.Now });
+        _context.DeviceTeams.Add(new DeviceTeams
+        {
+            Id = Guid.NewGuid(),
+            DeviceId = deviceId,
+            TeamId = teamId,
+            // Null = TSIC-Events heart (Events pool). Set = TSIC-Teams heart (Teams pool,
+            // Teams sender). The caller decides from the bearer; this method only records it.
+            RegistrationId = registrationId,
+            Modified = DateTime.Now
+        });
         return true;
     }
 
@@ -122,8 +142,13 @@ public class DeviceRepository : IDeviceRepository
 
     public async Task<List<Guid>> GetSubscribedTeamIdsAsync(string deviceToken, Guid jobId, CancellationToken ct = default)
     {
+        // Resolve the device by its Token, never by Id. Legacy minted a GUID Id on every device
+        // row it created, and 98% of mobile.Devices is still shaped that way; only rows this
+        // stack created since 2026-08 carry the token in both columns. Matching DeviceId to the
+        // token returned nothing for the older rows, so a phone's stars came back empty while
+        // its pushes kept arriving. Every other device query here already goes through Token.
         return await _context.DeviceTeams.AsNoTracking()
-            .Where(dt => dt.DeviceId == deviceToken && dt.Team.Agegroup.League.JobLeagues.Any(jl => jl.JobId == jobId))
+            .Where(dt => dt.Device.Token == deviceToken && dt.Team.Agegroup.League.JobLeagues.Any(jl => jl.JobId == jobId))
             .Select(dt => dt.TeamId).Distinct().ToListAsync(ct);
     }
 

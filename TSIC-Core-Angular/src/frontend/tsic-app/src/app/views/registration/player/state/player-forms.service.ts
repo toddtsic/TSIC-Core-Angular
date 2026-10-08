@@ -80,6 +80,21 @@ export class PlayerFormsService {
         return this._playerFormValues()[playerId]?.[fieldName];
     }
 
+    // ── DOB beside the USA Lacrosse number (playerId -> 'yyyy-MM-dd') ──
+    // Only an EDIT lives here; an absent entry means "the account's stored DOB". It is what the
+    // USA Lacrosse check is asked about, and the server writes it to the account only when USA
+    // Lacrosse confirms it (legacy carried DOB as a form question beside sportAssnId the same way).
+    // Deliberately not a form value: it is not in any job's form definition and must not be
+    // mapped onto the registration by the form-value pipeline.
+    private readonly _usLaxDobEdits = signal<Record<string, string>>({});
+    readonly usLaxDobEdits = this._usLaxDobEdits.asReadonly();
+
+    setUsLaxDobEdit(playerId: string, dob: string): void {
+        this._usLaxDobEdits.set({ ...this._usLaxDobEdits(), [playerId]: dob });
+        // A verdict reached against the old DOB says nothing about the new one.
+        this.updateUsLaxEntry(playerId, { status: 'idle', message: undefined });
+    }
+
     setUsLaxValidating(playerId: string): void {
         this.updateUsLaxEntry(playerId, { status: 'validating', message: undefined });
     }
@@ -196,6 +211,16 @@ export class PlayerFormsService {
             }
         }
         if (changed) this._playerFormValues.set(forms);
+
+        const dobs = { ...this._usLaxDobEdits() };
+        let dobsChanged = false;
+        for (const pid of Object.keys(dobs)) {
+            if (!selectedIds.has(pid)) {
+                delete dobs[pid];
+                dobsChanged = true;
+            }
+        }
+        if (dobsChanged) this._usLaxDobEdits.set(dobs);
     }
 
     // ── Validation ────────────────────────────────────────────────────
@@ -616,5 +641,6 @@ export class PlayerFormsService {
     reset(): void {
         this._playerFormValues.set({});
         this._usLaxStatus.set({});
+        this._usLaxDobEdits.set({});
     }
 }

@@ -150,6 +150,12 @@ const JOB_TYPE_TOURNAMENT = 2;
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowSelfRostering" name="bAllowSelfRostering" (ngModelChange)="onSettingsChange()">
               <label class="form-check-label">Self Rostering</label>
             </div>
+            <!-- AR-128: legacy LADT "DO NOT Validate USLax#". The number stays REQUIRED on this team's
+                 players; only the USA Lacrosse membership check is skipped. -->
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="bDoNotValidateUslaxNumber" [(ngModel)]="form.bDoNotValidateUslaxNumber" name="bDoNotValidateUslaxNumber" (ngModelChange)="onSettingsChange()">
+              <label class="form-check-label" for="bDoNotValidateUslaxNumber" title="USA Lacrosse # is still required, but not checked with USA Lacrosse">Don't validate USA Lacrosse #</label>
+            </div>
           </div>
         </div>
 
@@ -686,6 +692,7 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
       color: this.form.color,
       maxCount: this.form.maxCount,
       bAllowSelfRostering: this.form.bAllowSelfRostering,
+      bDoNotValidateUslaxNumber: this.form.bDoNotValidateUslaxNumber,
       // bHideRoster deliberately NOT sent. UpdateTeamRequest.bHideRoster is nullable and the server
       // skips nulls (LadtService `if (request.BHideRoster.HasValue)`), so omitting it PRESERVES the
       // stored value — this editor can never clobber the flag on a system-minted team. The column is

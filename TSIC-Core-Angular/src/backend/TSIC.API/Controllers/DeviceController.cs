@@ -1,9 +1,11 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -69,13 +71,29 @@ public class DeviceController : ControllerBase
     }
 
     /// <summary>
-    /// Toggle team subscription for push notifications.
+    /// Toggle team subscription (heart) for push notifications.
     /// If currently subscribed → unsubscribes. If not → subscribes.
     /// Returns the updated list of subscribed team IDs for this device + job.
+    ///
+    /// Anonymous, with ONE branch on the bearer. Both apps call this. The TSIC-Events app
+    /// sends no bearer, or a Scorer's; either way the row is written with a null
+    /// RegistrationId - the Events heart, exactly as before. Any other VALID bearer is a
+    /// TSIC-Teams login (Player, Staff, Director, Superuser all use that app), and the row is
+    /// stamped with its regId so it lands in the Teams push pool and is sent through the Teams
+    /// Firebase project. Role is the discriminator because Scorer is the only role the Events
+    /// app ever bears.
+    ///
+    /// A bearer that FAILED validation (expired Teams login) must not fall through to the
+    /// anonymous path: that would write an Events heart the Teams app then shows as set while
+    /// no Teams push ever arrives. It is decoded UNVERIFIED, for the role only, and a non-Scorer
+    /// gets 401 so the app refreshes and retries. A Scorer's expired bearer keeps the anonymous
+    /// path, because the Events app's interceptor clears its session on any 401 and a heart tap
+    /// must never log a scorer out. The stamp itself only ever comes from a validated bearer.
     /// </summary>
     [HttpPost("subscribe-team")]
     [ProducesResponseType(typeof(ToggleTeamSubscriptionResponse), 200)]
     [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
     public async Task<IActionResult> ToggleTeamSubscription(
         [FromBody] ToggleTeamSubscriptionRequest request,
         [FromQuery] Guid jobId,
@@ -87,8 +105,50 @@ public class DeviceController : ControllerBase
         if (jobId == Guid.Empty)
             return BadRequest(new { Error = "jobId query parameter is required" });
 
-        var response = await _deviceService.ToggleTeamSubscriptionAsync(request, jobId, ct);
+        Guid? registrationId = null;
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            if (User.FindFirst(ClaimTypes.Role)?.Value != RoleConstants.Names.ScorerName)
+                registrationId = User.GetRegistrationId();
+        }
+        else if (BearerIsAnUnvalidatedTeamsLogin(Request.Headers.Authorization))
+        {
+            return Unauthorized();
+        }
+
+        var response = await _deviceService.ToggleTeamSubscriptionAsync(request, jobId, registrationId, ct);
         return Ok(response);
+    }
+
+    /// <summary>
+    /// True when an Authorization header carries a JWT that did not authenticate and whose
+    /// (unverified) role claim is anything but Scorer. Reads the token WITHOUT validating it,
+    /// and the answer is used for nothing but choosing 401 over the anonymous path - never for
+    /// identity, never for the stamp. A header that is absent, not a bearer, or not decodable
+    /// is treated as anonymous.
+    /// </summary>
+    private static bool BearerIsAnUnvalidatedTeamsLogin(string? authorization)
+    {
+        if (string.IsNullOrWhiteSpace(authorization)) return false;
+        const string prefix = "Bearer ";
+        if (!authorization.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false;
+
+        var raw = authorization[prefix.Length..].Trim();
+        var handler = new JwtSecurityTokenHandler();
+        if (!handler.CanReadToken(raw)) return false;
+
+        try
+        {
+            var jwt = handler.ReadJwtToken(raw);
+            // TokenService writes ClaimTypes.Role; the handler's outbound map shortens it to
+            // "role" in the wire token. Accept either spelling.
+            var role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role || c.Type == "role")?.Value;
+            return role != null && role != RoleConstants.Names.ScorerName;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>

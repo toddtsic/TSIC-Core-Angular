@@ -6,7 +6,6 @@ using TSIC.Contracts.Services;
 using TSIC.Contracts.Repositories;
 using TSIC.Application.Services.Users;
 using TSIC.Application.Services.Clubs;
-using TSIC.Application.Services.Shared.Mapping;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.Identity;
@@ -86,14 +85,13 @@ public sealed class ClubService : IClubService
             var isValid = await _privilegeService.ValidatePrivilegeForRegistrationAsync(existingUser.Id, RoleConstants.ClubRep);
             if (!isValid)
             {
-                var existingPrivilege = await _privilegeService.GetUserPrivilegeLevelAsync(existingUser.Id);
-                var privilegeName = PrivilegeNameMapper.GetPrivilegeName(existingPrivilege);
+                // Plain language, never the other account's type (AR-151, Ann 10-07).
                 return new ClubRepRegistrationResponse
                 {
                     Success = false,
                     ClubId = null,
                     UserId = null,
-                    Message = $"This account is locked to {privilegeName} privilege level. To protect player data, one account can only be used for one privilege level. Please use a different email address and username for Club Rep registration."
+                    Message = "This is not a Club Rep Account username. Please enter a Club Rep username or create a NEW Club Rep Account."
                 };
             }
 

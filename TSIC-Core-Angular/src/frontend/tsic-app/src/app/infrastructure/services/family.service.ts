@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@environments/environment';
+import { skipErrorToast } from '@infrastructure/interceptors/http-error-context';
 import type {
     ChildDto,
     ChildOperationResponse,
@@ -36,8 +37,9 @@ export class FamilyService {
         return this.http.put<FamilyRegistrationResponse>(`${this.apiUrl}/update`, request);
     }
 
+    /** The Account step shows every refusal in its own panel — no global toast on top (AR-151). */
     validateCredentials(request: ValidateCredentialsRequest) {
-        return this.http.post<ValidateCredentialsResponse>(`${this.apiUrl}/validate-credentials`, request);
+        return this.http.post<ValidateCredentialsResponse>(`${this.apiUrl}/validate-credentials`, request, { context: skipErrorToast() });
     }
 
     getMyFamily() {

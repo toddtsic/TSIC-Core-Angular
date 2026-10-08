@@ -43,4 +43,8 @@ public record AvailableTeamDto
     public DateTime? EndDate { get; init; }
     public decimal? PerRegistrantFee { get; init; }
     public string? ClubName { get; init; }
+    /// <summary>Leagues.teams.bDoNotValidateUSLaxNumber (AR-128): the number is still required but
+    /// never checked with USA Lacrosse. The Forms step hides the DOB-correction field for such a
+    /// team, since a DOB there can never be confirmed and so can never be saved.</summary>
+    public required bool UsLaxValidationDisabled { get; init; }
 }

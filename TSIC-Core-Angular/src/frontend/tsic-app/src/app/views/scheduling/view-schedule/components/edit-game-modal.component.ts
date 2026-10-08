@@ -10,6 +10,7 @@ export interface TeamOption {
     teamId: string;
     teamName: string;
     divName: string;
+    agegroupId: string;
 }
 
 @Component({
@@ -39,12 +40,20 @@ export interface TeamOption {
                                   to correct them by hand.</span>
                         </div>
                     }
+                    @if (teamsLocked()) {
+                        <p class="teams-locked-note">
+                            <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                            <span>This game has a score, so its teams can't be changed. To change
+                                  teams, clear the score in score entry first.</span>
+                        </p>
+                    }
                         <div class="panel-card">
                             <h4 class="panel-card-title">Team 1</h4>
 
                             <div class="form-group">
                                 <label class="form-label">Team</label>
                                 <select class="form-input"
+                                        [disabled]="teamsLocked()"
                                         [ngModel]="t1Id()"
                                         (ngModelChange)="onTeamChange(1, $event)">
                                     <option [ngValue]="null">(no team)</option>
@@ -81,6 +90,7 @@ export interface TeamOption {
                             <div class="form-group">
                                 <label class="form-label">Team</label>
                                 <select class="form-input"
+                                        [disabled]="teamsLocked()"
                                         [ngModel]="t2Id()"
                                         (ngModelChange)="onTeamChange(2, $event)">
                                     <option [ngValue]="null">(no team)</option>
@@ -123,6 +133,13 @@ export interface TeamOption {
                                 </select>
                             </div>
                         </div>
+
+                    @if (error()) {
+                        <p class="save-error" role="alert">
+                            <i class="bi bi-x-octagon-fill" aria-hidden="true"></i>
+                            <span>{{ error() }}</span>
+                        </p>
+                    }
                 }
             </div>
 
@@ -201,6 +218,52 @@ export interface TeamOption {
             cursor: pointer;
         }
 
+        select.form-input:disabled {
+            cursor: not-allowed;
+            background: var(--bs-secondary-bg);
+            color: var(--text-muted, var(--bs-secondary-color));
+        }
+
+        /* ── Scored game: teams locked ── */
+        .teams-locked-note {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-2);
+            margin: 0 0 var(--space-4);
+            padding: var(--space-3);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-lg);
+            background: var(--surface-elevated-bg);
+            color: var(--bs-body-color);
+            font-size: var(--font-size-sm);
+            line-height: 1.4;
+        }
+
+        .teams-locked-note .bi {
+            flex: none;
+            color: var(--text-muted, var(--bs-secondary-color));
+        }
+
+        /* ── Save refused (server message, verbatim) ── */
+        .save-error {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-2);
+            margin: var(--space-4) 0 0;
+            padding: var(--space-3);
+            border: 1px solid var(--bs-danger);
+            border-radius: var(--radius-md);
+            background: color-mix(in srgb, var(--bs-danger) 12%, var(--surface-elevated-bg));
+            font-size: var(--font-size-sm);
+            line-height: 1.4;
+            color: var(--bs-body-color);
+        }
+
+        .save-error .bi {
+            flex: none;
+            color: var(--bs-danger);
+        }
+
         /* ── Decided-bracket-game caution ── */
         .bracket-warning {
             display: flex;
@@ -228,6 +291,8 @@ export class EditGameModalComponent implements OnChanges {
     visible = input<boolean>(false);
     teams = input<TeamOption[]>([]);
     statusOptions = input<GameStatusOptionDto[]>([]);
+    /** Server refusal from the last save, shown verbatim. */
+    error = input<string | null>(null);
 
     readonly close = output<void>();
     readonly save = output<EditGameRequest>();
@@ -247,9 +312,31 @@ export class EditGameModalComponent implements OnChanges {
         return isBracket && hasResult;
     });
 
+    /** A scored game's teams are fixed — read off the game as loaded, not the edited score
+     *  fields. The server refuses the change too; this just doesn't offer it. */
+    readonly teamsLocked = computed(() => {
+        const g = this.game();
+        return !!g && (g.t1Score != null || g.t2Score != null);
+    });
+
+    /** A pool game only takes teams from its own age group. The game's age group is its
+     *  current occupants' (both sit in the game's age group); null = no filter. */
+    private readonly poolAgegroupId = computed(() => {
+        const g = this.game();
+        if (!g || g.t1Type !== 'T' || g.t2Type !== 'T') return null;
+        const occupant = this.teams().find(t => t.teamId === g.t1Id || t.teamId === g.t2Id);
+        return occupant?.agegroupId ?? null;
+    });
+
     /** Teams grouped by division for <optgroup> rendering */
     readonly groupedTeams = computed(() => {
-        const flat = this.teams();
+        const g = this.game();
+        const agId = this.poolAgegroupId();
+        // Keep the current occupants listed even if they fall outside the filter, so the
+        // selects still show who is in the game.
+        const flat = agId
+            ? this.teams().filter(t => t.agegroupId === agId || t.teamId === g?.t1Id || t.teamId === g?.t2Id)
+            : this.teams();
         const map = new Map<string, TeamOption[]>();
         for (const t of flat) {
             let arr = map.get(t.divName);

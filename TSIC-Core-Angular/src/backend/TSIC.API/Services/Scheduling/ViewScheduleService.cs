@@ -523,6 +523,29 @@ public sealed class ViewScheduleService : IViewScheduleService
         if (game.JobId != jobId)
             throw new InvalidOperationException("Game does not belong to this event.");
 
+        // The modal echoes both team IDs on every save, so "sent" is not "changed" — compare values.
+        var t1Changing = request.T1Id.HasValue && request.T1Id != game.T1Id;
+        var t2Changing = request.T2Id.HasValue && request.T2Id != game.T2Id;
+
+        // A scored game's teams are fixed. Swapping one would leave the outgoing team's stored record
+        // crediting a result it no longer owns. Read off the STORED row — the request echoes scores.
+        if ((t1Changing || t2Changing) && (game.T1Score.HasValue || game.T2Score.HasValue))
+            throw new InvalidOperationException(
+                "This game has a score. Clear the score in score entry before changing its teams.");
+
+        // Pool game: validate the incoming team(s) and work out the slots BEFORE touching the row.
+        PoolSlotPlan? slotPlan = null;
+        if ((t1Changing || t2Changing)
+            && game.T1Type == GameRoundTypes.RoundRobin && game.T2Type == GameRoundTypes.RoundRobin
+            && game.DivId.HasValue)
+        {
+            slotPlan = await PlanPoolSlotsAsync(
+                jobId, game.DivId.Value,
+                t1Changing ? request.T1Id!.Value : game.T1Id,
+                t2Changing ? request.T2Id!.Value : game.T2Id,
+                t1Changing, t2Changing, ct);
+        }
+
         if (request.T1Score.HasValue) game.T1Score = request.T1Score;
         if (request.T2Score.HasValue) game.T2Score = request.T2Score;
         if (request.T1Id.HasValue) game.T1Id = request.T1Id;
@@ -532,6 +555,9 @@ public sealed class ViewScheduleService : IViewScheduleService
         if (request.T1Ann != null) game.T1Ann = request.T1Ann;
         if (request.T2Ann != null) game.T2Ann = request.T2Ann;
         if (request.GStatusCode.HasValue) game.GStatusCode = request.GStatusCode;
+
+        if (slotPlan is not null)
+            ApplyPoolSlots(game, slotPlan);
 
         game.LebUserId = userId;
         game.Modified = DateTime.Now;
@@ -679,6 +705,91 @@ public sealed class ViewScheduleService : IViewScheduleService
         await _teamRepo.UpdateTeamRecordsAsync(records, ct);
     }
 
+    /// <summary>
+    /// How an Edit Game team change lands in a pool game's rank slots. Re-seating rebuilds a pool
+    /// game's teams from (divID, T1_No) and (div2ID ?? divID, T2_No), so a team written into a slot
+    /// without its own pool and rank is silently reverted by the next re-seat. T1 always resolves
+    /// from the game's own pool, so a team from another pool can only sit in T2.
+    /// </summary>
+    private sealed record PoolSlotPlan
+    {
+        public required bool Swap { get; init; }
+        public required bool StampT1 { get; init; }
+        public required bool StampT2 { get; init; }
+        /// <summary>Placement of the team that ends in T1 / T2 (after any swap). Null = no placement.</summary>
+        public TeamPoolPlacementDto? T1Placement { get; init; }
+        public TeamPoolPlacementDto? T2Placement { get; init; }
+    }
+
+    /// <summary>
+    /// Validate the incoming team(s) for a pool game and plan the slots. Refuses a team with no active
+    /// pool, a team from another age group, and two teams both from outside the game's pool (one
+    /// div2ID can only describe one visiting pool).
+    /// </summary>
+    private async Task<PoolSlotPlan> PlanPoolSlotsAsync(
+        Guid jobId, Guid hostDivId, Guid? team1Id, Guid? team2Id,
+        bool t1Changing, bool t2Changing, CancellationToken ct)
+    {
+        var ids = new List<Guid>(2);
+        if (team1Id.HasValue) ids.Add(team1Id.Value);
+        if (team2Id.HasValue) ids.Add(team2Id.Value);
+        var placements = await _teamRepo.GetTeamPoolPlacementsAsync(jobId, ids, ct);
+        var hostAgegroupId = (await _bracketRepo.GetAgegroupIdsByDivIdsAsync([hostDivId], ct))
+            .GetValueOrDefault(hostDivId);
+
+        var p1 = team1Id.HasValue ? placements.GetValueOrDefault(team1Id.Value) : null;
+        var p2 = team2Id.HasValue ? placements.GetValueOrDefault(team2Id.Value) : null;
+
+        if (t1Changing) EnsurePlaceable(p1, hostAgegroupId);
+        if (t2Changing) EnsurePlaceable(p2, hostAgegroupId);
+
+        var foreign1 = p1 is not null && p1.DivId != hostDivId;
+        var foreign2 = p2 is not null && p2.DivId != hostDivId;
+        if (foreign1 && foreign2)
+            throw new InvalidOperationException("Only one team in a pool game can come from another pool.");
+
+        // The visitor is in T1 → it trades places with T2, so both slots are re-stamped.
+        return foreign1
+            ? new PoolSlotPlan { Swap = true, StampT1 = true, StampT2 = true, T1Placement = p2, T2Placement = p1 }
+            : new PoolSlotPlan { Swap = false, StampT1 = t1Changing, StampT2 = t2Changing, T1Placement = p1, T2Placement = p2 };
+    }
+
+    private static void EnsurePlaceable(TeamPoolPlacementDto? placement, Guid hostAgegroupId)
+    {
+        if (placement is null || !placement.Active)
+            throw new InvalidOperationException("The selected team isn't in an active pool, so it can't be placed in a pool game.");
+        if (placement.AgegroupId != hostAgegroupId)
+            throw new InvalidOperationException("A pool game can only take teams from its own age group.");
+    }
+
+    /// <summary>
+    /// Write the planned slots onto the game. On a swap the whole side trades places — team, name,
+    /// annotation, score, penalties, rank slot — then each re-stamped slot takes its occupant's own
+    /// rank (and, for T2, its own pool), so a re-seat of either pool resolves the same team.
+    /// </summary>
+    private static void ApplyPoolSlots(Domain.Entities.Schedule game, PoolSlotPlan plan)
+    {
+        if (plan.Swap)
+        {
+            (game.T1Id, game.T2Id) = (game.T2Id, game.T1Id);
+            (game.T1Name, game.T2Name) = (game.T2Name, game.T1Name);
+            (game.T1Ann, game.T2Ann) = (game.T2Ann, game.T1Ann);
+            (game.T1Score, game.T2Score) = (game.T2Score, game.T1Score);
+            (game.T1penalties, game.T2penalties) = (game.T2penalties, game.T1penalties);
+            (game.T1No, game.T2No) = (game.T2No, (byte?)game.T1No);
+        }
+
+        if (plan.StampT1 && plan.T1Placement is not null)
+            game.T1No = plan.T1Placement.DivRank;
+
+        if (plan.StampT2 && plan.T2Placement is not null)
+        {
+            game.T2No = (byte)plan.T2Placement.DivRank;
+            game.Div2Id = plan.T2Placement.DivId;
+            game.Div2Name = plan.T2Placement.DivName;
+        }
+    }
+
     private async Task<StandingsByDivisionResponse> BuildStandingsAsync(
         Guid jobId, ScheduleFilterRequest request, bool poolPlayOnly, CancellationToken ct)
     {
@@ -691,8 +802,8 @@ public sealed class ViewScheduleService : IViewScheduleService
         if (poolPlayOnly)
             games = games.Where(g => g.T1Type == GameRoundTypes.RoundRobin && g.T2Type == GameRoundTypes.RoundRobin).ToList();
 
-        // Membership + identity from the schedule rows (unchanged): every team appearing in a game
-        // in scope is listed, even at 0-0-0. Names/division come off the denormalized game row.
+        // Membership from the schedule rows: every team appearing in a game in scope is listed, even
+        // at 0-0-0. The display name comes off the game row; the POOL comes off the team itself.
         var identity = new Dictionary<Guid, (string TeamName, string AgegroupName, Guid AgegroupId, string DivName, Guid DivId)>();
         foreach (var g in games)
         {
@@ -702,6 +813,30 @@ public sealed class ViewScheduleService : IViewScheduleService
             if (g.T2Id.HasValue)
                 identity.TryAdd(g.T2Id.Value,
                     (g.T2Name ?? "", g.AgegroupName ?? "", g.AgegroupId ?? Guid.Empty, g.DivName ?? "", g.DivId ?? Guid.Empty));
+        }
+
+        // A game row's divID is the GAME's pool, not every team's: a cross-pool game carries a team
+        // from another pool. Re-home each team to its OWN pool (Teams.DivId), or the visitor is
+        // listed — and seeded — in the host pool. A team with no division keeps the row's pool.
+        var placements = await _teamRepo.GetTeamPoolPlacementsAsync(jobId, [.. identity.Keys], ct);
+        foreach (var (teamId, p) in placements)
+            identity[teamId] = (identity[teamId].TeamName, p.AgegroupName, p.AgegroupId, p.DivName, p.DivId);
+
+        // A pool/agegroup-scoped request shows only those pools — the visitor's game is in scope, the
+        // visitor is not. Club/team filters are OR-unioned with these and select teams directly, so
+        // when present nothing is dropped.
+        var hasClubOrTeamFilter = request.ClubNames is { Count: > 0 } || request.TeamIds is { Count: > 0 };
+        var scopeDivIds = request.DivisionIds is { Count: > 0 } ? request.DivisionIds.ToHashSet() : null;
+        var scopeAgIds = request.AgegroupIds is { Count: > 0 } ? request.AgegroupIds.ToHashSet() : null;
+        if (!hasClubOrTeamFilter && (scopeDivIds != null || scopeAgIds != null))
+        {
+            foreach (var teamId in identity.Keys.ToList())
+            {
+                var info = identity[teamId];
+                var inScope = (scopeDivIds?.Contains(info.DivId) ?? false)
+                    || (scopeAgIds?.Contains(info.AgegroupId) ?? false);
+                if (!inScope) identity.Remove(teamId);
+            }
         }
 
         // NUMBERS come from the canonical record — never a re-tally here. Pool play reads the stored,

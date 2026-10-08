@@ -7,6 +7,16 @@ namespace TSIC.Contracts.Dtos
     {
         public required string JobPath { get; init; } = string.Empty;
         public required List<PreSubmitTeamSelectionDto> TeamSelections { get; init; } = new();
+        // Optional: the DOB the family entered beside the USA Lacrosse number, per player. It is
+        // what the submit check sends to USA Lacrosse, and it is written to the player's account
+        // ONLY when USA Lacrosse confirms it (verdict Eligible). Absent = use the stored DOB.
+        public List<PreSubmitPlayerDobDto>? UsLaxDobs { get; init; }
+    }
+
+    public record PreSubmitPlayerDobDto
+    {
+        public required string PlayerId { get; init; }
+        public required DateTime Dob { get; init; }
     }
 
     public record PreSubmitTeamSelectionDto

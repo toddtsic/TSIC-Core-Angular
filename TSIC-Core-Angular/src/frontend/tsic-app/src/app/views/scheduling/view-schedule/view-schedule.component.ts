@@ -543,6 +543,7 @@ interface FilterChip {
             [visible]="editGameVisible()"
             [teams]="flatTeamList()"
             [statusOptions]="capabilities()?.gameStatusOptions ?? []"
+            [error]="editGameError()"
             (close)="editGameVisible.set(false)"
             (save)="onEditGameSave($event)" />
 
@@ -1308,6 +1309,7 @@ export class ViewScheduleComponent implements OnInit, ClubTeamsSource, TeamViews
 
     readonly editingGame = signal<ViewGameDto | null>(null);
     readonly editGameVisible = signal(false);
+    readonly editGameError = signal<string | null>(null);
 
     /** Score sheet — fed by both the games ledger and the brackets strip. */
     readonly scoringGame = signal<ScoreEntryGame | null>(null);
@@ -1383,12 +1385,12 @@ export class ViewScheduleComponent implements OnInit, ClubTeamsSource, TeamViews
     /** Flat team list for edit-game modal team picker (grouped by division) */
     readonly flatTeamList = computed(() => {
         const clubs = this.cadtTree();
-        const teams: { teamId: string; teamName: string; divName: string }[] = [];
+        const teams: { teamId: string; teamName: string; divName: string; agegroupId: string }[] = [];
         for (const club of clubs) {
             for (const ag of club.agegroups ?? []) {
                 for (const div of ag.divisions ?? []) {
                     for (const t of div.teams ?? []) {
-                        teams.push({ teamId: t.teamId, teamName: t.teamName, divName: `${ag.agegroupName} ${div.divName}` });
+                        teams.push({ teamId: t.teamId, teamName: t.teamName, divName: `${ag.agegroupName} ${div.divName}`, agegroupId: ag.agegroupId });
                     }
                 }
             }
@@ -2058,16 +2060,31 @@ export class ViewScheduleComponent implements OnInit, ClubTeamsSource, TeamViews
     onEditGameOpen(gid: number): void {
         const game = this.games().find(g => g.gid === gid);
         if (game) {
+            this.editGameError.set(null);
             this.editingGame.set(game);
             this.editGameVisible.set(true);
         }
     }
 
     onEditGameSave(request: EditGameRequest): void {
-        this.svc.editGame(request).subscribe(() => {
-            this.editGameVisible.set(false);
-            this.loadedTabs.clear();
-            this.loadTabData(this.activeTab());
+        this.editGameError.set(null);
+        this.svc.editGame(request).subscribe({
+            next: () => {
+                this.editGameVisible.set(false);
+                this.loadedTabs.clear();
+                this.loadTabData(this.activeTab());
+            },
+            // Same contract as onScoreSave: keep the panel open with the edit intact, and show
+            // the controller's BadRequest({ Message }) verbatim — it names the rule refused
+            // (scored game, team from another age group, two visiting teams, ...).
+            error: (err: HttpErrorResponse) => {
+                const msg = err?.error?.Message ?? err?.error?.message;
+                this.editGameError.set(
+                    typeof msg === 'string' && msg
+                        ? msg
+                        : 'Could not save the game. Check your connection and try again.'
+                );
+            }
         });
     }
 

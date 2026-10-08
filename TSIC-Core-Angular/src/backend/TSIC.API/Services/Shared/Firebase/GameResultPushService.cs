@@ -56,25 +56,23 @@ public sealed class GameResultPushService : IGameResultPushService
             var keys = await _scheduleRepo.GetGamePushKeysAsync(gid, ct);
             if (keys?.T1Score == null || keys.T2Score == null) return;
 
-            // Which app this job feeds picks both the pool and the sender. In practice a job
-            // with games is tournament or league, so this resolves to Events - but resolving
-            // rather than assuming is what keeps a club job's scores from being sent through
-            // the wrong project's credential.
+            // Which apps this job feeds picks both the pools and the senders. A tournament or
+            // league sends to BOTH: the Events pool through the Events project, then the Teams
+            // pool (phones that hearted a team from a Teams login) through the Teams project.
+            // Each audience has its own pool and its own credential; resolving rather than
+            // assuming is what keeps a club job's scores from being sent through the wrong one.
             var flags = await _pushRepo.GetJobPushFlagsAsync(keys.JobId, ct);
-            var audience = flags == null
-                ? PushAudience.None
-                : PushAudienceResolver.Resolve(flags.Value.JobTypeId, flags.Value.TeamsEnabled);
+            var audiences = flags == null
+                ? []
+                : PushAudienceResolver.ResolveSendAudiences(flags.Value.JobTypeId, flags.Value.TeamsEnabled);
 
-            if (audience == PushAudience.None)
+            if (audiences.Count == 0)
             {
                 _logger.LogInformation(
                     "Game-result push for gid {Gid} skipped - job {JobId} feeds no mobile app",
                     gid, keys.JobId);
                 return;
             }
-
-            var tokens = await _deviceRepo.GetTokensSubscribedToTeamsAsync(audience, keys.T1Id, keys.T2Id, ct);
-            if (tokens.Count == 0) return;
 
             var jobInfo = await _pushRepo.GetJobDisplayInfoAsync(keys.JobId, ct);
             var jobName = jobInfo?.JobName ?? "TSIC";
@@ -104,7 +102,23 @@ public sealed class GameResultPushService : IGameResultPushService
                 { "jobLogoUrl", jobLogoUrl ?? "" }
             };
 
-            await _firebase.SendToDevicesAsync(audience, tokens, jobName, body, jobLogoUrl, data, ct);
+            // Events first, Teams second, each in its own try/catch: a Teams-side failure
+            // (credential, project, token shape) is logged and cannot touch the Events send,
+            // which has already completed by the time the Teams pass starts.
+            foreach (var audience in audiences)
+            {
+                try
+                {
+                    var tokens = await _deviceRepo.GetTokensSubscribedToTeamsAsync(audience, keys.T1Id, keys.T2Id, ct);
+                    if (tokens.Count == 0) continue;
+
+                    await _firebase.SendToDevicesAsync(audience, tokens, jobName, body, jobLogoUrl, data, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Game-result push to {Audience} failed for gid {Gid}", audience, gid);
+                }
+            }
         }
         catch (Exception ex)
         {

@@ -6,5 +6,6 @@ import type { PreSubmitTeamSelectionDto } from './PreSubmitTeamSelectionDto';
 export type PreSubmitPlayerRegistrationRequestDto = {
     jobPath: string;
     teamSelections: Array<PreSubmitTeamSelectionDto>;
+    usLaxDobs?: any[] | null;
 };
 

@@ -1038,6 +1038,7 @@ public sealed class LadtService : ILadtService
         if (request.MaxCount.HasValue) team.MaxCount = request.MaxCount.Value;
         if (request.BAllowSelfRostering.HasValue) team.BAllowSelfRostering = request.BAllowSelfRostering;
         if (request.BHideRoster.HasValue) team.BHideRoster = request.BHideRoster.Value;
+        if (request.BDoNotValidateUslaxNumber.HasValue) team.BDoNotValidateUslaxNumber = request.BDoNotValidateUslaxNumber.Value;
         team.Startdate = request.Startdate;
         team.Enddate = request.Enddate;
         team.Effectiveasofdate = request.Effectiveasofdate;
@@ -1323,6 +1324,7 @@ public sealed class LadtService : ILadtService
             clone.MaxCount = source.MaxCount;
             clone.BAllowSelfRostering = source.BAllowSelfRostering;
             clone.BHideRoster = source.BHideRoster;
+            clone.BDoNotValidateUslaxNumber = source.BDoNotValidateUslaxNumber;
         }
 
         if (request.CopyDates)
@@ -1964,6 +1966,7 @@ public sealed class LadtService : ILadtService
         MaxCount = t.MaxCount,
         BAllowSelfRostering = t.BAllowSelfRostering,
         BHideRoster = t.BHideRoster,
+        BDoNotValidateUslaxNumber = t.BDoNotValidateUslaxNumber ?? false,
         Startdate = t.Startdate,
         Enddate = t.Enddate,
         Effectiveasofdate = t.Effectiveasofdate,

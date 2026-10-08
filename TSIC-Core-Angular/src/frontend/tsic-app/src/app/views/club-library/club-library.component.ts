@@ -17,8 +17,8 @@ import { LibraryPanelComponent } from '@views/registration/team/components/libra
  *
  * It IS the Teams step's library panel (Ann/Todd 2026-09-27: "look identical to the teams tab,
  * familiarity is important"): the same component in 'page' mode — one list of every active team,
- * Archived kept, no event history, no Registered pile. A team registered for the signed-in event
- * reads "registered in [age group]", which is why its Archive is greyed.
+ * Archived kept, no event history, no Registered pile, no event notation on a row (AR-152). A team
+ * registered for the signed-in event shows only a greyed Archive, which names the event.
  *
  * Job-scoped by ruling (Todd, 2026-09-22): auth is job-scoped, so the page still knows this event —
  * it uses that only for the archive lock. Every mutation goes through the same service calls as

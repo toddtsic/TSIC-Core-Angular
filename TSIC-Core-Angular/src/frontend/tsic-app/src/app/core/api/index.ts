@@ -527,6 +527,7 @@ export type { PrerequisiteCheckResponse } from './models/PrerequisiteCheckRespon
 export type { PreSubmitAdultRegRequestDto } from './models/PreSubmitAdultRegRequestDto';
 export type { PreSubmitAdultRegResponseDto } from './models/PreSubmitAdultRegResponseDto';
 export type { PreSubmitInsuranceDto } from './models/PreSubmitInsuranceDto';
+export type { PreSubmitPlayerDobDto } from './models/PreSubmitPlayerDobDto';
 export type { PreSubmitPlayerRegistrationRequestDto } from './models/PreSubmitPlayerRegistrationRequestDto';
 export type { PreSubmitPlayerRegistrationResponseDto } from './models/PreSubmitPlayerRegistrationResponseDto';
 export type { PreSubmitTeamInsuranceDto } from './models/PreSubmitTeamInsuranceDto';

@@ -10,8 +10,12 @@ public interface IDeviceManagementService
     /// <summary>Register a device for push notifications on a job.</summary>
     Task RegisterDeviceAsync(RegisterDeviceRequest request, CancellationToken ct = default);
 
-    /// <summary>Toggle team subscription for a device. Returns updated subscribed team IDs.</summary>
-    Task<ToggleTeamSubscriptionResponse> ToggleTeamSubscriptionAsync(ToggleTeamSubscriptionRequest request, Guid jobId, CancellationToken ct = default);
+    /// <summary>
+    /// Toggle team subscription (heart) for a device. Returns updated subscribed team IDs.
+    /// <paramref name="registrationId"/> null = TSIC-Events heart; set = TSIC-Teams heart, stamped
+    /// with the registration the Teams login named so the row lands in the Teams push pool.
+    /// </summary>
+    Task<ToggleTeamSubscriptionResponse> ToggleTeamSubscriptionAsync(ToggleTeamSubscriptionRequest request, Guid jobId, Guid? registrationId = null, CancellationToken ct = default);
 
     /// <summary>Swap old device token for new one across all records.</summary>
     Task SwapTokenAsync(SwapDeviceTokenRequest request, CancellationToken ct = default);

@@ -88,6 +88,26 @@ public class AdultRegistrationRepository : IAdultRegistrationRepository
             .AnyAsync(r => r.UserId == userId && r.JobId == jobId && r.RoleId == roleId && r.BActive == true, cancellationToken);
     }
 
+    public async Task<bool> HasRegistrationInRolesAsync(string userId, IReadOnlyCollection<string> roleIds, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .AnyAsync(r => r.UserId == userId && r.RoleId != null && roleIds.Contains(r.RoleId), cancellationToken);
+    }
+
+    public async Task<bool> HoldsOtherAccountTypeAsync(string userId, IReadOnlyCollection<string> sameTypeRoleIds, CancellationToken cancellationToken = default)
+    {
+        if (await _context.Families.AsNoTracking().AnyAsync(f => f.FamilyUserId == userId, cancellationToken))
+            return true;
+        if (await _context.Registrations.AsNoTracking().AnyAsync(r => r.FamilyUserId == userId, cancellationToken))
+            return true;
+        if (await _context.ClubReps.AsNoTracking().AnyAsync(cr => cr.ClubRepUserId == userId, cancellationToken))
+            return true;
+        return await _context.Registrations
+            .AsNoTracking()
+            .AnyAsync(r => r.UserId == userId && r.RoleId != null && !sameTypeRoleIds.Contains(r.RoleId), cancellationToken);
+    }
+
     public async Task<Registrations?> GetRegistrationWithJobAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations

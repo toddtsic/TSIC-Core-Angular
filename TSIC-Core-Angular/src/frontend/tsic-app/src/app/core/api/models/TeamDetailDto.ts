@@ -18,6 +18,7 @@ export type TeamDetailDto = {
     maxCount: number;
     bAllowSelfRostering?: boolean | null;
     bHideRoster: boolean;
+    bDoNotValidateUslaxNumber: boolean;
     startdate?: string | null;
     enddate?: string | null;
     effectiveasofdate?: string | null;

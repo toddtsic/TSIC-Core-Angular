@@ -8,7 +8,6 @@ using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.Contracts.Services;
 using TSIC.Application.Services.Users;
-using TSIC.Application.Services.Shared.Mapping;
 using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.Contracts.Repositories;
@@ -18,6 +17,13 @@ namespace TSIC.API.Services.Families;
 
 public sealed class FamilyService : IFamilyService
 {
+    /// <summary>
+    /// A username locked to another account type, on either family sign-up step (AR-151, Ann 10-07):
+    /// plain language, the two actions, and never the other account's type.
+    /// </summary>
+    private const string FamilyAccountTypeRefusal =
+        "This is not a Family Account username. Please enter a Family Account username or create a NEW Family account.";
+
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IProfileMetadataService _profileMeta;
     private readonly IConfiguration _config;
@@ -357,12 +363,11 @@ public sealed class FamilyService : IFamilyService
         var isValid = await _privilegeService.ValidatePrivilegeForRegistrationAsync(existingUser.Id, RoleConstants.Player);
         if (!isValid)
         {
-            var existingPrivilege = await _privilegeService.GetUserPrivilegeLevelAsync(existingUser.Id);
-            var privilegeName = PrivilegeNameMapper.GetPrivilegeName(existingPrivilege);
+            // Plain language, never the other account's type (AR-151, Ann 10-07).
             return new ValidateCredentialsResponse
             {
                 Exists = true,
-                Message = $"This account is locked to {privilegeName} privilege level. Please use a different username for Family registration."
+                Message = FamilyAccountTypeRefusal
             };
         }
 
@@ -398,14 +403,12 @@ public sealed class FamilyService : IFamilyService
             var isValid = await _privilegeService.ValidatePrivilegeForRegistrationAsync(existingUser.Id, RoleConstants.Player);
             if (!isValid)
             {
-                var existingPrivilege = await _privilegeService.GetUserPrivilegeLevelAsync(existingUser.Id);
-                var privilegeName = PrivilegeNameMapper.GetPrivilegeName(existingPrivilege);
                 return new FamilyRegistrationResponse
                 {
                     Success = false,
                     FamilyUserId = null,
                     FamilyId = null,
-                    Message = $"This account is locked to {privilegeName} privilege level. To protect player data, one account can only be used for one privilege level. Please use a different email address and username for Player registration."
+                    Message = FamilyAccountTypeRefusal
                 };
             }
 

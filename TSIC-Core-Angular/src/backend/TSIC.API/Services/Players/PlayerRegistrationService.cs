@@ -64,6 +64,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         // reject people on registrations they completed months ago. A row absent from this map is
         // new; a row whose number differs is a changed number. Those are the two the gate judges.
         public Dictionary<Guid, string?> PriorSportAssnId { get; init; } = new();
+
+        // DOB the family entered beside the USA Lacrosse number, keyed by player userId — only
+        // entries that DIFFER from the stored DOB. It replaces the stored DOB in the USA Lacrosse
+        // match, and is written to the account only when USA Lacrosse confirms it.
+        public Dictionary<string, DateTime> UsLaxDobs { get; init; } = new(StringComparer.Ordinal);
     }
 
     public PlayerRegistrationService(
@@ -250,7 +255,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             WaitlistTeamIds = waitlistTeamIds,
             // Snapshot BEFORE any form values are applied — these entities are tracked, so reading
             // SportAssnId after ApplyFormValues would return the incoming value, not the stored one.
-            PriorSportAssnId = existingRegs.ToDictionary(r => r.RegistrationId, r => r.SportAssnId)
+            PriorSportAssnId = existingRegs.ToDictionary(r => r.RegistrationId, r => r.SportAssnId),
+            UsLaxDobs = (request.UsLaxDobs ?? new())
+                .Where(d => !string.IsNullOrWhiteSpace(d.PlayerId))
+                .GroupBy(d => d.PlayerId, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.Last().Dob.Date, StringComparer.Ordinal)
         };
     }
 
@@ -622,6 +631,9 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var identities = (await _registrations.GetPlayerIdentitiesAsync(userIds!))
             .ToDictionary(i => i.UserId, StringComparer.Ordinal);
 
+        // DOB corrections USA Lacrosse confirmed — written only if the whole submission passes.
+        var confirmedDobs = new Dictionary<string, DateTime>(StringComparer.Ordinal);
+
         foreach (var number in numbers)
         {
             UsLaxMemberPingResult? member = null;
@@ -640,6 +652,13 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
                 identities.TryGetValue(reg.UserId ?? string.Empty, out var identity);
 
+                // The DOB the family entered beside the number is what USA Lacrosse is asked about —
+                // never the stored one it is meant to correct. Null = no correction for this player.
+                DateTime? enteredDob = ctx.UsLaxDobs.TryGetValue(reg.UserId ?? string.Empty, out var entered)
+                    && entered != identity?.Dob?.Date
+                        ? entered
+                        : null;
+
                 var verdict = UsLaxEligibilityPolicy.Evaluate(new UsLaxEligibilityInput
                 {
                     MembershipNumber = number,
@@ -654,8 +673,14 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                     VendorBirthdate = member?.Output?.Birthdate,
                     VendorInvolvement = member?.Output?.Involvement,
                     RegistrantLastName = identity?.LastName,
-                    RegistrantDob = identity?.Dob
+                    RegistrantDob = enteredDob ?? identity?.Dob
                 });
+
+                // Eligible is reachable ONLY through the last-name and DOB match — the test number and
+                // the team bypass return their own reasons — so this is USA Lacrosse confirming the
+                // entered DOB, not merely a pass.
+                if (enteredDob.HasValue && verdict.Reason == UsLaxEligibilityReason.Eligible)
+                    confirmedDobs[reg.UserId!] = enteredDob.Value;
 
                 // Stamp whatever expiry the vendor gave us regardless of the verdict — an accurate
                 // expiry on file is what makes the existing backlog reportable.
@@ -669,7 +694,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                     reg.SportAssnIdexpDate = verdict.ExpDate;
                 }
 
-                if (verdict.Valid || !IsGated(ctx, reg)) continue;
+                // A DOB correction is a change, and a change is judged — exactly like a changed number.
+                if (verdict.Valid || !(IsGated(ctx, reg) || enteredDob.HasValue)) continue;
 
                 _logger.LogInformation(
                     "[PreSubmit] USLax rejected registration for job {JobId}: {Reason}", ctx.JobId, verdict.Reason);
@@ -680,6 +706,19 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                     Field = "sportAssnId",
                     Message = UsLaxEligibilityPolicy.MessageFor(verdict) ?? UsLaxEligibilityPolicy.FailureMessageHtml
                 });
+            }
+        }
+
+        // Nothing is written on a rejected submission: the caller returns before SaveChangesAsync,
+        // and staging is skipped here too so no correction rides along on a failing family.
+        if (errors.Count == 0)
+        {
+            foreach (var (playerUserId, dob) in confirmedDobs)
+            {
+                if (await _registrations.StageFamilyPlayerDobAsync(ctx.FamilyUserId, playerUserId, dob))
+                    _logger.LogInformation("[PreSubmit] DOB corrected for a player on job {JobId}, confirmed by USA Lacrosse.", ctx.JobId);
+                else
+                    _logger.LogWarning("[PreSubmit] DOB correction refused for job {JobId}: player is not in the submitting family.", ctx.JobId);
             }
         }
 

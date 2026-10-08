@@ -29,7 +29,9 @@ import { FormFieldDataService } from '@infrastructure/services/form-field-data.s
 
                 @if (auth.isAuthenticated()) {
                     <!-- Returning user: review-your-info summary, with optional inline edit. -->
-                    @if (state.selfProfileLoading()) {
+                    <!-- Held until hydration settles: the summary is the user's stored profile, and
+                         showing it half-loaded means a blank card the user can click Edit on. -->
+                    @if (!state.accountHydrated()) {
                         <div class="summary-loading">
                             <span class="spinner-border spinner-border-sm me-2"></span>Loading your account...
                         </div>
@@ -204,6 +206,10 @@ import { FormFieldDataService } from '@infrastructure/services/form-field-data.s
                         </p>
                     </div>
 
+                    @if (signInRefusal()) {
+                        <div class="alert alert-danger py-2 small" role="alert">{{ signInRefusal() }}</div>
+                    }
+
                     <app-login
                         [theme]="''"
                         [embedded]="true"
@@ -371,7 +377,7 @@ import { FormFieldDataService } from '@infrastructure/services/form-field-data.s
                                     @if (state.usernameStatus() === 'checking') {
                                         <small class="wizard-tip"><span class="spinner-border spinner-border-sm me-1"></span>Checking availability…</small>
                                     } @else if (state.usernameStatus() === 'taken') {
-                                        <small class="wizard-tip text-danger">That username is already taken — choose another.</small>
+                                        <small class="wizard-tip text-danger">That username is already in use. If it's yours, go back and sign in with it — otherwise choose another.</small>
                                     } @else if (state.usernameStatus() === 'available') {
                                         <small class="wizard-tip text-success">Username is available.</small>
                                     } @else {
@@ -559,6 +565,8 @@ export class AccountStepComponent implements OnInit {
     readonly showCreateForm = signal(false);
     /** Returning-user view: 'summary' (review) or 'edit' (update contact/address). */
     readonly accountView = signal<'summary' | 'edit'>('summary');
+    /** A sign-in refused as the wrong account type (AR-151) — shown above the Sign In box. */
+    readonly signInRefusal = signal<string | null>(null);
     readonly tosError = signal<string | null>(null);
     // reference.States, same as every other address form. This step used to carry its own
     // 51-entry array (US + DC, no provinces, no territories) — one of three divergent lists.
@@ -640,17 +648,23 @@ export class AccountStepComponent implements OnInit {
      * the returning user can review/correct their info first.
      */
     async onLoginContinue(): Promise<void> {
-        this.state.setMode('login');
-        this.state.populateFromAuth();
-        this.accountView.set('summary');
-        await this.state.loadSelfProfile();
-        // Prefill Profile with existing registration data (teams, form values,
-        // waivers) if the user already registered for this role on this job.
-        await this.state.loadExistingRegistration(
+        this.signInRefusal.set(null);
+        // Prefill Profile with existing registration data (teams, form values, waivers) and
+        // load the stored profile. Shared with the wizard's own resume for a kept coach
+        // session, so arriving here while that is in flight joins it instead of re-fetching.
+        // It also carries the one-account-one-type answer (AR-151) — a family, club rep,
+        // admin or other-type login is signed straight back out, before anything of theirs loads.
+        await this.state.resumeAuthenticatedSession(
             this.state.jobPath(),
             this.state.roleKey(),
         );
-        this.state.markAccountHydrated();
+        const refusal = this.state.accountTypeRefusal();
+        if (refusal) {
+            this.auth.logoutLocal();
+            this.state.setMode('create');
+            this.state.setUsername('');
+            this.signInRefusal.set(refusal);
+        }
     }
 
     /** Summary "Continue" — proceed to the job-specific Profile step. */

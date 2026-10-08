@@ -1565,13 +1565,20 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (!string.IsNullOrEmpty(reg.RegsaverPolicyId))
             return new DeleteRegistrationResponse { Success = false, Message = "Cannot delete: registration has an active insurance policy." };
 
-        // Device cleanup before deletion
+        // Device cleanup before deletion. BOTH link tables hold a NO ACTION foreign key to the
+        // registration: Device_RegistrationIds (the TSIC-Teams login link) and Device_Teams (the
+        // rows a Teams login stamps with its registration). Legacy cleared both; clearing only
+        // the first left the second to block the delete with a 500.
         var deviceRegIds = await _deviceRepo.GetDeviceRegistrationIdsByRegistrationAsync(registrationId, ct);
         if (deviceRegIds.Count > 0)
-        {
             _deviceRepo.RemoveDeviceRegistrationIds(deviceRegIds);
+
+        var deviceTeams = await _deviceRepo.GetDeviceTeamsByRegistrationAsync(registrationId, ct);
+        if (deviceTeams.Count > 0)
+            _deviceRepo.RemoveDeviceTeams(deviceTeams);
+
+        if (deviceRegIds.Count > 0 || deviceTeams.Count > 0)
             await _deviceRepo.SaveChangesAsync(ct);
-        }
 
         // Delete the registration
         _registrationRepo.Remove(reg);

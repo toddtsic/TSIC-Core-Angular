@@ -24,6 +24,20 @@ public interface IAdultRegistrationRepository
     Task<bool> HasExistingRegistrationAsync(string userId, Guid jobId, string roleId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Does the account hold ANY registration in one of these roles — any job, active or not?
+    /// The account-type test the sign-up form uses on an existing username (AR-151).
+    /// </summary>
+    Task<bool> HasRegistrationInRolesAsync(string userId, IReadOnlyCollection<string> roleIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Is the account already a DIFFERENT type than these roles — a family login (family record,
+    /// or the family on any registration), a club rep (club link), or any registration in another
+    /// role (admin, club rep, player, another adult type)? A family login holds no registration
+    /// of its own (its players' rows sit on the children), so the registrations alone miss it.
+    /// </summary>
+    Task<bool> HoldsOtherAccountTypeAsync(string userId, IReadOnlyCollection<string> sameTypeRoleIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get a registration with its job for confirmation display (read-only).
     /// </summary>
     Task<Registrations?> GetRegistrationWithJobAsync(Guid registrationId, CancellationToken cancellationToken = default);

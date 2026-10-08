@@ -263,13 +263,13 @@ import type { JobRegFieldDto } from '@core/api';
                                                     [disabled]="!usLaxValue(field)"
                                                     (click)="beginVerify(field)">
                                                     <i class="bi bi-shield-check me-1"></i>
-                                                    Verify my USA&nbsp;Lacrosse membership
+                                                    Optional — verify my USA&nbsp;Lacrosse membership
                                                 </button>
                                                 @if (st === 'error' && state.usLaxMessage()) {
                                                     <div class="uslax-msg uslax-msg--err">{{ state.usLaxMessage() }}</div>
                                                 }
                                                 <small class="uslax-hint d-block mt-1">
-                                                    We'll email a one-time code to the address USA&nbsp;Lacrosse has on file to confirm it's you.
+                                                    We'll email a one-time code to the address USA&nbsp;Lacrosse has on file to confirm it's you. You can skip this and continue.
                                                 </small>
                                             }
                                         }

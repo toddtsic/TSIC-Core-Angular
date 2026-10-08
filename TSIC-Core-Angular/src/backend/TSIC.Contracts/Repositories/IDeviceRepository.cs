@@ -15,6 +15,13 @@ public interface IDeviceRepository
     Task<List<DeviceTeams>> GetDeviceTeamsByRegistrationAndTeamAsync(Guid registrationId, Guid teamId, CancellationToken ct = default);
 
     /// <summary>
+    /// Every DeviceTeams row stamped with a registration, on any team (tracked for deletion).
+    /// Device_Teams.RegistrationID is a NO ACTION foreign key, so these must go before the
+    /// registration does.
+    /// </summary>
+    Task<List<DeviceTeams>> GetDeviceTeamsByRegistrationAsync(Guid registrationId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get distinct DeviceIds linked to a registration via DeviceRegistrationIds (where Active=true).
     /// AsNoTracking — used to discover which devices to create DeviceTeams for.
     /// </summary>
@@ -36,7 +43,7 @@ public interface IDeviceRepository
 
     Task<Devices> GetOrCreateDeviceByTokenAsync(string deviceToken, string deviceType, CancellationToken ct = default);
     Task AddDeviceJobIfNotExistsAsync(string deviceId, Guid jobId, CancellationToken ct = default);
-    Task<bool> ToggleDeviceTeamAsync(string deviceId, Guid teamId, CancellationToken ct = default);
+    Task<bool> ToggleDeviceTeamAsync(string deviceId, Guid teamId, Guid? registrationId = null, CancellationToken ct = default);
 
     /// <summary>
     /// Idempotent team subscribe. Sync cannot use ToggleDeviceTeamAsync -- that DELETES the

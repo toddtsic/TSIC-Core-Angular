@@ -17,6 +17,7 @@ import type {
     FamilyPlayersResponseDto,
     FamilyPlayerDto,
     PlayerProfileFieldSchema,
+    PreSubmitPlayerDobDto,
     PreSubmitPlayerRegistrationRequestDto,
     PreSubmitPlayerRegistrationResponseDto,
     PreSubmitTeamSelectionDto,
@@ -348,7 +349,24 @@ export class PlayerWizardStateService {
             this.injectRequiredTeamField(formValues, teamIds, schemas);
             for (const tid of teamIds) teamSelections.push({ playerId: pid, teamId: tid, formValues });
         }
-        return { jobPath, teamSelections };
+        return { jobPath, teamSelections, usLaxDobs: this.buildUsLaxDobs(teamSelections) };
+    }
+
+    /**
+     * The DOB entered beside the USA Lacrosse number, for each submitted player whose entry DIFFERS
+     * from the account's stored DOB. The server asks USA Lacrosse about this value and writes it to
+     * the account only on a confirmed match; an unchanged DOB is not sent, so nothing is re-written.
+     */
+    private buildUsLaxDobs(teamSelections: PreSubmitTeamSelectionDto[]): PreSubmitPlayerDobDto[] {
+        const edits = this.playerForms.usLaxDobEdits();
+        const submitted = new Set(teamSelections.map(s => s.playerId));
+        const out: PreSubmitPlayerDobDto[] = [];
+        for (const [playerId, dob] of Object.entries(edits)) {
+            if (!dob || !submitted.has(playerId)) continue;
+            const stored = (this.familyPlayers.getPlayerDobRaw(playerId) ?? '').slice(0, 10);
+            if (dob !== stored) out.push({ playerId, dob });
+        }
+        return out;
     }
 
     private injectRequiredTeamField(

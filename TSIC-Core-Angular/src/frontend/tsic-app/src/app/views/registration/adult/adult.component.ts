@@ -138,6 +138,7 @@ export class AdultWizardV2Component implements OnInit {
         // fails closed to logout, which is the behaviour this has always had.
         const existing = this.auth.currentUser();
         const keptSession = !!existing?.regId && this.isOwnCoachSession(existing);
+        this.keptSession = keptSession;
         if (existing?.regId && !keptSession) {
             this.auth.logoutLocal();
         }
@@ -173,20 +174,58 @@ export class AdultWizardV2Component implements OnInit {
                 // State service already captured the error message.
                 const err = this.state.roleConfigError();
                 this.configError.set(err ?? 'Unable to load registration configuration.');
+                return;
             }
+            const pending = this.pendingStep;
+            this.pendingStep = null;
+            if (pending) this.goToDeepLinkStep(pending);
         });
 
         // Deep-link: ?step=<id>. Subscribe (not snapshot) so role-menu clicks that
         // differ only in ?step= while already on the wizard move to the new step.
+        //
+        // The step list is not known on arrival: Profile only exists once role config is
+        // loaded, and that request was fired a line above. Resolving here on arrival found no
+        // Profile, matched nothing, and silently left the user on Account — which is where
+        // the header's "My Registration" (?step=profile) actually landed every coach.
+        // So an arrival is held until role config settles; a later in-wizard click resolves
+        // at once.
         this.route.queryParamMap
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe(params => {
                 const stepParam = params.get('step');
-                if (stepParam) {
-                    const idx = this.activeSteps().findIndex(s => s.id === stepParam);
-                    if (idx >= 0) this.currentIndex.set(idx);
-                }
+                if (!stepParam) return;
+                if (this.state.roleConfig()) this.goToDeepLinkStep(stepParam);
+                else this.pendingStep = stepParam;
             });
+    }
+
+    /** A `?step=` that arrived before role config did, applied once it lands. */
+    private pendingStep: string | null = null;
+    /** This arrival kept the user's own Staff session for this job (see ngOnInit). */
+    private keptSession = false;
+
+    /**
+     * Jump to a deep-linked step — only where jumping is honest. In this wizard the ONE
+     * transition that does work is leaving Review (preSubmit, and submit when there is no
+     * fee; see next()). Any step up to and including Review is reachable without skipping
+     * work. A step past it would skip preSubmit, so it is not honoured here: the user stays
+     * where they are and walks forward through Review like anyone else.
+     *
+     * Account itself is a gate, not a transition: it is where an anonymous visitor signs in
+     * or creates the account. Only a user whose identity is already settled may land past
+     * it — a kept coach session (hydration in flight) or one already hydrated. Both links
+     * that ask for ?step=profile are handed to signed-in Staff only, but the URL is the
+     * user's to edit.
+     */
+    private goToDeepLinkStep(stepId: string): void {
+        const steps = this.activeSteps();
+        const idx = steps.findIndex(s => s.id === stepId);
+        const reviewIdx = steps.findIndex(s => s.id === 'review');
+        if (idx < 0 || idx > reviewIdx) return;
+        const identitySettled = this.keptSession || this.state.accountHydrated();
+        if (steps[idx].id !== 'account' && !identitySettled) return;
+        this.currentIndex.set(idx);
     }
 
     // ── Navigation ──────────────────────────────────────────────────

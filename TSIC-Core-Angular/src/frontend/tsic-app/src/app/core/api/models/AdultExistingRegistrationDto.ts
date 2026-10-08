@@ -8,5 +8,6 @@ export type AdultExistingRegistrationDto = {
     teamIds: Array<string>;
     formValues?: any | null;
     waiverAcceptance?: any | null;
+    accountTypeRefusal?: string | null;
 };
 
