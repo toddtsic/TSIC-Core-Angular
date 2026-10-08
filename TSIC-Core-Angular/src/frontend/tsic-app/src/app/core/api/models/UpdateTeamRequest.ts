@@ -11,6 +11,7 @@ export type UpdateTeamRequest = {
     maxCount?: number | null;
     bAllowSelfRostering?: boolean | null;
     bHideRoster?: boolean | null;
+    bDoNotValidateUslaxNumber?: boolean | null;
     startdate?: string | null;
     enddate?: string | null;
     effectiveasofdate?: string | null;

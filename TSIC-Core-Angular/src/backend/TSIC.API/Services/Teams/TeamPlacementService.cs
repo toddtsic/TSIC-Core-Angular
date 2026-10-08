@@ -383,6 +383,9 @@ public class TeamPlacementService : ITeamPlacementService
             // mirror must live in the same window as the team it shadows.
             Effectiveasofdate = sourceTeam.Effectiveasofdate,
             Expireondate = sourceTeam.Expireondate,
+            // A player placed on the twin is USA Lacrosse-checked against the twin, so it carries
+            // the source team's "do not validate" flag (AR-128).
+            BDoNotValidateUslaxNumber = sourceTeam.BDoNotValidateUslaxNumber,
             LebUserId = userId,
             Createdate = DateTime.Now,
             Modified = DateTime.Now

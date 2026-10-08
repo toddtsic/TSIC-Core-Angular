@@ -23,6 +23,9 @@ public record TeamDetailDto
     public bool? BAllowSelfRostering { get; init; }
     public required bool BHideRoster { get; init; }
 
+    // USA Lacrosse: number still required, but not checked with USA Lacrosse (legacy "DO NOT Validate USLax#")
+    public required bool BDoNotValidateUslaxNumber { get; init; }
+
     // Dates
     public DateTime? Startdate { get; init; }
     public DateTime? Enddate { get; init; }
@@ -121,6 +124,7 @@ public record UpdateTeamRequest
     public int? MaxCount { get; init; }
     public bool? BAllowSelfRostering { get; init; }
     public bool? BHideRoster { get; init; }
+    public bool? BDoNotValidateUslaxNumber { get; init; }
     public DateTime? Startdate { get; init; }
     public DateTime? Enddate { get; init; }
     public DateTime? Effectiveasofdate { get; init; }
