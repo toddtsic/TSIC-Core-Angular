@@ -2041,8 +2041,12 @@ public partial class RegistrationRepository : IRegistrationRepository
         // ── Club roster threshold search (with optional club name filter) ──
         if (request.RosterThreshold != null)
         {
+            // A waitlisted team isn't placed, so nobody has rostered to it: it would fall under any
+            // threshold and email a rep who is waiting, not short (AR-156).
             var teamsQuery = _context.Teams
-                .Where(t => t.JobId == jobId && t.ClubrepRegistrationid != null && t.Active == true);
+                .Where(t => t.JobId == jobId && t.ClubrepRegistrationid != null && t.Active == true
+                    && (t.Agegroup.AgegroupName == null
+                        || !t.Agegroup.AgegroupName.StartsWith(AgegroupConstants.WaitlistMintedPrefix)));
 
             // Narrow to specific club rep clubs when specified
             if (request.RosterThresholdClubNames is { Count: > 0 })
