@@ -126,6 +126,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                 [showTotalFee]="false"
                 [showDeposit]="true"
                 [showBalance]="showBalanceColumn()"
+                [balanceHeader]="cartPhase() === 'deposit' ? 'Additional Fees' : 'Balance Due'"
                 [procFeeHeader]="procFeeHeaderLabel()"
                 [frozenTeamCol]="true"
                 [teamColWidth]="70"
@@ -958,10 +959,12 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
      *  baseline means this label is never null. */
     readonly phaseBadgeLabel = computed(() =>
         cartPhaseBadgeLabel(this.cartPhase(), this.state.fullPaymentRequired()));
-    /** Show the Balance-Due column whenever ANY row is full-payment (its balance is active);
-     *  each row's cell still renders its own additionalDue. An all-deposit cart hides it. */
-    readonly showBalanceColumn = computed(() => this.cartPhase() === 'full' || this.cartPhase() === 'mixed');
-    readonly procFeeHeaderLabel = computed(() => this.showBalanceColumn() ? 'ProcFee Due' : 'Proc Fee');
+    /** The AdditionalDue column. Once ANY row is full-payment it is a live balance ("Balance Due");
+     *  in an all-deposit cart it is the balance still to come, shown as "Additional Fees"
+     *  (AR-122). A single-payment cart has no later balance, so the column stays hidden. Each
+     *  row's cell still renders its own additionalDue. */
+    readonly showBalanceColumn = computed(() => this.cartPhase() !== 'single' && this.cartPhase() !== 'none');
+    readonly procFeeHeaderLabel = computed(() => this.cartPhase() === 'full' || this.cartPhase() === 'mixed' ? 'ProcFee Due' : 'Proc Fee');
     readonly showProcessing = computed(() => this.state.teamPayment.bAddProcessingFees());
     /** Drives the summary grid's method-reactive Proc Fee + Owed columns so they track the
      *  selected tile and reconcile with the Pay button. ARB-Trial follows its funding sub-source

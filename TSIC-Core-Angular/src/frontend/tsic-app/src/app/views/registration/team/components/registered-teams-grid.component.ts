@@ -133,8 +133,6 @@ export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
               <span class="agegroup-cell">{{ data.ageGroupDisplayName }}</span>
             </ng-template>
           </e-column>
-          <e-column field="registrationTs" headerText="Reg Date" width="70" type="date" format="MM/dd/yy"
-                    [visible]="showRegDate()"></e-column>
           <e-column field="tenderPaid" headerText="Paid" width="75" textAlign="Right" format="C2"
                     [visible]="showPaid()">
             <ng-template #template let-data>
@@ -184,7 +182,7 @@ export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
           </e-column>
           <e-column field="depositDue" headerText="Deposit Due" width="75" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
-          <e-column field="additionalDue" headerText="Balance Due" width="75" textAlign="Right" format="C2"
+          <e-column field="additionalDue" [headerText]="balanceHeader()" width="75" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
           <!-- Total Fee = structural sum (Deposit + BalanceDue), not feeTotal which is
                phase-aware (deposit-phase total = deposit + processing). The field stays
@@ -258,6 +256,11 @@ export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
               </span>
             </ng-template>
           </e-column>
+          <!-- Reg Date sits LAST (AR-122): it is reference, not money, so once the grid scrolls
+               sideways it is the column to lose, and the width goes to longer team names. Only
+               the payment step shows it. -->
+          <e-column field="registrationTs" headerText="Reg Date" width="70" type="date" format="MM/dd/yy"
+                    [visible]="showRegDate()"></e-column>
         </e-columns>
         <e-aggregates>
           <e-aggregate>
@@ -293,9 +296,10 @@ export function sumDueNowOf(teams: readonly RegisteredTeamDto[]): number {
                   <div class="aggregate-value">{{ sumBalanceDue() | currency }}</div>
                 </ng-template>
               </e-column>
+              <!-- Money in reads green, like the Paid cells above it (AR-122); $0 stays muted. -->
               <e-column field="tenderPaid" type="Sum" format="C2">
                 <ng-template #footerTemplate let-data>
-                  <div class="aggregate-value">{{ sumPaid() | currency }}</div>
+                  <div class="aggregate-value" [style.color]="sumPaid() > 0 ? 'var(--bs-success)' : 'var(--brand-text-muted)'">{{ sumPaid() | currency }}</div>
                 </ng-template>
               </e-column>
               <e-column field="depositDue" type="Sum" format="C2">
@@ -547,6 +551,9 @@ export class RegisteredTeamsGridComponent {
     // wizard grids leave this false → conditional (shown only when some row is non-zero).
     readonly alwaysShowFeeAdj = input(false);
     readonly procFeeHeader = input('Proc Fee');
+    // The AdditionalDue column's label. In deposit phase that figure is the balance still to
+    // come, so the payment step calls it "Additional Fees" there (AR-122).
+    readonly balanceHeader = input('Balance Due');
     // Which field the Proc Fee column/aggregate renders. Teams show 'feeProcessingDue' (proc
     // still owed if CC-billed); the family statement shows 'feeProcessing' (the statement-of-fact
     // proc read off the registration), so Total Fee + Proc reconciles with what was paid.
@@ -592,10 +599,10 @@ export class RegisteredTeamsGridComponent {
     readonly showFeeAdj = computed(() => this.alwaysShowFeeAdj() || this.teams().some(t => (t.feeAdj ?? 0) !== 0));
 
     // Last column-visibility/header state we rebuilt the header for. feeAdj is seeded to
-    // match the initial all-hidden render so the first dataBound is a no-op; ccOwedHeader
-    // is seeded null (the initial render paints the correct label from the binding) and
+    // match the initial all-hidden render so the first dataBound is a no-op; headers
+    // is seeded null (the initial render paints the correct labels from the bindings) and
     // recorded on first dataBound.
-    private lastColVis: { feeAdj: boolean; ccOwedHeader: string | null } = { feeAdj: false, ccOwedHeader: null };
+    private lastColVis: { feeAdj: boolean; headers: string | null } = { feeAdj: false, headers: null };
 
     // Body-mounted styled popover for the Fee-Adj header "i". Shared with the family players
     // grid, which shows the same column and the same affordance.
@@ -629,13 +636,15 @@ export class RegisteredTeamsGridComponent {
         this.feeAdjInfo.wire(grid.element);
 
         const feeAdj = this.showFeeAdj();
-        const ccOwedHeader = this.ccOwedHeader();
-        const headerStale = this.lastColVis.ccOwedHeader !== null
-            && ccOwedHeader !== this.lastColVis.ccOwedHeader;
+        // Every runtime-bound header label, as one key — any of them changing leaves the
+        // rendered header stale the same way.
+        const headers = [this.ccOwedHeader(), this.balanceHeader(), this.procFeeHeader()].join('|');
+        const headerStale = this.lastColVis.headers !== null
+            && headers !== this.lastColVis.headers;
         const feeAdjStale = feeAdj !== this.lastColVis.feeAdj;
         // Record BEFORE refreshColumns so the dataBound it triggers sees no change
         // and returns early — that's the loop guard.
-        this.lastColVis = { feeAdj, ccOwedHeader };
+        this.lastColVis = { feeAdj, headers };
         if (feeAdjStale || headerStale) grid.refreshColumns();
     }
 
