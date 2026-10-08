@@ -152,6 +152,12 @@ public interface ITeamRepository
     Task<Dictionary<Guid, string?>> GetTeamDivisionNamesAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Each team's own pool placement (division, its agegroup, rank, active flag), keyed by team ID.
+    /// Teams with no division are omitted — they belong to no pool.
+    /// </summary>
+    Task<Dictionary<Guid, TeamPoolPlacementDto>> GetTeamPoolPlacementsAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Find teams in a job by a set of team names (case-insensitive). Used for waitlist mirror lookups.
     /// </summary>
     Task<List<Teams>> GetTeamsForJobByNamesAsync(Guid jobId, IReadOnlyCollection<string> teamNames, CancellationToken cancellationToken = default);

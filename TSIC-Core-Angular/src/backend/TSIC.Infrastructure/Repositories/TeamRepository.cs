@@ -67,6 +67,28 @@ public class TeamRepository : ITeamRepository
             .ToDictionaryAsync(x => x.TeamId, x => x.DivName, cancellationToken);
     }
 
+    public async Task<Dictionary<Guid, TeamPoolPlacementDto>> GetTeamPoolPlacementsAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
+    {
+        if (teamIds.Count == 0) return [];
+
+        // Agegroup comes off the DIVISION (Divisions.AgegroupId, non-nullable), so a pool and its
+        // agegroup can never disagree here.
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId) && t.Div != null)
+            .Select(t => new TeamPoolPlacementDto
+            {
+                TeamId = t.TeamId,
+                DivId = t.Div!.DivId,
+                DivName = t.Div.DivName ?? "",
+                AgegroupId = t.Div.AgegroupId,
+                AgegroupName = t.Div.Agegroup.AgegroupName ?? "",
+                DivRank = t.DivRank,
+                Active = t.Active == true
+            })
+            .ToDictionaryAsync(x => x.TeamId, cancellationToken);
+    }
+
     public async Task<List<Teams>> GetTeamsForJobByNamesAsync(Guid jobId, IReadOnlyCollection<string> teamNames, CancellationToken cancellationToken = default)
     {
         return await _context.Teams

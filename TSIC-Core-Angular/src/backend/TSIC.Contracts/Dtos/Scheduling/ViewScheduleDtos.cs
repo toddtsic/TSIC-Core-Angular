@@ -34,6 +34,23 @@ public record ScheduleFilterRequest
 }
 
 /// <summary>
+/// A team's OWN pool placement (Teams.DivId → Divisions → Agegroups) — the authority on which pool
+/// a team belongs to. A schedule row's divID/agegroupID describe the GAME, not every team in it: a
+/// cross-pool game carries a team whose pool differs from the row's. Standings group by this, and
+/// Edit Game stamps a slot from it.
+/// </summary>
+public record TeamPoolPlacementDto
+{
+    public required Guid TeamId { get; init; }
+    public required Guid DivId { get; init; }
+    public required string DivName { get; init; }
+    public required Guid AgegroupId { get; init; }
+    public required string AgegroupName { get; init; }
+    public required int DivRank { get; init; }
+    public required bool Active { get; init; }
+}
+
+/// <summary>
 /// The canonical team record — the single source of truth for a team's W-L-T, goals, and games,
 /// produced by <c>IScheduleRepository.GetTeamRecord(s)Async</c>. Determined over the team's SCORED
 /// games (both scores present), from the team's own perspective:
