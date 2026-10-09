@@ -4958,7 +4958,7 @@ There is no disadvantage when registration opens — a few keystrokes per team, 
 - **Status**: 🔴 **OPEN — filed 10-08 (Ann), cause found at filing.** **For Todd:** ✅ **fix 1 is a few lines and removes the block.** ⏳ **fix 2 is the durable one.** ⚙ **Related: AR-131** (library team identity — check whether this guard was its leftover), **AR-143 rec 2** (the library stays, so this path is permanent).
 
 
-### AR-156: ✅ BUILT (Todd, 10-08) + TESTED — both parts, exactly as asked · filed 10-08 (Ann) · [Search Registrations / Set Filters → Roster Scan] Exclude waitlisted teams from the scan, and drop 1, 2 and 3 from the Rostered Players dropdown
+### AR-156: 🔴 REOPENED 10-09 (Ann) — parts 1+2 BUILT 10-08 and ACCEPTED; PART 3 NEW: Dropped Teams must come out too · filed 10-08 (Ann) · [Search Registrations / Set Filters → Roster Scan] Exclude waitlisted teams from the scan, and drop 1, 2 and 3 from the Rostered Players dropdown
 
 **✅ TODD'S RULING, 10-08: Ann's ask as written — waitlists only.** ⛔ **Dropped Teams / Registration buckets: NOT excluded** (not asked for; the system-bucket question below is not taken up).
 
@@ -4991,6 +4991,25 @@ There is no disadvantage when registration opens — a few keystrokes per team, 
 - ⚙ **It is a static `<option>` list in the template — a few lines, no backend.**
 
 - **Severity**: 🔴 **on part 1 — a communication goes to the wrong recipients, and the sender has no way to see that from the screen.** 🟡 **on part 2 — list hygiene.**
+
+#### 📣 ANN, 10-09 — **KEEP OPEN. DROPPED TEAMS MUST COME OUT TOO.**
+
+> *"Dropped Teams need to come out of this list. Any Dropped Team will likely have less than the number selected rostered, so a club rep will receive this who it doesn't apply to."*
+
+- 🎯 **HER ARGUMENT IS THE SAME ONE THAT CARRIED PART 1, APPLIED TO THE OTHER SYSTEM BUCKET:** a dropped team is short-rostered **by its nature**, so it falls under any threshold and drags its rep into an email that does not apply to them. ⛔ **Todd scoped the 10-08 build to *"Ann's ask as written — waitlists only"*; this is her saying the ask now includes Dropped.**
+- 🔍 **MEASURED 10-09 (dev) — MOSTLY ALREADY HANDLED, BUT NOT ENTIRELY.** **The scan already filters `t.Active == true`, and the normal drop path sets `Active = false`:**
+
+| Teams in a `Dropped …` age group | Count | In the scan? |
+|:--|--:|:--|
+| `Dropped Teams`, **Active = 0** | **3,909** | ✅ already excluded by `t.Active == true` |
+| `Dropped Teams`, **Active = 1** | **7** | 🔴 **still counted** |
+| `Dropped Players`, **Active = 1** | **2** | 🔴 **still counted** |
+
+- ✅ **SO THE FIX IS CHEAP AND CORRECT — belt and braces over the Active filter** — ⚠ **but the population it rescues is 9 rows on dev, not thousands.** 🎯 **Worth saying plainly so the change is not oversold: the common case was already right.**
+- 🔴 **AND THE RESIDUAL MAY BE ITS OWN DEFECT, WORTH A LOOK BEFORE IT IS PAPERED OVER: why are 9 teams sitting in a DROPPED bucket while still `Active = 1`?** ⚠ **Either the drop path can leave a team active, or something re-activated them afterwards.** ⏳ **Excluding the bucket hides those rows from this scan; it does not explain them.**
+- ⚙ **`AgegroupConstants.DroppedTeams` already exists and is used by `IsSystemBucket`** — ⛔ **do not re-parse the name.** ⏳ **Todd should also say whether the `Registration` bucket (the third system bucket) comes out at the same time.**
+- **Status**: 🔴 **REOPENED 10-09 (Ann) — parts 1 and 2 BUILT and accepted; part 3 (exclude Dropped) is new and open.**
+
 - **Status**: 🔴 **OPEN — filed 10-08 (Ann), both parts located.** **For Todd:** ✅ **part 1 is one predicate using the existing `IsWaitlist` helper; part 2 is three deleted `<option>` lines.** ⏳ **Rule the DROPPED/system-bucket question alongside part 1 — same class of wrong recipient.** ❓ **Ann owes the reason for dropping 1–3, if the ruling needs one.**
 
 
