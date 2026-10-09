@@ -248,7 +248,8 @@
                  A mark means "needs email"; blank means it doesn't — the marked rows are the
                  exception, so leaving the healthy majority blank is what makes them scannable.
                  The glyph carries a title + aria-label because colour alone must not convey it. -->
-            <e-column headerText="Email?" width="104" minWidth="96" textAlign="Center" field="needsEmail">
+            <e-column headerText="Email?" width="104" minWidth="96" textAlign="Center" field="needsEmail"
+                      [sortComparer]="needsEmailSortComparer">
                 <ng-template #template let-data>
                     @if (needsAction(data)) {
                         <i class="bi bi-check2 text-danger fw-bold"

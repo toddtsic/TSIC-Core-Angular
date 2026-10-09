@@ -31,6 +31,30 @@ public static class UsLaxEligibilityPolicy
     public const string TestMembershipNumber = "424242424242";
 
     /// <summary>
+    /// The number as USA Lacrosse would be asked about it, or null when it can't be one: trimmed,
+    /// one leading <c>#</c> dropped (families type <c>#01003045157</c>), then 6–12 digits. The one
+    /// definition of "well-formed" — the vendor client refuses to forward anything this rejects, and
+    /// <see cref="Evaluate"/> judges a rejected number NotFound, so the two cannot disagree.
+    /// </summary>
+    public static string? NormalizeMembershipNumber(string? raw)
+    {
+        var s = raw?.Trim() ?? string.Empty;
+        if (s.StartsWith('#')) s = s[1..].Trim();
+        return s.Length is >= 6 and <= 12 && s.All(char.IsAsciiDigit) ? s : null;
+    }
+
+    /// <summary>
+    /// AR-145: a number on file that can't be a USA Lacrosse number (<c>123</c>, <c>NA</c>). The vendor
+    /// client never sends it, so it arrives here as status 0 — which alone reads as "USA Lacrosse
+    /// unreachable", our failure, and the reconcile grid then withholds the email and the submit gate
+    /// tells the family to try again. It is the family's to fix, so it is judged NotFound instead.
+    /// Blank is not this case: callers only judge a number that was supplied.
+    /// </summary>
+    private static bool IsMalformed(UsLaxEligibilityInput input) =>
+        !string.IsNullOrWhiteSpace(input.MembershipNumber)
+        && NormalizeMembershipNumber(input.MembershipNumber) is null;
+
+    /// <summary>
     /// Legacy's <c>[Remote]</c> failure text, verbatim from the ~20 PP/CAC form models that carried
     /// it (e.g. PP20ViewModel). It enumerates every way this check can fail and routes the family to
     /// USA Lacrosse to fix it themselves, which is why it stays a single message rather than being
@@ -73,6 +97,10 @@ public static class UsLaxEligibilityPolicy
         // player one did — so a team's opt-out excuses its players, not the adults coaching them.
         if (input.TeamValidationDisabled && !RequiresCoach(input))
             return Pass(UsLaxEligibilityReason.TeamBypass, null);
+
+        // Ahead of the cutoff and vendor checks: neither can rescue a number that isn't one.
+        if (IsMalformed(input))
+            return Fail(UsLaxEligibilityReason.NotFound);
 
         // No cutoff configured → reject. Legacy's `if (lastGameDay != null && ...)` fell through to
         // `return Ok(false)`, and every live job that collects a number has a cutoff set, so this
@@ -191,6 +219,19 @@ public static class UsLaxEligibilityPolicy
                 Label = "Validation bypassed",
                 Passed = null,
                 Detail = "USA Lacrosse validation is turned off for this player's team."
+            });
+            return rows;
+        }
+
+        // Not a number USA Lacrosse could be asked about — the family's to fix, not our outage.
+        if (IsMalformed(input))
+        {
+            rows.Add(new UsLaxCheckRow
+            {
+                Key = nameof(UsLaxEligibilityReason.NotFound),
+                Label = "USA Lacrosse has a record for this number",
+                Passed = false,
+                Detail = $"\"{input.MembershipNumber!.Trim()}\" is not a USA Lacrosse number — they are 6 to 12 digits."
             });
             return rows;
         }

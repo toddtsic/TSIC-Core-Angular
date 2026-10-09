@@ -709,6 +709,25 @@ export class UsLaxMembershipComponent implements OnInit {
 	// derived value comes from. An arrow property, not a method — it is passed by reference into
 	// the grid and would otherwise lose `this`.
 
+	/**
+	 * AR-145 (Ann, 10-06): Email? is the worklist, so the FIRST click must put the marked rows on top
+	 * — ascending on the plain 'Yes'/'No' field put "No" first and took a second click. Within each
+	 * group the rows read alphabetically, because a header click replaces the default name sort and
+	 * would otherwise leave them in server order. The second click reverses the whole order.
+	 */
+	readonly needsEmailSortComparer = (
+		x: unknown,
+		y: unknown,
+		xRow?: UsLaxGridRow,
+		yRow?: UsLaxGridRow
+	): number => {
+		const rank = (v: unknown) => v === 'Yes' ? 0 : 1;
+		const byFlag = rank(x) - rank(y);
+		if (byFlag !== 0) return byFlag;
+		const name = (r?: UsLaxGridRow) => r ? `${r.lastName}, ${r.firstName}` : '';
+		return name(xRow).localeCompare(name(yRow), undefined, { sensitivity: 'base' });
+	};
+
 	/** Orders the Involvement column by its badge text, e.g. "Player" before "Player, Official". */
 	readonly involvementSortComparer = (
 		_x: unknown,
