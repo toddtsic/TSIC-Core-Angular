@@ -643,6 +643,7 @@ export type { ResendInvoicesResponse } from './models/ResendInvoicesResponse';
 export type { ResetContextDto } from './models/ResetContextDto';
 export type { ResetPasswordRequest } from './models/ResetPasswordRequest';
 export type { ResetPasswordTarget } from './models/ResetPasswordTarget';
+export type { RevalidateUsLaxRequest } from './models/RevalidateUsLaxRequest';
 export type { RevalidateUsLaxRequestDto } from './models/RevalidateUsLaxRequestDto';
 export type { RevalidateUsLaxResultDto } from './models/RevalidateUsLaxResultDto';
 export type { RevenueRollupResponseDto } from './models/RevenueRollupResponseDto';

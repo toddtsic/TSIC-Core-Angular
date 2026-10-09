@@ -244,6 +244,11 @@ public record RevalidateUsLaxResultDto
     public string? ExpDate { get; init; }
     public string? Message { get; init; }
 
+    /// <summary>AR-149: true when <see cref="ExpDate"/> was written to the registration; false when the
+    /// number checked is not the one on file (an unsaved edit), so nothing was recorded. Null when the
+    /// caller does not report it (the coach-approval-queue path).</summary>
+    public bool? ExpiryRecorded { get; init; }
+
     /// <summary>Verdict from <c>UsLaxEligibilityPolicy</c> — the SAME rule the registration form
     /// applies, run with the involvement this registration's role requires. Null when the caller
     /// refreshed currency without judging eligibility (the coach-approval-queue path), so a null

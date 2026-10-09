@@ -27,8 +27,10 @@ public interface IRegistrationSearchService
     /// <summary>
     /// Re-ping this registration's USA Lacrosse membership and record the refreshed expiry
     /// (<c>SportAssnIdexpDate</c>) onto that single row. Works for players and coaches alike.
+    /// <paramref name="onScreen"/> (AR-149) carries the panel's possibly-unsaved values; the check runs
+    /// on them, and the expiry is recorded only when the number checked is the one on file.
     /// </summary>
-    Task<RevalidateUsLaxResultDto> RevalidateUsLaxAsync(Guid jobId, Guid registrationId, CancellationToken ct = default);
+    Task<RevalidateUsLaxResultDto> RevalidateUsLaxAsync(Guid jobId, Guid registrationId, RevalidateUsLaxRequest? onScreen = null, CancellationToken ct = default);
 
     /// <summary>
     /// Admin resend of the registrant's confirmation email, role-routed to the registrant's own

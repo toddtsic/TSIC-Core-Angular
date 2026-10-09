@@ -311,9 +311,13 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     /// (which is anchor-scoped and fans the expiry across every Staff grant for the user), this
     /// records onto exactly the registration in view — so it works for players and coaches alike.
     /// A vendor outage leaves the stored expiry untouched and reports the transient failure.
+    /// AR-149: the check runs on what the panel is SHOWING (<paramref name="onScreen"/>), falling back
+    /// to the stored value per field — so an edited number, last name or DOB is checked before Save.
+    /// The expiry is recorded only when the number checked is the one on file; an unsaved number's
+    /// expiry would describe a membership this registration does not carry.
     /// </summary>
     public async Task<RevalidateUsLaxResultDto> RevalidateUsLaxAsync(
-        Guid jobId, Guid registrationId, CancellationToken ct = default)
+        Guid jobId, Guid registrationId, RevalidateUsLaxRequest? onScreen = null, CancellationToken ct = default)
     {
         // One query for every policy input — identity, cutoff, team bypass, role. The old path read
         // only the registration, which is why this action could refresh an expiry but never say
@@ -322,14 +326,29 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (ctx is null)
             return new RevalidateUsLaxResultDto { Found = false, Message = "Registration not found for this job." };
 
-        if (string.IsNullOrWhiteSpace(ctx.SportAssnId))
-            return new RevalidateUsLaxResultDto { Found = false, Message = "No USA Lacrosse number on file." };
+        var number = string.IsNullOrWhiteSpace(onScreen?.MembershipNumber) ? ctx.SportAssnId : onScreen.MembershipNumber.Trim();
+        var lastName = string.IsNullOrWhiteSpace(onScreen?.LastName) ? ctx.LastName : onScreen.LastName.Trim();
+        var dob = DateTime.TryParseExact(onScreen?.Dob, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var screenDob) ? screenDob : ctx.Dob;
 
-        var member = await _usLax.GetMemberAsync(ctx.SportAssnId, ct);
+        if (string.IsNullOrWhiteSpace(number))
+            return new RevalidateUsLaxResultDto { Found = false, ExpiryRecorded = false, Message = "No USA Lacrosse number on file." };
+
+        // The vendor client never sends a malformed number (status 0), which below would read as an
+        // outage. Say what it is instead — the same "can't be a number" rule AR-145 applies.
+        if (UsLaxEligibilityPolicy.NormalizeMembershipNumber(number) is null)
+            return new RevalidateUsLaxResultDto { Found = false, ExpiryRecorded = false, Message = $"\"{number}\" is not a USA Lacrosse number (6 to 12 digits)." };
+
+        var isNumberOnFile = string.Equals(
+            UsLaxEligibilityPolicy.NormalizeMembershipNumber(number),
+            UsLaxEligibilityPolicy.NormalizeMembershipNumber(ctx.SportAssnId),
+            StringComparison.Ordinal);
+
+        var member = await _usLax.GetMemberAsync(number, ct);
 
         // Vendor unreachable / transient → leave the stored value untouched, just report.
         if (member is null || member.StatusCode == 0)
-            return new RevalidateUsLaxResultDto { Found = false, Message = "USA Lacrosse is unreachable right now. Try again shortly." };
+            return new RevalidateUsLaxResultDto { Found = false, ExpiryRecorded = false, Message = "USA Lacrosse is unreachable right now. Try again shortly." };
 
         var expDate = DateTime.TryParse(member.Output?.ExpDate, out var dt) ? dt : (DateTime?)null;
 
@@ -337,8 +356,10 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         // Written REGARDLESS of the verdict below, exactly as the registration submit path does:
         // an accurate expiry on file is what makes the lapsed-membership backlog reportable, and
         // suppressing it for a failing member would hide the very rows a director needs to see.
-        if (member.StatusCode == 200 && expDate.HasValue)
-            await _registrationRepo.UpdateSportAssnIdExpDateAsync(registrationId, expDate.Value, ct);
+        // AR-149: but only for the number ON FILE — Save of a changed number re-runs this to record.
+        var expiryRecorded = isNumberOnFile && member.StatusCode == 200 && expDate.HasValue;
+        if (expiryRecorded)
+            await _registrationRepo.UpdateSportAssnIdExpDateAsync(registrationId, expDate!.Value, ct);
 
         // Same policy the registration form runs, with the involvement this role requires: a Player
         // registration must carry a Player involvement, every adult role a Coach one. Legacy ran two
@@ -350,7 +371,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         var policyInput = new UsLaxEligibilityInput
         {
-            MembershipNumber = ctx.SportAssnId,
+            MembershipNumber = number,
             RequiredInvolvement = involvement,
             ValidThrough = ctx.ValidThrough,
             TeamValidationDisabled = ctx.TeamValidationDisabled,
@@ -360,8 +381,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             VendorLastName = member.Output?.LastName,
             VendorBirthdate = member.Output?.Birthdate,
             VendorInvolvement = member.Output?.Involvement,
-            RegistrantLastName = ctx.LastName,
-            RegistrantDob = ctx.Dob
+            RegistrantLastName = lastName,
+            RegistrantDob = dob
         };
 
         // Verdict for the gate-shaped answer, checklist for the panel — same input, same predicates.
@@ -372,11 +393,12 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             Found = member.StatusCode == 200,
             MemStatus = member.Output?.MemStatus ?? (member.StatusCode == 404 ? "Not found" : null),
             ExpDate = expDate?.ToString("yyyy-MM-dd"),
+            ExpiryRecorded = expiryRecorded,
             Message = member.StatusCode == 200 ? null : (member.ErrorMessage ?? "Membership not found."),
             Eligible = verdict.Valid,
             EligibilityReason = verdict.Reason.ToString(),
             EligibilityDetail = UsLaxEligibilityPolicy.DetailFor(
-                verdict, ctx.ValidThrough, ctx.LastName, ctx.Dob,
+                verdict, ctx.ValidThrough, lastName, dob,
                 member.Output?.MemStatus, member.Output?.LastName, member.Output?.Birthdate),
             Checks = UsLaxEligibilityPolicy.Describe(policyInput)
                 .Select(r => new UsLaxCheckRowDto
