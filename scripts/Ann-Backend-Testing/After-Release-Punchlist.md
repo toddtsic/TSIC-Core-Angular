@@ -4449,7 +4449,7 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 - ⚠ **OBSERVATIONS, NOT FIXED:**
   - **The summary banner still counts Rockhold under "checks failed"** (red), because no lookup was made for him. The banner's second "failed" row is `LN Player Test 12`, which uses the reserved test number and is eligible by design. Changing that wording is a one-line change; it's Todd's call.
   - **NOT browser-tested:** **(a)** the player submit-gate message for a malformed number. In code it's now the standard "not found" checklist; it needs a job where the number is required. **(b)** At adult sign-up, `#0100…` now gets a real coach check and can be **rejected** where before it was saved unverified. **(c)** Registration search.
-  - **Unit tests written, not run:** `--filter "FullyQualifiedName~TSIC.Tests.UsLax"` (new `UsLaxEligibilityPolicyMalformedNumberTests`).
+  - ✅ **Unit tests RUN 10-09: 54/54 pass** (`--filter "FullyQualifiedName~TSIC.Tests.UsLax"`), including 18 new ones in `UsLaxEligibilityPolicyMalformedNumberTests`.
   - **Two places still have their own copy of the format check, so `#` is not stripped there:** the coach email-code identity flow (`UsLaxIdentityVerificationService.cs:302`) and the test-tool endpoint (`UsLaxMembershipController.cs:57`). Effect: in the coach email-code flow, `#0100…` is still rejected while the save path accepts it. **Not an AR-145 defect. Follow-up only on Todd's go.**
 
 - **Topic**: the **Membership Reconciliation** grid — how the **`Email?`** column sorts, and **what it does and does not flag**
