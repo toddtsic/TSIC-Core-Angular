@@ -4579,7 +4579,7 @@ The UTC offset is included so a reader anywhere in the world can convert it with
 
 - **Tested (Playwright, local, Shoulberg family; every save intercepted, nothing written):** stored `973-479-3447` loads as `9734793447` and saves with no error on both forms; `abc`, `abc@def` and `not an email` show "Invalid email" and block the save; `abc@def.com` saves. Todd confirmed the pop-up by eye 10-09 (Brynn: email and phone filled).
 - ⚠ **Side effect:** a player whose stored email is already malformed must have it corrected before an edit saves — **6 accounts** in the dev copy.
-- **For Ann to verify after deploy:**
+- **For Ann to verify (pull, run locally):**
   1. Edit Family Account → Players → pencil on a player whose phone shows hyphens → Save → it saves.
   2. Type `abc@def` in Email → "Invalid email".
   3. My Registration → pencil on a player → the Edit Player pop-up shows their email and phone.
