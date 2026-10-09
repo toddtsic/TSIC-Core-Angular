@@ -336,6 +336,9 @@ export class FamilyPlayersService {
                 lastName: getPropertyCI<string>(p, 'lastName') ?? '',
                 gender: getPropertyCI<string>(p, 'gender') ?? '',
                 dob: getPropertyCI<string>(p, 'dob') ?? undefined,
+                // AR-148: the Edit Player modal seeds its contact fields from these.
+                email: getPropertyCI<string>(p, 'email') ?? undefined,
+                phone: getPropertyCI<string>(p, 'phone') ?? undefined,
                 registered: !!getPropertyCI<boolean>(p, 'registered'),
                 hasAnyRegistration: !!getPropertyCI<boolean>(p, 'hasAnyRegistration'),
                 selected: false,
