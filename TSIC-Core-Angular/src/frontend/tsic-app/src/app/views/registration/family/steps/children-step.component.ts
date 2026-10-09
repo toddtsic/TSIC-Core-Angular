@@ -146,8 +146,8 @@ import { environment } from '@environments/environment';
               <div class="col-12 col-md-6">
                 <label class="field-label" for="v2-childEmail">Email <span class="tip">(optional)</span></label>
                 <input id="v2-childEmail" type="email" formControlName="email" class="field-input"
-                       [class.is-invalid]="submitted() && form.controls.email.errors?.['email']" />
-                @if (submitted() && form.controls.email.errors?.['email']) { <div class="field-error">Invalid email</div> }
+                       [class.is-invalid]="submitted() && form.controls.email.invalid" />
+                @if (submitted() && form.controls.email.invalid) { <div class="field-error">Invalid email</div> }
               </div>
               <div class="col-12 col-md-6">
                 <label class="field-label" for="v2-childPhone">Cellphone <span class="tip">(optional)</span></label>
@@ -363,7 +363,8 @@ export class ChildrenStepComponent {
         lastName: ['', [Validators.required]],
         gender: ['', [Validators.required]],
         dob: ['', [Validators.required, this.ageRangeValidator(2, 99)]],
-        email: ['', [Validators.email]],
+        // AR-148: Validators.email accepts `x@y`; require a dotted domain like the other wizards.
+        email: ['', [Validators.pattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)]],
         phone: ['', [Validators.pattern(/^\d*$/)]],
     });
 
@@ -469,7 +470,8 @@ export class ChildrenStepComponent {
             gender: c.gender,
             dob: c.dob ?? '',
             email: c.email ?? '',
-            phone: c.phone ?? '',
+            // AR-148: legacy rows store `973-479-3447`; load digits so the field passes its own rule.
+            phone: (c.phone ?? '').replaceAll(/\D+/g, ''),
         });
         this.editingIndex.set(index);
         this.submitted.set(false);

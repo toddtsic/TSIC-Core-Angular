@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, output, signal, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { FamilyService } from '@infrastructure/services/family.service';
@@ -81,7 +81,11 @@ import type { ChildDto } from '@core/api';
                 Email <span class="tip">(optional)</span>
               </label>
               <input id="pfm-email" type="email" class="form-control form-control-sm"
-                     [value]="email()" (input)="email.set($any($event.target).value)" />
+                     [value]="email()" (input)="email.set($any($event.target).value)"
+                     [class.is-invalid]="submitted() && !emailValid()" />
+              @if (submitted() && !emailValid()) {
+                <div class="invalid-feedback">Invalid email</div>
+              }
             </div>
             <div class="col-6">
               <label for="pfm-phone" class="form-label small fw-medium mb-1">
@@ -146,6 +150,11 @@ export class PlayerFormModalComponent implements OnInit {
     readonly submitted = signal(false);
     readonly saving = signal(false);
     readonly errorMsg = signal<string | null>(null);
+    /** AR-148: optional, but when present it must be an address — same rule as the other wizards. */
+    readonly emailValid = computed(() => {
+        const e = this.email().trim();
+        return !e || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+    });
 
     ngOnInit(): void {
         const initialData = this.initialData();
@@ -155,7 +164,8 @@ export class PlayerFormModalComponent implements OnInit {
             this.gender.set(initialData.gender ?? '');
             this.dob.set(initialData.dob ?? '');
             this.email.set(initialData.email ?? '');
-            this.phone.set(initialData.phone ?? '');
+            // AR-148: legacy rows store `973-479-3447`; the field holds digits.
+            this.phone.set((initialData.phone ?? '').replace(/\D+/g, '').slice(0, 15));
         }
     }
 
@@ -168,7 +178,7 @@ export class PlayerFormModalComponent implements OnInit {
 
     save(): void {
         this.submitted.set(true);
-        if (!this.firstName().trim() || !this.lastName().trim() || !this.gender()) return;
+        if (!this.firstName().trim() || !this.lastName().trim() || !this.gender() || !this.emailValid()) return;
 
         this.saving.set(true);
         this.errorMsg.set(null);
