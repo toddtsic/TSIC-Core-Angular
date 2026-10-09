@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.RegularExpressions;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Repositories;
@@ -106,8 +105,8 @@ public class ValidationController : ControllerBase
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(number)) return BadRequest(new { message = "number is required" });
-        var trimmed = number.Trim();
-        if (!Regex.IsMatch(trimmed, @"^\d{6,12}$"))
+        var trimmed = UsLaxEligibilityPolicy.NormalizeMembershipNumber(number);
+        if (trimmed is null)
         {
             return BadRequest(new { message = "Membership number must be 6 to 12 digits" });
         }

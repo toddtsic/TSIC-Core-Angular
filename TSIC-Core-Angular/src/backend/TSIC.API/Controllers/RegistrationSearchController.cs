@@ -135,13 +135,13 @@ public class RegistrationSearchController : ControllerBase
     /// </summary>
     [HttpPost("{registrationId:guid}/revalidate-uslax")]
     public async Task<ActionResult<RevalidateUsLaxResultDto>> RevalidateUsLax(
-        Guid registrationId, CancellationToken ct)
+        Guid registrationId, [FromBody] RevalidateUsLaxRequest? request, CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
             return BadRequest(new { message = RegistrationContextRequired });
 
-        var result = await _searchService.RevalidateUsLaxAsync(jobId.Value, registrationId, ct);
+        var result = await _searchService.RevalidateUsLaxAsync(jobId.Value, registrationId, request, ct);
         return Ok(result);
     }
 

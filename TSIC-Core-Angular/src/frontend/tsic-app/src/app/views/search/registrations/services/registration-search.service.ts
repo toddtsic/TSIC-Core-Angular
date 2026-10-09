@@ -35,6 +35,7 @@ import type {
 	EditAccountingRecordRequest,
 	SubscriptionDetailDto,
 	FamilyAccountingDto,
+	RevalidateUsLaxRequest,
 	RevalidateUsLaxResultDto,
 	EmailTestSendRequest,
 	EmailTestSendResponse,
@@ -242,8 +243,9 @@ export class RegistrationSearchService {
 		return this.http.put<void>(`${this.apiUrl}/${registrationId}/active`, { active });
 	}
 
-	/** Live-refresh this registration's USA Lacrosse membership; backend records the returned expiry. */
-	revalidateUsLax(registrationId: string): Observable<RevalidateUsLaxResultDto> {
-		return this.http.post<RevalidateUsLaxResultDto>(`${this.apiUrl}/${registrationId}/revalidate-uslax`, {});
+	/** Live-refresh this registration's USA Lacrosse membership. AR-149: checks the values ON SCREEN
+	 *  (possibly unsaved); the backend records the expiry only when the number is the one on file. */
+	revalidateUsLax(registrationId: string, onScreen: RevalidateUsLaxRequest = {}): Observable<RevalidateUsLaxResultDto> {
+		return this.http.post<RevalidateUsLaxResultDto>(`${this.apiUrl}/${registrationId}/revalidate-uslax`, onScreen);
 	}
 }

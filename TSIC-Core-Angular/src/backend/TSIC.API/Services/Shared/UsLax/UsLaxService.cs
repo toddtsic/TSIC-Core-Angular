@@ -1,11 +1,11 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using TSIC.Domain.UsLax;
 
 namespace TSIC.API.Services.Shared.UsLax;
 
@@ -47,7 +47,6 @@ public class UsLaxService : IUsLaxService
     // mem_status, membership_id, postalcode, state. It is field-compatible with the single-ping
     // record. The reason not to cache it is cost-vs-benefit above, not missing data.
     private static readonly TimeSpan MemberCacheTtl = TimeSpan.FromMinutes(10);
-    private static readonly Regex ValidMembershipFormat = new(@"^\d{6,12}$", RegexOptions.Compiled);
 
     public UsLaxService(
         IHttpClientFactory httpClientFactory,
@@ -66,8 +65,8 @@ public class UsLaxService : IUsLaxService
     public async Task<string?> GetMemberRawJsonAsync(string membershipId, CancellationToken ct = default)
     {
         // Defense-in-depth: never forward malformed numbers to USALax (blacklist risk).
-        var trimmed = membershipId?.Trim() ?? string.Empty;
-        if (!ValidMembershipFormat.IsMatch(trimmed)) return null;
+        var trimmed = UsLaxEligibilityPolicy.NormalizeMembershipNumber(membershipId);
+        if (trimmed is null) return null;
 
         // USALax API requires 12-digit zero-padded membership IDs
         var padded = trimmed.PadLeft(12, '0');
@@ -120,8 +119,8 @@ public class UsLaxService : IUsLaxService
         var paddedToRawIds = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var raw in membershipIds)
         {
-            var trimmed = raw?.Trim() ?? string.Empty;
-            if (!ValidMembershipFormat.IsMatch(trimmed))
+            var trimmed = UsLaxEligibilityPolicy.NormalizeMembershipNumber(raw);
+            if (trimmed is null)
             {
                 results[raw ?? string.Empty] = new UsLaxMemberPingResult
                 {

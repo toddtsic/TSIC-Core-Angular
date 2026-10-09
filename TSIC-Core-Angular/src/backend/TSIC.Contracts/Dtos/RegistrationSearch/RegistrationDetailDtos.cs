@@ -213,6 +213,19 @@ public record UpdateRegistrationProfileRequest
 }
 
 /// <summary>
+/// AR-149: what the detail panel is SHOWING when the director clicks Re-Validate — possibly edited
+/// and not yet saved. Each field is optional; a blank one falls back to the stored value. The check
+/// runs on these values, but the expiry is recorded only when the number checked is the one on file.
+/// </summary>
+public record RevalidateUsLaxRequest
+{
+    public string? MembershipNumber { get; init; }
+    public string? LastName { get; init; }
+    /// <summary><c>yyyy-MM-dd</c>.</summary>
+    public string? Dob { get; init; }
+}
+
+/// <summary>
 /// Batch email request — sends to multiple registrations with token substitution.
 /// </summary>
 public record BatchEmailRequest

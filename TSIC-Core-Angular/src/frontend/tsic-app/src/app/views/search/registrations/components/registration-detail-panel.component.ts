@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, RevalidateUsLaxResultDto } from '@core/api';
+import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, RevalidateUsLaxRequest, RevalidateUsLaxResultDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { displayRoleName, Roles } from '@infrastructure/constants/roles.constants';
 import { extractHttpErrorMessage } from '@infrastructure/interceptors/http-error-utils';
@@ -540,10 +540,12 @@ export class RegistrationDetailPanelComponent implements OnChanges {
 
     this.revalidating.set(true);
     this.usLaxError.set(null);
-    this.searchService.revalidateUsLax(d.registrationId).subscribe({
+    this.searchService.revalidateUsLax(d.registrationId, this.usLaxOnScreen()).subscribe({
       next: (res) => {
         this.revalidating.set(false);
-        if (res.expDate) this.applyExpiryDate(res.expDate);
+        // AR-149: an UNSAVED number is checked but not recorded — its expiry belongs to a membership
+        // this registration does not carry yet. Save records it (see saveProfileInfo).
+        if (res.expDate && res.expiryRecorded) this.applyExpiryDate(res.expDate);
         // The panel IS the report — no toast. Six criteria don't fit in one, and a director
         // comparing a last name against USA Lacrosse's copy needs the answer to stay on screen.
         this.usLaxResult.set(res);
@@ -554,6 +556,17 @@ export class RegistrationDetailPanelComponent implements OnChanges {
         this.usLaxError.set(err?.error?.message || 'Could not re-validate — try again.');
       }
     });
+  }
+
+  /** AR-149: what the panel is SHOWING — the check must judge these, not the stored copies the
+   *  director may be correcting. Blank fields fall back to the stored value server-side. */
+  private usLaxOnScreen(): RevalidateUsLaxRequest {
+    const demo = this.demographics();
+    return {
+      membershipNumber: String(this.profileValues()['SportAssnId'] ?? '').trim() || null,
+      lastName: demo.lastName?.trim() || null,
+      dob: demo.dateOfBirth?.substring(0, 10) || null,
+    };
   }
 
   /** Dismiss the checklist panel. */
@@ -607,16 +620,40 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     const d = this.detail();
     if (!d) return;
 
+    // AR-149: a changed USA Lacrosse number makes the expiry on file belong to the OLD number.
+    const numberChanged = this.canRevalidateUsLax()
+      && String(this.profileValues()['SportAssnId'] ?? '').trim() !== String(d.profileValues?.['SportAssnId'] ?? '').trim();
+
     this.isSavingProfile.set(true);
     this.searchService.updateProfile(d.registrationId, {
       registrationId: d.registrationId,
       profileValues: this.profileValues()
     }).subscribe({
       next: () => {
-        this.isSavingProfile.set(false);
         this.snapshotProfile.set(this.serializeProfile());   // saved → zone is clean again
-        this.toast.show('Profile saved', 'success', 3000, 'Profile Updated');
-        this.saved.emit();
+        if (!numberChanged) {
+          this.isSavingProfile.set(false);
+          this.toast.show('Profile saved', 'success', 3000, 'Profile Updated');
+          this.saved.emit();
+          return;
+        }
+        // Re-check the number now on file so its expiry is recorded, THEN refresh — emitting first
+        // would re-fetch the detail before the expiry is written.
+        this.searchService.revalidateUsLax(d.registrationId, this.usLaxOnScreen()).subscribe({
+          next: (res) => {
+            this.isSavingProfile.set(false);
+            const verdict = res.eligible === true ? 'USA Lacrosse: eligible.'
+              : res.eligible === false ? `USA Lacrosse: not eligible — ${res.eligibilityDetail ?? res.eligibilityReason ?? 'see Re-Validate'}.`
+              : (res.message ?? 'USA Lacrosse could not be checked — click Re-Validate.');
+            this.toast.show(`Profile saved. ${verdict}`, res.eligible === true ? 'success' : 'warning', res.eligible === true ? 4000 : 0, 'Profile Updated');
+            this.saved.emit();
+          },
+          error: () => {
+            this.isSavingProfile.set(false);
+            this.toast.show('Profile saved, but USA Lacrosse could not be checked — click Re-Validate.', 'warning', 0, 'Profile Updated');
+            this.saved.emit();
+          }
+        });
       },
       error: (err) => {
         this.isSavingProfile.set(false);

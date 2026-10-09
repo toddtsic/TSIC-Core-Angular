@@ -8,6 +8,7 @@ export type RevalidateUsLaxResultDto = {
     memStatus?: string | null;
     expDate?: string | null;
     message?: string | null;
+    expiryRecorded?: boolean | null;
     eligible?: boolean | null;
     eligibilityReason?: string | null;
     eligibilityDetail?: string | null;

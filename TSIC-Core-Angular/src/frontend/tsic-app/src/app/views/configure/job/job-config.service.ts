@@ -160,7 +160,19 @@ export class JobConfigService {
   // ── Per-tab save ──────────────────────────────────────
 
   saveGeneral(req: UpdateJobConfigGeneralRequest): void {
-    this.saveTab('general', req);
+    // AR-149: the Event Name is also held OUTSIDE this screen — JobService.currentJob (header bar,
+    // and every view reading currentJob().jobName) and AuthService's once-per-login role list
+    // (Switch Role). loadConfig() refreshes neither, so a rename showed the old name until the
+    // user navigated / did a full refresh. Refresh both, and only when the name actually changed.
+    // A SuperUser jobPath change in the same save is skipped for the header: the current path no
+    // longer exists, and refetching it would 404 straight to the not-found page.
+    const nameChanged = req.jobName !== this.general()?.jobName;
+    const pathChanged = req.jobPath != null && req.jobPath !== this.general()?.jobPath;
+    this.saveTab('general', req, nameChanged ? () => {
+      const jobPath = this.jobService.currentJob()?.jobPath;
+      if (jobPath && !pathChanged) this.jobService.loadJobMetadata(jobPath);
+      this.auth.invalidateRegistrationsCache();
+    } : undefined);
   }
 
   savePayment(req: UpdateJobConfigPaymentRequest): void {
@@ -275,7 +287,7 @@ export class JobConfigService {
 
   // ── Internal ──────────────────────────────────────────
 
-  private saveTab(tab: TabKey, body: unknown): void {
+  private saveTab(tab: TabKey, body: unknown, onSaved?: () => void): void {
     const slug = tab === 'mobileStore' ? 'mobile-store' : tab;
     const url = `${this.baseUrl}/${slug}`;
     this.isSaving.set(true);
@@ -293,6 +305,8 @@ export class JobConfigService {
         // job setting is exactly the moment the pulse goes stale, so it is refreshed here.
         const jobPath = this.jobService.currentJob()?.jobPath;
         if (jobPath) this.pulseService.load(jobPath);
+
+        onSaved?.();
       },
       error: (err) => {
         console.error(`[JOB-CONFIG] PUT ${url} → ERROR`, err.status, err.error);

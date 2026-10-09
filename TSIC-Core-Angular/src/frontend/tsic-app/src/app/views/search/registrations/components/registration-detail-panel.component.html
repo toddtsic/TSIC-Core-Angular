@@ -900,9 +900,15 @@
         }
       </ul>
 
-      @if (res.expDate) {
+      <!-- AR-149: an unsaved number is checked, not recorded — say so, or "updated" would be false. -->
+      @if (res.expDate && res.expiryRecorded) {
         <p class="uslax-checks__foot">
           Expiry on file updated to {{ formatUsLaxDate(res.expDate) }}.
+        </p>
+      } @else if (res.expiryRecorded === false && res.found) {
+        <p class="uslax-checks__foot">
+          Checked the number on screen, which is not saved yet.
+          @if (res.expDate) { Its expiry ({{ formatUsLaxDate(res.expDate) }}) is recorded when you save. }
         </p>
       }
     </div>
