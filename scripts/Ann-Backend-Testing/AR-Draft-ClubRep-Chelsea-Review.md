@@ -70,7 +70,7 @@ overpayment question came out of D-25 as its own item).
 | D-22 | Empty state needs the customer name | 🅿 |
 | D-23 | Column order and wrapping mirror the Library | 🅿 |
 | | **F · No role selected** | |
-| D-24 | Account menu available with no role | ⏳ **on hold** |
+| D-24 | Account menu available with no role | ✅ **AR-157** (10-08) |
 | | **G · Payment screen** | |
 | D-25 | Team table shows at $0, payment card does not | ✅ **AR-123** |
 | D-26 | Columns and accounting figures | ✅ **AR-122** |
