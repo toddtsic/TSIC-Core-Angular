@@ -5133,6 +5133,17 @@ Account details matter at registration, and **every registration path already of
 - **The two safeguards the AI calls essential are how the director path already works:** the AR-069 correction is limited to the director's **current job**, and every name/DOB change writes an **audit line** (actor, user, registration, job, old → new).
 - **The reason for the self-rename decline is unchanged and is not addressed by the email:** the risk is not spelling, it is renaming one person into another with no one watching (AR-083). The AI answer's own closing line allows exactly that kind of exception — *"a real business, security, or eligibility concern."*
 - **What is new in this filing:** an AI opinion on general account practice, and *"users and directors have been requesting"* with no count and no named case. Neither is a fact about this system that the earlier rulings did not have.
+
+**FOR ANN — THE RULE, AND WHAT TO SEND IF IT FAILS (Todd, 10-11).**
+
+**The rule: contact details are the account holder's to edit; identity details are the event director's to correct.**
+
+- **Email, phone, address, and both parent contacts:** the family, coach or club rep edits these themselves today.
+- **Player, coach or club rep name, DOB and gender:** the event director corrects these on the registrant's detail panel under Contact Info, and the change is logged. A family can also correct DOB themselves at the USA Lacrosse number.
+- **This matches what the AI research recommends** — director editing, limited to their own event, with a record of who changed what. The one difference is that a person cannot rename themselves, because here the name is what gets rostered and validated, not just a label on a profile.
+- **If a director says they cannot make one of these corrections,** send who and which registrant — they should be able to.
+- **If a wrong field could not be fixed by anyone,** send that case and it will be looked at.
+
 - **Severity**: 🟡 **Nothing is mis-saved and nothing is blocked** — a wrong name is corrected by the event director today.
 - **Status**: ⛔ **CLOSED 10-11 — RE-ASK, closed on the prior rulings. No code.** A wrong player, coach or club rep name → the **event director** corrects it on the registrant detail panel → Contact Info (**AR-069**). A wrong DOB → the family corrects it at the USA Lacrosse number, or the director does (**AR-135**). Parent / contact names → the **family** edits them in the Contacts step (**AR-094**). ⚙ **Related: AR-069, AR-083, AR-094, AR-116, AR-135, AR-136, AR-137, AR-148, AR-157.**
 
