@@ -1284,6 +1284,48 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<PlayerTransactionExcelRowDto>> GetPlayerTransactionExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.Get_Player_Transactions_ForExcelExport. The proc
+        // INNER-joins the family user and Families though it selects nothing from them, so those
+        // joins are kept as filters. No divisions join here, unlike the player-data family.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join uF in _context.AspNetUsers.AsNoTracking() on r.FamilyUserId equals uF.Id
+            join f in _context.Families.AsNoTracking() on r.FamilyUserId equals f.FamilyUserId
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            join ra in _context.RegistrationAccounting.AsNoTracking() on (Guid?)r.RegistrationId equals ra.RegistrationId
+            where r.JobId == jobId && r.BActive == true && roles.Name == "Player" && ra.Active == true
+            orderby u.LastName, u.FirstName, ra.Createdate
+            select new PlayerTransactionExcelRowDto
+            {
+                RegistrationId = r.RegistrationId,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Gender = u.Gender,
+                Dob = u.Dob,
+                AgegroupName = t.Agegroup.AgegroupName,
+                TeamName = t.TeamName,
+                PaidTotal = r.PaidTotal,
+                OwedTotal = r.OwedTotal,
+                PaymentMethod = ra.PaymentMethod.PaymentMethod,
+                AccountingId = ra.AId,
+                DueAmount = ra.Dueamt,
+                PayAmount = ra.Payamt,
+                AdnCc4 = ra.AdnCc4,
+                AdnCcExpDate = ra.AdnCcexpDate,
+                AdnInvoiceNo = ra.AdnInvoiceNo,
+                AdnTransactionId = ra.AdnTransactionId,
+                CheckNo = ra.CheckNo,
+                Comment = ra.Comment,
+                CreateDate = ra.Createdate,
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

@@ -473,6 +473,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildJobStaffSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.Get_Player_Transactions_ForExcelExport", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildPlayerTransactionsSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -516,6 +521,28 @@ public sealed class ReportingService : IReportingService
             [
                 r.RegistrationId, r.Active, r.FirstName, r.LastName, r.Email, r.UserName,
                 SqlConcat(r.LastName, ", ", r.FirstName), r.AgegroupName, r.TeamName, r.Cellphone,
+            ]);
+
+    /// <summary>
+    /// "Player Transactions" sheet of the "Player Transactions (Excel)" export: the proc's 20
+    /// columns, same names and order. <c>createdate</c> is text, as the proc's
+    /// <c>convert(char(19), …, 120)</c> made it.
+    /// </summary>
+    private async Task<SheetData> BuildPlayerTransactionsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Player Transactions",
+            await _reportingRepository.GetPlayerTransactionExcelRowsAsync(jobId, cancellationToken),
+            [
+                "RegistrationID", "FirstName", "LastName", "gender", "DOB", "agegroupName", "teamName",
+                "paid_total", "owed_total", "paymentMethod", "aID", "dueamt", "payamt",
+                "adnCC4", "adnCCExpDate", "adnInvoiceNo", "adnTransactionID", "checkNo", "comment", "createdate",
+            ],
+            r =>
+            [
+                r.RegistrationId, r.FirstName, r.LastName, r.Gender, r.Dob?.Date, r.AgegroupName, r.TeamName,
+                r.PaidTotal, r.OwedTotal, r.PaymentMethod, r.AccountingId, r.DueAmount, r.PayAmount,
+                r.AdnCc4, r.AdnCcExpDate, r.AdnInvoiceNo, r.AdnTransactionId, r.CheckNo, r.Comment,
+                r.CreateDate?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
             ]);
 
     /// <summary>

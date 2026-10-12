@@ -366,6 +366,16 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Active accounting records of active players for the "Player Transactions (Excel)" export —
+    /// the EF replacement for <c>reporting_migrate.Get_Player_Transactions_ForExcelExport</c>.
+    /// Job-scoped; mirrors the proc's INNER joins (player user, family user, <c>Families</c>, team),
+    /// so familyless and unassigned registrants drop; ordered last → first → record date.
+    /// </summary>
+    Task<List<PlayerTransactionExcelRowDto>> GetPlayerTransactionExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

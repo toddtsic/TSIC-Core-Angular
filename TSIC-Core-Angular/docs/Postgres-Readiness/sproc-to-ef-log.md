@@ -27,6 +27,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.Get_JobPlayers_Liberty_Excel` | Same joins, 41 columns | 870 jobs, 551,815 rows, 0 differences | Nothing new |
 | 2026-10-12 | `reporting_migrate.camp_datadump`, `camp_excelexport_long`, `_short`, `_veryshort`, `_daygroups`, `_roomies`, `_room_position`, `_summer` | Same joins again, 5 to 20 columns each | 870 jobs, 551,815 rows, 0 differences, each of the eight | One layout table; see below |
 | 2026-10-12 | `reporting_migrate.Get_Staff_ForExcelExport` | One select, 2 inner + 2 left joins, 10 columns | 1,127 jobs, 22,397 rows, 0 differences | Left joins via optional navigation; see below |
+| 2026-10-12 | `reporting_migrate.Get_Player_Transactions_ForExcelExport` | One select, 8 inner joins, 20 columns, one row per accounting record | 1,127 jobs, 224,499 rows, 0 differences | Date-as-text and filter-only joins; see below |
 
 ## UI passes
 
@@ -87,6 +88,19 @@ downloads were served from EF and the procedures were not called.
   rows live on jobs the player filter would have skipped (1,127 jobs against 870).
 - **A quarter of the rows are ties here** (the same person holding several staff registrations),
   so comparing by position would have failed loudly for no reason.
+
+### Get_Player_Transactions_ForExcelExport
+
+- **`convert(char(19), d, 120)` is a formatted string, not a date.** The cell is text in the
+  export, so the service formats it (`yyyy-MM-dd HH:mm:ss`, invariant culture) and the DTO keeps
+  the `DateTime`. Sorting still uses the real datetime in SQL, as the procedure does.
+- **Joins that select nothing are still filters.** The procedure inner-joins the family user and
+  `Families` and reads no column from either. They stay in the LINQ as explicit `join`s; EF keeps
+  an explicit join even when its range variable is unused.
+- **Joining a non-null key to a nullable one needs a cast**: `(Guid?)r.RegistrationId equals
+  ra.RegistrationId`.
+- **`money` columns compare cleanly as `decimal`** once trailing zeros are normalised in the
+  comparison (`G29`); the reader returns scale 4.
 
 ### The JobPlayers layout family (YJ, E120, Liberty)
 
