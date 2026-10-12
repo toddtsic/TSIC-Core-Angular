@@ -1326,6 +1326,45 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<DiscountedPlayerExcelRowDto>> GetDiscountedPlayerExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.Get_DiscountedPlayers. Families is reached through
+        // the family user, as in the proc. The discount code is a LEFT join (optional navigation):
+        // a discount entered by hand has no code row. fee_discount is non-null, so the proc's
+        // "not null and != 0" reduces to != 0.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join uF in _context.AspNetUsers.AsNoTracking() on r.FamilyUserId equals uF.Id
+            join f in _context.Families.AsNoTracking() on uF.Id equals f.FamilyUserId
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            where r.JobId == jobId && r.BActive == true && roles.Name == "Player" && r.FeeDiscount != 0
+            orderby u.LastName, u.FirstName
+            select new DiscountedPlayerExcelRowDto
+            {
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                AgegroupName = t.Agegroup.AgegroupName,
+                TeamName = t.TeamName,
+                MomFirstName = f.MomFirstName,
+                MomEmail = f.MomEmail,
+                MomCellphone = f.MomCellphone,
+                MomLastName = f.MomLastName,
+                DadFirstName = f.DadFirstName,
+                DadLastName = f.DadLastName,
+                DadEmail = f.DadEmail,
+                DadCellphone = f.DadCellphone,
+                FeeDiscount = r.FeeDiscount,
+                CodeName = r.DiscountCode!.CodeName,
+                CodeActive = (bool?)r.DiscountCode!.Active,
+                CodeStartDate = (DateTime?)r.DiscountCode!.CodeStartDate,
+                CodeEndDate = (DateTime?)r.DiscountCode!.CodeEndDate,
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

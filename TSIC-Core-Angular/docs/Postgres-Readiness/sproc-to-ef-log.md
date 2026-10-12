@@ -28,6 +28,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.camp_datadump`, `camp_excelexport_long`, `_short`, `_veryshort`, `_daygroups`, `_roomies`, `_room_position`, `_summer` | Same joins again, 5 to 20 columns each | 870 jobs, 551,815 rows, 0 differences, each of the eight | One layout table; see below |
 | 2026-10-12 | `reporting_migrate.Get_Staff_ForExcelExport` | One select, 2 inner + 2 left joins, 10 columns | 1,127 jobs, 22,397 rows, 0 differences | Left joins via optional navigation; see below |
 | 2026-10-12 | `reporting_migrate.Get_Player_Transactions_ForExcelExport` | One select, 8 inner joins, 20 columns, one row per accounting record | 1,127 jobs, 224,499 rows, 0 differences | Date-as-text and filter-only joins; see below |
+| 2026-10-12 | `reporting_migrate.Get_DiscountedPlayers` | One select, 6 inner + 1 left join, 17 columns | 1,127 jobs, 13,476 rows, 0 differences | Value types through a left join; see below |
 
 ## UI passes
 
@@ -101,6 +102,15 @@ downloads were served from EF and the procedures were not called.
   ra.RegistrationId`.
 - **`money` columns compare cleanly as `decimal`** once trailing zeros are normalised in the
   comparison (`G29`); the reader returns scale 4.
+
+### Get_DiscountedPlayers
+
+- **Non-nullable columns read through a LEFT join must be cast to nullable.** `dc.active` and the
+  two code dates are `bool` and `DateTime` on the entity but null when no code row matches, so the
+  projection is `(bool?)r.DiscountCode!.Active`. Without the cast EF throws on the first
+  unmatched row.
+- **"`x is not null and x != 0`" on a non-null column is just `!= 0`.** Check the entity's
+  nullability before copying a null test across.
 
 ### The JobPlayers layout family (YJ, E120, Liberty)
 

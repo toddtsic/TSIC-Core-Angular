@@ -478,6 +478,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildPlayerTransactionsSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.Get_DiscountedPlayers", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildDiscountedPlayersSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -543,6 +548,28 @@ public sealed class ReportingService : IReportingService
                 r.PaidTotal, r.OwedTotal, r.PaymentMethod, r.AccountingId, r.DueAmount, r.PayAmount,
                 r.AdnCc4, r.AdnCcExpDate, r.AdnInvoiceNo, r.AdnTransactionId, r.CheckNo, r.Comment,
                 r.CreateDate?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+            ]);
+
+    /// <summary>
+    /// "Discounted Players" sheet of the "Discounted Players (Excel)" export: the proc's 17
+    /// columns, same names and order.
+    /// </summary>
+    private async Task<SheetData> BuildDiscountedPlayersSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Discounted Players",
+            await _reportingRepository.GetDiscountedPlayerExcelRowsAsync(jobId, cancellationToken),
+            [
+                "LastName", "FirstName", "agegroupName", "teamName",
+                "Mom_FirstName", "Mom_Email", "Mom_Cellphone", "Mom_LastName",
+                "Dad_FirstName", "Dad_LastName", "Dad_Email", "Dad_Cellphone",
+                "fee_discount", "codeName", "active", "codeStartDate", "codeEndDate",
+            ],
+            r =>
+            [
+                r.LastName, r.FirstName, r.AgegroupName, r.TeamName,
+                r.MomFirstName, r.MomEmail, r.MomCellphone, r.MomLastName,
+                r.DadFirstName, r.DadLastName, r.DadEmail, r.DadCellphone,
+                r.FeeDiscount, r.CodeName, r.CodeActive, r.CodeStartDate, r.CodeEndDate,
             ]);
 
     /// <summary>

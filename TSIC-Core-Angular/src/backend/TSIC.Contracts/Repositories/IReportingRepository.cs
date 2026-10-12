@@ -376,6 +376,16 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Active players with a non-zero discount for the "Discounted Players (Excel)" export — the EF
+    /// replacement for <c>reporting_migrate.Get_DiscountedPlayers</c>. Job-scoped; mirrors the
+    /// proc's INNER joins (player user, family user, <c>Families</c>, team) and its LEFT join to
+    /// the discount code; ordered last → first.
+    /// </summary>
+    Task<List<DiscountedPlayerExcelRowDto>> GetDiscountedPlayerExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>
