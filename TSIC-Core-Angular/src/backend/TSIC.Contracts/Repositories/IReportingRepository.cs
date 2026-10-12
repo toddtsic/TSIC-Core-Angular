@@ -346,6 +346,17 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Active Player rows for the "Player Data (Excel)" STEPS export — the EF replacement for
+    /// <c>reporting_migrate.Get_JobPlayers_STEPS_Excel</c>. Job-scoped; mirrors the proc's INNER joins
+    /// (player user, family user, <c>Families</c>, team, and the team's division — so familyless,
+    /// unassigned, and division-less-team registrants drop) and its LEFT join to the team's club rep
+    /// for the club-name fallback; ordered agegroup → team → last → first.
+    /// </summary>
+    Task<List<JobPlayersStepsExcelRowDto>> GetJobPlayersStepsExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

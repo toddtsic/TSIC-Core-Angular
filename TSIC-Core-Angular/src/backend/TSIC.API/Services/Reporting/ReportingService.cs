@@ -418,6 +418,19 @@ public sealed class ReportingService : IReportingService
         bool useDateUnscheduled = false,
         CancellationToken cancellationToken = default)
     {
+        // Procs already reproduced in EF keep their catalogue row (and so their spName-keyed
+        // entitlement + export history) but never reach SQL Server as a proc call.
+        var efSheets = await BuildEfReplacementSheetsAsync(spName, jobId, cancellationToken);
+        if (efSheets != null)
+        {
+            return new ReportExportResult
+            {
+                FileBytes = ExcelWorkbookWriter.Build(efSheets),
+                ContentType = ExcelWorkbookWriter.XlsxContentType,
+                FileName = "TSICExcelExport.xlsx"
+            };
+        }
+
         var (reader, connection) = await _reportingRepository.ExecuteStoredProcedureAsync(
             spName, jobId, useJobId, useDateUnscheduled, cancellationToken);
 
@@ -436,6 +449,69 @@ public sealed class ReportingService : IReportingService
             await reader.CloseAsync();
             await connection.CloseAsync();
         }
+    }
+
+    /// <summary>
+    /// Sheets for an export-sp report whose proc has been reproduced in EF, or null when
+    /// <paramref name="spName"/> is still served by its stored procedure. Matches the catalogue's
+    /// spName with or without brackets.
+    /// </summary>
+    private async Task<List<SheetData>?> BuildEfReplacementSheetsAsync(
+        string spName,
+        Guid jobId,
+        CancellationToken cancellationToken)
+    {
+        var normalized = spName.Replace("[", string.Empty).Replace("]", string.Empty).Trim();
+
+        if (normalized.Equals("reporting_migrate.Get_JobPlayers_STEPS_Excel", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildJobPlayersStepsSheetAsync(jobId, cancellationToken)];
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// "Player Data" sheet of the STEPS player export: the proc's 40 columns, same names and order.
+    /// </summary>
+    private async Task<SheetData> BuildJobPlayersStepsSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var rows = await _reportingRepository.GetJobPlayersStepsExcelRowsAsync(jobId, cancellationToken);
+
+        var sheet = new SheetData { Name = "Player Data" };
+        if (rows.Count == 0)
+        {
+            // The proc path only learns its column names from the first data row, so a job with
+            // no players exports a headerless sheet. Kept identical.
+            return sheet;
+        }
+
+        sheet.WithColumns(
+            "RegistrationID", "FirstName", "LastName", "gender", "DOB",
+            "Mom_FirstName", "Mom_LastName", "Mom_Cellphone", "Mom_Email",
+            "Dad_FirstName", "Dad_LastName", "Dad_Cellphone", "Dad_Email",
+            "agegroupName", "club_name", "teamName", "paid_total", "owed_total",
+            "grad_year", "school_name", "school_grade", "position", "USLaxNo", "UsLaxNoExpiry",
+            "jersey", "shorts", "kilt", "t-shirt", "reversible", "gloves", "uniform_no",
+            "address", "city", "state", "zip", "Email", "Cellphone",
+            "Requests", "medical_note", "shoes");
+
+        foreach (var r in rows)
+        {
+            sheet.Rows.Add(
+            [
+                r.RegistrationId, r.FirstName, r.LastName, r.Gender, r.Dob?.Date,
+                r.MomFirstName, r.MomLastName, r.MomCellphone, r.MomEmail,
+                r.DadFirstName, r.DadLastName, r.DadCellphone, r.DadEmail,
+                r.AgegroupName, r.ClubName, r.TeamName, r.PaidTotal, r.OwedTotal,
+                r.GradYear, r.SchoolName, r.SchoolGrade, r.Position, r.SportAssnId, r.SportAssnIdExpDate,
+                r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Reversible, r.Gloves, r.UniformNo,
+                r.StreetAddress, r.City, r.State, r.PostalCode, r.Email, r.Cellphone,
+                r.SpecialRequests, r.MedicalNote, r.Shoes,
+            ]);
+        }
+
+        return sheet;
     }
 
     public async Task<ReportExportResult> ExportBoldReportAsync(

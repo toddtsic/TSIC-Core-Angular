@@ -1182,6 +1182,70 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<JobPlayersStepsExcelRowDto>> GetJobPlayersStepsExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.Get_JobPlayers_STEPS_Excel. The proc INNER-joins the
+        // player user, the family user, Families, the assigned team and that team's division, so
+        // those rows drop here too (DivId != null stands in for the divisions join; league and
+        // agegroup are non-null FKs). Club name falls back to the team's club rep, a LEFT join.
+        // DOB keeps its time part here; the proc's convert(date, …) is applied by the renderer.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join uF in _context.AspNetUsers.AsNoTracking() on r.FamilyUserId equals uF.Id
+            join f in _context.Families.AsNoTracking() on r.FamilyUserId equals f.FamilyUserId
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            where r.JobId == jobId && r.BActive == true && roles.Name == "Player"
+                && t.DivId != null
+            orderby t.Agegroup.AgegroupName, t.TeamName, u.LastName, u.FirstName
+            select new JobPlayersStepsExcelRowDto
+            {
+                RegistrationId = r.RegistrationId,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Gender = u.Gender,
+                Dob = u.Dob,
+                MomFirstName = f.MomFirstName,
+                MomLastName = f.MomLastName,
+                MomCellphone = f.MomCellphone,
+                MomEmail = f.MomEmail,
+                DadFirstName = f.DadFirstName,
+                DadLastName = f.DadLastName,
+                DadCellphone = f.DadCellphone,
+                DadEmail = f.DadEmail,
+                AgegroupName = t.Agegroup.AgegroupName,
+                ClubName = r.ClubTeamName ?? t.ClubrepRegistration!.ClubName,
+                TeamName = t.TeamName,
+                PaidTotal = r.PaidTotal,
+                OwedTotal = r.OwedTotal,
+                GradYear = r.GradYear,
+                SchoolName = r.SchoolName,
+                SchoolGrade = r.SchoolGrade,
+                Position = r.Position,
+                SportAssnId = r.SportAssnId,
+                SportAssnIdExpDate = r.SportAssnIdexpDate,
+                JerseySize = r.JerseySize,
+                ShortsSize = r.ShortsSize,
+                Kilt = r.Kilt,
+                TShirt = r.TShirt,
+                Reversible = r.Reversible,
+                Gloves = r.Gloves,
+                UniformNo = r.UniformNo,
+                StreetAddress = uF.StreetAddress,
+                City = uF.City,
+                State = uF.State,
+                PostalCode = uF.PostalCode,
+                Email = u.Email,
+                Cellphone = u.Cellphone,
+                SpecialRequests = r.SpecialRequests,
+                MedicalNote = r.MedicalNote,
+                Shoes = r.Shoes,
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════
