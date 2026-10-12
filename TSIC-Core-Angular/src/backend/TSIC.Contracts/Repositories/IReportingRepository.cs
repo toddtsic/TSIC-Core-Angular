@@ -347,13 +347,13 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Active Player rows for the "Player Data (Excel)" STEPS export — the EF replacement for
-    /// <c>reporting_migrate.Get_JobPlayers_STEPS_Excel</c>. Job-scoped; mirrors the proc's INNER joins
+    /// Active Player rows for the "Player Data (Excel)" family of exports — the EF replacement for
+    /// the <c>reporting_migrate.*JobPlayers*_Excel</c> procs. Job-scoped; mirrors their shared INNER joins
     /// (player user, family user, <c>Families</c>, team, and the team's division — so familyless,
     /// unassigned, and division-less-team registrants drop) and its LEFT join to the team's club rep
     /// for the club-name fallback; ordered agegroup → team → last → first.
     /// </summary>
-    Task<List<JobPlayersStepsExcelRowDto>> GetJobPlayersStepsExcelRowsAsync(
+    Task<List<JobPlayersExcelRowDto>> GetJobPlayersExcelRowsAsync(
         Guid jobId,
         CancellationToken cancellationToken = default);
 

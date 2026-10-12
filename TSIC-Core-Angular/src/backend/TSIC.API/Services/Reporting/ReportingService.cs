@@ -468,17 +468,29 @@ public sealed class ReportingService : IReportingService
             return [await BuildJobPlayersStepsSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.JobPlayers_YJ_Excel", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildJobPlayersYjSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
     /// <summary>
-    /// "Player Data" sheet of the STEPS player export: the proc's 40 columns, same names and order.
+    /// One sheet of a "player data" layout. The legacy layouts were all column subsets of one
+    /// shared proc — same joins, filter and order — so they share one query here and differ only
+    /// in sheet name, header names and the per-row projection.
     /// </summary>
-    private async Task<SheetData> BuildJobPlayersStepsSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    private async Task<SheetData> BuildJobPlayersSheetAsync(
+        Guid jobId,
+        string sheetName,
+        string[] columns,
+        Func<JobPlayersExcelRowDto, object?[]> toRow,
+        CancellationToken cancellationToken)
     {
-        var rows = await _reportingRepository.GetJobPlayersStepsExcelRowsAsync(jobId, cancellationToken);
+        var rows = await _reportingRepository.GetJobPlayersExcelRowsAsync(jobId, cancellationToken);
 
-        var sheet = new SheetData { Name = "Player Data" };
+        var sheet = new SheetData { Name = sheetName };
         if (rows.Count == 0)
         {
             // The proc path only learns its column names from the first data row, so a job with
@@ -486,19 +498,33 @@ public sealed class ReportingService : IReportingService
             return sheet;
         }
 
-        sheet.WithColumns(
-            "RegistrationID", "FirstName", "LastName", "gender", "DOB",
-            "Mom_FirstName", "Mom_LastName", "Mom_Cellphone", "Mom_Email",
-            "Dad_FirstName", "Dad_LastName", "Dad_Cellphone", "Dad_Email",
-            "agegroupName", "club_name", "teamName", "paid_total", "owed_total",
-            "grad_year", "school_name", "school_grade", "position", "USLaxNo", "UsLaxNoExpiry",
-            "jersey", "shorts", "kilt", "t-shirt", "reversible", "gloves", "uniform_no",
-            "address", "city", "state", "zip", "Email", "Cellphone",
-            "Requests", "medical_note", "shoes");
-
+        sheet.WithColumns(columns);
         foreach (var r in rows)
         {
-            sheet.Rows.Add(
+            sheet.Rows.Add(toRow(r));
+        }
+
+        return sheet;
+    }
+
+    /// <summary>
+    /// "Player Data" sheet of the STEPS player export: the proc's 40 columns, same names and order.
+    /// </summary>
+    private Task<SheetData> BuildJobPlayersStepsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        BuildJobPlayersSheetAsync(
+            jobId,
+            "Player Data",
+            [
+                "RegistrationID", "FirstName", "LastName", "gender", "DOB",
+                "Mom_FirstName", "Mom_LastName", "Mom_Cellphone", "Mom_Email",
+                "Dad_FirstName", "Dad_LastName", "Dad_Cellphone", "Dad_Email",
+                "agegroupName", "club_name", "teamName", "paid_total", "owed_total",
+                "grad_year", "school_name", "school_grade", "position", "USLaxNo", "UsLaxNoExpiry",
+                "jersey", "shorts", "kilt", "t-shirt", "reversible", "gloves", "uniform_no",
+                "address", "city", "state", "zip", "Email", "Cellphone",
+                "Requests", "medical_note", "shoes",
+            ],
+            r =>
             [
                 r.RegistrationId, r.FirstName, r.LastName, r.Gender, r.Dob?.Date,
                 r.MomFirstName, r.MomLastName, r.MomCellphone, r.MomEmail,
@@ -508,11 +534,37 @@ public sealed class ReportingService : IReportingService
                 r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Reversible, r.Gloves, r.UniformNo,
                 r.StreetAddress, r.City, r.State, r.PostalCode, r.Email, r.Cellphone,
                 r.SpecialRequests, r.MedicalNote, r.Shoes,
-            ]);
-        }
+            ],
+            cancellationToken);
 
-        return sheet;
-    }
+    /// <summary>
+    /// "Player Details" sheet of the Yellow Jackets player export: the proc's 36 columns, same
+    /// names and order. Carries the raw <c>ClubTeamName</c>, not the club-rep fallback.
+    /// </summary>
+    private Task<SheetData> BuildJobPlayersYjSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        BuildJobPlayersSheetAsync(
+            jobId,
+            "Player Details",
+            [
+                "RegistrationID", "uniform_no", "LastName", "FirstName", "address", "city", "state", "zip",
+                "agegroupName", "teamName", "school_name", "grad_year", "position", "USLaxNo", "UsLaxNoExpiry",
+                "jersey", "shorts", "t-shirt",
+                "Mom_FirstName", "Mom_LastName", "Mom_Cellphone", "Mom_Email",
+                "Dad_FirstName", "Dad_LastName", "Dad_Cellphone", "Dad_Email",
+                "owed_total", "paid_total", "school_grade", "Requests", "gender", "RegDate", "DOB",
+                "Cellphone", "Email", "ClubTeamName",
+            ],
+            r =>
+            [
+                r.RegistrationId, r.UniformNo, r.LastName, r.FirstName, r.StreetAddress, r.City, r.State, r.PostalCode,
+                r.AgegroupName, r.TeamName, r.SchoolName, r.GradYear, r.Position, r.SportAssnId, r.SportAssnIdExpDate,
+                r.JerseySize, r.ShortsSize, r.TShirt,
+                r.MomFirstName, r.MomLastName, r.MomCellphone, r.MomEmail,
+                r.DadFirstName, r.DadLastName, r.DadCellphone, r.DadEmail,
+                r.OwedTotal, r.PaidTotal, r.SchoolGrade, r.SpecialRequests, r.Gender, r.RegistrationTs.Date, r.Dob?.Date,
+                r.Cellphone, r.Email, r.ClubTeamName,
+            ],
+            cancellationToken);
 
     public async Task<ReportExportResult> ExportBoldReportAsync(
         string reportName,

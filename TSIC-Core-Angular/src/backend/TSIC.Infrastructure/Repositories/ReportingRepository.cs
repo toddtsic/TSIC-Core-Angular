@@ -1182,15 +1182,15 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
-    public async Task<List<JobPlayersStepsExcelRowDto>> GetJobPlayersStepsExcelRowsAsync(
+    public async Task<List<JobPlayersExcelRowDto>> GetJobPlayersExcelRowsAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        // EF replacement for reporting_migrate.Get_JobPlayers_STEPS_Excel. The proc INNER-joins the
+        // EF replacement for the reporting_migrate.*JobPlayers*_Excel procs. They INNER-join the
         // player user, the family user, Families, the assigned team and that team's division, so
         // those rows drop here too (DivId != null stands in for the divisions join; league and
         // agegroup are non-null FKs). Club name falls back to the team's club rep, a LEFT join.
-        // DOB keeps its time part here; the proc's convert(date, …) is applied by the renderer.
+        // Dates keep their time part here; the procs' convert(date, …) is applied by the renderer.
         return await (
             from r in _context.Registrations.AsNoTracking()
             join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
@@ -1201,9 +1201,10 @@ public class ReportingRepository : IReportingRepository
             where r.JobId == jobId && r.BActive == true && roles.Name == "Player"
                 && t.DivId != null
             orderby t.Agegroup.AgegroupName, t.TeamName, u.LastName, u.FirstName
-            select new JobPlayersStepsExcelRowDto
+            select new JobPlayersExcelRowDto
             {
                 RegistrationId = r.RegistrationId,
+                RegistrationTs = r.RegistrationTs,
                 FirstName = u.FirstName,
                 LastName = u.LastName,
                 Gender = u.Gender,
@@ -1218,6 +1219,7 @@ public class ReportingRepository : IReportingRepository
                 DadEmail = f.DadEmail,
                 AgegroupName = t.Agegroup.AgegroupName,
                 ClubName = r.ClubTeamName ?? t.ClubrepRegistration!.ClubName,
+                ClubTeamName = r.ClubTeamName,
                 TeamName = t.TeamName,
                 PaidTotal = r.PaidTotal,
                 OwedTotal = r.OwedTotal,
@@ -1231,8 +1233,14 @@ public class ReportingRepository : IReportingRepository
                 ShortsSize = r.ShortsSize,
                 Kilt = r.Kilt,
                 TShirt = r.TShirt,
+                Sweatshirt = r.Sweatshirt,
                 Reversible = r.Reversible,
                 Gloves = r.Gloves,
+                Gpa = r.Gpa,
+                Sat = r.Sat,
+                Act = r.Act,
+                HeightInches = r.HeightInches,
+                WeightLbs = r.WeightLbs,
                 UniformNo = r.UniformNo,
                 StreetAddress = uF.StreetAddress,
                 City = uF.City,

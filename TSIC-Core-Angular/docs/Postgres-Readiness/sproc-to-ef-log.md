@@ -22,6 +22,7 @@ procedure is never called.
 | Date | Procedure | Shape | Parity | What it taught |
 |---|---|---|---|---|
 | 2026-10-12 | `reporting_migrate.Get_JobPlayers_STEPS_Excel` | One select, 9 joins, 40 columns | 870 jobs, 551,815 rows, 0 differences | See below |
+| 2026-10-12 | `reporting_migrate.JobPlayers_YJ_Excel` | Same joins as STEPS, 36 columns | 870 jobs, 551,815 rows, 0 differences | Sibling layouts share one query; see below |
 
 ### Get_JobPlayers_STEPS_Excel
 
@@ -37,3 +38,12 @@ procedure is never called.
   builder applies `.Date`, and the reader returns a SQL `date` as a `DateTime` too, so types match.
 - **The harness needs `UseNetTopologySuite()`** on the context options (spatial column on `Fields`),
   and `FileStorageOptions` has `required` members, so it is created uninitialised.
+
+### The JobPlayers layout family (YJ, E120, Liberty)
+
+- **Procedures cut from one legacy superset share one query.** STEPS, YJ, E120 and Liberty have
+  identical joins, filter and order and differ only in column list, so there is one repository
+  method (`GetJobPlayersExcelRowsAsync`) and one DTO; each layout is a header list plus a row
+  projection in the service. Converting a sibling is then a few lines and cannot drift on row set.
+- **Re-prove the earlier layout when the shared query changes.** STEPS was re-run after the DTO
+  widened; still 0 differences.
