@@ -26,6 +26,30 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.Get_JobPlayers_E120_Excel` | Same joins, 39 columns, 3 concatenated names | 870 jobs, 551,815 rows, 0 differences | T-SQL `+` is null-propagating; see below |
 | 2026-10-12 | `reporting_migrate.Get_JobPlayers_Liberty_Excel` | Same joins, 41 columns | 870 jobs, 551,815 rows, 0 differences | Nothing new |
 
+## UI passes
+
+| Date | Batch | Result |
+|---|---|---|
+| 2026-10-12 | STEPS, YJ, E120, Liberty | All four run from the Reports Library and downloaded; details below |
+
+Batch 1, run through the browser against the local API:
+
+| Report | Job | Logged in as | Rows in file | Rows expected | Columns |
+|---|---|---|---|---|---|
+| STEPS | `lftc-summer-2026` | SuperUser, all-roles view | 10,050 | 10,050 | 40 |
+| YJ | `yj-fallsignups-2026` | SuperUser, all-roles view | 1,501 | 1,501 | 36 |
+| E120 | `irish-prospect-camp-december-2025` | Director | 175 | 175 | 39 |
+| Liberty | `tlc-players-2026-2027` | SuperUser, all-roles view | 18 | 18 | 41 |
+
+Sheet names and header rows matched the procedures' in every file. The procedures' execution
+counters in `sys.dm_exec_procedure_stats` were identical before and after the four runs, so the
+downloads were served from EF and the procedures were not called.
+
+- **The execution counter is the proof that the new path ran.** The file is identical by design,
+  so nothing in the download can tell the two paths apart; the counter can.
+- **A UI check needs a job that is still open to its users.** Expired jobs do not appear in role
+  selection, so pick the job from `Jobs.Jobs` where `ExpiryUsers` is in the future.
+
 ### Get_JobPlayers_STEPS_Excel
 
 - **An inner join on a nullable foreign key is a filter.** The procedure inner-joins
