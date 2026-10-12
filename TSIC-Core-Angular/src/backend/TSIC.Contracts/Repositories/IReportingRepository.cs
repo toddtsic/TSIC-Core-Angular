@@ -404,6 +404,16 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Active teams with their active club rep's contact details for the "Teams Export (Excel)"
+    /// export — the EF replacement for <c>reporting_migrate.League_Teams</c>. Job-scoped; a team
+    /// needs a division and a club rep to list; home field is a LEFT join; ordered agegroup →
+    /// division → club → team.
+    /// </summary>
+    Task<List<LeagueTeamExcelRowDto>> GetLeagueTeamExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

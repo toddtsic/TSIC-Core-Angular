@@ -31,6 +31,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.Get_DiscountedPlayers` | One select, 6 inner + 1 left join, 17 columns | 1,127 jobs, 13,476 rows, 0 differences | Value types through a left join; see below |
 | 2026-10-12 | `reporting_migrate.PlayerStats_ParisiResults` | One select, 5 inner joins, 11 columns, filter on division name | 1,127 jobs, 481,982 rows, 0 differences | `!=` drops nulls; see below |
 | 2026-10-12 | `reporting_migrate.UsageByJobAndRegistrant` | One select over the mobile device tables, 6 inner joins, 7 columns | 1,127 jobs, 3,017 rows, 0 differences | A join that neither selects nor filters is dropped; see below |
+| 2026-10-12 | `reporting_migrate.League_Teams` | One select from teams, 5 inner + 1 left join, 15 columns | 1,127 jobs, 31,570 rows, 0 differences | A uniqueidentifier as text is upper-case; see below |
 
 ## UI passes
 
@@ -156,3 +157,13 @@ downloads were served from EF and the procedures were not called.
   opposite of the INNER joins kept in Player Transactions, which do filter.
 - **The harness now runs every job**, not every job with a registration, since this report and
   the team and schedule ones do not start from registrations.
+
+### League_Teams
+
+- **`convert(varchar, <uniqueidentifier>)` is upper-case; `Guid.ToString()` is lower-case.** The
+  sheet builder upper-cases it. Postgres renders a `uuid` lower-case, so doing this in C# is what
+  keeps the file the same on both engines.
+- **`replace(x, char(13), ',')` is a plain character replace** and moves to the sheet builder.
+- **The reviewed procedure had already lost its side effect.** The legacy source back-filled
+  `teams.FieldID1` before selecting; the May copy dropped that and made the field a LEFT join,
+  so this one was a pure read by the time it got here.

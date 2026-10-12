@@ -1425,6 +1425,41 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<LeagueTeamExcelRowDto>> GetLeagueTeamExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.League_Teams. The division and the club rep's
+        // registration are INNER joins on nullable keys, so teams without either drop; the home
+        // field is a LEFT join (optional navigation).
+        return await (
+            from t in _context.Teams.AsNoTracking()
+            join d in _context.Divisions.AsNoTracking() on t.DivId equals (Guid?)d.DivId
+            join r in _context.Registrations.AsNoTracking() on t.ClubrepRegistrationid equals (Guid?)r.RegistrationId
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where t.JobId == jobId && t.Active == true && roles.Name == "Club Rep" && r.BActive == true
+            orderby t.Agegroup.AgegroupName, d.DivName, r.ClubName, t.TeamName
+            select new LeagueTeamExcelRowDto
+            {
+                AgegroupName = t.Agegroup.AgegroupName,
+                DivName = d.DivName,
+                TeamName = t.TeamName,
+                ClubName = r.ClubName,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Email = u.Email,
+                City = u.City,
+                State = u.State,
+                PostalCode = u.PostalCode,
+                Cellphone = u.Cellphone,
+                TeamComments = t.TeamComments,
+                HomeField = t.FieldId1Navigation!.FName,
+                TeamId = t.TeamId,
+                LevelOfPlay = t.LevelOfPlay,
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

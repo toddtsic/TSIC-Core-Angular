@@ -493,6 +493,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildMobileJobUsersSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.League_Teams", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildLeagueTeamsSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -610,6 +615,27 @@ public sealed class ReportingService : IReportingService
             await _reportingRepository.GetMobileJobUserExcelRowsAsync(jobId, cancellationToken),
             ["customerName", "jobName", "Role", "LastName", "FirstName", "Type", "modified"],
             r => [r.CustomerName, r.JobName, r.Role, r.LastName, r.FirstName, r.DeviceType, r.Modified]);
+
+    /// <summary>
+    /// "Teams Export" sheet of the "Teams Export (Excel)" export: the proc's 15 columns, same names
+    /// and order. <c>Comment</c> has its carriage returns turned into commas and <c>teamID</c> is
+    /// upper-case text, as the proc's <c>replace(…, char(13), ',')</c> and
+    /// <c>convert(varchar, uniqueidentifier)</c> made them.
+    /// </summary>
+    private async Task<SheetData> BuildLeagueTeamsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Teams Export",
+            await _reportingRepository.GetLeagueTeamExcelRowsAsync(jobId, cancellationToken),
+            [
+                "Agegroup", "Division", "Team", "Club", "LastName", "FirstName", "Email", "City",
+                "State", "ZIP", "Phone", "Comment", "HomeField", "teamID", "LOP",
+            ],
+            r =>
+            [
+                r.AgegroupName, r.DivName, r.TeamName, r.ClubName, r.LastName, r.FirstName, r.Email, r.City,
+                r.State, r.PostalCode, r.Cellphone, r.TeamComments?.Replace('\r', ','), r.HomeField,
+                r.TeamId.ToString().ToUpperInvariant(), r.LevelOfPlay,
+            ]);
 
     /// <summary>
     /// One layout of the job-players export family: its sheet name, header names in order, and
