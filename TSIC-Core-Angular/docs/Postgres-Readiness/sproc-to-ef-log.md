@@ -36,6 +36,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.TeamsFieldDistribution` | Aggregate: games joined to both teams, grouped by club, agegroup, team, field and day, 6 columns | 1,127 jobs, 82,675 rows, 0 differences | Grouping and sorting on a formatted date; see below |
 | 2026-10-12 | `reporting_migrate.JobRosters_ExportTournament` | One select, 8 inner + 2 left joins, 46 columns, heavy text formatting | 1,127 jobs, 434,018 rows, 0 differences | T-SQL string functions in C#; see below |
 | 2026-10-12 | `reporting_migrate.JobRosters_RecruitingReport_DumpExcel` | One select from teams, 7 inner + 2 left joins, 26 columns, sorted on uniform number as an integer | 1,127 jobs, 546,331 rows, 0 differences; on 3 jobs the procedure errors and EF does not | First behaviour change; see below |
+| 2026-10-12 | `reporting_migrate.JobRosters_RecruitingReport_Public` | Same rows as the admin dump, 9 public-safe columns | 1,127 jobs, 546,331 rows, 0 differences; same 3 jobs where the procedure errors | Sibling layout over the admin dump's query; nothing new |
 
 ## UI passes
 

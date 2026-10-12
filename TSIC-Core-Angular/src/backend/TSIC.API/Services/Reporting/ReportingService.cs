@@ -518,6 +518,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildRecruitingRostersSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.JobRosters_RecruitingReport_Public", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildRecruitingRostersPublicSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -792,6 +797,25 @@ public sealed class ReportingService : IReportingService
                 r.SatMath ?? "0", r.SatVerbal ?? "0", r.SatWriting ?? "0", r.Act ?? "0", r.Gpa, r.Position, r.ClubName,
                 SqlConcat(r.ClubRepFirstName, " ", r.ClubRepLastName), r.ClubRepEmail, DashedPhone(r.ClubRepCellphone),
                 r.GradYear, r.ClubTeamName,
+            ]);
+
+    /// <summary>
+    /// "Recruiting Public" sheet of the public "Rosters Recruiting Data Dump Public (Excel)"
+    /// export: the same rows as the admin dump, reduced to the proc's 9 public-safe columns —
+    /// no phone, email, address, club rep or academic scores.
+    /// </summary>
+    private async Task<SheetData> BuildRecruitingRostersPublicSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Recruiting Public",
+            await _reportingRepository.GetRecruitingRosterExcelRowsAsync(jobId, cancellationToken),
+            [
+                "agegroupName", "teamName", "lastName", "firstName", "uniform_no", "club_name",
+                "school", "grad_year", "position",
+            ],
+            r =>
+            [
+                r.AgegroupName, r.TeamName, r.LastName, r.FirstName, r.UniformNo?.Replace("#", string.Empty), r.ClubName,
+                r.SchoolName, r.GradYear, r.Position,
             ]);
 
     /// <summary>
