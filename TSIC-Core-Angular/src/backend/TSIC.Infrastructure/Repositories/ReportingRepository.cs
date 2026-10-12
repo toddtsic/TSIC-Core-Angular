@@ -1539,6 +1539,36 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<TeamFieldDistributionExcelRowDto>> GetTeamFieldDistributionExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.TeamsFieldDistribution. A game joins to both of its
+        // teams (t.teamID in (T1_ID, T2_ID)); field, club rep registration and division are
+        // INNER joins, so games or teams missing any of them drop. The proc groups and sorts on
+        // the day as MM/DD/YYYY text: grouping on the date is the same grouping, and month, day,
+        // year is the same order as that text.
+        return await (
+            from s in _context.Schedule.AsNoTracking()
+            join f in _context.Fields.AsNoTracking() on s.FieldId equals (Guid?)f.FieldId
+            from t in _context.Teams.AsNoTracking().Where(t => t.TeamId == s.T1Id || t.TeamId == s.T2Id)
+            join r in _context.Registrations.AsNoTracking() on t.ClubrepRegistrationid equals (Guid?)r.RegistrationId
+            join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+            where s.JobId == jobId && t.DivId != null
+            group s by new { r.ClubName, ag.AgegroupName, t.TeamName, f.FName, Day = (DateTime?)s.GDate!.Value.Date } into g
+            orderby g.Key.ClubName, g.Key.AgegroupName, g.Key.TeamName,
+                g.Key.Day!.Value.Month, g.Key.Day!.Value.Day, g.Key.Day!.Value.Year, g.Key.FName
+            select new TeamFieldDistributionExcelRowDto
+            {
+                ClubName = g.Key.ClubName,
+                AgegroupName = g.Key.AgegroupName,
+                TeamName = g.Key.TeamName,
+                FieldName = g.Key.FName,
+                GameDay = g.Key.Day,
+                GameCount = g.Count(),
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

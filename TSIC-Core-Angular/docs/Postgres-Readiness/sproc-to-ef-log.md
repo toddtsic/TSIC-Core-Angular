@@ -33,6 +33,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.UsageByJobAndRegistrant` | One select over the mobile device tables, 6 inner joins, 7 columns | 1,127 jobs, 3,017 rows, 0 differences | A join that neither selects nor filters is dropped; see below |
 | 2026-10-12 | `reporting_migrate.League_Teams` | One select from teams, 5 inner + 1 left join, 15 columns | 1,127 jobs, 31,570 rows, 0 differences | A uniqueidentifier as text is upper-case; see below |
 | 2026-10-12 | `reporting_migrate.Get_Players_ForExcelExport_AllCustomers` | Customer resolved from the job, then one select over every admin-open job of that customer, 8 inner joins, 47 columns | 1,127 jobs, 10,823,419 rows, 0 differences | Cross-job scope and `getdate()`; see below |
+| 2026-10-12 | `reporting_migrate.TeamsFieldDistribution` | Aggregate: games joined to both teams, grouped by club, agegroup, team, field and day, 6 columns | 1,127 jobs, 82,675 rows, 0 differences | Grouping and sorting on a formatted date; see below |
 
 ## UI passes
 
@@ -182,3 +183,17 @@ downloads were served from EF and the procedures were not called.
 - **Not a sibling of the job-players family despite the look**: no division join, and
   `club_name` is the registration's own with no club-rep fallback, so it has its own query.
 - **No UI run possible**: the report is on no open job's shelf.
+
+### TeamsFieldDistribution
+
+- **Group on the value, format in the sheet builder.** The procedure groups on
+  `convert(char(10), G_Date, 101)`; grouping on the date part is the same grouping, and the
+  MM/DD/YYYY text is produced afterwards in C#.
+- **Sorting on that text is not chronological.** MM/DD/YYYY as a string sorts month, day, year,
+  so the query orders by those three parts in that order. Ordering by the date would have put a
+  January 2027 game after a December 2026 one where the procedure puts it before.
+- **Keep `GROUP BY` and `ORDER BY` in SQL.** The database collation decides which names are the
+  same group and how they sort; doing either in memory would use different rules.
+- **`t.teamID in (s.T1_ID, s.T2_ID)` is a correlated `Where` inside the `from`**, which EF turns
+  into an inner join on the OR.
+- **`count(*)` is `int`** on both paths.

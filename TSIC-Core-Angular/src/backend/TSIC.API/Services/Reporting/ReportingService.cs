@@ -503,6 +503,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildCustomerPlayersSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.TeamsFieldDistribution", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildTeamFieldDistributionSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -672,6 +677,22 @@ public sealed class ReportingService : IReportingService
                 r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Sweatshirt, r.Reversible, r.Gloves,
                 r.Gpa, r.Sat, r.Act, r.HeightInches, r.WeightLbs,
                 r.UniformNo, r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]);
+
+    /// <summary>
+    /// "Field Distribution" sheet of the "Team Field Distribution" export: the proc's 6 columns,
+    /// same names and order. <c>GameDay</c> is MM/DD/YYYY text, as the proc's
+    /// <c>convert(char(10), …, 101)</c> made it.
+    /// </summary>
+    private async Task<SheetData> BuildTeamFieldDistributionSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Field Distribution",
+            await _reportingRepository.GetTeamFieldDistributionExcelRowsAsync(jobId, cancellationToken),
+            ["club_name", "agegroupName", "teamName", "fName", "GameDay", "Count"],
+            r =>
+            [
+                r.ClubName, r.AgegroupName, r.TeamName, r.FieldName,
+                r.GameDay?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), r.GameCount,
             ]);
 
     /// <summary>

@@ -425,6 +425,16 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Game counts per club, agegroup, team, field and day for the "Team Field Distribution"
+    /// export — the EF replacement for <c>reporting_migrate.TeamsFieldDistribution</c>. Job-scoped;
+    /// a game counts once for each of its two teams; ordered club → agegroup → team → day (as
+    /// MM/DD/YYYY text, so month before year) → field.
+    /// </summary>
+    Task<List<TeamFieldDistributionExcelRowDto>> GetTeamFieldDistributionExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>
