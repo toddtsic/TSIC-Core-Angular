@@ -357,6 +357,15 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Staff and Referee registrations for the "Staff Data (Excel)" export — the EF replacement for
+    /// <c>reporting_migrate.Get_Staff_ForExcelExport</c>. Job-scoped, active or not; team and
+    /// agegroup are LEFT joins; ordered active flag → last → first.
+    /// </summary>
+    Task<List<JobStaffExcelRowDto>> GetJobStaffExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

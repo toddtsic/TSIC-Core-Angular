@@ -468,8 +468,55 @@ public sealed class ReportingService : IReportingService
             return [await BuildJobPlayersSheetAsync(jobId, layout, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.Get_Staff_ForExcelExport", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildJobStaffSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
+
+    /// <summary>
+    /// A sheet from already-fetched rows. The proc path only learns its column names from the
+    /// first data row, so a result with no rows exports a headerless sheet; kept identical here.
+    /// </summary>
+    private static SheetData ToSheet<T>(
+        string sheetName,
+        IReadOnlyCollection<T> rows,
+        string[] columns,
+        Func<T, object?[]> toRow)
+    {
+        var sheet = new SheetData { Name = sheetName };
+        if (rows.Count == 0)
+        {
+            return sheet;
+        }
+
+        sheet.WithColumns(columns);
+        foreach (var r in rows)
+        {
+            sheet.Rows.Add(toRow(r));
+        }
+
+        return sheet;
+    }
+
+    /// <summary>
+    /// "Staff" sheet of the "Staff Data (Excel)" export: the proc's 10 columns, same names and order.
+    /// </summary>
+    private async Task<SheetData> BuildJobStaffSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Staff",
+            await _reportingRepository.GetJobStaffExcelRowsAsync(jobId, cancellationToken),
+            [
+                "RegistrationID", "Active?", "FirstName", "LastName", "Email", "Username",
+                "Staff", "agegroupName", "teamName", "cellphone",
+            ],
+            r =>
+            [
+                r.RegistrationId, r.Active, r.FirstName, r.LastName, r.Email, r.UserName,
+                SqlConcat(r.LastName, ", ", r.FirstName), r.AgegroupName, r.TeamName, r.Cellphone,
+            ]);
 
     /// <summary>
     /// One layout of the job-players export family: its sheet name, header names in order, and
@@ -491,22 +538,7 @@ public sealed class ReportingService : IReportingService
         CancellationToken cancellationToken)
     {
         var rows = await _reportingRepository.GetJobPlayersExcelRowsAsync(jobId, cancellationToken);
-
-        var sheet = new SheetData { Name = layout.SheetName };
-        if (rows.Count == 0)
-        {
-            // The proc path only learns its column names from the first data row, so a job with
-            // no players exports a headerless sheet. Kept identical.
-            return sheet;
-        }
-
-        sheet.WithColumns(layout.Columns);
-        foreach (var r in rows)
-        {
-            sheet.Rows.Add(layout.ToRow(r));
-        }
-
-        return sheet;
+        return ToSheet(layout.SheetName, rows, layout.Columns, layout.ToRow);
     }
 
     /// <summary>

@@ -1257,6 +1257,33 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<JobStaffExcelRowDto>> GetJobStaffExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.Get_Staff_ForExcelExport. No bActive filter: the
+        // sheet shows the flag and sorts on it. Team and agegroup come through the optional
+        // AssignedTeam navigation, i.e. LEFT joins, so unassigned staff still list.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where r.JobId == jobId && (roles.Name == "Staff" || roles.Name == "Referee")
+            orderby r.BActive, u.LastName, u.FirstName
+            select new JobStaffExcelRowDto
+            {
+                RegistrationId = r.RegistrationId,
+                Active = r.BActive,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email,
+                UserName = u.UserName,
+                AgegroupName = r.AssignedTeam!.Agegroup.AgegroupName,
+                TeamName = r.AssignedTeam!.TeamName,
+                Cellphone = u.Cellphone,
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

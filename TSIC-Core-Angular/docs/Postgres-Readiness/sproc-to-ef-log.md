@@ -26,6 +26,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.Get_JobPlayers_E120_Excel` | Same joins, 39 columns, 3 concatenated names | 870 jobs, 551,815 rows, 0 differences | T-SQL `+` is null-propagating; see below |
 | 2026-10-12 | `reporting_migrate.Get_JobPlayers_Liberty_Excel` | Same joins, 41 columns | 870 jobs, 551,815 rows, 0 differences | Nothing new |
 | 2026-10-12 | `reporting_migrate.camp_datadump`, `camp_excelexport_long`, `_short`, `_veryshort`, `_daygroups`, `_roomies`, `_room_position`, `_summer` | Same joins again, 5 to 20 columns each | 870 jobs, 551,815 rows, 0 differences, each of the eight | One layout table; see below |
+| 2026-10-12 | `reporting_migrate.Get_Staff_ForExcelExport` | One select, 2 inner + 2 left joins, 10 columns | 1,127 jobs, 22,397 rows, 0 differences | Left joins via optional navigation; see below |
 
 ## UI passes
 
@@ -72,6 +73,20 @@ downloads were served from EF and the procedures were not called.
   builder applies `.Date`, and the reader returns a SQL `date` as a `DateTime` too, so types match.
 - **The harness needs `UseNetTopologySuite()`** on the context options (spatial column on `Fields`),
   and `FileStorageOptions` has `required` members, so it is created uninitialised.
+
+### Get_Staff_ForExcelExport
+
+- **A LEFT join is an optional navigation.** `r.AssignedTeam!.TeamName` and
+  `r.AssignedTeam!.Agegroup.AgegroupName` translate to LEFT joins because `AssignedTeam` is
+  optional, and the required `Agegroup` hanging off it becomes a LEFT join too. No explicit
+  `DefaultIfEmpty()` needed.
+- **Column names come from the SELECT list as typed, not from the table.** `u.Username` returns a
+  column named `Username` though the table column is `UserName`. Read the names off the procedure
+  (run it once and list `GetName(i)`), do not infer them from the entity.
+- **Run parity over every job with any registration**, not only jobs with players; this report's
+  rows live on jobs the player filter would have skipped (1,127 jobs against 870).
+- **A quarter of the rows are ties here** (the same person holding several staff registrations),
+  so comparing by position would have failed loudly for no reason.
 
 ### The JobPlayers layout family (YJ, E120, Liberty)
 
