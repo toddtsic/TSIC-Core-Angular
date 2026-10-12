@@ -478,6 +478,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildJobPlayersE120SheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.Get_JobPlayers_Liberty_Excel", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildJobPlayersLibertySheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -597,6 +602,38 @@ public sealed class ReportingService : IReportingService
                 r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Sweatshirt, r.Reversible, r.Gloves,
                 r.Gpa, r.Sat, r.Act, r.HeightInches, r.WeightLbs, r.UniformNo,
                 r.StreetAddress, r.City, r.State, r.PostalCode,
+            ],
+            cancellationToken);
+
+    /// <summary>
+    /// "Player Data" sheet of the Liberty player export: the proc's 41 columns, same names and
+    /// order. No club column — Liberty jobs are club jobs.
+    /// </summary>
+    private Task<SheetData> BuildJobPlayersLibertySheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        BuildJobPlayersSheetAsync(
+            jobId,
+            "Player Data",
+            [
+                "RegistrationID", "Player", "gender", "DOB",
+                "Mom", "Mom_Cellphone", "Mom_Email", "Dad", "Dad_Cellphone", "Dad_Email",
+                "agegroupName", "teamName", "paid_total", "owed_total",
+                "grad_year", "school_name", "position", "USLaxNo", "UsLaxNoExpiry",
+                "jersey", "shorts", "kilt", "t-shirt", "sweatshirt", "reversible", "gloves",
+                "gpa", "sat", "act", "height_inches", "weight_lbs", "uniform_no",
+                "FirstName", "LastName", "address", "city", "state", "zip",
+                "Email", "Cellphone", "Requests",
+            ],
+            r =>
+            [
+                r.RegistrationId, SqlConcat(r.LastName, ", ", r.FirstName), r.Gender, r.Dob?.Date,
+                SqlConcat(r.MomFirstName, " ", r.MomLastName), r.MomCellphone, r.MomEmail,
+                SqlConcat(r.DadFirstName, " ", r.DadLastName), r.DadCellphone, r.DadEmail,
+                r.AgegroupName, r.TeamName, r.PaidTotal, r.OwedTotal,
+                r.GradYear, r.SchoolName, r.Position, r.SportAssnId, r.SportAssnIdExpDate,
+                r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Sweatshirt, r.Reversible, r.Gloves,
+                r.Gpa, r.Sat, r.Act, r.HeightInches, r.WeightLbs, r.UniformNo,
+                r.FirstName, r.LastName, r.StreetAddress, r.City, r.State, r.PostalCode,
+                r.Email, r.Cellphone, r.SpecialRequests,
             ],
             cancellationToken);
 
