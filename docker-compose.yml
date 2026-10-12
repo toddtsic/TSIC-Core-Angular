@@ -18,6 +18,7 @@ services:
     environment:
       SA_PASSWORD: "Your_strong_Password1"
       ACCEPT_EULA: "Y"
+      TZ: America/Phoenix
     ports:
       - "1433:1433"
 
