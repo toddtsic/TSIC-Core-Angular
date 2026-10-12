@@ -32,6 +32,13 @@ procedure is never called.
 | Date | Batch | Result |
 |---|---|---|
 | 2026-10-12 | STEPS, YJ, E120, Liberty | All four run from the Reports Library and downloaded; details below |
+| 2026-10-12 | Seven camp exports, plus the batch 1 four again after the move into the layout table | All eleven run and downloaded; details below |
+
+Batch 2: the seven camp exports on `stateonelacrosse-campsandclinics-2026` (SuperUser, all-roles
+view) each returned 327 rows against 327 expected, with the procedure's sheet name, column count
+(17, 20, 6, 5, 9, 9, 11) and header row. The batch 1 four were re-run and matched their earlier
+results. No procedure's execution counter moved. `camp_excelexport_summer` is on no open job's
+shelf, so it has no UI run; it is parity-proven only.
 
 Batch 1, run through the browser against the local API:
 
