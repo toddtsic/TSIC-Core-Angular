@@ -30,6 +30,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.Get_Player_Transactions_ForExcelExport` | One select, 8 inner joins, 20 columns, one row per accounting record | 1,127 jobs, 224,499 rows, 0 differences | Date-as-text and filter-only joins; see below |
 | 2026-10-12 | `reporting_migrate.Get_DiscountedPlayers` | One select, 6 inner + 1 left join, 17 columns | 1,127 jobs, 13,476 rows, 0 differences | Value types through a left join; see below |
 | 2026-10-12 | `reporting_migrate.PlayerStats_ParisiResults` | One select, 5 inner joins, 11 columns, filter on division name | 1,127 jobs, 481,982 rows, 0 differences | `!=` drops nulls; see below |
+| 2026-10-12 | `reporting_migrate.UsageByJobAndRegistrant` | One select over the mobile device tables, 6 inner joins, 7 columns | 1,127 jobs, 3,017 rows, 0 differences | A join that neither selects nor filters is dropped; see below |
 
 ## UI passes
 
@@ -147,3 +148,11 @@ downloads were served from EF and the procedures were not called.
 - **A join whose table is filtered on must be an explicit join**, not the `DivId != null`
   shorthand used where the division is only a row filter.
 - **`float` columns arrive as `double` on both paths**; no conversion needed.
+
+### UsageByJobAndRegistrant
+
+- **A LEFT join on a unique key that selects nothing can go.** The procedure left-joins the
+  assigned team and reads no column from it; it can neither drop nor multiply rows. This is the
+  opposite of the INNER joins kept in Player Transactions, which do filter.
+- **The harness now runs every job**, not every job with a registration, since this report and
+  the team and schedule ones do not start from registrations.

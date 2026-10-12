@@ -395,6 +395,15 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Device-to-registration links for the "Mobile Users (Excel)" export — the EF replacement for
+    /// <c>reporting_migrate.UsageByJobAndRegistrant</c>. Job-scoped, any role, active or not;
+    /// ordered customer → job → role → last → first.
+    /// </summary>
+    Task<List<MobileJobUserExcelRowDto>> GetMobileJobUserExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

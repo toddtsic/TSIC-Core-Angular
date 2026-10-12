@@ -488,6 +488,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildPlayerStatsParisiSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.UsageByJobAndRegistrant", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildMobileJobUsersSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -594,6 +599,17 @@ public sealed class ReportingService : IReportingService
                 r.AgegroupName, r.FirstName, r.LastName, r.TeamName, r.UniformNo, r.SchoolName, r.ClubName,
                 r.FastestShot, r.FiveTenFive, r.FortyYardDash, r.ThreeHundredShuttle,
             ]);
+
+    /// <summary>
+    /// "Mobile Users" sheet of the "Mobile Users (Excel)" export: the proc's 7 columns, same names
+    /// and order.
+    /// </summary>
+    private async Task<SheetData> BuildMobileJobUsersSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Mobile Users",
+            await _reportingRepository.GetMobileJobUserExcelRowsAsync(jobId, cancellationToken),
+            ["customerName", "jobName", "Role", "LastName", "FirstName", "Type", "modified"],
+            r => [r.CustomerName, r.JobName, r.Role, r.LastName, r.FirstName, r.DeviceType, r.Modified]);
 
     /// <summary>
     /// One layout of the job-players export family: its sheet name, header names in order, and

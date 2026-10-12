@@ -1397,6 +1397,34 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<MobileJobUserExcelRowDto>> GetMobileJobUserExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.UsageByJobAndRegistrant. The proc's LEFT join to
+        // the assigned team selects and filters nothing, so it is not carried over.
+        return await (
+            from dr in _context.DeviceRegistrationIds.AsNoTracking()
+            join d in _context.Devices.AsNoTracking() on dr.DeviceId equals d.Id
+            join r in _context.Registrations.AsNoTracking() on dr.RegistrationId equals r.RegistrationId
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            join c in _context.Customers.AsNoTracking() on j.CustomerId equals c.CustomerId
+            where r.JobId == jobId
+            orderby c.CustomerName, j.JobName, roles.Name, u.LastName, u.FirstName
+            select new MobileJobUserExcelRowDto
+            {
+                CustomerName = c.CustomerName,
+                JobName = j.JobName,
+                Role = roles.Name,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                DeviceType = d.Type,
+                Modified = dr.Modified,
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════
