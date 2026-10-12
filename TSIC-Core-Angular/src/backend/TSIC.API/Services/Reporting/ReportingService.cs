@@ -508,6 +508,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildTeamFieldDistributionSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.JobRosters_ExportTournament", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildTournamentRecruitingSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -694,6 +699,69 @@ public sealed class ReportingService : IReportingService
                 r.ClubName, r.AgegroupName, r.TeamName, r.FieldName,
                 r.GameDay?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), r.GameCount,
             ]);
+
+    /// <summary>
+    /// "Recruiting" sheet of the "College Recruiter Data Dump (excel)" export: the proc's 46
+    /// columns, same names and order, with the proc's text formatting reproduced: ten-digit phones
+    /// dashed, parent emails lower-cased with a placeholder when missing, date of birth as
+    /// MM/DD/YYYY text, and a placeholder "Club Rep" user's contact details blanked.
+    /// </summary>
+    private async Task<SheetData> BuildTournamentRecruitingSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Recruiting",
+            await _reportingRepository.GetTournamentRecruitingExcelRowsAsync(jobId, cancellationToken),
+            [
+                "role", "RegistrationID", "FirstName", "LastName", "rosterPerson", "Email", "gender", "dob",
+                "streetAddress", "city", "state", "zip", "cellphone", "UsLaxNo",
+                "agegroupName", "divName", "club_name", "club_name_player", "teamName",
+                "Mom", "Mom_Email", "Mom_Phone", "Dad", "Dad_Email", "Dad_Phone",
+                "uniform_no", "grad_year", "school_name", "position", "gpa", "psat", "sat", "class_rank",
+                "height_inches", "weight_lbs", "act", "satMath", "satVerbal", "satWriting",
+                "bCollegeCommit", "College Committed",
+                "ClubRep_FirstName", "ClubRep_LastName", "rosterCR", "ClubRep_Email", "ClubRep_Phone",
+            ],
+            r =>
+            {
+                // The proc blanks the rep's details when the team is held by the placeholder user.
+                var placeholderRep = SqlEquals(r.ClubRepFirstName, "Club") && SqlEquals(r.ClubRepLastName, "Rep");
+                return
+                [
+                    r.Role, r.RegistrationId, r.FirstName, r.LastName, SqlConcat(r.FirstName, " ", r.LastName),
+                    r.Email, r.Gender, r.Dob?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                    r.StreetAddress, r.City, r.State, r.PostalCode,
+                    SqlLen(r.Cellphone) == 10
+                        ? $"{SqlSubstring(r.Cellphone, 1, 3)}-{SqlSubstring(r.Cellphone, 4, 3)}-{SqlSubstring(r.Cellphone, 7, 4)}"
+                        : r.Cellphone,
+                    r.SportAssnId,
+                    r.AgegroupName, r.DivName, r.ClubName, r.PlayerClubName, r.TeamName,
+                    SqlConcat(r.MomFirstName, " ", r.MomLastName),
+                    r.MomEmail?.ToLowerInvariant() ?? "not@given.com", ParentPhone(r.MomCellphone),
+                    SqlConcat(r.DadFirstName, " ", r.DadLastName),
+                    r.DadEmail?.ToLowerInvariant() ?? "not@given.com", ParentPhone(r.DadCellphone),
+                    r.UniformNo, r.GradYear, r.SchoolName, SqlConcat(r.Position, " - ", r.ClubTeamName),
+                    r.Gpa, r.Psat,
+                    // Preserved from the proc: its test reads "satVerbal is null", so the branch
+                    // that would total the three scores always adds a null and yields null;
+                    // every other row gets an empty string.
+                    r.SatMath != null && r.SatVerbal == null && r.SatWriting != null ? null : string.Empty,
+                    r.ClassRank, r.HeightInches, r.WeightLbs, r.Act, r.SatMath, r.SatVerbal, r.SatWriting,
+                    r.CollegeCommitted == true ? "Yes" : "No", r.CollegeCommit,
+                    placeholderRep ? string.Empty : r.ClubRepFirstName,
+                    placeholderRep ? string.Empty : r.ClubRepLastName,
+                    placeholderRep ? string.Empty : SqlConcat(r.ClubRepFirstName, " ", r.ClubRepLastName),
+                    placeholderRep ? string.Empty : r.ClubRepEmail,
+                    placeholderRep ? string.Empty : r.ClubRepCellphone,
+                ];
+            });
+
+    /// <summary>
+    /// The recruiting dump's parent-phone format: a ten-character number becomes 123-456-7890
+    /// (first three, middle three, last four); anything else is passed through.
+    /// </summary>
+    private static string? ParentPhone(string? phone) =>
+        SqlLen(phone) == 10
+            ? $"{SqlLeft(phone, 3)}-{SqlSubstring(phone, 4, 3)}-{SqlRight(phone, 4)}"
+            : phone;
 
     /// <summary>
     /// One layout of the job-players export family: its sheet name, header names in order, and
@@ -931,6 +999,35 @@ public sealed class ReportingService : IReportingService
     /// <summary>T-SQL <c>left(value, length)</c>: null stays null, a short value comes back whole.</summary>
     private static string? SqlLeft(string? value, int length) =>
         value == null ? null : value.Length <= length ? value : value[..length];
+
+    /// <summary>T-SQL <c>right(value, length)</c>: null stays null, a short value comes back whole.</summary>
+    private static string? SqlRight(string? value, int length) =>
+        value == null ? null : value.Length <= length ? value : value[^length..];
+
+    /// <summary>
+    /// T-SQL <c>substring(value, start, length)</c> with a 1-based start: null stays null, and a
+    /// range running past the end is cut short instead of throwing.
+    /// </summary>
+    private static string? SqlSubstring(string? value, int start, int length)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        var from = Math.Min(start - 1, value.Length);
+        return value.Substring(from, Math.Min(length, value.Length - from));
+    }
+
+    /// <summary>T-SQL <c>len(value)</c>: trailing spaces do not count; null stays null.</summary>
+    private static int? SqlLen(string? value) => value?.TrimEnd(' ').Length;
+
+    /// <summary>
+    /// T-SQL <c>a = 'literal'</c> under the database's case-insensitive collation: case and
+    /// trailing spaces are ignored, and null equals nothing.
+    /// </summary>
+    private static bool SqlEquals(string? value, string literal) =>
+        value != null && string.Equals(value.TrimEnd(' '), literal, StringComparison.OrdinalIgnoreCase);
 
     public async Task<ReportExportResult> ExportBoldReportAsync(
         string reportName,

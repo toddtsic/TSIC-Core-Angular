@@ -1569,6 +1569,81 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<TournamentRecruitingExcelRowDto>> GetTournamentRecruitingExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.JobRosters_ExportTournament. The team, its club
+        // rep's registration and user, and the division (DivId != null) are INNER joins; the
+        // family user and Families are LEFT joins, Families reached through the family user as in
+        // the proc. The proc's coalesce() fallbacks are kept here; its text formatting is not.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            join rCR in _context.Registrations.AsNoTracking() on t.ClubrepRegistrationid equals (Guid?)rCR.RegistrationId
+            join uCR in _context.AspNetUsers.AsNoTracking() on rCR.UserId equals uCR.Id
+            join d in _context.Divisions.AsNoTracking() on t.DivId equals (Guid?)d.DivId
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join uFj in _context.AspNetUsers.AsNoTracking() on r.FamilyUserId equals uFj.Id into uFs
+            from uF in uFs.DefaultIfEmpty()
+            join fj in _context.Families.AsNoTracking() on uF.Id equals fj.FamilyUserId into fs
+            from f in fs.DefaultIfEmpty()
+            where r.JobId == jobId && r.BActive == true
+                && (roles.Name == "Staff" || roles.Name == "Player")
+                && u.FirstName != null
+            orderby t.Agegroup.AgegroupName, t.TeamName, roles.Name descending, u.LastName, u.FirstName
+            select new TournamentRecruitingExcelRowDto
+            {
+                Role = roles.Name,
+                RegistrationId = r.RegistrationId,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email ?? uF.Email,
+                Gender = u.Gender,
+                Dob = u.Dob,
+                StreetAddress = u.StreetAddress ?? uF.StreetAddress,
+                City = u.City ?? uF.City,
+                State = u.State ?? uF.State,
+                PostalCode = u.PostalCode ?? uF.PostalCode,
+                Cellphone = u.Cellphone ?? f.MomCellphone,
+                SportAssnId = r.SportAssnId,
+                AgegroupName = t.Agegroup.AgegroupName,
+                DivName = d.DivName,
+                ClubName = rCR.ClubName,
+                PlayerClubName = r.ClubName,
+                TeamName = t.TeamName,
+                MomFirstName = f.MomFirstName,
+                MomLastName = f.MomLastName,
+                MomEmail = f.MomEmail,
+                MomCellphone = f.MomCellphone,
+                DadFirstName = f.DadFirstName,
+                DadLastName = f.DadLastName,
+                DadEmail = f.DadEmail,
+                DadCellphone = f.DadCellphone,
+                UniformNo = r.UniformNo,
+                GradYear = r.GradYear,
+                SchoolName = r.SchoolName,
+                Position = r.Position,
+                ClubTeamName = r.ClubTeamName,
+                Gpa = r.Gpa,
+                Psat = r.Psat,
+                ClassRank = r.ClassRank,
+                HeightInches = r.HeightInches,
+                WeightLbs = r.WeightLbs,
+                Act = r.Act,
+                SatMath = r.SatMath,
+                SatVerbal = r.SatVerbal,
+                SatWriting = r.SatWriting,
+                CollegeCommitted = r.BCollegeCommit,
+                CollegeCommit = r.CollegeCommit,
+                ClubRepFirstName = uCR.FirstName,
+                ClubRepLastName = uCR.LastName,
+                ClubRepEmail = uCR.Email,
+                ClubRepCellphone = uCR.Cellphone,
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════
