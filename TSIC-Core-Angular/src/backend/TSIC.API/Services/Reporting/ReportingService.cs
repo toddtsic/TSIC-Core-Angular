@@ -513,6 +513,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildTournamentRecruitingSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.JobRosters_RecruitingReport_DumpExcel", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildRecruitingRostersSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -762,6 +767,41 @@ public sealed class ReportingService : IReportingService
         SqlLen(phone) == 10
             ? $"{SqlLeft(phone, 3)}-{SqlSubstring(phone, 4, 3)}-{SqlRight(phone, 4)}"
             : phone;
+
+    /// <summary>
+    /// "Recruiting Rosters" sheet of the admin "Rosters Recruiting Data Dump (Excel)" export: the
+    /// proc's 26 columns, same names and order — including its second <c>grad_year</c> column.
+    /// Phones are dashed without a length check and missing scores read "0", as in the proc.
+    /// </summary>
+    private async Task<SheetData> BuildRecruitingRostersSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Recruiting Rosters",
+            await _reportingRepository.GetRecruitingRosterExcelRowsAsync(jobId, cancellationToken),
+            [
+                "agegroupName", "teamName", "lastName", "firstName", "uniform_no", "rosterPerson",
+                "phone", "email", "Address", "City", "State", "ZIP", "school", "grad_year",
+                "satMath", "satVerbal", "satWriting", "act", "gpa", "position", "club_name",
+                "clubrep", "clubrepEmail", "clubrepPhone", "grad_year", "ClubTeamName",
+            ],
+            r =>
+            [
+                r.AgegroupName, r.TeamName, r.LastName, r.FirstName, r.UniformNo?.Replace("#", string.Empty),
+                SqlConcat(r.FirstName, " ", r.LastName),
+                DashedPhone(r.Cellphone), r.Email, r.StreetAddress, r.City, r.State, r.PostalCode,
+                r.SchoolName, r.GradYear,
+                r.SatMath ?? "0", r.SatVerbal ?? "0", r.SatWriting ?? "0", r.Act ?? "0", r.Gpa, r.Position, r.ClubName,
+                SqlConcat(r.ClubRepFirstName, " ", r.ClubRepLastName), r.ClubRepEmail, DashedPhone(r.ClubRepCellphone),
+                r.GradYear, r.ClubTeamName,
+            ]);
+
+    /// <summary>
+    /// The recruiting rosters' phone format: first three, next three, next four characters joined
+    /// by dashes, whatever the length; null stays null.
+    /// </summary>
+    private static string? DashedPhone(string? phone) =>
+        phone == null
+            ? null
+            : $"{SqlSubstring(phone, 1, 3)}-{SqlSubstring(phone, 4, 3)}-{SqlSubstring(phone, 7, 4)}";
 
     /// <summary>
     /// One layout of the job-players export family: its sheet name, header names in order, and

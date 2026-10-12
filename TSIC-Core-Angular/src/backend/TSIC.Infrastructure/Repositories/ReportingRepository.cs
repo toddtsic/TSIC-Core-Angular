@@ -1644,6 +1644,102 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<RecruitingRosterExcelRowDto>> GetRecruitingRosterExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.JobRosters_RecruitingReport_DumpExcel and _Public
+        // (same FROM, WHERE and ORDER BY). The club rep's registration and user are LEFT joins;
+        // division (DivId != null), Families and the family user are INNER joins and so filter.
+        var rows = await (
+            from t in _context.Teams.AsNoTracking()
+            join rCRj in _context.Registrations.AsNoTracking() on t.ClubrepRegistrationid equals (Guid?)rCRj.RegistrationId into rCRs
+            from rCR in rCRs.DefaultIfEmpty()
+            join uCRj in _context.AspNetUsers.AsNoTracking() on rCR.UserId equals uCRj.Id into uCRs
+            from uCR in uCRs.DefaultIfEmpty()
+            join r in _context.Registrations.AsNoTracking() on (Guid?)t.TeamId equals r.AssignedTeamId
+            join f in _context.Families.AsNoTracking() on r.FamilyUserId equals f.FamilyUserId
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join uF in _context.AspNetUsers.AsNoTracking() on r.FamilyUserId equals uF.Id
+            where t.JobId == jobId && roles.Name == "Player" && t.Active == true && r.BActive == true
+                && t.DivId != null
+            orderby t.Agegroup.AgegroupName, t.TeamName, u.LastName, u.FirstName
+            select new RecruitingRosterExcelRowDto
+            {
+                AgegroupName = t.Agegroup.AgegroupName,
+                TeamName = t.TeamName,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                UniformNo = r.UniformNo,
+                Cellphone = u.Cellphone ?? f.MomCellphone,
+                Email = u.Email ?? f.MomEmail,
+                StreetAddress = uF.StreetAddress,
+                City = uF.City,
+                State = uF.State,
+                PostalCode = uF.PostalCode,
+                SchoolName = r.SchoolName,
+                GradYear = r.GradYear,
+                SatMath = r.SatMath,
+                SatVerbal = r.SatVerbal,
+                SatWriting = r.SatWriting,
+                Act = r.Act,
+                Gpa = r.Gpa,
+                Position = r.Position,
+                ClubName = r.ClubName ?? r.ClubTeamName,
+                ClubRepFirstName = uCR.FirstName,
+                ClubRepLastName = uCR.LastName,
+                ClubRepEmail = uCR.Email,
+                ClubRepCellphone = uCR.Cellphone,
+                ClubTeamName = r.ClubTeamName,
+            }).ToListAsync(cancellationToken);
+
+        return OrderRosterByUniformNumber(rows);
+    }
+
+    /// <summary>
+    /// The recruiting procs sort each team's players by uniform number read as a number
+    /// (<c>ISNUMERIC</c> + <c>CONVERT(int, …)</c> with any '#' removed), non-numeric first, then
+    /// last and first name. That conversion is SQL Server-specific, so it is applied here: the
+    /// rows arrive ordered agegroup → team → last → first by the database, and each run of rows
+    /// for one team is stably re-sorted on the number, leaving name order to break ties.
+    /// </summary>
+    private static List<RecruitingRosterExcelRowDto> OrderRosterByUniformNumber(List<RecruitingRosterExcelRowDto> rows)
+    {
+        static bool SameText(string? a, string? b) =>
+            a == null || b == null
+                ? a == b
+                : string.Equals(a.TrimEnd(' '), b.TrimEnd(' '), StringComparison.OrdinalIgnoreCase);
+
+        static int? UniformNumber(string? uniformNo) =>
+            int.TryParse(
+                uniformNo?.Replace("#", string.Empty),
+                NumberStyles.AllowLeadingSign | NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite,
+                CultureInfo.InvariantCulture,
+                out var n)
+                ? n
+                : null;
+
+        var ordered = new List<RecruitingRosterExcelRowDto>(rows.Count);
+        var start = 0;
+        while (start < rows.Count)
+        {
+            var end = start + 1;
+            while (end < rows.Count
+                && SameText(rows[end].AgegroupName, rows[start].AgegroupName)
+                && SameText(rows[end].TeamName, rows[start].TeamName))
+            {
+                end++;
+            }
+
+            // OrderBy is stable; a null number (non-numeric) sorts before every number, as in SQL.
+            ordered.AddRange(rows.GetRange(start, end - start).OrderBy(r => UniformNumber(r.UniformNo)));
+            start = end;
+        }
+
+        return ordered;
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

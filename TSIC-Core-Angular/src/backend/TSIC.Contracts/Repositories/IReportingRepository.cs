@@ -445,6 +445,18 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Active players on active teams with recruiting data for the "Rosters Recruiting Data Dump
+    /// (Excel)" exports — the EF replacement for
+    /// <c>reporting_migrate.JobRosters_RecruitingReport_DumpExcel</c> and <c>…_Public</c>, which
+    /// share one row set. Job-scoped; the team needs a division, the player a family; the club rep
+    /// is a LEFT join; ordered agegroup → team → uniform number (as a number, non-numeric first)
+    /// → last → first.
+    /// </summary>
+    Task<List<RecruitingRosterExcelRowDto>> GetRecruitingRosterExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

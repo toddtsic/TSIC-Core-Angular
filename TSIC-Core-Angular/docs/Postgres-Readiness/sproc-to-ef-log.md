@@ -35,6 +35,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.Get_Players_ForExcelExport_AllCustomers` | Customer resolved from the job, then one select over every admin-open job of that customer, 8 inner joins, 47 columns | 1,127 jobs, 10,823,419 rows, 0 differences | Cross-job scope and `getdate()`; see below |
 | 2026-10-12 | `reporting_migrate.TeamsFieldDistribution` | Aggregate: games joined to both teams, grouped by club, agegroup, team, field and day, 6 columns | 1,127 jobs, 82,675 rows, 0 differences | Grouping and sorting on a formatted date; see below |
 | 2026-10-12 | `reporting_migrate.JobRosters_ExportTournament` | One select, 8 inner + 2 left joins, 46 columns, heavy text formatting | 1,127 jobs, 434,018 rows, 0 differences | T-SQL string functions in C#; see below |
+| 2026-10-12 | `reporting_migrate.JobRosters_RecruitingReport_DumpExcel` | One select from teams, 7 inner + 2 left joins, 26 columns, sorted on uniform number as an integer | 1,127 jobs, 546,331 rows, 0 differences; on 3 jobs the procedure errors and EF does not | First behaviour change; see below |
 
 ## UI passes
 
@@ -216,3 +217,25 @@ downloads were served from EF and the procedures were not called.
   where "is not null" was meant, so it is always null or empty. The EF path returns the same;
   changing a report's output is a separate decision from moving it.
 - **`order by … desc` on one key** is `descending` on that key only.
+
+### JobRosters_RecruitingReport_DumpExcel
+
+- **First behaviour change: the procedure fails on three jobs and the EF path does not.** Its
+  `ORDER BY` does `CONVERT(int, …)` on any uniform number `ISNUMERIC` accepts, which raises error
+  248 on a value too large for an int (`35000015218568`) and 245 on text `ISNUMERIC` accepts but
+  `int` does not. The whole export fails for that job. The EF path treats such a value as
+  non-numeric and returns the report. Nothing can depend on an error, so this was taken as is;
+  it is the one place so far where old and new differ.
+- **`ISNUMERIC` + `CONVERT(int)` is SQL Server-only, so the sort is finished in C#.** The query
+  orders by agegroup, team, last, first; the repository then stably re-sorts each team's run of
+  rows on the parsed number, nulls first as SQL sorts them. Team boundaries are detected with
+  the same case- and trailing-space-insensitive comparison the collation uses.
+- **The harness must compare the sort key the procedure sorts on.** Six jobs first showed
+  reorders: the same player twice on a team with different uniform text and the same numeric
+  key. Those are ties; the harness now compares the parsed number, and a read-only query
+  confirmed the tied-row counts matched the reported positions exactly (2, 2, 2, 2, 2, 4).
+- **The harness records jobs where the procedure itself errors** instead of aborting.
+- **A duplicate column name is legal in a result set and in the sheet** (`grad_year` appears
+  twice); the header list simply repeats it.
+- **`coalesce(x, '0')`, `replace(x, '#', '')` and unguarded `substring` phone formatting** all
+  move to the sheet builder.
