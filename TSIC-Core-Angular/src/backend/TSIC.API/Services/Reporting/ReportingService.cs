@@ -498,6 +498,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildLeagueTeamsSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.Get_Players_ForExcelExport_AllCustomers", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildCustomerPlayersSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -635,6 +640,38 @@ public sealed class ReportingService : IReportingService
                 r.AgegroupName, r.DivName, r.TeamName, r.ClubName, r.LastName, r.FirstName, r.Email, r.City,
                 r.State, r.PostalCode, r.Cellphone, r.TeamComments?.Replace('\r', ','), r.HomeField,
                 r.TeamId.ToString().ToUpperInvariant(), r.LevelOfPlay,
+            ]);
+
+    /// <summary>
+    /// "Customer Players" sheet of the "Player Data - All Customer Jobs (Excel)" export: the
+    /// proc's 47 columns, same names and order.
+    /// </summary>
+    private async Task<SheetData> BuildCustomerPlayersSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Customer Players",
+            await _reportingRepository.GetCustomerPlayersExcelRowsAsync(jobId, cancellationToken),
+            [
+                "customerName", "jobName", "RegistrationID", "RegistrationTS", "FirstName", "LastName",
+                "Player", "gender", "DOB",
+                "Mom_FirstName", "Mom_LastName", "Mom", "Mom_Cellphone", "Mom_Email",
+                "Dad_FirstName", "Dad_LastName", "Dad", "Dad_Cellphone", "Dad_Email",
+                "agegroupName", "teamName", "club_name", "paid_total", "owed_total",
+                "grad_year", "school_name", "school_grade", "position", "USLaxNo", "UsLaxNoExpiry",
+                "jersey", "shorts", "kilt", "t-shirt", "sweatshirt", "reversible", "gloves",
+                "gpa", "sat", "act", "height_inches", "weight_lbs",
+                "uniform_no", "address", "city", "state", "zip",
+            ],
+            r =>
+            [
+                r.CustomerName, r.JobName, r.RegistrationId, r.RegistrationTs, r.FirstName, r.LastName,
+                SqlConcat(r.LastName, ", ", r.FirstName), r.Gender, r.Dob?.Date,
+                r.MomFirstName, r.MomLastName, SqlConcat(r.MomFirstName, " ", r.MomLastName), r.MomCellphone, r.MomEmail,
+                r.DadFirstName, r.DadLastName, SqlConcat(r.DadFirstName, " ", r.DadLastName), r.DadCellphone, r.DadEmail,
+                r.AgegroupName, r.TeamName, r.ClubName, r.PaidTotal, r.OwedTotal,
+                r.GradYear, r.SchoolName, r.SchoolGrade, r.Position, r.SportAssnId, r.SportAssnIdExpDate,
+                r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Sweatshirt, r.Reversible, r.Gloves,
+                r.Gpa, r.Sat, r.Act, r.HeightInches, r.WeightLbs,
+                r.UniformNo, r.StreetAddress, r.City, r.State, r.PostalCode,
             ]);
 
     /// <summary>

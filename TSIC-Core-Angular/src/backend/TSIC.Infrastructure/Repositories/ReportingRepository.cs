@@ -1460,6 +1460,85 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<CustomerPlayersExcelRowDto>> GetCustomerPlayersExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.Get_Players_ForExcelExport_AllCustomers. The proc
+        // resolves the customer from the job, then lists every job of that customer whose
+        // ExpiryAdmin is still ahead. No divisions join here, unlike the job-players family, and
+        // club_name is the registration's own.
+        var customerId = await _context.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (Guid?)j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (customerId == null)
+        {
+            return [];
+        }
+
+        var now = DateTime.Now;
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            join c in _context.Customers.AsNoTracking() on j.CustomerId equals c.CustomerId
+            join uF in _context.AspNetUsers.AsNoTracking() on r.FamilyUserId equals uF.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join f in _context.Families.AsNoTracking() on r.FamilyUserId equals f.FamilyUserId
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            where j.CustomerId == customerId && j.ExpiryAdmin > now
+                && r.BActive == true && roles.Name == "Player"
+            orderby c.CustomerName, j.JobName, u.LastName, u.FirstName, t.Agegroup.AgegroupName, t.TeamName
+            select new CustomerPlayersExcelRowDto
+            {
+                CustomerName = c.CustomerName,
+                JobName = j.JobName,
+                RegistrationId = r.RegistrationId,
+                RegistrationTs = r.RegistrationTs,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Gender = u.Gender,
+                Dob = u.Dob,
+                MomFirstName = f.MomFirstName,
+                MomLastName = f.MomLastName,
+                MomCellphone = f.MomCellphone,
+                MomEmail = f.MomEmail,
+                DadFirstName = f.DadFirstName,
+                DadLastName = f.DadLastName,
+                DadCellphone = f.DadCellphone,
+                DadEmail = f.DadEmail,
+                AgegroupName = t.Agegroup.AgegroupName,
+                TeamName = t.TeamName,
+                ClubName = r.ClubName,
+                PaidTotal = r.PaidTotal,
+                OwedTotal = r.OwedTotal,
+                GradYear = r.GradYear,
+                SchoolName = r.SchoolName,
+                SchoolGrade = r.SchoolGrade,
+                Position = r.Position,
+                SportAssnId = r.SportAssnId,
+                SportAssnIdExpDate = r.SportAssnIdexpDate,
+                JerseySize = r.JerseySize,
+                ShortsSize = r.ShortsSize,
+                Kilt = r.Kilt,
+                TShirt = r.TShirt,
+                Sweatshirt = r.Sweatshirt,
+                Reversible = r.Reversible,
+                Gloves = r.Gloves,
+                Gpa = r.Gpa,
+                Sat = r.Sat,
+                Act = r.Act,
+                HeightInches = r.HeightInches,
+                WeightLbs = r.WeightLbs,
+                UniformNo = r.UniformNo,
+                StreetAddress = uF.StreetAddress,
+                City = uF.City,
+                State = uF.State,
+                PostalCode = uF.PostalCode,
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

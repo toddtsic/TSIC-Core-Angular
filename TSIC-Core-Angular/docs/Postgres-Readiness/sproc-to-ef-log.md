@@ -32,6 +32,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.PlayerStats_ParisiResults` | One select, 5 inner joins, 11 columns, filter on division name | 1,127 jobs, 481,982 rows, 0 differences | `!=` drops nulls; see below |
 | 2026-10-12 | `reporting_migrate.UsageByJobAndRegistrant` | One select over the mobile device tables, 6 inner joins, 7 columns | 1,127 jobs, 3,017 rows, 0 differences | A join that neither selects nor filters is dropped; see below |
 | 2026-10-12 | `reporting_migrate.League_Teams` | One select from teams, 5 inner + 1 left join, 15 columns | 1,127 jobs, 31,570 rows, 0 differences | A uniqueidentifier as text is upper-case; see below |
+| 2026-10-12 | `reporting_migrate.Get_Players_ForExcelExport_AllCustomers` | Customer resolved from the job, then one select over every admin-open job of that customer, 8 inner joins, 47 columns | 1,127 jobs, 10,823,419 rows, 0 differences | Cross-job scope and `getdate()`; see below |
 
 ## UI passes
 
@@ -167,3 +168,17 @@ downloads were served from EF and the procedures were not called.
 - **The reviewed procedure had already lost its side effect.** The legacy source back-filled
   `teams.FieldID1` before selecting; the May copy dropped that and made the field a LEFT join,
   so this one was a pure read by the time it got here.
+
+### Get_Players_ForExcelExport_AllCustomers
+
+- **A variable assigned from a lookup becomes its own query.** The procedure reads the job's
+  customer into `@customerID` first; the repository does the same and returns no rows when the
+  job does not exist (the procedure's null variable matches nothing).
+- **`getdate()` becomes a `DateTime.Now` parameter**, taken once in the repository. Both are the
+  database server's local clock on this box; on a split app/database deployment they would be
+  two clocks.
+- **A cross-job report makes the parity run long**: each of the 1,127 calls returns a whole
+  customer, 10.8 million rows in all and 46 minutes. Nothing to fix, but run it in the background.
+- **Not a sibling of the job-players family despite the look**: no division join, and
+  `club_name` is the registration's own with no club-rep fallback, so it has its own query.
+- **No UI run possible**: the report is on no open job's shelf.

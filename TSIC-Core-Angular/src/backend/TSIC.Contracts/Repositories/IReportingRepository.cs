@@ -414,6 +414,17 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Active players across every admin-open job of <paramref name="jobId"/>'s customer, for the
+    /// "Player Data - All Customer Jobs (Excel)" export — the EF replacement for
+    /// <c>reporting_migrate.Get_Players_ForExcelExport_AllCustomers</c>. Customer-scoped (jobs with
+    /// <c>ExpiryAdmin</c> in the future); mirrors the proc's INNER joins (player user, family
+    /// user, <c>Families</c>, team); ordered customer → job → last → first → agegroup → team.
+    /// </summary>
+    Task<List<CustomerPlayersExcelRowDto>> GetCustomerPlayersExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>
