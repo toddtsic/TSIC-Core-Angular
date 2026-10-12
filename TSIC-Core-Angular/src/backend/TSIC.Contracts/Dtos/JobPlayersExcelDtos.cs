@@ -1,9 +1,10 @@
 namespace TSIC.Contracts.Dtos;
 
 /// <summary>
-/// One active player's row for the "Player Data (Excel)" family of exports (STEPS, Yellow Jackets,
-/// E120, Liberty) — the EF replacement for the <c>reporting_migrate.*JobPlayers*_Excel</c> procs,
-/// which were column subsets of one shared legacy proc. Job-scoped, Player role only. Each layout's
+/// One active player's row for the job-players family of exports (the STEPS, Yellow Jackets, E120
+/// and Liberty "Player Data" layouts and the camp exports) — the EF replacement for the
+/// <c>reporting_migrate.*JobPlayers*_Excel</c> and <c>reporting_migrate.camp_*</c> procs, which
+/// were column subsets of one shared legacy proc. Job-scoped, Player role only. Each layout's
 /// column order and header names (which include non-identifiers such as <c>t-shirt</c>) are owned
 /// by the renderer.
 /// </summary>
@@ -59,4 +60,7 @@ public record JobPlayersExcelRowDto
     public string? SpecialRequests { get; init; }
     public string? MedicalNote { get; init; }
     public string? Shoes { get; init; }
+    public string? RoommatePref { get; init; }
+    public string? DayGroup { get; init; }
+    public string? NightGroup { get; init; }
 }

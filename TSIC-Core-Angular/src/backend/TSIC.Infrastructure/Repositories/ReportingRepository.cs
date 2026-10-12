@@ -1186,7 +1186,7 @@ public class ReportingRepository : IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        // EF replacement for the reporting_migrate.*JobPlayers*_Excel procs. They INNER-join the
+        // EF replacement for the reporting_migrate.*JobPlayers*_Excel and camp_* procs. They INNER-join the
         // player user, the family user, Families, the assigned team and that team's division, so
         // those rows drop here too (DivId != null stands in for the divisions join; league and
         // agegroup are non-null FKs). Club name falls back to the team's club rep, a LEFT join.
@@ -1251,6 +1251,9 @@ public class ReportingRepository : IReportingRepository
                 SpecialRequests = r.SpecialRequests,
                 MedicalNote = r.MedicalNote,
                 Shoes = r.Shoes,
+                RoommatePref = r.RoommatePref,
+                DayGroup = r.DayGroup,
+                NightGroup = r.NightGroup,
             }).ToListAsync(cancellationToken);
     }
 

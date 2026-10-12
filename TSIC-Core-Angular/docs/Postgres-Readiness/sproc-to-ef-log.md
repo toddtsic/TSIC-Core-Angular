@@ -25,6 +25,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.JobPlayers_YJ_Excel` | Same joins as STEPS, 36 columns | 870 jobs, 551,815 rows, 0 differences | Sibling layouts share one query; see below |
 | 2026-10-12 | `reporting_migrate.Get_JobPlayers_E120_Excel` | Same joins, 39 columns, 3 concatenated names | 870 jobs, 551,815 rows, 0 differences | T-SQL `+` is null-propagating; see below |
 | 2026-10-12 | `reporting_migrate.Get_JobPlayers_Liberty_Excel` | Same joins, 41 columns | 870 jobs, 551,815 rows, 0 differences | Nothing new |
+| 2026-10-12 | `reporting_migrate.camp_datadump`, `camp_excelexport_long`, `_short`, `_veryshort`, `_daygroups`, `_roomies`, `_room_position`, `_summer` | Same joins again, 5 to 20 columns each | 870 jobs, 551,815 rows, 0 differences, each of the eight | One layout table; see below |
 
 ## UI passes
 
@@ -75,5 +76,18 @@ downloads were served from EF and the procedures were not called.
   `Player`, `Mom` and `Dad` columns are built in the service with a `SqlConcat` helper that returns
   null in that case. Doing it in C# rather than in the query also keeps it provider-neutral
   (Postgres `||` is null-propagating too, but `CONCAT` is not on either engine).
+- **Twelve procedures, one query.** The eight camp exports are subsets of the same legacy
+  superset as the four player layouts. All twelve now live in one table in `ReportingService`
+  (`JobPlayersLayouts`): procedure name to sheet name, header list and row projection. Adding a
+  layout is one entry; the eight camp exports were committed together for that reason.
+- **Before converting a procedure, check whether it is a sibling of one already done.** Compare
+  its FROM, WHERE and ORDER BY against the converted ones first. The May 2026 Crystal retirement
+  (`73c9e2c98`) cut many procedures from a few shared sources, so families are the norm.
+- **`left(x, n)` needs a null-safe helper** (`SqlLeft`): null stays null and a short value comes
+  back whole, where C# range slicing would throw.
+- **The harness goes through the routing seam** (`BuildEfReplacementSheetsAsync`), so a procedure
+  name that is misspelled in the layout table fails parity instead of silently staying on SQL.
+- **Layouts that omit a sort-key column are still order-checked** on the key columns they do
+  carry; tied rows share the whole key, so they share any part of it.
 - **Re-prove the earlier layout when the shared query changes.** STEPS was re-run after the DTO
   widened; still 0 differences.

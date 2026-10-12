@@ -347,8 +347,8 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Active Player rows for the "Player Data (Excel)" family of exports — the EF replacement for
-    /// the <c>reporting_migrate.*JobPlayers*_Excel</c> procs. Job-scoped; mirrors their shared INNER joins
+    /// Active Player rows for the job-players family of exports — the EF replacement for the
+    /// <c>reporting_migrate.*JobPlayers*_Excel</c> and <c>reporting_migrate.camp_*</c> procs. Job-scoped; mirrors their shared INNER joins
     /// (player user, family user, <c>Families</c>, team, and the team's division — so familyless,
     /// unassigned, and division-less-team registrants drop) and its LEFT join to the team's club rep
     /// for the club-name fallback; ordered agegroup → team → last → first.
