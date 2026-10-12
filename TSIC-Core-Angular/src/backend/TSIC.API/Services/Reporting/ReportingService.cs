@@ -483,6 +483,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildDiscountedPlayersSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.PlayerStats_ParisiResults", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildPlayerStatsParisiSheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -570,6 +575,24 @@ public sealed class ReportingService : IReportingService
                 r.MomFirstName, r.MomEmail, r.MomCellphone, r.MomLastName,
                 r.DadFirstName, r.DadLastName, r.DadEmail, r.DadCellphone,
                 r.FeeDiscount, r.CodeName, r.CodeActive, r.CodeStartDate, r.CodeEndDate,
+            ]);
+
+    /// <summary>
+    /// "Parisi Stats" sheet of the "Player Stats Export - Parisi (Excel)" export: the proc's 11
+    /// columns, same names and order.
+    /// </summary>
+    private async Task<SheetData> BuildPlayerStatsParisiSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Parisi Stats",
+            await _reportingRepository.GetPlayerStatsParisiExcelRowsAsync(jobId, cancellationToken),
+            [
+                "agegroupName", "FirstName", "LastName", "teamName", "uniform_no", "school_name", "club_name",
+                "fastestshot", "five_ten_five", "fourtyyarddash", "threehundredshuttle",
+            ],
+            r =>
+            [
+                r.AgegroupName, r.FirstName, r.LastName, r.TeamName, r.UniformNo, r.SchoolName, r.ClubName,
+                r.FastestShot, r.FiveTenFive, r.FortyYardDash, r.ThreeHundredShuttle,
             ]);
 
     /// <summary>

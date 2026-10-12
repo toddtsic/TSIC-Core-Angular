@@ -1365,6 +1365,38 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<PlayerStatsParisiExcelRowDto>> GetPlayerStatsParisiExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.PlayerStats_ParisiResults. The division is an
+        // explicit INNER join because the proc filters on its name; SQL's "!= 'Unassigned'" also
+        // drops a null name, hence the explicit null test.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            join d in _context.Divisions.AsNoTracking() on t.DivId equals d.DivId
+            where r.JobId == jobId && roles.Name == "Player" && r.BActive == true
+                && d.DivName != null && d.DivName != "Unassigned"
+            orderby t.Agegroup.AgegroupName, u.LastName, u.FirstName
+            select new PlayerStatsParisiExcelRowDto
+            {
+                AgegroupName = t.Agegroup.AgegroupName,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                TeamName = t.TeamName,
+                UniformNo = r.UniformNo,
+                SchoolName = r.SchoolName,
+                ClubName = r.ClubName,
+                FastestShot = r.Fastestshot,
+                FiveTenFive = r.FiveTenFive,
+                FortyYardDash = r.Fourtyyarddash,
+                ThreeHundredShuttle = r.Threehundredshuttle,
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

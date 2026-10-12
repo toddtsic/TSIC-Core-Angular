@@ -386,6 +386,15 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Active players' combine results for the "Player Stats Export - Parisi (Excel)" export — the
+    /// EF replacement for <c>reporting_migrate.PlayerStats_ParisiResults</c>. Job-scoped; players
+    /// must be on a team whose division is not "Unassigned"; ordered agegroup → last → first.
+    /// </summary>
+    Task<List<PlayerStatsParisiExcelRowDto>> GetPlayerStatsParisiExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

@@ -29,6 +29,7 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.Get_Staff_ForExcelExport` | One select, 2 inner + 2 left joins, 10 columns | 1,127 jobs, 22,397 rows, 0 differences | Left joins via optional navigation; see below |
 | 2026-10-12 | `reporting_migrate.Get_Player_Transactions_ForExcelExport` | One select, 8 inner joins, 20 columns, one row per accounting record | 1,127 jobs, 224,499 rows, 0 differences | Date-as-text and filter-only joins; see below |
 | 2026-10-12 | `reporting_migrate.Get_DiscountedPlayers` | One select, 6 inner + 1 left join, 17 columns | 1,127 jobs, 13,476 rows, 0 differences | Value types through a left join; see below |
+| 2026-10-12 | `reporting_migrate.PlayerStats_ParisiResults` | One select, 5 inner joins, 11 columns, filter on division name | 1,127 jobs, 481,982 rows, 0 differences | `!=` drops nulls; see below |
 
 ## UI passes
 
@@ -137,3 +138,12 @@ downloads were served from EF and the procedures were not called.
   carry; tied rows share the whole key, so they share any part of it.
 - **Re-prove the earlier layout when the shared query changes.** STEPS was re-run after the DTO
   widened; still 0 differences.
+
+### PlayerStats_ParisiResults
+
+- **SQL `x != 'value'` is false for a null `x`; EF's translation is not.** EF adds `OR x IS NULL`
+  to keep C# semantics, which would let through rows the procedure drops. Write the null test
+  explicitly (`d.DivName != null && d.DivName != "Unassigned"`).
+- **A join whose table is filtered on must be an explicit join**, not the `DivId != null`
+  shorthand used where the division is only a row filter.
+- **`float` columns arrive as `double` on both paths**; no conversion needed.
