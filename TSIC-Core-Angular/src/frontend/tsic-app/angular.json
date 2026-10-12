@@ -90,6 +90,48 @@
                 }
               ]
             },
+            "staging-ubuntu": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "5.0MB",
+                  "maximumError": "6.0MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "32kB",
+                  "maximumError": "48kB"
+                }
+              ],
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.staging-ubuntu.ts"
+                }
+              ]
+            },
+            "production-ubuntu": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "5.0MB",
+                  "maximumError": "6.0MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "32kB",
+                  "maximumError": "48kB"
+                }
+              ],
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.production-ubuntu.ts"
+                }
+              ]
+            },
             "development": {
               "optimization": false,
               "extractLicenses": false,

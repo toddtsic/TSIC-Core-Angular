@@ -1,0 +1,89 @@
+# TSIC app site for one environment: the Angular build from /opt/tsic/<env>/web.
+#
+# One of three websites, as under IIS: this one, the API (tsic-api.conf.template)
+# and Statics (tsic-statics.conf.template). The browser reaches each by its own
+# address; the app learns the other two from app-config.json at start-up.
+#
+# Rendered by ../render-nginx.sh; do not edit the copy in /etc/nginx. Only the
+# ${NAME} placeholders listed in that script are substituted; every other $name is
+# an nginx variable.
+#
+# Carries over scripts/IIS-Config-*/web.config.angular: index.html and help/ are
+# always revalidated, hashed assets are cached for a year, unknown paths fall back
+# to index.html for Angular routing, and the same security headers are sent.
+# Carries over public/.well-known/web.config: those files are JSON and never cached.
+
+server {
+    # "http2" on the listen line is the form nginx 1.24 (Ubuntu 24.04) understands;
+    # the separate "http2 on;" directive needs 1.25.1 or later.
+    listen ${APP_LISTEN} ssl http2;
+    server_name ${APP_SERVER_NAME};
+
+    ssl_certificate     ${TLS_CERT};
+    ssl_certificate_key ${TLS_KEY};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    root /opt/tsic/${APP_ENV}/web;
+    index index.html;
+    autoindex off;
+    server_tokens off;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # nginx drops inherited add_header lines in any location that sets its own,
+    # so every location below includes the full set.
+    include /etc/nginx/snippets/tsic-security-headers.conf;
+
+    # --- Angular ---------------------------------------------------------
+    # The API is a different website. Without this, a mistaken /api/ call to the app
+    # site would get index.html with "200 OK", which looks like success and is not
+    # (web.config.angular excludes /api/ from its rewrite for the same reason).
+    location ^~ /api/ { return 404; }
+
+    location = /privacy-policy  { return 301 /privacy-policy.html; }
+    location = /privacy-policy/ { return 301 /privacy-policy.html; }
+
+    location = /index.html {
+        include /etc/nginx/snippets/tsic-security-headers.conf;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+    }
+
+    # Per-machine addresses, written at publish time; must never be stale.
+    location = /app-config.json {
+        include /etc/nginx/snippets/tsic-security-headers.conf;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+
+    location = /version.json {
+        include /etc/nginx/snippets/tsic-security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+    }
+
+    location ^~ /help/ {
+        include /etc/nginx/snippets/tsic-security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ^~ /.well-known/ {
+        include /etc/nginx/snippets/tsic-security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+        default_type application/json;
+        try_files $uri =404;
+    }
+
+    # Hashed build output: the file name changes on every build.
+    location ~* \.(?:js|css|woff2?|ttf|eot|svg|png|jpe?g|gif|ico|webp|map)$ {
+        include /etc/nginx/snippets/tsic-security-headers.conf;
+        add_header Cache-Control "public, max-age=31536000" always;
+        try_files $uri =404;
+    }
+
+    location / {
+        include /etc/nginx/snippets/tsic-security-headers.conf;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        try_files $uri $uri/ /index.html;
+    }
+}

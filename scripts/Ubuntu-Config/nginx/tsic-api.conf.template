@@ -1,0 +1,42 @@
+# TSIC API site for one environment: nginx in front of the API service (Kestrel).
+#
+# Ubuntu equivalent of the IIS site dev-api / its production twin. nginx ends TLS
+# and passes every request to the service on a loopback port, telling it the real
+# client address and that the request arrived over HTTPS
+# (ASPNETCORE_FORWARDEDHEADERS_ENABLED=true in the environment's secrets file).
+#
+# Rendered by ../render-nginx.sh; do not edit the copy in /etc/nginx. Only the
+# ${NAME} placeholders listed in that script are substituted; every other $name is
+# an nginx variable.
+#
+# No headers are added here: CORS, HSTS and cache headers are the API's own job,
+# as they are under IIS, and adding them twice breaks browsers' CORS checks.
+
+server {
+    # "http2" on the listen line is the form nginx 1.24 (Ubuntu 24.04) understands;
+    # the separate "http2 on;" directive needs 1.25.1 or later.
+    listen ${API_LISTEN} ssl http2;
+    server_name ${API_SERVER_NAME};
+
+    ssl_certificate     ${TLS_CERT};
+    ssl_certificate_key ${TLS_KEY};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    server_tokens off;
+
+    # Largest upload the API accepts is an 11 MB medical form; its own per-endpoint
+    # limits still apply. This is only the outer ceiling.
+    client_max_body_size 30m;
+
+    location / {
+        proxy_pass http://127.0.0.1:${API_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $http_host;
+        # Reports and exports can run long.
+        proxy_read_timeout 300s;
+        proxy_buffering off;
+    }
+}

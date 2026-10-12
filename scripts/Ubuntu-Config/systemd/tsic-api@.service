@@ -1,0 +1,44 @@
+# TSIC API as a service. One unit file serves every environment on the machine:
+#   tsic-api@staging, tsic-api@production
+# "%i" below is the part after the @.
+#
+# Ubuntu equivalent of an IIS application pool plus its site. Settings and secrets
+# come from /etc/tsic/%i.env (see ../secrets.env.example), which must set
+# ASPNETCORE_ENVIRONMENT; Program.cs refuses to start without it.
+#
+# The service account is substituted by setup/install-server.sh.
+
+[Unit]
+Description=TSIC API (%i)
+After=network-online.target
+Wants=network-online.target
+# Nothing to run until the first publish; skip quietly instead of failing in a loop.
+ConditionPathExists=/opt/tsic/%i/api/TSIC.API.dll
+
+[Service]
+Type=simple
+User=${SERVICE_USER}
+Group=${SERVICE_USER}
+WorkingDirectory=/opt/tsic/%i/api
+ExecStart=/usr/bin/dotnet /opt/tsic/%i/api/TSIC.API.dll
+EnvironmentFile=/etc/tsic/%i.env
+Environment=DOTNET_NOLOGO=1
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+
+# Come back after a crash, but not in a tight loop.
+Restart=always
+RestartSec=5
+# Ask the app to shut down cleanly, as Ctrl+C would, and give it time to flush.
+KillSignal=SIGINT
+TimeoutStopSec=30
+SyslogIdentifier=tsic-api-%i
+
+# Confinement: no new privileges, a private /tmp, no view of people's home
+# folders, and /usr, /boot and /etc read-only. /opt, /srv and /var stay writable.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

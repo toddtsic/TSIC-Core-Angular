@@ -1,0 +1,42 @@
+# TSIC-STATICS website (Ubuntu equivalent of the IIS site statics.teamsportsinfo.com).
+#
+# Rendered by ../render-nginx.sh from a per-machine settings file; do not edit the
+# rendered copy in /etc/nginx. Only the three ${STATICS_*} values are substituted,
+# every other $name below is an nginx variable.
+#
+# Carries over the two IIS web.config rules that lived in the Statics folder:
+#   - root web.config  : RegFileUploads is hidden (medical forms, vaccine cards).
+#                        The API serves those itself, after checking the user.
+#   - BannerFiles      : "Cache-Control: no-cache", because a re-uploaded banner
+#                        keeps its filename and must be revalidated on every view.
+
+server {
+    listen ${STATICS_LISTEN};
+    server_name ${STATICS_SERVER_NAME};
+
+    root ${STATICS_ROOT};
+    autoindex off;
+    server_tokens off;
+
+    add_header X-Content-Type-Options "nosniff" always;
+
+    # Never web-reachable. Case-insensitive, as IIS matched it.
+    location ~* ^/RegFileUploads(/|$) { return 404; }
+
+    # Leftover IIS settings files and dotfiles are not content.
+    location ~* /web\.config$ { return 404; }
+    location ~ /\. { return 404; }
+
+    location ^~ /BannerFiles/ {
+        location ~* /web\.config$ { return 404; }
+        add_header Cache-Control "no-cache" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        limit_except GET HEAD { deny all; }
+        try_files $uri =404;
+    }
+
+    location / {
+        limit_except GET HEAD { deny all; }
+        try_files $uri =404;
+    }
+}

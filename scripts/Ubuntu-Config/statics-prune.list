@@ -1,0 +1,34 @@
+# Statics folders that nothing in the current stack reads or writes.
+# Read by statics-prune.sh. One folder per line, relative to STATICS_ROOT; text
+# after "#" is the evidence for that line.
+#
+# Reviewed 2026-10-12 against three sources:
+#   code      every reference to a Statics folder in the backend and frontend
+#   database  every text column in TSICV5 searched for the Statics host and each
+#             folder name (1,302 columns)
+#   disk      newest file date in each folder; go-live of the current stack was
+#             2026-08-08
+#
+# Not checked, because they cannot be seen from the codebase: requests from the
+# mobile apps, links in emails already sent, and the Statics site's own access log.
+#
+# Restoring Statics from backup (IDrive): restore every folder EXCEPT the ones
+# listed at the bottom of this file. Inside RegFileUploads, restore MedForms and
+# leave out VaccineCards. That is about 6 GB instead of 29 GB.
+#
+# Kept, and why (do not add these):
+#   BannerFiles, Headshots-AllRegistrants, Store-Sku-Images, RegFileUploads/MedForms
+#       read and written by the API; statics-prune.sh refuses them regardless
+#   docs        4,097 menu, nav, bulletin and waiver links in the database
+#   Mobile      289 bulletins link Mobile/Images/appstore.jpg; 8 team message photos
+#   TSIC        285 bulletins link the app-store QR codes in TSIC/Images
+#   jobinvoices no reader in this stack and no file since 2023-12, but these are
+#               monthly invoice records from 2011 on; a business decision, not a
+#               technical one. Uncomment the line below to remove them.
+#   BracketImages, Merch   unreferenced but under 100 KB together
+
+Headshots-Unify              # legacy headshot store; code: "so the legacy store can be dropped at go-live"; no database links; 2 files since go-live; Todd approved 2026-10-12
+Headshots                    # no code, no database links; newest file 2021-05-23
+UserHeadshots                # no code, no database links; newest file 2020-05-03
+RegFileUploads/VaccineCards  # code: "upload, view, and storage are all legacy-only"; no database links; newest file 2023-07-12
+# jobinvoices                # see above
