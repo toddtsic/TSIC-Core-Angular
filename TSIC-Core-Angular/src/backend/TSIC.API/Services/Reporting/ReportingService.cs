@@ -473,6 +473,11 @@ public sealed class ReportingService : IReportingService
             return [await BuildJobPlayersYjSheetAsync(jobId, cancellationToken)];
         }
 
+        if (normalized.Equals("reporting_migrate.Get_JobPlayers_E120_Excel", StringComparison.OrdinalIgnoreCase))
+        {
+            return [await BuildJobPlayersE120SheetAsync(jobId, cancellationToken)];
+        }
+
         return null;
     }
 
@@ -565,6 +570,42 @@ public sealed class ReportingService : IReportingService
                 r.Cellphone, r.Email, r.ClubTeamName,
             ],
             cancellationToken);
+
+    /// <summary>
+    /// "Player Data" sheet of the E120 player export: the proc's 39 columns, same names and order.
+    /// </summary>
+    private Task<SheetData> BuildJobPlayersE120SheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        BuildJobPlayersSheetAsync(
+            jobId,
+            "Player Data",
+            [
+                "RegistrationID", "FirstName", "LastName", "Player", "gender", "DOB",
+                "Mom", "Mom_Cellphone", "Mom_Email", "Dad", "Dad_Cellphone", "Dad_Email",
+                "agegroupName", "teamName", "club_name", "paid_total", "owed_total",
+                "grad_year", "school_name", "position", "USLaxNo", "UsLaxNoExpiry",
+                "jersey", "shorts", "kilt", "t-shirt", "sweatshirt", "reversible", "gloves",
+                "gpa", "sat", "act", "height_inches", "weight_lbs", "uniform_no",
+                "address", "city", "state", "zip",
+            ],
+            r =>
+            [
+                r.RegistrationId, r.FirstName, r.LastName, SqlConcat(r.LastName, ", ", r.FirstName), r.Gender, r.Dob?.Date,
+                SqlConcat(r.MomFirstName, " ", r.MomLastName), r.MomCellphone, r.MomEmail,
+                SqlConcat(r.DadFirstName, " ", r.DadLastName), r.DadCellphone, r.DadEmail,
+                r.AgegroupName, r.TeamName, r.ClubName, r.PaidTotal, r.OwedTotal,
+                r.GradYear, r.SchoolName, r.Position, r.SportAssnId, r.SportAssnIdExpDate,
+                r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Sweatshirt, r.Reversible, r.Gloves,
+                r.Gpa, r.Sat, r.Act, r.HeightInches, r.WeightLbs, r.UniformNo,
+                r.StreetAddress, r.City, r.State, r.PostalCode,
+            ],
+            cancellationToken);
+
+    /// <summary>
+    /// T-SQL <c>a + sep + b</c>: null when either side is null, where C# concatenation would
+    /// treat null as empty.
+    /// </summary>
+    private static string? SqlConcat(string? left, string separator, string? right) =>
+        left == null || right == null ? null : left + separator + right;
 
     public async Task<ReportExportResult> ExportBoldReportAsync(
         string reportName,

@@ -23,6 +23,7 @@ procedure is never called.
 |---|---|---|---|---|
 | 2026-10-12 | `reporting_migrate.Get_JobPlayers_STEPS_Excel` | One select, 9 joins, 40 columns | 870 jobs, 551,815 rows, 0 differences | See below |
 | 2026-10-12 | `reporting_migrate.JobPlayers_YJ_Excel` | Same joins as STEPS, 36 columns | 870 jobs, 551,815 rows, 0 differences | Sibling layouts share one query; see below |
+| 2026-10-12 | `reporting_migrate.Get_JobPlayers_E120_Excel` | Same joins, 39 columns, 3 concatenated names | 870 jobs, 551,815 rows, 0 differences | T-SQL `+` is null-propagating; see below |
 
 ### Get_JobPlayers_STEPS_Excel
 
@@ -45,5 +46,9 @@ procedure is never called.
   identical joins, filter and order and differ only in column list, so there is one repository
   method (`GetJobPlayersExcelRowsAsync`) and one DTO; each layout is a header list plus a row
   projection in the service. Converting a sibling is then a few lines and cannot drift on row set.
+- **T-SQL `a + ' ' + b` is null if either side is null; C# `+` treats null as empty.** The
+  `Player`, `Mom` and `Dad` columns are built in the service with a `SqlConcat` helper that returns
+  null in that case. Doing it in C# rather than in the query also keeps it provider-neutral
+  (Postgres `||` is null-propagating too, but `CONCAT` is not on either engine).
 - **Re-prove the earlier layout when the shared query changes.** STEPS was re-run after the DTO
   widened; still 0 differences.
