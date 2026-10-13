@@ -3121,35 +3121,13 @@ public sealed partial class ReportingService : IReportingService
         bool isMerchandise,
         CancellationToken cancellationToken = default)
     {
-        if (isMerchandise)
+        var sheets = await RunStackSheetsAsync(settlementMonth, settlementYear, isMerchandise, cancellationToken);
+        return new ReportExportResult
         {
-            var sheets = await BuildMonthEndMerchandiseSheetsAsync(settlementMonth, settlementYear, cancellationToken);
-            return new ReportExportResult
-            {
-                FileBytes = ExcelWorkbookWriter.Build(sheets),
-                ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                FileName = "TSICExcelExport.xlsx"
-            };
-        }
-
-        var (reader, connection) = await _reportingRepository.ExecuteMonthlyReconciliationAsync(
-            settlementMonth, settlementYear, isMerchandise, cancellationToken);
-
-        try
-        {
-            var reportBytes = await BuildExcelFromDataReader(reader);
-            return new ReportExportResult
-            {
-                FileBytes = reportBytes,
-                ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                FileName = "TSICExcelExport.xlsx"
-            };
-        }
-        finally
-        {
-            await reader.CloseAsync();
-            await connection.CloseAsync();
-        }
+            FileBytes = ExcelWorkbookWriter.Build(sheets),
+            ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            FileName = "TSICExcelExport.xlsx"
+        };
     }
 
     // Persisted artifact filenames within a month's folder. meta.json is written LAST and its presence
@@ -3351,22 +3329,10 @@ public sealed partial class ReportingService : IReportingService
         bool isMerchandise,
         CancellationToken cancellationToken)
     {
-        if (isMerchandise)
-        {
-            return await BuildMonthEndMerchandiseSheetsAsync(settlementMonth, settlementYear, cancellationToken);
-        }
-
-        var (reader, connection) = await _reportingRepository.ExecuteMonthlyReconciliationAsync(
-            settlementMonth, settlementYear, isMerchandise, cancellationToken);
-        try
-        {
-            return await ReadReaderIntoSheetsAsync(reader);
-        }
-        finally
-        {
-            await reader.CloseAsync();
-            await connection.CloseAsync();
-        }
+        // Both closes are built in C# from sets read by EF; the procedures stay installed, unused.
+        return isMerchandise
+            ? await BuildMonthEndMerchandiseSheetsAsync(settlementMonth, settlementYear, cancellationToken)
+            : await BuildMonthEndRegistrationSheetsAsync(settlementMonth, settlementYear, cancellationToken);
     }
 
     /// <summary>
