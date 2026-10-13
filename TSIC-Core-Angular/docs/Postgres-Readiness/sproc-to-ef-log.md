@@ -81,7 +81,7 @@ procedure is never called.
 | 2026-10-13 | `adn.GetLastMonthsGrandTotals` | Money. Temp table, 6 table variables, a 4-way `UNION`, 4 left joins on the result; 3 sheets | Last month through the app: 237 rows, 0 differences. Every month from 2016-01 (129) against the proc body with the month as a parameter: 6,468 rows, 0 differences | Working-table types round; see below |
 | 2026-10-13 | `reporting.RegsaverRegistrants_ALL` | Money. 7 sheets; joins on `replace(translate(policy, …))` on BOTH sides, written out nine times; `DISTINCT`; `UNION ALL`; `WITH ROLLUP`; three kinds of division | Three runs, 30,828 rows (10,276 a run), 0 differences (ties unordered) | EF 1.2 s vs proc 17 s; see below |
 | 2026-10-13 | `utility.GetSuspiciousArbs` | Money. Table variable filled then filtered; four yes/no tests per subscription | Every job plus no job (1,128 runs): 268 rows, 0 differences (ties on the four flags unordered) | EF 58 s in total vs proc 794 s |
-| 2026-10-13 | `adn.MonthyQBPExport_Automated` | **WRITER.** Seven procedures: 10 sheets that become the QuickBooks files, and an insert into `adn.Monthly_Job_Stats` that half the sheets are built from | The installed text run as session temp procedures against a temp copy of the stats table, twice a month (rows as stored; month's rows removed first). Every month May 2020 to Oct 2026: 495,869 sheet rows, 13,128 stat rows, 0 differences; 5 months the procedure cannot run. Rerun on the final code for 12 months: 79,043 sheet rows, 0 differences. Varied data (eCheck, own rates, payee groups): 26,893 rows, 0 differences | Serving from EF; the save to the stats table has not yet executed; see below |
+| 2026-10-13 | `adn.MonthyQBPExport_Automated` | **WRITER.** Seven procedures: 10 sheets that become the QuickBooks files, and an insert into `adn.Monthly_Job_Stats` that half the sheets are built from | The installed text run as session temp procedures against a temp copy of the stats table, twice a month (rows as stored; month's rows removed first). Every month May 2020 to Oct 2026: 495,869 sheet rows, 13,128 stat rows, 0 differences; 5 months the procedure cannot run. Rerun on the final code for 12 months: 79,043 sheet rows, 0 differences. Varied data (eCheck, own rates, payee groups): 26,893 rows, 0 differences | Serving from EF; the save has run for real (see UI passes); see below |
 | 2026-10-13 | `adn.MonthyQBPExport_Automated_Merch` | Read-only. 960 lines, 9 sheets, QuickBooks money | 12 months as installed: 257 rows, 0 differences (2 months have sales). Varied data, 8 runs over all 331 store payment records: 3,473 rows, 0 differences (tied lines on the checks sheet unordered) | Serving from EF; see below |
 
 ## UI passes
@@ -90,7 +90,8 @@ procedure is never called.
 |---|---|---|
 | 2026-10-12 | STEPS, YJ, E120, Liberty | All four run from the Reports Library and downloaded; details below |
 | 2026-10-12 | Seven camp exports, plus the batch 1 four again after the move into the layout table | All eleven run and downloaded; details below |
-| 2026-10-13 | The one sweep at the end: every report converted since batch 2 that a user can reach (31 from job shelves, 13 from the X-Job Report Library) | All 44 run through the browser as SuperUser and downloaded: HTTP 200, no error banner, slowest 12.1 s. `sys.dm_exec_procedure_stats` for the `reporting`, `reporting_migrate`, `utility` and `adn` schemas was identical before and after, so no procedure ran. **Not swept:** the month-end close, because building it stores stat rows |
+| 2026-10-13 | The one sweep at the end: every report converted since batch 2 that a user can reach (31 from job shelves, 13 from the X-Job Report Library) | All 44 run through the browser as SuperUser and downloaded: HTTP 200, no error banner, slowest 12.1 s. `sys.dm_exec_procedure_stats` for the `reporting`, `reporting_migrate`, `utility` and `adn` schemas was identical before and after, so no procedure ran. The month-end close is the next row |
+| 2026-10-13 | Month-end close for September 2026, through the browser, with the month's 71 stat rows deleted first (Todd: this box's database may be written) | Review built both closes in 2.0 s: 19 tabs (10 registration, 9 merchandise), and the bundle downloaded. **The save ran for real**: 71 rows stored, same 71 jobs as before, all stamped `TSICSuperUser`. Compared with the procedure's writer run fresh on the same data (temp copy): 71 rows and 5,650 sheet rows, 0 differences. 15 of the 71 differ from what the procedure stored on 10-01, and the procedure run today gives the same 15, so the data moved, not the logic |
 
 Batch 2: the seven camp exports on `stateonelacrosse-campsandclinics-2026` (SuperUser, all-roles
 view) each returned 327 rows against 327 expected, with the procedure's sheet name, column count
@@ -624,10 +625,9 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
   procedure text AND to the SQL EF sends (a command interceptor in the test), so both read
   identical made-up rows: eCheck transactions, jobs with their own card, e-check and store
   rates, renamed jobs, payee groups, shared transactions, credits and non-card methods.
-- **Registration serves from EF; the save has not yet executed.** The close stores the
-  month's missing stat rows with `AddMissingMonthlyJobStatsAsync`, then builds the sheets from
-  what is stored. The rows it would store are proven against the procedure's writer; the
-  insert itself first runs when a close is built for a month with jobs missing.
+- **Registration serves from EF.** The close stores the month's missing stat rows with
+  `AddMissingMonthlyJobStatsAsync`, then builds the sheets from what is stored. The save was
+  exercised through the browser on September 2026 (see UI passes).
 - **Kept as the procedures do it:** card money is counted once per accounting record on a
   transaction and again per accounting record through `adn.vTxs`; the AND/OR precedence in the
   writer's player test; "last month" is read from the job's latest-WRITTEN earlier row, not its
