@@ -473,6 +473,11 @@ public sealed class ReportingService : IReportingService
             return [await build(this, jobId, cancellationToken)];
         }
 
+        if (EfMultiSheetExports.TryGetValue(normalized, out var buildSheets))
+        {
+            return await buildSheets(this, jobId, cancellationToken);
+        }
+
         return null;
     }
 
@@ -503,6 +508,18 @@ public sealed class ReportingService : IReportingService
             ["utility.sibling_report"] = (s, jobId, ct) => s.BuildSiblingSheetAsync(jobId, ct),
             ["reporting.JobClubRepContacts"] = (s, jobId, ct) => s.BuildJobClubRepContactsSheetAsync(jobId, ct),
             ["reporting.CathyCampCheckinWithVacAndMedform"] = (s, jobId, ct) => s.BuildCampCheckinSheetAsync(jobId, ct),
+            ["reporting.TournamentExportClubrepsAndCoachesEmail"] = (s, jobId, ct) => s.BuildTeamContactsSheetAsync(jobId, ct),
+            ["reporting.TLCContactsHx"] = (s, jobId, ct) => s.BuildCustomerPlayerContactsSheetAsync(jobId, ct),
+            ["reporting.CathyCampBreakoutPerJob_AmtPaid"] = (s, jobId, ct) => s.BuildCampBreakoutPaidSheetAsync(jobId, ct),
+            ["reporting.AmericanSelect_CustomerJobRegistrationsByJobAgegroupDivTeam"] = (s, jobId, ct) => s.BuildCustomerTeamCountsRollupSheetAsync(jobId, ct),
+            ["utility.MaxExposure_CountsAtYear_ByTeam"] = (s, _, ct) => s.BuildMaxExposureTeamCountsSheetAsync(ct),
+        };
+
+    /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
+    private static readonly Dictionary<string, Func<ReportingService, Guid, CancellationToken, Task<List<SheetData>>>> EfMultiSheetExports =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["reporting.JobPushTeamResultsSummary"] = (s, jobId, ct) => s.BuildJobPushTeamSummarySheetsAsync(jobId, ct),
         };
 
     /// <summary>
@@ -931,6 +948,150 @@ public sealed class ReportingService : IReportingService
                 SqlConcat(r.MomFirstName, " ", r.MomLastName), DashedPhone(r.MomCellphone),
                 SqlConcat(r.DadFirstName, " ", r.DadLastName), DashedPhone(r.DadCellphone),
             ]);
+
+    /// <summary>
+    /// The two sheets of the push-results summary: "Favorites Per Event" (one count) and
+    /// "Favorites Per Team" (club, agegroup, team, count).
+    /// </summary>
+    private async Task<List<SheetData>> BuildJobPushTeamSummarySheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var summary = await _reportingRepository.GetJobPushTeamSummaryAsync(jobId, cancellationToken);
+        return
+        [
+            // A count always returns its one row, so this sheet is never headerless.
+            ToSheet<int>("Favorites Per Event", [summary.TotalFavorites], ["CountsPerEvent"], total => [total]),
+            ToSheet(
+                "Favorites Per Team",
+                summary.Teams,
+                ["Club", "Agegroup", "Team", "Count"],
+                r => [r.ClubName, r.AgegroupName, r.TeamName, r.FavoriteCount]),
+        ];
+    }
+
+    /// <summary>"Team Contacts" sheet: the proc's 7 columns, same names and order.</summary>
+    private async Task<SheetData> BuildTeamContactsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Team Contacts",
+            await _reportingRepository.GetTeamContactExcelRowsAsync(jobId, cancellationToken),
+            ["AgegroupName", "ClubName", "TeamName", "Role", "LastName", "FirstName", "Email"],
+            r => [r.AgegroupName, r.ClubName, r.TeamName, r.Role, r.LastName, r.FirstName, r.Email]);
+
+    /// <summary>"Job Users" sheet of the customer contact history: the proc's 8 columns.</summary>
+    private async Task<SheetData> BuildCustomerPlayerContactsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Job Users",
+            await _reportingRepository.GetCustomerPlayerContactExcelRowsAsync(jobId, cancellationToken),
+            [
+                "LastName", "FirstName", "Email", "Mom_Email", "Dad_Email",
+                "cellphone", "Mom_Cellphone", "Dad_Cellphone",
+            ],
+            r =>
+            [
+                r.LastName, r.FirstName, r.Email, r.MomEmail, r.DadEmail,
+                r.Cellphone, r.MomCellphone, r.DadCellphone,
+            ]);
+
+    /// <summary>
+    /// "Players" sheet of the camp breakout: the proc's 15 columns, including its second
+    /// <c>fee_total</c>.
+    /// </summary>
+    private async Task<SheetData> BuildCampBreakoutPaidSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Players",
+            await _reportingRepository.GetCampBreakoutPaidExcelRowsAsync(jobId, cancellationToken),
+            [
+                "jobName", "agegroupName", "teamName", "LastName", "FirstName", "IsActive", "ClubTeamName",
+                "grad_year", "fee_base", "fee_total", "fee_discount", "fee_processing", "fee_total",
+                "paid_total", "owed_total",
+            ],
+            r =>
+            [
+                r.JobName, r.AgegroupName, r.TeamName, r.LastName, r.FirstName, r.Active, r.ClubTeamName,
+                r.GradYear, r.FeeBase, r.FeeTotal, r.FeeDiscount, r.FeeProcessing, r.FeeTotal,
+                r.PaidTotal, r.OwedTotal,
+            ]);
+
+    /// <summary>
+    /// "Counts Per Team" sheet of the customer registrations rollup. The proc's
+    /// <c>GROUP BY … WITH ROLLUP</c> is rebuilt here from the per-team counts: a grand total, then
+    /// for each job, each job-year and each agegroup a subtotal row ahead of its detail rows
+    /// (subtotals carry nulls, which sort first). Preserved from the proc: the <c>teamName</c>
+    /// column shows the agegroup name, not the team, and the count column has no header.
+    /// </summary>
+    private async Task<SheetData> BuildCustomerTeamCountsRollupSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var detail = await _reportingRepository.GetCustomerTeamCountsAsync(jobId, cancellationToken);
+
+        var rows = new List<(string? Job, string? Year, string? Agegroup, string? Team, int Count)>();
+        if (detail.Count > 0)
+        {
+            rows.Add((null, null, null, null, detail.Sum(d => d.PlayerCount)));
+        }
+
+        foreach (var job in RunsOf(detail, d => d.JobName))
+        {
+            rows.Add((job[0].JobName, null, null, null, job.Sum(d => d.PlayerCount)));
+            foreach (var year in RunsOf(job, d => d.Year))
+            {
+                rows.Add((year[0].JobName, year[0].Year, null, null, year.Sum(d => d.PlayerCount)));
+                foreach (var agegroup in RunsOf(year, d => d.AgegroupName))
+                {
+                    rows.Add((agegroup[0].JobName, agegroup[0].Year, agegroup[0].AgegroupName, null, agegroup.Sum(d => d.PlayerCount)));
+                    rows.AddRange(agegroup.Select(d => (d.JobName, d.Year, d.AgegroupName, d.TeamName, d.PlayerCount)));
+                }
+            }
+        }
+
+        return ToSheet(
+            "Counts Per Team",
+            rows,
+            ["JobName", "JobYear", "agegroupName", "teamName", string.Empty],
+            r =>
+            [
+                r.Job, r.Year,
+                r.Year != null && r.Agegroup == null && r.Team == null ? "JOB ROLLUP" : r.Agegroup,
+                r.Year != null && r.Agegroup != null && r.Team == null ? "AGEGROUP ROLLUP" : r.Agegroup,
+                r.Count,
+            ]);
+    }
+
+    /// <summary>
+    /// Splits rows already sorted by <paramref name="key"/> into runs of equal key, comparing as
+    /// the database collation groups: case and trailing spaces ignored, null equal to null.
+    /// </summary>
+    private static IEnumerable<List<T>> RunsOf<T>(IReadOnlyList<T> sorted, Func<T, string?> key)
+    {
+        static bool Same(string? a, string? b) =>
+            a == null || b == null
+                ? a == b
+                : string.Equals(a.TrimEnd(' '), b.TrimEnd(' '), StringComparison.OrdinalIgnoreCase);
+
+        var start = 0;
+        while (start < sorted.Count)
+        {
+            var run = new List<T> { sorted[start] };
+            var end = start + 1;
+            while (end < sorted.Count && Same(key(sorted[end]), key(sorted[start])))
+            {
+                run.Add(sorted[end]);
+                end++;
+            }
+
+            yield return run;
+            start = end;
+        }
+    }
+
+    /// <summary>
+    /// "Counts Per Team" sheet of the MaxExposure year-to-date counts: the proc's 5 columns. The
+    /// job argument is unused, as in the proc.
+    /// </summary>
+    private async Task<SheetData> BuildMaxExposureTeamCountsSheetAsync(CancellationToken cancellationToken) =>
+        ToSheet(
+            "Counts Per Team",
+            await _reportingRepository.GetMaxExposureTeamCountExcelRowsAsync(cancellationToken),
+            ["year", "customerName", "jobName", "teamName", "countRegistrantsToDate"],
+            r => [r.Year, r.CustomerName, "Summer Camps " + r.Year, r.TeamName, r.RegistrantsToDate]);
 
     /// <summary>
     /// One layout of the job-players export family: its sheet name, header names in order, and

@@ -1978,6 +1978,251 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<JobPushTeamSummaryDto> GetJobPushTeamSummaryAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.JobPushTeamResultsSummary, which returns two result sets.
+        // The total counts device-team rows whatever the device; the breakdown INNER-joins the
+        // device as the proc does, and LEFT-joins the club rep (optional navigation).
+        var total = await (
+            from dt in _context.DeviceTeams.AsNoTracking()
+            join t in _context.Teams.AsNoTracking() on dt.TeamId equals t.TeamId
+            where t.JobId == jobId
+            select dt).CountAsync(cancellationToken);
+
+        var teams = await (
+            from dt in _context.DeviceTeams.AsNoTracking()
+            join d in _context.Devices.AsNoTracking() on dt.DeviceId equals d.Id
+            join t in _context.Teams.AsNoTracking() on dt.TeamId equals t.TeamId
+            join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+            where t.JobId == jobId
+            group dt by new { t.ClubrepRegistration!.ClubName, ag.AgegroupName, t.TeamName } into g
+            orderby g.Key.ClubName, g.Key.AgegroupName, g.Key.TeamName
+            select new JobPushTeamCountExcelRowDto
+            {
+                ClubName = g.Key.ClubName,
+                AgegroupName = g.Key.AgegroupName,
+                TeamName = g.Key.TeamName,
+                FavoriteCount = g.Count(),
+            }).ToListAsync(cancellationToken);
+
+        return new JobPushTeamSummaryDto { TotalFavorites = total, Teams = teams };
+    }
+
+    public async Task<List<TeamContactExcelRowDto>> GetTeamContactExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.TournamentExportClubrepsAndCoachesEmail: a UNION of club
+        // reps and staff, de-duplicated. Preserved from the proc: its club-rep half joins the
+        // registration id to the TEAM id (r.RegistrationId = t.teamId), which matches nothing, so
+        // in practice only staff list.
+        var clubReps =
+            from r in _context.Registrations.AsNoTracking()
+            join t in _context.Teams.AsNoTracking() on r.RegistrationId equals t.TeamId
+            join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            where r.JobId == jobId && r.BActive == true && roles.Name == "Club Rep"
+            select new { ag.AgegroupName, r.ClubName, t.TeamName, Role = roles.Name, u.LastName, u.FirstName, u.Email };
+
+        var staff =
+            from r in _context.Registrations.AsNoTracking()
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+            join rCR in _context.Registrations.AsNoTracking() on t.ClubrepRegistrationid equals (Guid?)rCR.RegistrationId
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            where r.JobId == jobId && r.BActive == true && roles.Name == "Staff"
+            select new { ag.AgegroupName, rCR.ClubName, t.TeamName, Role = roles.Name, u.LastName, u.FirstName, u.Email };
+
+        return await clubReps.Union(staff)
+            .OrderBy(x => x.AgegroupName).ThenBy(x => x.ClubName).ThenBy(x => x.TeamName)
+            .ThenBy(x => x.Role).ThenBy(x => x.LastName).ThenBy(x => x.FirstName)
+            .Select(x => new TeamContactExcelRowDto
+            {
+                AgegroupName = x.AgegroupName,
+                ClubName = x.ClubName,
+                TeamName = x.TeamName,
+                Role = x.Role,
+                LastName = x.LastName,
+                FirstName = x.FirstName,
+                Email = x.Email,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<CustomerPlayerContactExcelRowDto>> GetCustomerPlayerContactExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.TLCContactsHx: SELECT DISTINCT over every job of the
+        // calling job's customer. Division (DivId != null), family user and Families are INNER
+        // joins and so filter.
+        var customerId = await _context.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (Guid?)j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (customerId == null)
+        {
+            return [];
+        }
+
+        return await (
+            from t in _context.Teams.AsNoTracking()
+            join j in _context.Jobs.AsNoTracking() on t.JobId equals j.JobId
+            join r in _context.Registrations.AsNoTracking() on (Guid?)t.TeamId equals r.AssignedTeamId
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join uF in _context.AspNetUsers.AsNoTracking() on r.FamilyUserId equals uF.Id
+            join f in _context.Families.AsNoTracking() on uF.Id equals f.FamilyUserId
+            where r.BActive == true && j.CustomerId == customerId && roles.Name == "Player" && t.DivId != null
+            select new CustomerPlayerContactExcelRowDto
+            {
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Email = u.Email,
+                MomEmail = f.MomEmail,
+                DadEmail = f.DadEmail,
+                Cellphone = u.Cellphone,
+                MomCellphone = f.MomCellphone,
+                DadCellphone = f.DadCellphone,
+            })
+            .Distinct()
+            .OrderBy(x => x.LastName).ThenBy(x => x.FirstName)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<CampBreakoutPaidExcelRowDto>> GetCampBreakoutPaidExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.CathyCampBreakoutPerJob_AmtPaid: SELECT DISTINCT over the
+        // camp-or-clinic jobs of the calling job's customer in the calling job's year. No bActive
+        // filter: the sheet shows the flag.
+        var scope = await _context.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.CustomerId, j.Year })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (scope?.Year == null)
+        {
+            return [];
+        }
+
+        return await (
+            from j in _context.Jobs.AsNoTracking()
+            join r in _context.Registrations.AsNoTracking() on j.JobId equals r.JobId
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where j.CustomerId == scope.CustomerId && j.Year == scope.Year
+                && j.JobType.JobTypeDesc == "player registration for camp or clinic"
+                && roles.Name == "Player"
+            select new CampBreakoutPaidExcelRowDto
+            {
+                JobName = j.JobName,
+                AgegroupName = ag.AgegroupName,
+                TeamName = t.TeamName,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Active = r.BActive,
+                ClubTeamName = r.ClubTeamName,
+                GradYear = r.GradYear,
+                FeeBase = r.FeeBase,
+                FeeTotal = r.FeeTotal,
+                FeeDiscount = r.FeeDiscount,
+                FeeProcessing = r.FeeProcessing,
+                PaidTotal = r.PaidTotal,
+                OwedTotal = r.OwedTotal,
+            })
+            .Distinct()
+            .OrderBy(x => x.JobName).ThenBy(x => x.AgegroupName).ThenBy(x => x.TeamName)
+            .ThenBy(x => x.LastName).ThenBy(x => x.FirstName)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<CustomerTeamCountDto>> GetCustomerTeamCountsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the detail level of
+        // reporting.AmericanSelect_CustomerJobRegistrationsByJobAgegroupDivTeam. The proc's
+        // WITH ROLLUP subtotals are SQL Server syntax and are produced by the renderer from these
+        // rows. The player's user and the division (DivId != null) are INNER joins and so filter.
+        var customerId = await _context.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (Guid?)j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (customerId == null)
+        {
+            return [];
+        }
+
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+            where j.CustomerId == customerId && r.BActive == true && roles.Name == "Player" && t.DivId != null
+            group r by new { j.JobName, j.Year, ag.AgegroupName, t.TeamName } into g
+            orderby g.Key.JobName, g.Key.Year, g.Key.AgegroupName, g.Key.TeamName
+            select new CustomerTeamCountDto
+            {
+                JobName = g.Key.JobName,
+                Year = g.Key.Year,
+                AgegroupName = g.Key.AgegroupName,
+                TeamName = g.Key.TeamName,
+                PlayerCount = g.Count(),
+            }).ToListAsync(cancellationToken);
+    }
+
+    // The customer and the camp years the MaxExposure counts proc is hard-wired to.
+    private static readonly Guid MaxExposureCustomerId = new("502f0c58-c643-43da-9bfe-00e140f1a19b");
+
+    private static readonly string[] MaxExposureCountYears =
+    [
+        "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018",
+        "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026",
+    ];
+
+    public async Task<List<MaxExposureTeamCountExcelRowDto>> GetMaxExposureTeamCountExcelRowsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for utility.MaxExposure_CountsAtYear_ByTeam. Preserved from the proc: it
+        // ignores its job, reads one fixed customer and a fixed list of years, and compares
+        // years "as of today": a registration counts when its timestamp, moved forward to the
+        // current year, is already in the past. The customer name is the job name up to its colon.
+        var now = DateTime.Now;
+        var thisYear = now.Year;
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            where j.CustomerId == MaxExposureCustomerId && r.BActive == true && roles.Name == "Player"
+                && MaxExposureCountYears.Contains(j.Year)
+                && r.RegistrationTs.AddYears(thisYear - Convert.ToInt32(j.Year)) < now
+            group r by new
+            {
+                j.Year,
+                CustomerName = j.JobName!.Substring(0, j.JobName.IndexOf(":")),
+                t.TeamName,
+            }
+            into g
+            orderby g.Key.CustomerName, g.Key.Year
+            select new MaxExposureTeamCountExcelRowDto
+            {
+                Year = g.Key.Year,
+                CustomerName = g.Key.CustomerName,
+                TeamName = g.Key.TeamName,
+                RegistrantsToDate = g.Count(),
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

@@ -526,6 +526,58 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Mobile favourite-team counts for the job: the total and the per-club/agegroup/team
+    /// breakdown (club rep is a LEFT join) — the EF replacement for
+    /// <c>reporting.JobPushTeamResultsSummary</c>.
+    /// </summary>
+    Task<JobPushTeamSummaryDto> GetJobPushTeamSummaryAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distinct active club reps and staff per team, ordered agegroup → club → team → role → last
+    /// → first — the EF replacement for <c>reporting.TournamentExportClubrepsAndCoachesEmail</c>.
+    /// Job-scoped.
+    /// </summary>
+    Task<List<TeamContactExcelRowDto>> GetTeamContactExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distinct active-player contacts across every job of <paramref name="jobId"/>'s customer,
+    /// ordered last → first — the EF replacement for <c>reporting.TLCContactsHx</c>.
+    /// </summary>
+    Task<List<CustomerPlayerContactExcelRowDto>> GetCustomerPlayerContactExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distinct player registrations with fee breakdown across the camp-or-clinic jobs of
+    /// <paramref name="jobId"/>'s customer in that job's year, ordered job → agegroup → team →
+    /// last → first — the EF replacement for <c>reporting.CathyCampBreakoutPerJob_AmtPaid</c>.
+    /// </summary>
+    Task<List<CampBreakoutPaidExcelRowDto>> GetCampBreakoutPaidExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active-player counts per job, year, agegroup and team across every job of
+    /// <paramref name="jobId"/>'s customer, ordered by those four — the detail level of the EF
+    /// replacement for <c>reporting.AmericanSelect_CustomerJobRegistrationsByJobAgegroupDivTeam</c>.
+    /// </summary>
+    Task<List<CustomerTeamCountDto>> GetCustomerTeamCountsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Year-to-date active-player counts per camp year and team for the MaxExposure customer,
+    /// ordered customer → year — the EF replacement for
+    /// <c>utility.MaxExposure_CountsAtYear_ByTeam</c>. Not job-scoped: the proc ignores its job.
+    /// </summary>
+    Task<List<MaxExposureTeamCountExcelRowDto>> GetMaxExposureTeamCountExcelRowsAsync(
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

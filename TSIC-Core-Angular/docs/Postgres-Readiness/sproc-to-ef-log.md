@@ -45,6 +45,12 @@ procedure is never called.
 | 2026-10-12 | `utility.sibling_report` | One select joined to a grouped subquery (`having count(*) > 1`), 3 columns | 1,127 jobs, 102,459 rows, 0 differences | Group of eight |
 | 2026-10-12 | `reporting.JobClubRepContacts` | One select, 3 inner joins, 11 columns | 1,127 jobs, 10,010 rows, 0 differences | Group of eight |
 | 2026-10-12 | `reporting.CathyCampCheckinWithVacAndMedform` | One select, 6 inner joins, 12 columns, `not like` filter | 1,127 jobs, 550,018 rows, 0 differences | Group of eight |
+| 2026-10-12 | `reporting.JobPushTeamResultsSummary` | Two result sets: a count, and a grouped count with a left join | 1,127 jobs, 24,770 rows, 0 differences | First two-sheet export; see below |
+| 2026-10-12 | `reporting.TournamentExportClubrepsAndCoachesEmail` | `select distinct` over a `union` of two selects, 7 columns | 1,127 jobs, 16,235 rows, 0 content differences; 2 rows differ in spelling only | `DISTINCT` under a case-insensitive collation; see below |
+| 2026-10-12 | `reporting.TLCContactsHx` | Customer-scoped `select distinct`, 8 inner joins, 8 columns | 80 customers, 277,492 rows, 0 content differences; 1,341 rows differ in spelling only | Same |
+| 2026-10-12 | `reporting.CathyCampBreakoutPerJob_AmtPaid` | Customer-and-year-scoped `select distinct`, 6 inner joins, 15 columns | 275 customer-years, 27,569 rows, 0 differences | Same |
+| 2026-10-12 | `reporting.AmericanSelect_CustomerJobRegistrationsByJobAgegroupDivTeam` | Customer-scoped `group by … with rollup`, 5 columns | 80 customers, 33,283 rows, 0 differences | `WITH ROLLUP` rebuilt in C#; see below |
+| 2026-10-12 | `utility.MaxExposure_CountsAtYear_ByTeam` | Fixed-customer grouped count with year-shifted date test, 5 columns | 1 run (ignores its job), 620 rows, 0 content differences; 4 rows differ in spelling only | Hard-wired scope and date arithmetic; see below |
 
 ## UI passes
 
@@ -268,3 +274,34 @@ together. All eight matched on the first run, which is what the earlier lessons 
 - **Defects carried over, each with a comment**: `MaxExposure_ClubCoaches` builds `Dad` from the
   father's first name twice; `sibling_report` names its sheet "Counts Per Team".
 - **The harness takes several procedures per run.** One build and one suite run serve the group.
+
+### The aggregate group (push summary, team contacts, contact history, camp breakout, rollup, MaxExposure counts)
+
+- **A procedure with several result sets is several sheets.** `EfMultiSheetExports` holds those;
+  the builder returns the list in the procedure's order. A `select count(*)` result always has
+  its one row, so that sheet is never headerless.
+- **`DISTINCT` and `GROUP BY` under a case-insensitive collation keep one spelling of several
+  that compare equal, and SQL Server does not define which one.** `Smith` and `SMITH`, or a
+  name with and without a trailing space, are one row; which text survives depends on the plan,
+  and it changed between two runs of the same procedure. The harness therefore compares rows
+  exactly first and, where that differs, again ignoring case and trailing spaces, and reports
+  the gap as "spelling only". These are not content differences. **On Postgres the default
+  comparison is case-sensitive, so these exports will return both spellings as separate rows
+  unless the columns get a case-insensitive collation; that is a port decision, flagged here.**
+- **Keep `Distinct()`, `Union()` and `GroupBy()` in the query**, so the database decides
+  equality. EF translates all three over a projection.
+- **`WITH ROLLUP` is SQL Server syntax; the subtotals are built in C#.** The query returns the
+  per-team counts in key order; the builder emits a grand total, then a subtotal row ahead of
+  each job, job-year and agegroup run. Subtotal rows carry nulls, which SQL sorts first, so
+  "subtotal before its details" is the procedure's order. An empty input yields no rows at all,
+  not a lone grand total. Runs are split with the collation's notion of equal (`RunsOf`).
+- **Customer-scoped procedures are checked once per customer** (or per customer and year), not
+  once per job; the harness takes a scope prefix. The result cannot differ between two jobs of
+  one customer, and this turns a 46-minute run into seconds.
+- **`DATEADD(year, n, ts)` is `ts.AddYears(n)` and `CONVERT(int, text)` is `Convert.ToInt32`**
+  inside the query; `SUBSTRING(x, 1, CHARINDEX(':', x) - 1)` is
+  `x.Substring(0, x.IndexOf(":"))`. All three translate.
+- **Defects and hard-wiring carried over, each with a comment**: the team-contacts club-rep half
+  joins a registration id to a team id and so returns nothing; the rollup's `teamName` column
+  shows the agegroup; the MaxExposure counts ignore the job, read one fixed customer id and
+  stop at 2026. The fixed id and year list are named constants in the repository.
