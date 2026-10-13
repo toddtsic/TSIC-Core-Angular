@@ -3840,6 +3840,43 @@ public class ReportingRepository : IReportingRepository
         };
     }
 
+    public async Task<List<ArbSubscriptionRowDto>> GetArbSubscriptionsAsync(
+        Guid? jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the data load of utility.GetSuspiciousArbs. The proc works out
+        // each subscription's schedule with a scalar function it calls about ten times a row;
+        // here the rows are read once and the schedule is worked out by the caller.
+        // "status NOT IN ('canceled')" also drops a subscription with no status.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join t in _context.Teams on r.AssignedTeamId equals (Guid?)t.TeamId
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            where r.AdnSubscriptionId != null
+                && r.AdnSubscriptionStatus != null && r.AdnSubscriptionStatus != "canceled"
+                && (jobId == null || j.JobId == jobId)
+            select new ArbSubscriptionRowDto
+            {
+                JobName = j.JobName,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                SubscriptionId = r.AdnSubscriptionId!,
+                SubscriptionStatus = r.AdnSubscriptionStatus,
+                BillingOccurences = r.AdnSubscriptionBillingOccurences,
+                IntervalLength = r.AdnSubscriptionIntervalLength,
+                AmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
+                StartDate = r.AdnSubscriptionStartDate,
+                PaidTotal = r.PaidTotal,
+                FeeTotal = r.FeeTotal,
+                FeeDiscount = r.FeeDiscount,
+                TeamPerRegistrantFee = t.PerRegistrantFee,
+                AgegroupRosterFee = ag.RosterFee,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<MonthlyGrandTotalsDto> GetMonthlyGrandTotalsAsync(
         int year,
         int month,

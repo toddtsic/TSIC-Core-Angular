@@ -560,6 +560,7 @@ public sealed class ReportingService : IReportingService
             ["reporting.ClubRepContacts-All"] = (s, _, ct) => s.BuildAllClubRepContactsSheetAsync(ct),
             ["reporting.JobKeyAttributes-ALL"] = (s, jobId, ct) => s.BuildJobKeyAttributesSheetAsync(jobId, ct),
             ["reporting.TournamentKeyAttributes-ALL"] = (s, jobId, ct) => s.BuildTournamentKeyAttributesSheetAsync(jobId, ct),
+            ["utility.GetSuspiciousArbs"] = (s, jobId, ct) => s.BuildSuspiciousArbsSheetAsync(jobId, ct),
         };
 
     /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
@@ -2212,6 +2213,118 @@ public sealed class ReportingService : IReportingService
                 h => [h.HolderJobName, h.HolderCreated.Year, h.HolderCreated.Month, h.PolicyId, "Player"]),
             ToSheet("STEPS X-Check By Year/Month", crossCheck, ["Year", "Month", "STEPS_Payout", "VI_Payout"], row => row),
         ];
+    }
+
+    /// <summary>
+    /// "Suspicious" sheet: recurring-billing subscriptions, still running, whose registration
+    /// does not owe exactly nothing as of now, for one job or (no job) every job.
+    /// <para>
+    /// A subscription bills <c>sOcc</c> times, <c>sIL</c> months apart, from its start date.
+    /// The number billed so far (<c>occAON</c>) is the first count whose NEXT date has not
+    /// passed. Owed as of now is what those bills come to, less what has been paid, plus
+    /// whatever part of the fee the subscription was never going to cover.
+    /// </para>
+    /// <para>
+    /// Listed when the subscription has not run past its end, that balance is not zero, and the
+    /// latest bill is more than a calendar day old (it takes that long to be swept in). The
+    /// flags: <c>playerMoved?</c> the subscription total is not the team's fee less the
+    /// discount; <c>disCode?</c> it IS the team's fee but not the registration's;
+    /// <c>isDblChrg?</c> overpaid by whole bills with no discount in play; <c>trueFail?</c>
+    /// underpaid by whole bills; <c>isExpired?</c> the last bill date has passed.
+    /// </para>
+    /// </summary>
+    private async Task<SheetData> BuildSuspiciousArbsSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var subscriptions = await _reportingRepository.GetArbSubscriptionsAsync(
+            jobId == Guid.Empty ? null : jobId, cancellationToken);
+        var now = DateTime.Now;
+
+        // adn.GetOccurencesAsOfNow: start at 1 and step while the date that many intervals
+        // after the start is in the past. With no start date or interval it stays 1. The
+        // function never returns for an interval of zero or less; that is answered with 1.
+        int Occurrences(DateTime? start, int? interval)
+        {
+            if (start is not { } s || interval is not { } months || months <= 0)
+            {
+                return 1;
+            }
+
+            var occurrences = 1;
+            while (s.AddMonths(occurrences * months) < now)
+            {
+                occurrences++;
+            }
+
+            return occurrences;
+        }
+
+        static DateTime? After(DateTime? start, int? months) =>
+            start is { } s && months is { } m ? s.AddMonths(m) : null;
+
+        var rows = new List<object?[]>();
+        foreach (var r in subscriptions)
+        {
+            var occurrences = Occurrences(r.StartDate, r.IntervalLength);
+            var perBill = r.AmountPerOccurence;
+            var subscriptionTotal = perBill * r.BillingOccurences;
+            var billedSoFar = occurrences * perBill;
+            var owed = billedSoFar - r.PaidTotal + (r.FeeTotal - subscriptionTotal);
+            var latestBill = After(r.StartDate, (occurrences - 1) * r.IntervalLength);
+            var finalBill = After(r.StartDate, r.IntervalLength * (r.BillingOccurences - 1));
+            var end = After(r.StartDate, r.IntervalLength * r.BillingOccurences);
+
+            // Every test on a missing value fails, as in SQL.
+            if (!(end > now) || owed is not { } balance || balance == 0m
+                || latestBill is not { } latest || (now.Date - latest.Date).Days <= 1)
+            {
+                continue;
+            }
+
+            var remainder = balance % perBill;
+            var teamFee = r.TeamPerRegistrantFee is { } own && own != 0m ? own : r.AgegroupRosterFee;
+            var isTeamFee = subscriptionTotal != null && subscriptionTotal == teamFee;
+            var playerMoved = subscriptionTotal != null && subscriptionTotal == teamFee - r.FeeDiscount ? 0 : 1;
+            var discountCode = subscriptionTotal == r.FeeTotal || !isTeamFee ? 0 : 1;
+            var doubleCharge = remainder == 0m && balance < 0m && discountCode == 0 ? 1 : 0;
+            var trueFail = remainder == 0m && balance > 0m ? 1 : 0;
+            var expired = finalBill >= now ? 0 : 1;
+
+            // The next bill is worked out from the latest one's DATE (its time of day is gone),
+            // and only while bills remain.
+            DateTime? nextBill = occurrences < r.BillingOccurences && r.IntervalLength is { } interval
+                ? latest.Date.AddMonths(interval)
+                : null;
+
+            rows.Add(
+            [
+                r.JobName, r.FirstName, r.LastName, r.SubscriptionId, r.SubscriptionStatus, r.BillingOccurences,
+                r.IntervalLength, perBill, occurrences, SqlUsDate(r.StartDate), SqlUsDate(latest),
+                SqlUsDate(nextBill), nextBill is { } next ? (next.Date - now.Date).Days : null, SqlUsDate(finalBill),
+                billedSoFar, r.PaidTotal, balance, remainder, r.FeeTotal, subscriptionTotal,
+                r.TeamPerRegistrantFee > 0m ? r.TeamPerRegistrantFee : r.AgegroupRosterFee,
+                // The proc's working table holds the flags as tinyint, and "is 1st?" as int.
+                (byte)playerMoved, (byte)discountCode, (byte)doubleCharge, (byte)trueFail, (byte)expired,
+                occurrences == 1 ? 1 : 0,
+            ]);
+        }
+
+        var ordered = rows
+            .OrderByDescending(row => (byte)row[21]!)
+            .ThenByDescending(row => (byte)row[22]!)
+            .ThenByDescending(row => (byte)row[23]!)
+            .ThenByDescending(row => (byte)row[24]!)
+            .ToList();
+
+        return ToSheet(
+            "Suspicious",
+            ordered,
+            [
+                "jobName", "FirstName", "LastName", "sId", "sStatus", "sOcc", "sIL", "sPerOcc", "occAON", "sSDate",
+                "recentPDate", "nextPDate", "daysToNextP", "finalPDate", "chargesAON", "Paid", "owedAON",
+                "owedAON%sPerOcc", "feeTot", "sumArbCharges", "teamTotFee", "playerMoved?", "disCode?",
+                "isDblChrg?", "trueFail?", "isExpired?", "is 1st?",
+            ],
+            row => row);
     }
 
     /// <summary>The month-end grand totals for LAST calendar month; see the overload.</summary>

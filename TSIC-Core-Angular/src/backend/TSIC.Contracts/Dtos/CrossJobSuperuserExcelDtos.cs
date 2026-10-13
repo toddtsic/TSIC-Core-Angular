@@ -324,3 +324,30 @@ public record RegsaverPolicyHolderDto
     /// <summary>True when the registration's customer is one of those the payout share is reported for.</summary>
     public required bool InPayoutCustomerGroup { get; init; }
 }
+
+/// <summary>
+/// A rostered registration paying by recurring billing whose subscription is not cancelled,
+/// with the fees it is measured against — the EF replacement for the data load of the
+/// <c>utility.GetSuspiciousArbs</c> proc.
+/// </summary>
+public record ArbSubscriptionRowDto
+{
+    public string? JobName { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public required string SubscriptionId { get; init; }
+    public string? SubscriptionStatus { get; init; }
+    public int? BillingOccurences { get; init; }
+    public int? IntervalLength { get; init; }
+    public decimal? AmountPerOccurence { get; init; }
+    public DateTime? StartDate { get; init; }
+    public required decimal PaidTotal { get; init; }
+    public required decimal FeeTotal { get; init; }
+    public required decimal FeeDiscount { get; init; }
+
+    /// <summary>The team's own per-registrant fee, when it sets one.</summary>
+    public decimal? TeamPerRegistrantFee { get; init; }
+
+    /// <summary>The age group's roster fee.</summary>
+    public decimal? AgegroupRosterFee { get; init; }
+}

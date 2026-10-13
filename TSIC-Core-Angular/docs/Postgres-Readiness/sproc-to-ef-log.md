@@ -80,6 +80,9 @@ procedure is never called.
 | 2026-10-13 | `reporting.TournamentKeyAttributes-ALL` | 3 correlated counts and a scalar subquery per job, body written out twice; `datename(weekday)` | Same three runs: 342 rows, 0 differences (ties on event dates unordered) | Shares one query with the row above |
 | 2026-10-13 | `adn.GetLastMonthsGrandTotals` | Money. Temp table, 6 table variables, a 4-way `UNION`, 4 left joins on the result; 3 sheets | Last month through the app: 237 rows, 0 differences. Every month from 2016-01 (129) against the proc body with the month as a parameter: 6,468 rows, 0 differences | Working-table types round; see below |
 | 2026-10-13 | `reporting.RegsaverRegistrants_ALL` | Money. 7 sheets; joins on `replace(translate(policy, …))` on BOTH sides, written out nine times; `DISTINCT`; `UNION ALL`; `WITH ROLLUP`; three kinds of division | Three runs, 30,828 rows (10,276 a run), 0 differences (ties unordered) | EF 1.2 s vs proc 17 s; see below |
+| 2026-10-13 | `utility.GetSuspiciousArbs` | Money. Table variable filled then filtered; four yes/no tests per subscription | Every job plus no job (1,128 runs): 268 rows, 0 differences (ties on the four flags unordered) | EF 58 s in total vs proc 794 s |
+| 2026-10-13 | `adn.MonthyQBPExport_Automated` | **WRITER, not converted, never executed.** Calls `adn.UpdateMonthlyJobStats_CalcFields`, which inserts into `adn.Monthly_Job_Stats`, before its sheets | None | Held for Todd; see below |
+| 2026-10-13 | `adn.MonthyQBPExport_Automated_Merch` | **Read-only, not converted.** 960 lines, 9 sheets, QuickBooks money | None | Held for Todd: too little data to prove it; see below |
 
 ## UI passes
 
@@ -608,3 +611,14 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
 - **Preserved oddities:** the "not yet paid" sheet labels team policies `Player`; the by-month
   total has no column name; the team half of "By Job" is an average per policy number under a
   column named `Job_Payout_Sum`.
+- **The month-end pair is held for Todd.** The month-end close runs two procedures.
+  `adn.MonthyQBPExport_Automated` writes: it rebuilds `adn.Monthly_Job_Stats` and then runs
+  five more procedures for its sheets. Output parity cannot prove a writer and running it
+  changes data, so it has not been run. `adn.MonthyQBPExport_Automated_Merch` only reads, but
+  the database holds 38 merchandise transactions in all (January and June 2026, one job, cards
+  only, no customer group, default rates). A comparison on those would leave the e-check rates,
+  the customer-group names and the per-job store rate unproven on a file that goes into
+  QuickBooks, so it is not converted on that evidence.
+- **A latent error in the merchandise procedure, noted only:** it turns the settlement text
+  into a date by removing ` EDT`. A merchandise settlement stamped ` EST` would fail the whole
+  export. None is today.

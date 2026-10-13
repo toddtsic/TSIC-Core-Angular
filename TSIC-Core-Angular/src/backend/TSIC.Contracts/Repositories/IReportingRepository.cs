@@ -817,6 +817,15 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Rostered registrations with a recurring-billing subscription that is not cancelled, for
+    /// one job or (<paramref name="jobId"/> null) every job — the EF replacement for the data
+    /// load of <c>utility.GetSuspiciousArbs</c>.
+    /// </summary>
+    Task<List<ArbSubscriptionRowDto>> GetArbSubscriptionsAsync(
+        Guid? jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Settled card revenue, check revenue and new-registration counts by job for the period
     /// [<paramref name="periodStart"/>, <paramref name="periodEnd"/>), for the job's customer or
     /// the fixed customer group it belongs to — the EF replacement for the data behind
