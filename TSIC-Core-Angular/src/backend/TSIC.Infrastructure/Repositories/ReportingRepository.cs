@@ -3072,8 +3072,8 @@ public class ReportingRepository : IReportingRepository
         CancellationToken cancellationToken = default)
     {
         // EF replacement for the data loads of adn.monthlycustomerrollups. Card money comes from
-        // the gateway's settled transactions (the adn.vtxs VIEW) joined to accounting records
-        // by transaction id, dated by SETTLEMENT; check money comes from accounting records
+        // the gateway's settled transactions (adn.Txs, as the adn.vtxs view presents them) joined
+        // to accounting records by transaction id, dated by SETTLEMENT; check money comes from accounting records
         // dated by entry. A job is reported only when it has settled card activity AND a
         // statistics row for the month (the proc's LEFT join to the statistics is filtered in
         // its WHERE, which makes it an inner join); a job with checks alone is not reported.
@@ -3096,33 +3096,101 @@ public class ReportingRepository : IReportingRepository
             }
         }
 
-        // One row per settled transaction, in job-name order BY THE DATABASE: the report numbers
-        // its jobs in that order. "NOT status IN (…)" also drops a null status.
-        var settled = await (
-            from ra in _context.RegistrationAccounting.AsNoTracking()
-            join apm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm.PaymentMethodId
-            join r in _context.Registrations on ra.RegistrationId equals (Guid?)r.RegistrationId
-            join j in _context.Jobs on r.JobId equals j.JobId
-            join c in _context.Customers on j.CustomerId equals c.CustomerId
-            join tx in _context.VTxs on ra.AdnTransactionId equals tx.TransactionId
-            where customerIds.Contains(c.CustomerId)
-                && (apm.PaymentMethod == "Credit Card Payment" || apm.PaymentMethod == "Credit Card Credit")
-                && tx.SettlementTs >= periodStart && tx.SettlementTs < periodEnd
-                && tx.TransactionStatus != null
-                && tx.TransactionStatus != "Declined" && tx.TransactionStatus != "Voided"
+        // The proc reads the adn.vtxs VIEW, which joins every gateway transaction to accounting
+        // records on an unindexed text id before the month is applied. Read as two plain sets
+        // and joined here instead: (1) the month's transactions straight from the gateway
+        // mirror, matched on the settlement TEXT ("13-Sep-2026 04:12:31 PM EDT") the way the
+        // reconciliation does; (2) the accounting records carrying those transaction ids.
+        // "NOT status IN (…)" also drops a null status.
+        var yearText = periodStart.ToString("yyyy", CultureInfo.InvariantCulture);
+        var monthText = periodStart.ToString("MMM", CultureInfo.InvariantCulture);
+        var monthTxs = await _context.Txs.AsNoTracking()
+            .Where(t => t.SettlementDateTime != null
+                && t.SettlementDateTime.Substring(7, 4) == yearText
+                && t.SettlementDateTime.Substring(3, 3) == monthText
+                && t.TransactionStatus != null
+                && t.TransactionStatus != "Declined" && t.TransactionStatus != "Voided")
+            .Select(t => new { t.TransactionId, t.TransactionStatus, t.SettlementAmount })
+            .ToListAsync(cancellationToken);
+
+        // The view's amount: the text as money (4 places), negated for a credited transaction.
+        var amountByTx = new Dictionary<string, decimal?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in monthTxs)
+        {
+            decimal? amount = t.SettlementAmount == null
+                ? null
+                : t.SettlementAmount.Trim().Length == 0
+                    ? 0m
+                    : Math.Round(
+                        decimal.Parse(t.SettlementAmount, NumberStyles.Currency, CultureInfo.InvariantCulture),
+                        4,
+                        MidpointRounding.AwayFromZero);
+            amountByTx[t.TransactionId.TrimEnd()] =
+                string.Equals(t.TransactionStatus, "Credited", StringComparison.OrdinalIgnoreCase) ? -amount : amount;
+        }
+
+        // Every accounting record on those transactions, in job-name order BY THE DATABASE: the
+        // report numbers its jobs in that order. All of them are read, not just this customer's
+        // card lines, because the view yields one row per accounting record on a transaction and
+        // the proc joins accounting records to it again — a card line whose transaction carries
+        // N accounting records is counted N times, and that is kept.
+        // The id list is applied to the gateway table's KEY and the accounting records joined
+        // from there: the same list applied to the accounting column (unindexed nvarchar(max))
+        // is sent as nvarchar(max) values and measured 3-10x slower.
+        var txIds = amountByTx.Keys.ToList();
+        var records = await (
+            from t in _context.Txs.AsNoTracking()
+            where txIds.Contains(t.TransactionId)
+            join ra in _context.RegistrationAccounting on t.TransactionId equals ra.AdnTransactionId
+            join apm0 in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm0.PaymentMethodId into apms
+            from apm in apms.DefaultIfEmpty()
+            join r0 in _context.Registrations on ra.RegistrationId equals (Guid?)r0.RegistrationId into rs
+            from r in rs.DefaultIfEmpty()
+            join j0 in _context.Jobs on r.JobId equals j0.JobId into js
+            from j in js.DefaultIfEmpty()
+            join c0 in _context.Customers on j.CustomerId equals c0.CustomerId into cs
+            from c in cs.DefaultIfEmpty()
             orderby j.JobName, j.JobId
             select new
             {
-                c.CustomerName,
-                j.JobId,
-                j.JobName,
-                j.ProcessingFeePercent,
-                j.PerPlayerCharge,
-                j.PerTeamCharge,
-                IsPayment = apm.PaymentMethod == "Credit Card Payment",
-                Amount = tx.SettlementAmount,
+                ra.AdnTransactionId,
+                PaymentMethod = apm != null ? apm.PaymentMethod : null,
+                CustomerId = c != null ? (Guid?)c.CustomerId : null,
+                CustomerName = c != null ? c.CustomerName : null,
+                JobId = j != null ? (Guid?)j.JobId : null,
+                JobName = j != null ? j.JobName : null,
+                ProcessingFeePercent = j != null ? j.ProcessingFeePercent : null,
+                PerPlayerCharge = j != null ? j.PerPlayerCharge : null,
+                PerTeamCharge = j != null ? j.PerTeamCharge : null,
             })
             .ToListAsync(cancellationToken);
+
+        var recordsPerTx = records
+            .GroupBy(x => x.AdnTransactionId!.TrimEnd(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+
+        var settled = records
+            .Where(x => x.CustomerId != null && customerIds.Contains(x.CustomerId.Value)
+                && (string.Equals(x.PaymentMethod, "Credit Card Payment", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(x.PaymentMethod, "Credit Card Credit", StringComparison.OrdinalIgnoreCase)))
+            .SelectMany(x =>
+            {
+                var txId = x.AdnTransactionId!.TrimEnd();
+                return Enumerable.Repeat(
+                    new
+                    {
+                        CustomerName = x.CustomerName!,
+                        JobId = x.JobId!.Value,
+                        JobName = x.JobName,
+                        x.ProcessingFeePercent,
+                        x.PerPlayerCharge,
+                        x.PerTeamCharge,
+                        IsPayment = string.Equals(x.PaymentMethod, "Credit Card Payment", StringComparison.OrdinalIgnoreCase),
+                        Amount = amountByTx[txId],
+                    },
+                    recordsPerTx[txId]);
+            })
+            .ToList();
 
         var jobIds = settled.Select(s => s.JobId).Distinct().ToList();
 

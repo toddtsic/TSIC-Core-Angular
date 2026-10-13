@@ -66,7 +66,7 @@ procedure is never called.
 | 2026-10-13 | `reporting.TournyYearOverYearClubTeams` | `GROUPING SETS` into a temp table, then a DYNAMIC `PIVOT` with data-driven columns | 79 customers, 8,190 rows over both sheets, 0 differences, 27 spelling-only; proc ERRORS for 1 customer | First dynamic pivot; see below |
 | 2026-10-13 | `utility.JobCloneQA` | 46 single-row inserts into a `varchar` table variable, every type implicitly cast to text | 1,126 jobs, 51,796 rows, 7 rows differ (non-1252 text, see below) | Implicit casts to text; see below |
 | 2026-10-13 | `utility.AmericanSelect_CountsAtYear_ByTeamII` | Five DYNAMIC pivots built with `STRING_AGG`, job name and customer id spliced into the SQL text; 5 sheets | 82 customer/prefix scopes, 3,217 rows, 0 differences, 0 reordered; 8 degenerate scopes differ in shape; proc ERRORS on 3 | EF 25 s total vs proc 234 s; see below |
-| 2026-10-13 | `adn.monthlycustomerrollups` | Money. Hard-wired customer groups; 5 table variables; `ROW_NUMBER`; an `UPDATE` of a table variable; three output layouts; reads the `adn.vtxs` VIEW | 79 customers, 197 rows, 0 differences, 0 reordered | EF 83 s total vs proc 82 s; the view is the cost; see below |
+| 2026-10-13 | `adn.monthlycustomerrollups` | Money. Hard-wired customer groups; 5 table variables; `ROW_NUMBER`; an `UPDATE` of a table variable; three output layouts; reads the `adn.vtxs` VIEW | 79 customers, 197 rows, 0 differences, 0 reordered | Rebuilt as split sets read by C#: EF 32 to 51 s total vs proc 82 to 85 s; see below |
 | 2026-10-13 | `utility.Schedule_QA_Tourny` | 19 sheets, second parameter, hard-wired cross-event list | NOT converted and no parity: already replaced by `ScheduleQaService` (Scheduling Checklist, QA Results). Catalogue entry re-pointed at that workbook (Todd, 10-13) | Check the app before converting; see below |
 
 ## UI passes
@@ -459,18 +459,33 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
   (total and slowest single run). Counts II: EF 24.7 s over 83 runs (slowest 2.1 s), procedure
   233.8 s (slowest 36.4 s, past the app's 30 s timeout). Monthly rollups: EF 82.7 s over 80 runs
   (slowest 6.5 s), procedure 81.5 s (slowest 3.6 s).
-- **Why the rollups cost a second per run on both paths:** `adn.vtxs` builds its settlement
-  date by PARSING TEXT (`[settlement date time]`, month names and substrings), so a date-range
-  filter on it scans every gateway transaction every time. One month read from the view takes
-  about 1.1 s regardless of customer. No query shape on top of the view avoids that.
-  Left as is (Todd, 2026-10-13): `adn.Txs` is a column-for-column reproduction of the gateway's
-  data, written by the month-end close that rides the 4 am sweep, which clears and reloads a
-  month by that same text. The table is not reshaped to suit a report.
-- **PORT FLAG: this export depends on the `adn.vtxs` view**, which must exist on Postgres, and
-  its date parsing is T-SQL (`convert(datetime, 'MM/dd/yyyy hh:mm:ss')` from text).
-- **Preserved in the rollups:** the view already joins a transaction to its accounting records,
-  and the procedure joins the view to accounting records again, so a transaction id on two
-  records is counted four times. Same join in EF.
+- **Why the procedure costs a second per run, measured (the first explanation here, "the view
+  parses text", was wrong):** scanning `adn.Txs` takes 20 ms and parsing plus filtering a month
+  out of it 115 ms. The second goes to the JOIN inside `adn.vtxs`: every transaction to
+  `Jobs.Registration_Accounting` on `adnTransactionID`, an unindexed `nvarchar(max)`, before the
+  month is applied, and the procedure joins accounting records to the view once more.
+- **Rebuilt as sets read by C# (Todd, 2026-10-13); the export no longer reads `adn.vtxs`.**
+  (1) The month's transactions straight from `adn.Txs`, matched on the settlement TEXT the way
+  the reconciliation does. (2) The accounting records carrying those ids. Joined, signed
+  (`Credited` negates) and totalled in C#. Re-proven: 80 runs, 197 rows, 0 differences,
+  0 reordered. Data load about 0.3 s a run against the procedure's 1.0 s (EF 32 to 51 s over 80
+  runs on a busy box, procedure 82 to 85 s).
+- **An id list is typed by the column it is compared to.** Applied to
+  `Registration_Accounting.adnTransactionID` the 4,117 ids go over as `nvarchar(max)` values and
+  the read takes 0.3 to 1.2 s; applied to the `adn.Txs` key (`nvarchar(100)`) with the accounting
+  records joined from there, 0.14 s. A plain `Txs` to accounting join filtered by the month text
+  (no id list) takes 0.6 s: the optimiser cannot estimate a substring filter. Time the SQL shapes
+  before choosing one.
+- **`adn.Txs` is left alone** (Todd, 2026-10-13): a column-for-column reproduction of the
+  gateway's data, written by the month-end close that rides the 4 am sweep, which clears and
+  reloads a month by that same text. The table is not reshaped to suit a report.
+- **PORT FLAG, reduced:** this export no longer needs the `adn.vtxs` view on Postgres. It does
+  need `substring` on the settlement text to behave the same, and the id comparison between the
+  two tables is case-insensitive and ignores trailing spaces on SQL Server.
+- **Preserved in the rollups:** the view yields one row per accounting record on a transaction,
+  and the procedure joins accounting records to the view again, so a transaction id on two
+  records is counted four times. The C# join repeats each card line once per record on its
+  transaction.
 - **Five dynamic pivots share one fetch.** Counts II ran the same base query five times with a
   different `GROUP BY`. The EF version fetches player counts by job and team name once (one
   grouped query per job year) and lays out all five sheets in C#.
