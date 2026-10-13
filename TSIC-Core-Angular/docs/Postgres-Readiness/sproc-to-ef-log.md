@@ -462,8 +462,10 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
 - **Why the rollups cost a second per run on both paths:** `adn.vtxs` builds its settlement
   date by PARSING TEXT (`[settlement date time]`, month names and substrings), so a date-range
   filter on it scans every gateway transaction every time. One month read from the view takes
-  about 1.1 s regardless of customer. No query shape on top of the view avoids that; only a
-  real date column on `adn.Txs` would. Not changed here: it is a schema decision.
+  about 1.1 s regardless of customer. No query shape on top of the view avoids that.
+  Left as is (Todd, 2026-10-13): `adn.Txs` is a column-for-column reproduction of the gateway's
+  data, written by the month-end close that rides the 4 am sweep, which clears and reloads a
+  month by that same text. The table is not reshaped to suit a report.
 - **PORT FLAG: this export depends on the `adn.vtxs` view**, which must exist on Postgres, and
   its date parsing is T-SQL (`convert(datetime, 'MM/dd/yyyy hh:mm:ss')` from text).
 - **Preserved in the rollups:** the view already joins a transaction to its accounting records,
