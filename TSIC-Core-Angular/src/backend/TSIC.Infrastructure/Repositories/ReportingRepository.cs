@@ -3341,6 +3341,159 @@ public class ReportingRepository : IReportingRepository
         };
     }
 
+    public async Task<List<JobAdminFeeAllRowDto>> GetAllJobAdminFeesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.JobAdminFeesAll. The proc orders by the charge's own
+        // create date (the column, not the mm/dd/yyyy text it also selects under that name).
+        return await (
+            from jac in _context.JobAdminCharges.AsNoTracking()
+            join j in _context.Jobs on jac.JobId equals j.JobId
+            join ct in _context.JobAdminChargeTypes on jac.ChargeTypeId equals ct.Id
+            orderby jac.Year descending, jac.Month descending, jac.CreateDate descending
+            select new JobAdminFeeAllRowDto
+            {
+                Year = jac.Year,
+                Month = jac.Month,
+                CreateDate = jac.CreateDate,
+                JobName = j.JobName,
+                ChargeTypeName = ct.Name,
+                ChargeAmount = jac.ChargeAmount,
+                Comment = jac.Comment,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<BulletinExpiryRowDto>> GetBulletinsEndingBetweenAsync(
+        DateTime from,
+        DateTime to,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for utility.ExpiringBulletins ("EndDate between @begin and @end").
+        return await (
+            from b in _context.Bulletins.AsNoTracking()
+            join j in _context.Jobs on b.JobId equals j.JobId
+            where b.EndDate >= @from && b.EndDate <= to
+            orderby b.EndDate
+            select new BulletinExpiryRowDto
+            {
+                JobName = j.JobName,
+                Title = b.Title,
+                StartDate = b.StartDate,
+                EndDate = b.EndDate,
+                Active = b.Active,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<RegistrationBulletinQaRowDto>> GetExpiredRegistrationBulletinsAsync(
+        bool teamRegistration,
+        DateTime asOf,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for utility.PlayerRegistrationBulletinsQA and
+        // utility.TeamRegistrationBulletinsQA: one query, differing in the title searched for
+        // and the job's allow-registration flag. The title match is case-insensitive in the
+        // database, as charindex is.
+        var titleMarker = teamRegistration ? "Club Rep Team Registration" : "Player Registration:";
+        return await (
+            from j in _context.Jobs.AsNoTracking()
+            join b in _context.Bulletins on j.JobId equals b.JobId
+            where b.Title!.Contains(titleMarker)
+                && b.Active
+                && j.ExpiryUsers > asOf
+                && b.EndDate < asOf
+                && (teamRegistration ? j.BRegistrationAllowTeam : j.BRegistrationAllowPlayer) == true
+            orderby j.JobName
+            select new RegistrationBulletinQaRowDto
+            {
+                JobName = j.JobName,
+                RegistrationAllowed = teamRegistration ? j.BRegistrationAllowTeam : j.BRegistrationAllowPlayer,
+                ExpiryUsers = j.ExpiryUsers,
+                UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate,
+                Active = b.Active,
+                Title = b.Title,
+                StartDate = b.StartDate,
+                EndDate = b.EndDate,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<JobFirstTransactionDto>> GetJobsFirstTransactedInMonthAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.NewTsicJobsWithTxs: each job's earliest active accounting
+        // record, kept when it falls in the month.
+        var monthStart = new DateTime(year, month, 1);
+        var monthEnd = monthStart.AddMonths(1);
+        return await (
+            from ra in _context.RegistrationAccounting.AsNoTracking()
+            join r in _context.Registrations on ra.RegistrationId equals (Guid?)r.RegistrationId
+            join j in _context.Jobs on r.JobId equals j.JobId
+            where ra.Active == true
+            group ra by new { j.JobId, j.JobName } into g
+            where g.Min(x => x.Createdate) >= monthStart && g.Min(x => x.Createdate) < monthEnd
+            orderby g.Key.JobName
+            select new JobFirstTransactionDto
+            {
+                JobId = g.Key.JobId,
+                JobName = g.Key.JobName,
+                FirstTransactionDate = g.Min(x => x.Createdate),
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<ClubRepContactAllRowDto>> GetAllClubRepContactsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.ClubRepContacts-All. One row per rep, club and sport; the
+        // count is of active club rep registrations times the leagues on each one's job, which
+        // is what the proc's joins count (its column is headed "#Jobs").
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            join jl in _context.JobLeagues on j.JobId equals jl.JobId
+            join l in _context.Leagues on jl.LeagueId equals l.LeagueId
+            join s in _context.Sports on l.SportId equals s.SportId
+            where r.BActive == true && role.Name == "Club Rep"
+            group r by new
+            {
+                u.UserName,
+                r.ClubName,
+                s.SportName,
+                u.FirstName,
+                u.LastName,
+                u.Email,
+                u.Cellphone,
+                u.StreetAddress,
+                u.City,
+                u.State,
+                u.PostalCode,
+            }
+            into g
+            orderby g.Count() descending, g.Key.ClubName, g.Key.LastName, g.Key.FirstName, g.Key.UserName
+            select new ClubRepContactAllRowDto
+            {
+                ClubName = g.Key.ClubName,
+                SportName = g.Key.SportName,
+                UserName = g.Key.UserName,
+                JobCount = g.Count(),
+                LastName = g.Key.LastName,
+                FirstName = g.Key.FirstName,
+                Email = g.Key.Email,
+                Cellphone = g.Key.Cellphone,
+                StreetAddress = g.Key.StreetAddress,
+                City = g.Key.City,
+                State = g.Key.State,
+                PostalCode = g.Key.PostalCode,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

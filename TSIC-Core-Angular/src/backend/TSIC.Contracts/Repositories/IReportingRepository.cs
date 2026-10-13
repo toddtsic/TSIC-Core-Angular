@@ -711,6 +711,50 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Every job admin charge on every job, newest period first — the EF replacement for
+    /// <c>reporting.JobAdminFeesAll</c>. Cross-job.
+    /// </summary>
+    Task<List<JobAdminFeeAllRowDto>> GetAllJobAdminFeesAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bulletins on any job whose end date falls in [<paramref name="from"/>,
+    /// <paramref name="to"/>], soonest first — the EF replacement for
+    /// <c>utility.ExpiringBulletins</c>. Cross-job.
+    /// </summary>
+    Task<List<BulletinExpiryRowDto>> GetBulletinsEndingBetweenAsync(
+        DateTime from,
+        DateTime to,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active player (or club rep team) registration bulletins that ended before
+    /// <paramref name="asOf"/> on jobs that still allow that registration and have not expired —
+    /// the EF replacement for <c>utility.PlayerRegistrationBulletinsQA</c> and
+    /// <c>utility.TeamRegistrationBulletinsQA</c>. Cross-job.
+    /// </summary>
+    Task<List<RegistrationBulletinQaRowDto>> GetExpiredRegistrationBulletinsAsync(
+        bool teamRegistration,
+        DateTime asOf,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Jobs whose first active accounting record was entered in the given month — the EF
+    /// replacement for <c>reporting.NewTsicJobsWithTxs</c>. Cross-job.
+    /// </summary>
+    Task<List<JobFirstTransactionDto>> GetJobsFirstTransactedInMonthAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every active club rep's contact details by club and sport — the EF replacement for
+    /// <c>reporting.ClubRepContacts-All</c>. Cross-job.
+    /// </summary>
+    Task<List<ClubRepContactAllRowDto>> GetAllClubRepContactsAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Settled card revenue, check revenue and new-registration counts by job for the period
     /// [<paramref name="periodStart"/>, <paramref name="periodEnd"/>), for the job's customer or
     /// the fixed customer group it belongs to — the EF replacement for the data behind

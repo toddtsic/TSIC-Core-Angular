@@ -549,6 +549,12 @@ public sealed class ReportingService : IReportingService
             ["utility.AmericanSelect_CountsAtYear_ByTeam"] = (s, jobId, ct) => s.BuildRegionalTeamCountsSheetAsync(jobId, ct),
             ["utility.JobCloneQA"] = (s, jobId, ct) => s.BuildJobCloneQaSheetAsync(jobId, ct),
             ["adn.monthlycustomerrollups"] = (s, jobId, ct) => s.BuildMonthlyCustomerRollupSheetAsync(jobId, ct),
+            ["reporting.JobAdminFeesAll"] = (s, _, ct) => s.BuildAllJobAdminFeesSheetAsync(ct),
+            ["utility.ExpiringBulletins"] = (s, _, ct) => s.BuildExpiringBulletinsSheetAsync(ct),
+            ["utility.PlayerRegistrationBulletinsQA"] = (s, _, ct) => s.BuildExpiredRegistrationBulletinsSheetAsync(teamRegistration: false, ct),
+            ["utility.TeamRegistrationBulletinsQA"] = (s, _, ct) => s.BuildExpiredRegistrationBulletinsSheetAsync(teamRegistration: true, ct),
+            ["reporting.NewTsicJobsWithTxs"] = (s, _, ct) => s.BuildNewJobsWithTransactionsSheetAsync(ct),
+            ["reporting.ClubRepContacts-All"] = (s, _, ct) => s.BuildAllClubRepContactsSheetAsync(ct),
         };
 
     /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
@@ -1793,6 +1799,97 @@ public sealed class ReportingService : IReportingService
 
         return total;
     }
+
+    /// <summary>A date as T-SQL's <c>convert(char(10), d, 101)</c> writes it: mm/dd/yyyy.</summary>
+    private static string? SqlUsDate(DateTime? value) =>
+        value?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
+
+    /// <summary>"RawData" sheet of the cross-job admin fees summary: every job admin charge, newest period first.</summary>
+    private async Task<SheetData> BuildAllJobAdminFeesSheetAsync(CancellationToken cancellationToken) =>
+        ToSheet(
+            "RawData",
+            await _reportingRepository.GetAllJobAdminFeesAsync(cancellationToken),
+            ["Year", "Month", "CreateDate", "jobName", "Name", "ChargeAmount", "Comment"],
+            r => [r.Year, r.Month, SqlUsDate(r.CreateDate), r.JobName, r.ChargeTypeName, r.ChargeAmount, r.Comment]);
+
+    /// <summary>"3Mo-Expire" sheet: bulletins on any job that end within the next three months, soonest first.</summary>
+    private async Task<SheetData> BuildExpiringBulletinsSheetAsync(CancellationToken cancellationToken)
+    {
+        var now = DateTime.Now;
+        return ToSheet(
+            "3Mo-Expire",
+            await _reportingRepository.GetBulletinsEndingBetweenAsync(now, now.AddMonths(3), cancellationToken),
+            ["jobName", "title", "StartDate", "EndDate", "IsActive"],
+            r => [r.JobName, r.Title, SqlUsDate(r.StartDate), SqlUsDate(r.EndDate), r.Active]);
+    }
+
+    /// <summary>
+    /// "Expired Bulletins" sheet: active registration bulletins that have ended on jobs still
+    /// open for that registration. The player variant also lists the job's USA Lacrosse
+    /// valid-through date; the team variant has no such column.
+    /// </summary>
+    private async Task<SheetData> BuildExpiredRegistrationBulletinsSheetAsync(
+        bool teamRegistration,
+        CancellationToken cancellationToken)
+    {
+        var rows = await _reportingRepository.GetExpiredRegistrationBulletinsAsync(
+            teamRegistration, DateTime.Now, cancellationToken);
+
+        return teamRegistration
+            ? ToSheet(
+                "Expired Bulletins",
+                rows,
+                ["jobName", "bRegistrationAllowTeam", "ExpiryUsers", "active", "title", "StartDate", "EndDate"],
+                r =>
+                [
+                    r.JobName, r.RegistrationAllowed, SqlUsDate(r.ExpiryUsers), r.Active, r.Title,
+                    SqlUsDate(r.StartDate), SqlUsDate(r.EndDate),
+                ])
+            : ToSheet(
+                "Expired Bulletins",
+                rows,
+                [
+                    "jobName", "bRegistrationAllowPlayer", "ExpiryUsers", "USLaxNumberValidThroughDate",
+                    "active", "title", "StartDate", "EndDate",
+                ],
+                r =>
+                [
+                    r.JobName, r.RegistrationAllowed, SqlUsDate(r.ExpiryUsers), r.UslaxNumberValidThroughDate,
+                    r.Active, r.Title, SqlUsDate(r.StartDate), SqlUsDate(r.EndDate),
+                ]);
+    }
+
+    /// <summary>
+    /// "New Jobs: m/yyyy" sheet for LAST calendar month: the jobs whose first active accounting
+    /// record was entered that month.
+    /// </summary>
+    private async Task<SheetData> BuildNewJobsWithTransactionsSheetAsync(CancellationToken cancellationToken)
+    {
+        var lastMonth = DateTime.Now.AddMonths(-1);
+        return ToSheet(
+            string.Create(CultureInfo.InvariantCulture, $"New Jobs: {lastMonth.Month}/{lastMonth.Year}"),
+            await _reportingRepository.GetJobsFirstTransactedInMonthAsync(lastMonth.Year, lastMonth.Month, cancellationToken),
+            ["jobId", "jobName", "minTxDate"],
+            r => [r.JobId, r.JobName, SqlDefaultDateTime(r.FirstTransactionDate)]);
+    }
+
+    /// <summary>
+    /// "Raw Data" sheet of the cross-job club rep contacts: a row per rep, club and sport, most
+    /// registrations first. The proc selects the email twice; both columns are kept.
+    /// </summary>
+    private async Task<SheetData> BuildAllClubRepContactsSheetAsync(CancellationToken cancellationToken) =>
+        ToSheet(
+            "Raw Data",
+            await _reportingRepository.GetAllClubRepContactsAsync(cancellationToken),
+            [
+                "Club", "sportName", "UserName", "#Jobs", "LastName", "FirstName", "Email", "cellphone",
+                "Email", "streetAddress", "city", "state", "postalCode",
+            ],
+            r =>
+            [
+                r.ClubName, r.SportName, r.UserName, r.JobCount, r.LastName, r.FirstName, r.Email, r.Cellphone,
+                r.Email, r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]);
 
     /// <summary>
     /// "Monthly Revenues" sheet for LAST calendar month: a line per job with settled card

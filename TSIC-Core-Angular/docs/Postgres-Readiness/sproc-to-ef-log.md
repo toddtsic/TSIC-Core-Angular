@@ -68,6 +68,12 @@ procedure is never called.
 | 2026-10-13 | `utility.AmericanSelect_CountsAtYear_ByTeamII` | Five DYNAMIC pivots built with `STRING_AGG`, job name and customer id spliced into the SQL text; 5 sheets | 82 customer/prefix scopes, 3,217 rows, 0 differences, 0 reordered; 8 degenerate scopes differ in shape; proc ERRORS on 3 | EF 25 s total vs proc 234 s; see below |
 | 2026-10-13 | `adn.monthlycustomerrollups` | Money. Hard-wired customer groups; 5 table variables; `ROW_NUMBER`; an `UPDATE` of a table variable; three output layouts; reads the `adn.vtxs` VIEW | 79 customers, 197 rows, 0 differences, 0 reordered | Rebuilt as split sets read by C#: EF 32 to 51 s total vs proc 82 to 85 s; see below |
 | 2026-10-13 | `utility.Schedule_QA_Tourny` | 19 sheets, second parameter, hard-wired cross-event list | NOT converted and no parity: already replaced by `ScheduleQaService` (Scheduling Checklist, QA Results). Catalogue entry re-pointed at that workbook (Todd, 10-13) | Check the app before converting; see below |
+| 2026-10-13 | `reporting.JobAdminFeesAll` | Cross-job (SuperUser list). 2 inner joins, 3-column sort | Run once, 470 rows, 0 differences, 0 reordered | Second list; see below |
+| 2026-10-13 | `utility.ExpiringBulletins` | Cross-job. `getdate()` window of 3 months | Run once, 352 rows, 0 differences (ties on end date unordered) | |
+| 2026-10-13 | `utility.PlayerRegistrationBulletinsQA` | Cross-job. `charindex` on the title, `getdate()` on both sides of a window | 0 rows today on both sides, so proven with the clock moved: 167 dates from 2019, 0 differences | Empty today is not proof; see below |
+| 2026-10-13 | `utility.TeamRegistrationBulletinsQA` | Same query, other title and flag | As above: 167 dates, 0 differences (135 rows over both variants) | One query serves both |
+| 2026-10-13 | `reporting.NewTsicJobsWithTxs` | Cross-job. `varchar(80)` table variable, `MIN` per job, last month by `getdate()` | Run once, 42 rows, 0 differences, 0 reordered | EF 0.2 s vs proc 0.5 s |
+| 2026-10-13 | `reporting.ClubRepContacts-All` | Cross-job. 6 inner joins, 11-column `GROUP BY`, sort on the count | Run once, 6,258 rows, 0 differences, 0 reordered | Email column appears twice; kept |
 
 ## UI passes
 
@@ -516,3 +522,25 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
   is the QA workbook's layout (a Summary sheet, then a sheet per check that found something),
   NOT the procedure's 19 sheets, so there is nothing to compare and no parity claim.
 - The catalogue row, entitlement and export history are unchanged.
+
+### The second list: procedures called from code, not from the catalogue
+
+- **The catalogue was not the whole list.** `GlobalSuperuserReports` names 13 cross-job
+  procedures a SuperUser runs with no job (SuperUser Accounting nav and the X-Job Report
+  Library); the month-end close runs `adn.MonthyQBPExport_Automated` and `_Merch`. All 15 go
+  through the same seam (`ExportStoredProcedureToExcelAsync`) or its month-end sibling, so a
+  converted one is one more entry in the same table.
+- **The PDF path has nothing left to convert.** `export-bold` reads its procedure name out of
+  the `.rdl` file. Two `.rdl` files ship, both `TournamentRosterPacked`, whose procedure was
+  already replaced by `PackedRosterPdfService`; `reporting.JobReports` has no `BoldReport` row
+  on any job, so nobody can reach the endpoint. `tourneyteams_for_masterdetail` and
+  `JobRosters_ExportTournament_ByTeam` have no `.rdl` and no caller. The endpoint is left in
+  place, unconverted, and would run a procedure if a `BoldReport` row were ever added.
+- **A report that is empty today proves nothing by matching.** The two registration-bulletin
+  checks return no rows on both sides. They were proven by moving the clock: the repository
+  query against the procedure's own `SELECT` with `getdate()` replaced by a parameter, every 17
+  days from 2019 to today.
+- **Two procedures, one query.** The player and team bulletin checks differ in the title they
+  search for, the job flag, and one column. One repository method with a switch.
+- **PORT FLAG:** the title search is `charindex`, case-insensitive on SQL Server; EF sends a
+  `LIKE`. Postgres `LIKE` is case-sensitive.
