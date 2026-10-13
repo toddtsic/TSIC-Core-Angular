@@ -468,63 +468,34 @@ public sealed class ReportingService : IReportingService
             return [await BuildJobPlayersSheetAsync(jobId, layout, cancellationToken)];
         }
 
-        if (normalized.Equals("reporting_migrate.Get_Staff_ForExcelExport", StringComparison.OrdinalIgnoreCase))
+        if (EfExports.TryGetValue(normalized, out var build))
         {
-            return [await BuildJobStaffSheetAsync(jobId, cancellationToken)];
-        }
-
-        if (normalized.Equals("reporting_migrate.Get_Player_Transactions_ForExcelExport", StringComparison.OrdinalIgnoreCase))
-        {
-            return [await BuildPlayerTransactionsSheetAsync(jobId, cancellationToken)];
-        }
-
-        if (normalized.Equals("reporting_migrate.Get_DiscountedPlayers", StringComparison.OrdinalIgnoreCase))
-        {
-            return [await BuildDiscountedPlayersSheetAsync(jobId, cancellationToken)];
-        }
-
-        if (normalized.Equals("reporting_migrate.PlayerStats_ParisiResults", StringComparison.OrdinalIgnoreCase))
-        {
-            return [await BuildPlayerStatsParisiSheetAsync(jobId, cancellationToken)];
-        }
-
-        if (normalized.Equals("reporting_migrate.UsageByJobAndRegistrant", StringComparison.OrdinalIgnoreCase))
-        {
-            return [await BuildMobileJobUsersSheetAsync(jobId, cancellationToken)];
-        }
-
-        if (normalized.Equals("reporting_migrate.League_Teams", StringComparison.OrdinalIgnoreCase))
-        {
-            return [await BuildLeagueTeamsSheetAsync(jobId, cancellationToken)];
-        }
-
-        if (normalized.Equals("reporting_migrate.Get_Players_ForExcelExport_AllCustomers", StringComparison.OrdinalIgnoreCase))
-        {
-            return [await BuildCustomerPlayersSheetAsync(jobId, cancellationToken)];
-        }
-
-        if (normalized.Equals("reporting_migrate.TeamsFieldDistribution", StringComparison.OrdinalIgnoreCase))
-        {
-            return [await BuildTeamFieldDistributionSheetAsync(jobId, cancellationToken)];
-        }
-
-        if (normalized.Equals("reporting_migrate.JobRosters_ExportTournament", StringComparison.OrdinalIgnoreCase))
-        {
-            return [await BuildTournamentRecruitingSheetAsync(jobId, cancellationToken)];
-        }
-
-        if (normalized.Equals("reporting_migrate.JobRosters_RecruitingReport_DumpExcel", StringComparison.OrdinalIgnoreCase))
-        {
-            return [await BuildRecruitingRostersSheetAsync(jobId, cancellationToken)];
-        }
-
-        if (normalized.Equals("reporting_migrate.JobRosters_RecruitingReport_Public", StringComparison.OrdinalIgnoreCase))
-        {
-            return [await BuildRecruitingRostersPublicSheetAsync(jobId, cancellationToken)];
+            return [await build(this, jobId, cancellationToken)];
         }
 
         return null;
     }
+
+    /// <summary>
+    /// Every single-sheet export now served from EF, keyed by its proc's canonical (unbracketed)
+    /// name, apart from the job-players family, which has its own layout table. Converting a proc
+    /// is one entry here plus its sheet builder.
+    /// </summary>
+    private static readonly Dictionary<string, Func<ReportingService, Guid, CancellationToken, Task<SheetData>>> EfExports =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["reporting_migrate.Get_Staff_ForExcelExport"] = (s, jobId, ct) => s.BuildJobStaffSheetAsync(jobId, ct),
+            ["reporting_migrate.Get_Player_Transactions_ForExcelExport"] = (s, jobId, ct) => s.BuildPlayerTransactionsSheetAsync(jobId, ct),
+            ["reporting_migrate.Get_DiscountedPlayers"] = (s, jobId, ct) => s.BuildDiscountedPlayersSheetAsync(jobId, ct),
+            ["reporting_migrate.PlayerStats_ParisiResults"] = (s, jobId, ct) => s.BuildPlayerStatsParisiSheetAsync(jobId, ct),
+            ["reporting_migrate.UsageByJobAndRegistrant"] = (s, jobId, ct) => s.BuildMobileJobUsersSheetAsync(jobId, ct),
+            ["reporting_migrate.League_Teams"] = (s, jobId, ct) => s.BuildLeagueTeamsSheetAsync(jobId, ct),
+            ["reporting_migrate.Get_Players_ForExcelExport_AllCustomers"] = (s, jobId, ct) => s.BuildCustomerPlayersSheetAsync(jobId, ct),
+            ["reporting_migrate.TeamsFieldDistribution"] = (s, jobId, ct) => s.BuildTeamFieldDistributionSheetAsync(jobId, ct),
+            ["reporting_migrate.JobRosters_ExportTournament"] = (s, jobId, ct) => s.BuildTournamentRecruitingSheetAsync(jobId, ct),
+            ["reporting_migrate.JobRosters_RecruitingReport_DumpExcel"] = (s, jobId, ct) => s.BuildRecruitingRostersSheetAsync(jobId, ct),
+            ["reporting_migrate.JobRosters_RecruitingReport_Public"] = (s, jobId, ct) => s.BuildRecruitingRostersPublicSheetAsync(jobId, ct),
+        };
 
     /// <summary>
     /// A sheet from already-fetched rows. The proc path only learns its column names from the
