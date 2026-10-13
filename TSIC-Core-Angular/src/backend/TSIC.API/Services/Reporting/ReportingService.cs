@@ -495,6 +495,14 @@ public sealed class ReportingService : IReportingService
             ["reporting_migrate.JobRosters_ExportTournament"] = (s, jobId, ct) => s.BuildTournamentRecruitingSheetAsync(jobId, ct),
             ["reporting_migrate.JobRosters_RecruitingReport_DumpExcel"] = (s, jobId, ct) => s.BuildRecruitingRostersSheetAsync(jobId, ct),
             ["reporting_migrate.JobRosters_RecruitingReport_Public"] = (s, jobId, ct) => s.BuildRecruitingRostersPublicSheetAsync(jobId, ct),
+            ["reporting.ExportReportsHistory"] = (s, jobId, ct) => s.BuildExportHistorySheetAsync(jobId, ct),
+            ["reporting.PlayerParentMailingData"] = (s, jobId, ct) => s.BuildPlayerParentMailingSheetAsync(jobId, ct),
+            ["reporting.StaffExport"] = (s, jobId, ct) => s.BuildStaffApparelSheetAsync(jobId, ct),
+            ["reporting.StepsCoaches_Export"] = (s, jobId, ct) => s.BuildStepsCoachesSheetAsync(jobId, ct),
+            ["utility.MaxExposure_ClubCoaches"] = (s, jobId, ct) => s.BuildMaxExposureClubCoachesSheetAsync(jobId, ct),
+            ["utility.sibling_report"] = (s, jobId, ct) => s.BuildSiblingSheetAsync(jobId, ct),
+            ["reporting.JobClubRepContacts"] = (s, jobId, ct) => s.BuildJobClubRepContactsSheetAsync(jobId, ct),
+            ["reporting.CathyCampCheckinWithVacAndMedform"] = (s, jobId, ct) => s.BuildCampCheckinSheetAsync(jobId, ct),
         };
 
     /// <summary>
@@ -797,6 +805,132 @@ public sealed class ReportingService : IReportingService
         phone == null
             ? null
             : $"{SqlSubstring(phone, 1, 3)}-{SqlSubstring(phone, 4, 3)}-{SqlSubstring(phone, 7, 4)}";
+
+    /// <summary>
+    /// "Export History" sheet: the proc's 4 columns. <c>WhenExported</c> is text to the second, as
+    /// the proc's <c>convert(varchar(19), …, 120)</c> made it.
+    /// </summary>
+    private async Task<SheetData> BuildExportHistorySheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Export History",
+            await _reportingRepository.GetExportHistoryExcelRowsAsync(jobId, cancellationToken),
+            ["Job", "Export", "ExportedBy", "WhenExported"],
+            r =>
+            [
+                r.JobName, r.Export, SqlConcat(r.FirstName, " ", r.LastName),
+                r.ExportDate?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+            ]);
+
+    /// <summary>"PlayerParents" sheet: the proc's 8 columns, same names and order.</summary>
+    private async Task<SheetData> BuildPlayerParentMailingSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "PlayerParents",
+            await _reportingRepository.GetPlayerParentMailingExcelRowsAsync(jobId, cancellationToken),
+            ["Mom_LastName", "Mom_FirstName", "Dad_LastName", "Dad_FirstName", "Address", "City", "State", "Zip"],
+            r =>
+            [
+                r.MomLastName, r.MomFirstName, r.DadLastName, r.DadFirstName,
+                r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]);
+
+    /// <summary>
+    /// "Recruiters" sheet of the staff apparel export: the proc's 9 columns, a ten-character
+    /// cellphone dashed.
+    /// </summary>
+    private async Task<SheetData> BuildStaffApparelSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Recruiters",
+            await _reportingRepository.GetStaffApparelExcelRowsAsync(jobId, cancellationToken),
+            [
+                "LastName", "FirstName", "Assignment", "cellphone", "Email",
+                "jersey_size", "shorts_size", "sweatpants", "shoes",
+            ],
+            r =>
+            [
+                r.LastName, r.FirstName, r.Assignment,
+                SqlLen(r.Cellphone) == 10 ? DashedPhone(r.Cellphone) : r.Cellphone, r.Email,
+                r.JerseySize, r.ShortsSize, r.Sweatpants, r.Shoes,
+            ]);
+
+    /// <summary>"Club Coaches" sheet of the STEPS coaches export: the proc's 17 columns.</summary>
+    private async Task<SheetData> BuildStepsCoachesSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Club Coaches",
+            await _reportingRepository.GetStepsCoachExcelRowsAsync(jobId, cancellationToken),
+            [
+                "Active", "Waiver", "FirstName", "LastName", "Gender", "Email", "cellphone",
+                "Address", "city", "State", "Zip", "Shirt", "Shorts", "Sweatshirt", "Sweatpants",
+                "CoachingRequests", "CountTeamsCoaching",
+            ],
+            r =>
+            [
+                r.Active, r.WaiverSigned, r.FirstName, r.LastName, r.Gender, r.Email, r.Cellphone,
+                r.StreetAddress, r.City, r.State, r.PostalCode, r.JerseySize, r.ShortsSize, r.Sweatshirt, r.Sweatpants,
+                r.SpecialRequests, r.TeamsCoaching,
+            ]);
+
+    /// <summary>
+    /// "Club Coaches" sheet of the MaxExposure club-coach export: the proc's 15 columns.
+    /// <c>Dad</c> is the father's first name twice — preserved from the proc.
+    /// </summary>
+    private async Task<SheetData> BuildMaxExposureClubCoachesSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Club Coaches",
+            await _reportingRepository.GetMaxExposureClubCoachExcelRowsAsync(jobId, cancellationToken),
+            [
+                "LastName", "FirstName", "DOB", "school_name", "grad_year", "cellphone", "Email",
+                "club_coach", "club_coach_email", "Mom", "Mom_Cellphone", "Mom_Email",
+                "Dad", "Dad_Cellphone", "Dad_Email",
+            ],
+            r =>
+            [
+                r.LastName, r.FirstName, r.Dob, r.SchoolName, r.GradYear, r.Cellphone, r.Email,
+                r.ClubCoach, r.ClubCoachEmail, SqlConcat(r.MomFirstName, " ", r.MomLastName), r.MomCellphone, r.MomEmail,
+                SqlConcat(r.DadFirstName, " ", r.DadFirstName), r.DadCellphone, r.DadEmail,
+            ]);
+
+    /// <summary>
+    /// "Counts Per Team" sheet of the sibling report: the proc's 3 columns (the sheet name is the
+    /// proc's own, a leftover from the report it was copied from).
+    /// </summary>
+    private async Task<SheetData> BuildSiblingSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Counts Per Team",
+            await _reportingRepository.GetSiblingExcelRowsAsync(jobId, cancellationToken),
+            ["LastName", "FirstName", "RegistrationID"],
+            r => [r.LastName, r.FirstName, r.RegistrationId]);
+
+    /// <summary>"Club Rep Contacts" sheet: the proc's 11 columns, same names and order.</summary>
+    private async Task<SheetData> BuildJobClubRepContactsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Club Rep Contacts",
+            await _reportingRepository.GetJobClubRepContactExcelRowsAsync(jobId, cancellationToken),
+            ["Year", "JobName", "Club", "LastName", "FirstName", "Email", "Cell", "Address", "City", "State", "Zip"],
+            r =>
+            [
+                r.Year, r.JobName, r.ClubName, r.LastName, r.FirstName, r.Email, r.Cellphone,
+                r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]);
+
+    /// <summary>
+    /// "Rosters" sheet of the camp check-in export: the proc's 12 columns, parent phones dashed
+    /// without a length check.
+    /// </summary>
+    private async Task<SheetData> BuildCampCheckinSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Rosters",
+            await _reportingRepository.GetCampCheckinExcelRowsAsync(jobId, cancellationToken),
+            [
+                "leagueName", "teamName", "LastName", "FirstName", "position", "VacCard", "MedForm", "Owes",
+                "Mom", "MomCell", "Dad", "DadCell",
+            ],
+            r =>
+            [
+                r.LeagueName, r.TeamName, r.LastName, r.FirstName, r.Position,
+                r.UploadedVaccineCard, r.UploadedMedForm, r.OwedTotal,
+                SqlConcat(r.MomFirstName, " ", r.MomLastName), DashedPhone(r.MomCellphone),
+                SqlConcat(r.DadFirstName, " ", r.DadLastName), DashedPhone(r.DadCellphone),
+            ]);
 
     /// <summary>
     /// One layout of the job-players export family: its sheet name, header names in order, and

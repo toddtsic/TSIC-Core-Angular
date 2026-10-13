@@ -1740,6 +1740,244 @@ public class ReportingRepository : IReportingRepository
         return ordered;
     }
 
+    public async Task<List<ExportHistoryExcelRowDto>> GetExportHistoryExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.ExportReportsHistory. SQL's "!= 'SuperUser'" also drops a
+        // null role name, hence the explicit null test.
+        return await (
+            from hx in _context.JobReportExportHistory.AsNoTracking()
+            join r in _context.Registrations.AsNoTracking() on hx.RegistrationId equals r.RegistrationId
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            where r.JobId == jobId && roles.Name != null && roles.Name != "SuperUser"
+            orderby hx.ExportDate descending
+            select new ExportHistoryExcelRowDto
+            {
+                JobName = j.JobName,
+                Export = hx.StoredProcedureName ?? hx.ReportName,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                ExportDate = hx.ExportDate,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<PlayerParentMailingExcelRowDto>> GetPlayerParentMailingExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.PlayerParentMailingData. No role filter in the proc.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join f in _context.Families.AsNoTracking() on r.FamilyUserId equals f.FamilyUserId
+            join uF in _context.AspNetUsers.AsNoTracking() on f.FamilyUserId equals uF.Id
+            where r.JobId == jobId && r.BActive == true
+            orderby f.MomLastName
+            select new PlayerParentMailingExcelRowDto
+            {
+                MomLastName = f.MomLastName,
+                MomFirstName = f.MomFirstName,
+                DadLastName = f.DadLastName,
+                DadFirstName = f.DadFirstName,
+                StreetAddress = uF.StreetAddress,
+                City = uF.City,
+                State = uF.State,
+                PostalCode = uF.PostalCode,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<StaffApparelExcelRowDto>> GetStaffApparelExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.StaffExport.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where r.JobId == jobId && roles.Name == "Staff" && r.BActive == true
+            orderby u.LastName, u.FirstName
+            select new StaffApparelExcelRowDto
+            {
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Assignment = r.Assignment,
+                Cellphone = u.Cellphone,
+                Email = u.Email,
+                JerseySize = r.JerseySize,
+                ShortsSize = r.ShortsSize,
+                Sweatpants = r.Sweatpants,
+                Shoes = r.Shoes,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<StepsCoachExcelRowDto>> GetStepsCoachExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.StepsCoaches_Export. No bActive filter: the sheet shows the
+        // flag. The count is the proc's correlated subquery: the same user's Staff registrations
+        // on this job, active or not.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where r.JobId == jobId && roles.Name == "Unassigned Adult"
+            orderby u.LastName, u.FirstName
+            select new StepsCoachExcelRowDto
+            {
+                Active = r.BActive,
+                WaiverSigned = r.BWaiverSigned1,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Gender = u.Gender,
+                Email = u.Email,
+                Cellphone = u.Cellphone,
+                StreetAddress = u.StreetAddress,
+                City = u.City,
+                State = u.State,
+                PostalCode = u.PostalCode,
+                JerseySize = r.JerseySize,
+                ShortsSize = r.ShortsSize,
+                Sweatshirt = r.Sweatshirt,
+                Sweatpants = r.Sweatpants,
+                SpecialRequests = r.SpecialRequests,
+                TeamsCoaching = (
+                    from a in _context.Registrations
+                    join b in _context.AspNetRoles on a.RoleId equals b.Id
+                    where a.JobId == r.JobId && a.UserId == r.UserId && b.Name == "Staff"
+                    select a).Count(),
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<MaxExposureClubCoachExcelRowDto>> GetMaxExposureClubCoachExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for utility.MaxExposure_ClubCoaches. No bActive filter in the proc.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join f in _context.Families.AsNoTracking() on r.FamilyUserId equals f.FamilyUserId
+            where r.JobId == jobId && roles.Name == "Player"
+            orderby u.LastName, u.FirstName
+            select new MaxExposureClubCoachExcelRowDto
+            {
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Dob = u.Dob,
+                SchoolName = r.SchoolName,
+                GradYear = r.GradYear,
+                Cellphone = u.Cellphone,
+                Email = u.Email,
+                ClubCoach = r.ClubCoach,
+                ClubCoachEmail = r.ClubCoachEmail,
+                MomFirstName = f.MomFirstName,
+                MomLastName = f.MomLastName,
+                MomCellphone = f.MomCellphone,
+                MomEmail = f.MomEmail,
+                DadFirstName = f.DadFirstName,
+                DadCellphone = f.DadCellphone,
+                DadEmail = f.DadEmail,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<SiblingExcelRowDto>> GetSiblingExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for utility.sibling_report. The inner set is families with more than one
+        // active Player registration on the job; the outer rows are every registration of those
+        // families on the job, whatever its role or active flag, as in the proc.
+        var siblingFamilies =
+            from r in _context.Registrations.AsNoTracking()
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            where r.JobId == jobId && r.BActive == true && roles.Name == "Player" && r.FamilyUserId != null
+            group r by r.FamilyUserId into g
+            where g.Count() > 1
+            select g.Key;
+
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where r.JobId == jobId && siblingFamilies.Contains(r.FamilyUserId)
+            orderby u.LastName, u.FirstName
+            select new SiblingExcelRowDto
+            {
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                RegistrationId = r.RegistrationId,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<JobClubRepContactExcelRowDto>> GetJobClubRepContactExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.JobClubRepContacts.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where j.JobId == jobId && roles.Name == "Club Rep" && r.BActive == true
+            orderby j.Year descending, j.JobName, u.LastName, u.FirstName
+            select new JobClubRepContactExcelRowDto
+            {
+                Year = j.Year,
+                JobName = j.JobName,
+                ClubName = r.ClubName,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Email = u.Email,
+                Cellphone = u.Cellphone,
+                StreetAddress = u.StreetAddress,
+                City = u.City,
+                State = u.State,
+                PostalCode = u.PostalCode,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<CampCheckinExcelRowDto>> GetCampCheckinExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.CathyCampCheckinWithVacAndMedform. The division is an
+        // INNER join used only as a filter (DivId != null). "not like '%WAITLIST%'" is
+        // case-insensitive under the SQL Server collation and drops a null name; upper-casing
+        // the name keeps both behaviours on any provider.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join f in _context.Families.AsNoTracking() on r.FamilyUserId equals f.FamilyUserId
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+            where r.JobId == jobId && r.BActive == true && t.DivId != null
+                && ag.AgegroupName != null && !ag.AgegroupName.ToUpper().Contains("WAITLIST")
+            orderby t.TeamName, u.LastName
+            select new CampCheckinExcelRowDto
+            {
+                LeagueName = t.League.LeagueName,
+                TeamName = t.TeamName,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Position = r.Position,
+                UploadedVaccineCard = r.BUploadedVaccineCard,
+                UploadedMedForm = r.BUploadedMedForm,
+                OwedTotal = r.OwedTotal,
+                MomFirstName = f.MomFirstName,
+                MomLastName = f.MomLastName,
+                MomCellphone = f.MomCellphone,
+                DadFirstName = f.DadFirstName,
+                DadLastName = f.DadLastName,
+                DadCellphone = f.DadCellphone,
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

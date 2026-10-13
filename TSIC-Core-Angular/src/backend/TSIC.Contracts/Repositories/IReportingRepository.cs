@@ -457,6 +457,75 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Export runs by non-SuperUser registrations of the job, newest first — the EF replacement
+    /// for <c>reporting.ExportReportsHistory</c>.
+    /// </summary>
+    Task<List<ExportHistoryExcelRowDto>> GetExportHistoryExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Parent names and family mailing address for every active registration with a family,
+    /// ordered by mother's last name — the EF replacement for
+    /// <c>reporting.PlayerParentMailingData</c>. Job-scoped, any role.
+    /// </summary>
+    Task<List<PlayerParentMailingExcelRowDto>> GetPlayerParentMailingExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active Staff registrations with assignment and apparel sizes, ordered last → first — the EF
+    /// replacement for <c>reporting.StaffExport</c>. Job-scoped.
+    /// </summary>
+    Task<List<StaffApparelExcelRowDto>> GetStaffApparelExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Unassigned Adult registrations (active or not) with a count of the same user's Staff
+    /// registrations on the job, ordered last → first — the EF replacement for
+    /// <c>reporting.StepsCoaches_Export</c>. Job-scoped.
+    /// </summary>
+    Task<List<StepsCoachExcelRowDto>> GetStepsCoachExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Player registrations (active or not) that have a family, with club-coach and parent
+    /// contacts, ordered last → first — the EF replacement for
+    /// <c>utility.MaxExposure_ClubCoaches</c>. Job-scoped.
+    /// </summary>
+    Task<List<MaxExposureClubCoachExcelRowDto>> GetMaxExposureClubCoachExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every registration on the job whose family has more than one active Player registration
+    /// there, ordered last → first — the EF replacement for <c>utility.sibling_report</c>.
+    /// </summary>
+    Task<List<SiblingExcelRowDto>> GetSiblingExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active Club Rep registrations' contact details, ordered last → first — the EF replacement
+    /// for <c>reporting.JobClubRepContacts</c>. Job-scoped.
+    /// </summary>
+    Task<List<JobClubRepContactExcelRowDto>> GetJobClubRepContactExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active rostered registrants outside waitlist agegroups with upload flags, balance and
+    /// parent contacts, ordered team → last — the EF replacement for
+    /// <c>reporting.CathyCampCheckinWithVacAndMedform</c>. Job-scoped; needs a family, a team and
+    /// a division.
+    /// </summary>
+    Task<List<CampCheckinExcelRowDto>> GetCampCheckinExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

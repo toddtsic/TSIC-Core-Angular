@@ -37,6 +37,14 @@ procedure is never called.
 | 2026-10-12 | `reporting_migrate.JobRosters_ExportTournament` | One select, 8 inner + 2 left joins, 46 columns, heavy text formatting | 1,127 jobs, 434,018 rows, 0 differences | T-SQL string functions in C#; see below |
 | 2026-10-12 | `reporting_migrate.JobRosters_RecruitingReport_DumpExcel` | One select from teams, 7 inner + 2 left joins, 26 columns, sorted on uniform number as an integer | 1,127 jobs, 546,331 rows, 0 differences; on 3 jobs the procedure errors and EF does not | First behaviour change; see below |
 | 2026-10-12 | `reporting_migrate.JobRosters_RecruitingReport_Public` | Same rows as the admin dump, 9 public-safe columns | 1,127 jobs, 546,331 rows, 0 differences; same 3 jobs where the procedure errors | Sibling layout over the admin dump's query; nothing new |
+| 2026-10-12 | `reporting.ExportReportsHistory` | One select, 4 inner joins, 4 columns | 1,127 jobs, 5,509 rows, 0 differences | Group of eight; see below |
+| 2026-10-12 | `reporting.PlayerParentMailingData` | One select, 2 inner joins, 8 columns | 1,127 jobs, 551,815 rows, 0 differences | Group of eight |
+| 2026-10-12 | `reporting.StaffExport` | One select, 2 inner joins, 9 columns | 1,127 jobs, 19,429 rows, 0 differences | Group of eight |
+| 2026-10-12 | `reporting.StepsCoaches_Export` | One select with a correlated count, 17 columns | 1,127 jobs, 4,506 rows, 0 differences | Group of eight |
+| 2026-10-12 | `utility.MaxExposure_ClubCoaches` | One select, 3 inner joins, 15 columns | 1,127 jobs, 638,296 rows, 0 differences | Group of eight |
+| 2026-10-12 | `utility.sibling_report` | One select joined to a grouped subquery (`having count(*) > 1`), 3 columns | 1,127 jobs, 102,459 rows, 0 differences | Group of eight |
+| 2026-10-12 | `reporting.JobClubRepContacts` | One select, 3 inner joins, 11 columns | 1,127 jobs, 10,010 rows, 0 differences | Group of eight |
+| 2026-10-12 | `reporting.CathyCampCheckinWithVacAndMedform` | One select, 6 inner joins, 12 columns, `not like` filter | 1,127 jobs, 550,018 rows, 0 differences | Group of eight |
 
 ## UI passes
 
@@ -240,3 +248,23 @@ downloads were served from EF and the procedures were not called.
   twice); the header list simply repeats it.
 - **`coalesce(x, '0')`, `replace(x, '#', '')` and unguarded `substring` phone formatting** all
   move to the sheet builder.
+
+### The group of eight simple exports
+
+`ExportReportsHistory`, `PlayerParentMailingData`, `StaffExport`, `StepsCoaches_Export`,
+`MaxExposure_ClubCoaches`, `sibling_report`, `JobClubRepContacts` and
+`CathyCampCheckinWithVacAndMedform` were written together, proven in one run and committed
+together. All eight matched on the first run, which is what the earlier lessons bought.
+
+- **The routing seam is now a lookup table** (`EfExports` in `ReportingService`): procedure name
+  to sheet builder. A conversion is one entry, one builder, one repository method and one DTO.
+- **`like '%X%'` is case-insensitive on SQL Server and case-sensitive on Postgres.** The camp
+  check-in's waitlist filter is written as `name != null && !name.ToUpper().Contains("WAITLIST")`,
+  which behaves the same on both.
+- **A correlated `select count(*)` is a correlated LINQ `Count()`** in the projection.
+- **A derived table with `group by … having count(*) > 1` is a grouped `IQueryable`** used with
+  `Contains`; it stays one SQL statement. A null grouping key can never match the outer join, so
+  it is filtered out of the inner set explicitly.
+- **Defects carried over, each with a comment**: `MaxExposure_ClubCoaches` builds `Dad` from the
+  father's first name twice; `sibling_report` names its sheet "Counts Per Team".
+- **The harness takes several procedures per run.** One build and one suite run serve the group.
