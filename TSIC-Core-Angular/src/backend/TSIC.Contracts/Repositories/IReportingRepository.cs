@@ -610,6 +610,26 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Team-versus-team games ordered date → field, for the TournyMachine schedule export — the EF
+    /// replacement for <c>reporting.Schedule_Export_ToTournyMachine</c>. Job-scoped. READ-ONLY:
+    /// the proc first rewrote drifted team names on the schedule
+    /// (<c>Leagues.UpdateTournyTeamFullNames</c>); this returns the names that rewrite would have
+    /// produced and stores nothing.
+    /// </summary>
+    Task<List<TournyMachineGameExcelRowDto>> GetTournyMachineGameExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distinct scheduled active teams, with and without club rep contacts, ordered agegroup →
+    /// pool → team name — the EF replacement for
+    /// <c>reporting.Schedule_Export_Teams_ToTournyMachine</c>. Job-scoped and READ-ONLY, as above.
+    /// </summary>
+    Task<TournyMachineTeamsDto> GetTournyMachineTeamsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

@@ -2467,6 +2467,116 @@ public class ReportingRepository : IReportingRepository
         };
     }
 
+    public async Task<List<TournyMachineGameExcelRowDto>> GetTournyMachineGameExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.Schedule_Export_ToTournyMachine, made read-only. The proc
+        // first ran Leagues.UpdateTournyTeamFullNames, which set a side's stored name to
+        // "club:team" when the side's team (same job, with a club rep) produced a non-null name
+        // that differed from a non-null stored one. Each side is resolved the same way here by a
+        // correlated lookup that yields a row only when that rewrite would have fired; otherwise
+        // the stored name stands. The inequality runs in the database, so "differs" means what
+        // it meant to the proc.
+        return await (
+            from s in _context.Schedule.AsNoTracking()
+            where s.JobId == jobId && s.T1Type == "T" && s.T2Type == "T"
+            orderby s.GDate, s.FName
+            select new TournyMachineGameExcelRowDto
+            {
+                Team1 = (
+                    from t in _context.Teams
+                    join r in _context.Registrations on t.ClubrepRegistrationid equals (Guid?)r.RegistrationId
+                    where t.TeamId == s.T1Id && t.JobId == s.JobId
+                        && r.ClubName != null && t.TeamName != null && s.T1Name != null
+                        && r.ClubName + ":" + t.TeamName != s.T1Name
+                    select r.ClubName + ":" + t.TeamName).FirstOrDefault() ?? s.T1Name,
+                Team2 = (
+                    from t in _context.Teams
+                    join r in _context.Registrations on t.ClubrepRegistrationid equals (Guid?)r.RegistrationId
+                    where t.TeamId == s.T2Id && t.JobId == s.JobId
+                        && r.ClubName != null && t.TeamName != null && s.T2Name != null
+                        && r.ClubName + ":" + t.TeamName != s.T2Name
+                    select r.ClubName + ":" + t.TeamName).FirstOrDefault() ?? s.T2Name,
+                GameDate = s.GDate,
+                FieldName = s.FName,
+                AgegroupName = s.AgegroupName,
+                DivName = s.DivName,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<TournyMachineTeamsDto> GetTournyMachineTeamsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.Schedule_Export_Teams_ToTournyMachine, made read-only (see
+        // GetTournyMachineGameExcelRowsAsync for the name rule). A game joins to both of its
+        // teams; the team's club rep registration and user and its division are INNER joins.
+        // Preserved from the proc: the pool filter's 'Dripped Teams' spelling, which excludes
+        // nothing a correctly spelled filter would. SQL's "!=" drops null names, hence the
+        // explicit null tests.
+        var scheduled =
+            from s in _context.Schedule.AsNoTracking()
+            from t in _context.Teams.AsNoTracking().Where(t => t.TeamId == s.T1Id || t.TeamId == s.T2Id)
+            join r in _context.Registrations.AsNoTracking() on t.ClubrepRegistrationid equals (Guid?)r.RegistrationId
+            join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+            join d in _context.Divisions.AsNoTracking() on t.DivId equals (Guid?)d.DivId
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where s.JobId == jobId && s.T1Type == "T" && s.T2Type == "T" && t.Active == true
+                && ag.AgegroupName != null && ag.AgegroupName != "Dropped Teams"
+                && d.DivName != null && d.DivName != "Dripped Teams"
+            let stored = t.TeamId == s.T1Id ? s.T1Name : s.T2Name
+            select new
+            {
+                ag.AgegroupName,
+                d.DivName,
+                AgegroupGender = ag.Gender,
+                TeamName = t.JobId == s.JobId && r.ClubName != null && t.TeamName != null && stored != null
+                        && r.ClubName + ":" + t.TeamName != stored
+                    ? r.ClubName + ":" + t.TeamName
+                    : stored,
+                RepGender = u.Gender,
+                u.FirstName,
+                u.LastName,
+                u.Email,
+                u.City,
+                u.State,
+                u.PostalCode,
+            };
+
+        var teams = await scheduled
+            .Select(x => new TournyMachineTeamExcelRowDto
+            {
+                AgegroupName = x.AgegroupName,
+                DivName = x.DivName,
+                TeamName = x.TeamName,
+                Gender = x.AgegroupGender,
+            })
+            .Distinct()
+            .OrderBy(x => x.AgegroupName).ThenBy(x => x.DivName).ThenBy(x => x.TeamName)
+            .ToListAsync(cancellationToken);
+
+        var contacts = await scheduled
+            .Select(x => new TournyMachineTeamContactExcelRowDto
+            {
+                AgegroupName = x.AgegroupName,
+                DivName = x.DivName,
+                Gender = x.RepGender,
+                TeamName = x.TeamName,
+                FirstName = x.FirstName,
+                LastName = x.LastName,
+                Email = x.Email,
+                City = x.City,
+                State = x.State,
+                PostalCode = x.PostalCode,
+            })
+            .Distinct()
+            .OrderBy(x => x.AgegroupName).ThenBy(x => x.DivName).ThenBy(x => x.TeamName)
+            .ToListAsync(cancellationToken);
+
+        return new TournyMachineTeamsDto { Teams = teams, TeamContacts = contacts };
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

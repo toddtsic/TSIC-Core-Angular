@@ -56,6 +56,8 @@ procedure is never called.
 | 2026-10-12 | `reporting.ThePlayers_PlayerShowCaseExport_IncludeInactive` | Same joins, no filter, 12 columns | 1,127 jobs, 638,296 rows, 0 differences | Same |
 | 2026-10-12 | `reporting.CustomerEndUsersDump` | Customer-scoped `union` of club reps and rostered registrants, 21 columns | 80 customers, 559,664 rows, 0 content differences; 109 rows differ in spelling only | Union with null-filled columns; see below |
 | 2026-10-12 | `reporting.Customer_RegistrationAccounting_Records` | Two branches on a hard-wired job id; 6 inner + 3 left joins; 21 or 19 columns; no `ORDER BY` | 80 customers, 131,416 rows, 0 differences; hard-wired job, 36,995 rows, 0 differences | `if`/`else` procedures, `FORMAT`, dynamic sheet name; see below |
+| 2026-10-13 | `reporting.Schedule_Export_ToTournyMachine` | WRITER: runs `Leagues.UpdateTournyTeamFullNames` first; then 8 columns from the schedule | Proc NOT executed (it writes). Against a read-only restatement: 1,126 jobs, 51,250 rows, 0 differences, 0 reordered | Made read-only by ruling; see below |
+| 2026-10-13 | `reporting.Schedule_Export_Teams_ToTournyMachine` | WRITER, same rewrite; two `DISTINCT` sheets, 5 inner joins, join on `IN (T1_ID, T2_ID)` | Proc NOT executed. Against a read-only restatement: 1,126 jobs, 53,526 rows over both sheets, 0 differences | Made read-only by ruling; see below |
 
 ## UI passes
 
@@ -340,3 +342,34 @@ together. All eight matched on the first run, which is what the earlier lessons 
 - **A LEFT join with two conditions is a correlated `Where(…).DefaultIfEmpty()`** in the `from`.
 - **No `ORDER BY` means any order is correct.** The EF path orders by record date so the file is
   stable from run to run; the harness skips the order check when given no sort key.
+
+### The two TournyMachine exports (the first writers)
+
+Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams Export (TM)
+(Excel)". Neither title says TournyMachine; only the procedure names do.
+
+- **Ruling (Todd, 2026-10-13): these exports do no rewriting.** Both procedures began by running
+  `Leagues.UpdateTournyTeamFullNames`, which overwrote a game's stored team name with
+  `club:team` wherever the two had drifted. An export that edits the schedule is a side effect
+  nobody asked for. The EF versions compute the name the rewrite would have produced, put it in
+  the file, and store nothing. The schedule keeps whatever names it had.
+- **The rewrite rule, restated as a read:** a side takes `club:team` when its team is in the
+  game's job, has a club rep registration, both names are non-null, the stored name is non-null,
+  and the two differ. Otherwise the stored name stands. "Differs" is evaluated in the database
+  so it means what it meant to the procedure (case-insensitive on SQL Server; PORT FLAG, a
+  case-only drift would count as drift on Postgres).
+- **One deliberate difference.** The procedure's `UPDATE … FROM` matched a game once per side,
+  and SQL Server applies only one of the two matches, so a game drifted on BOTH sides was fixed
+  on one side per run. The EF version resolves both sides at once. On the local copy 61 games
+  are drifted on both sides.
+- **The proof is weaker than the others, and says so.** A procedure that writes cannot be run
+  under the read-only rule, so parity ran against a read-only restatement of each procedure's
+  `SELECT` (same joins, filters, columns and order, with the names resolved by the rule above).
+  That proves joins, filters, formats, `DISTINCT` and order. It does not independently prove
+  the name rule, because both sides state it. 329 of 51,250 team-versus-team games on the local
+  copy carry a drifted name, across 14 of 213 scheduled jobs, so the rule was exercised.
+- **`t.teamID in (s.T1_ID, s.T2_ID)` is a `from … Where(a || b)`** in LINQ, an inner join on an
+  OR condition.
+- **Preserved:** the pool filter's `'Dripped Teams'` misspelling, which excludes nothing.
+- **Formats:** `convert(varchar, d, 20)` is `yyyy-MM-dd HH:mm:ss`;
+  `convert(char(5), convert(time, d))` is `HH:mm`.

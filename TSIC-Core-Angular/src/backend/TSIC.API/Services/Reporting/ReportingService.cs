@@ -518,6 +518,7 @@ public sealed class ReportingService : IReportingService
             ["reporting.ThePlayers_PlayerShowCaseExport_IncludeInactive"] = (s, jobId, ct) => s.BuildShowcaseAllRegistrantsSheetAsync(jobId, ct),
             ["reporting.CustomerEndUsersDump"] = (s, jobId, ct) => s.BuildCustomerEndUsersSheetAsync(jobId, ct),
             ["reporting.Customer_RegistrationAccounting_Records"] = (s, jobId, ct) => s.BuildCustomerAccountingRecordsSheetAsync(jobId, ct),
+            ["reporting.Schedule_Export_ToTournyMachine"] = (s, jobId, ct) => s.BuildTournyMachineScheduleSheetAsync(jobId, ct),
         };
 
     /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
@@ -525,6 +526,7 @@ public sealed class ReportingService : IReportingService
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["reporting.JobPushTeamResultsSummary"] = (s, jobId, ct) => s.BuildJobPushTeamSummarySheetsAsync(jobId, ct),
+            ["reporting.Schedule_Export_Teams_ToTournyMachine"] = (s, jobId, ct) => s.BuildTournyMachineTeamsSheetsAsync(jobId, ct),
         };
 
     /// <summary>
@@ -1236,6 +1238,53 @@ public sealed class ReportingService : IReportingService
                 data.Rows,
                 ["jobName", .. whenColumns, "paymentMethod", "adnTransactionID", "adnCC4", "adnCCExpDate", .. whoColumns],
                 r => [r.JobName, .. When(r), r.PaymentMethod, r.AdnTransactionId, r.AdnCc4, r.AdnCcExpDate, .. Who(r)]);
+    }
+
+    /// <summary>
+    /// "Schedule" sheet of the TournyMachine schedule export: the proc's 8 columns, the game time
+    /// spelled three ways as text. Read-only — see the repository method.
+    /// </summary>
+    private async Task<SheetData> BuildTournyMachineScheduleSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Schedule",
+            await _reportingRepository.GetTournyMachineGameExcelRowsAsync(jobId, cancellationToken),
+            ["Team 1", "Team 2", "Date/Time", "Field Name", "Division Name", "Pool Name", "gDay", "gTime"],
+            r =>
+            [
+                r.Team1, r.Team2,
+                r.GameDate?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+                r.FieldName, r.AgegroupName, r.DivName,
+                r.GameDate?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                r.GameDate?.ToString("HH:mm", CultureInfo.InvariantCulture),
+            ]);
+
+    /// <summary>
+    /// The two sheets of the TournyMachine teams export: "Team Export" and "USLax Export".
+    /// Read-only — see the repository method.
+    /// </summary>
+    private async Task<List<SheetData>> BuildTournyMachineTeamsSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetTournyMachineTeamsAsync(jobId, cancellationToken);
+        return
+        [
+            ToSheet(
+                "Team Export",
+                data.Teams,
+                ["Division", "Division Abb", "Pool Name", "Team Name", "Gender"],
+                r => [r.AgegroupName, r.AgegroupName, r.DivName, r.TeamName, r.Gender]),
+            ToSheet(
+                "USLax Export",
+                data.TeamContacts,
+                [
+                    "Division", "Pool Name", "Gender", "Team Name", "ClubRep FirstName", "ClubRep LastName",
+                    "ClubRep EMail", "City", "ClubRep State", "ClubRep ZIP",
+                ],
+                r =>
+                [
+                    r.AgegroupName, r.DivName, r.Gender, r.TeamName, r.FirstName, r.LastName,
+                    r.Email, r.City, r.State, r.PostalCode,
+                ]),
+        ];
     }
 
     /// <summary>
