@@ -810,6 +810,13 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Every insurance payout, and every policy held by a registration or a team — the EF
+    /// replacement for the data loads of <c>reporting.RegsaverRegistrants_ALL</c>. Cross-job.
+    /// </summary>
+    Task<RegsaverPurchasesDto> GetRegsaverPurchasesAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Settled card revenue, check revenue and new-registration counts by job for the period
     /// [<paramref name="periodStart"/>, <paramref name="periodEnd"/>), for the job's customer or
     /// the fixed customer group it belongs to — the EF replacement for the data behind

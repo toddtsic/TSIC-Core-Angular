@@ -266,3 +266,61 @@ public record GrandTotalsMonthStatDto
     public int? NewPlayers { get; init; }
     public int? NewTeams { get; init; }
 }
+
+/// <summary>
+/// Every insurance payout and every policy held by a registration or a team — the EF
+/// replacement for the data loads of the <c>reporting.RegsaverRegistrants_ALL</c> proc, which
+/// matches the two by policy number.
+/// </summary>
+public record RegsaverPurchasesDto
+{
+    /// <summary>Every payout, ordered by year, month and purchase date.</summary>
+    public required List<InsurancePayoutRowDto> Payouts { get; init; }
+
+    /// <summary>Registrations holding a policy.</summary>
+    public required List<RegsaverPolicyHolderDto> PlayerPolicies { get; init; }
+
+    /// <summary>Teams holding a policy, with their club rep's registration when there is one.</summary>
+    public required List<RegsaverPolicyHolderDto> TeamPolicies { get; init; }
+}
+
+/// <summary>One row of the insurer's payout file, as loaded.</summary>
+public record InsurancePayoutRowDto
+{
+    public double? Year { get; init; }
+    public double? Month { get; init; }
+    public string? PolicyNumber { get; init; }
+    public string? PurchaseDateString { get; init; }
+    public DateTime? PolicyEffectiveDate { get; init; }
+    public decimal? NetWrittenPremium { get; init; }
+    public decimal? Payout { get; init; }
+    public DateTime? PurchaseDate { get; init; }
+    public required Guid Id { get; init; }
+}
+
+/// <summary>
+/// A policy and who holds it. For a player policy the registration is the holder's own; for a
+/// team policy it is the team's club rep's, and may be missing.
+/// </summary>
+public record RegsaverPolicyHolderDto
+{
+    public required string PolicyId { get; init; }
+
+    /// <summary>The job the registration (player policy) or the team (team policy) belongs to.</summary>
+    public string? HolderJobName { get; init; }
+
+    /// <summary>When the registration was made (player policy) or the team created (team policy).</summary>
+    public required DateTime HolderCreated { get; init; }
+
+    public required bool HasRegistration { get; init; }
+    public decimal? FeeTotal { get; init; }
+    public DateTime? RegistrationTs { get; init; }
+    public string? RegistrationJobName { get; init; }
+    public string? ParentFirstName { get; init; }
+    public string? ParentLastName { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+
+    /// <summary>True when the registration's customer is one of those the payout share is reported for.</summary>
+    public required bool InPayoutCustomerGroup { get; init; }
+}

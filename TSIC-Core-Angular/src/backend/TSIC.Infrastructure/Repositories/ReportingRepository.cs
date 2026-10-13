@@ -3751,6 +3751,95 @@ public class ReportingRepository : IReportingRepository
             .ToList();
     }
 
+    public async Task<RegsaverPurchasesDto> GetRegsaverPurchasesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the data loads of reporting.RegsaverRegistrants_ALL. The proc joins
+        // payouts to registrations and to teams on a policy number it first strips of letters
+        // and punctuation, a join no index can serve, six times over. Here the three sets are
+        // read once each and matched by the caller.
+        var payouts = await _context.VerticalInsurePayouts.AsNoTracking()
+            .OrderBy(vi => vi.Year).ThenBy(vi => vi.Month).ThenBy(vi => vi.PurchaseDate).ThenBy(vi => vi.Id)
+            .Select(vi => new InsurancePayoutRowDto
+            {
+                Year = vi.Year,
+                Month = vi.Month,
+                PolicyNumber = vi.PolicyNumber,
+                PurchaseDateString = vi.PurchaseDateString,
+                PolicyEffectiveDate = vi.PolicyEffectiveDate,
+                NetWrittenPremium = vi.NetWrittenPremium,
+                Payout = vi.Payout,
+                PurchaseDate = vi.PurchaseDate,
+                Id = vi.Id,
+            })
+            .ToListAsync(cancellationToken);
+
+        var playerPolicies = await (
+            from r in _context.Registrations.AsNoTracking()
+            where r.RegsaverPolicyId != null
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join uF0 in _context.AspNetUsers on r.FamilyUserId equals uF0.Id into uFs
+            from uF in uFs.DefaultIfEmpty()
+            join u0 in _context.AspNetUsers on r.UserId equals u0.Id into us
+            from u in us.DefaultIfEmpty()
+            join f0 in _context.Families on uF.Id equals f0.FamilyUserId into fs
+            from f in fs.DefaultIfEmpty()
+            select new RegsaverPolicyHolderDto
+            {
+                PolicyId = r.RegsaverPolicyId!,
+                HolderJobName = j.JobName,
+                HolderCreated = r.RegistrationTs,
+                HasRegistration = true,
+                FeeTotal = r.FeeTotal,
+                RegistrationTs = r.RegistrationTs,
+                RegistrationJobName = j.JobName,
+                ParentFirstName = f != null ? (f.MomFirstName ?? f.DadFirstName) : null,
+                ParentLastName = f != null ? (f.MomLastName ?? f.DadLastName) : null,
+                FirstName = u != null ? u.FirstName : null,
+                LastName = u != null ? u.LastName : null,
+                InPayoutCustomerGroup = RegsaverPayoutCustomerIds.Contains(j.CustomerId),
+            })
+            .ToListAsync(cancellationToken);
+
+        var teamPolicies = await (
+            from t in _context.Teams.AsNoTracking()
+            where t.ViPolicyId != null
+            join tj in _context.Jobs on t.JobId equals tj.JobId
+            join r0 in _context.Registrations on t.ClubrepRegistrationid equals (Guid?)r0.RegistrationId into rs
+            from r in rs.DefaultIfEmpty()
+            join j0 in _context.Jobs on r.JobId equals j0.JobId into js
+            from j in js.DefaultIfEmpty()
+            join uF0 in _context.AspNetUsers on r.FamilyUserId equals uF0.Id into uFs
+            from uF in uFs.DefaultIfEmpty()
+            join u0 in _context.AspNetUsers on r.UserId equals u0.Id into us
+            from u in us.DefaultIfEmpty()
+            join f0 in _context.Families on uF.Id equals f0.FamilyUserId into fs
+            from f in fs.DefaultIfEmpty()
+            select new RegsaverPolicyHolderDto
+            {
+                PolicyId = t.ViPolicyId!,
+                HolderJobName = tj.JobName,
+                HolderCreated = t.Createdate,
+                HasRegistration = r != null,
+                FeeTotal = r != null ? (decimal?)r.FeeTotal : null,
+                RegistrationTs = r != null ? (DateTime?)r.RegistrationTs : null,
+                RegistrationJobName = j != null ? j.JobName : null,
+                ParentFirstName = f != null ? (f.MomFirstName ?? f.DadFirstName) : null,
+                ParentLastName = f != null ? (f.MomLastName ?? f.DadLastName) : null,
+                FirstName = u != null ? u.FirstName : null,
+                LastName = u != null ? u.LastName : null,
+                InPayoutCustomerGroup = false,
+            })
+            .ToListAsync(cancellationToken);
+
+        return new RegsaverPurchasesDto
+        {
+            Payouts = payouts,
+            PlayerPolicies = playerPolicies,
+            TeamPolicies = teamPolicies,
+        };
+    }
+
     public async Task<MonthlyGrandTotalsDto> GetMonthlyGrandTotalsAsync(
         int year,
         int month,

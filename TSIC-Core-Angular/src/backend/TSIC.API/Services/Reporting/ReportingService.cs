@@ -576,6 +576,7 @@ public sealed class ReportingService : IReportingService
             ["reporting.RegsaverPurchases_ALL_Rawdata"] = (s, jobId, ct) => s.BuildRegsaverRawDataSheetsAsync(jobId, ct),
             ["adn.ReconcileNuvei"] = (s, _, ct) => s.BuildNuveiReconcileSheetsAsync(ct),
             ["adn.GetLastMonthsGrandTotals"] = (s, _, ct) => s.BuildMonthlyGrandTotalsSheetsAsync(ct),
+            ["reporting.RegsaverRegistrants_ALL"] = (s, _, ct) => s.BuildRegsaverPurchasesSheetsAsync(ct),
         };
 
     /// <summary>
@@ -2053,6 +2054,165 @@ public sealed class ReportingService : IReportingService
                     decimal.Parse(text, NumberStyles.Currency, CultureInfo.InvariantCulture),
                     4,
                     MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// The seven sheets of the RegSaver purchases export, every job: payouts matched to player
+    /// policies and to team policies, payouts by job and by month, payouts matching no policy,
+    /// policies with no payout yet, and the half-share cross-check for the customers it is
+    /// reported for.
+    /// A payout and a policy match when their policy numbers agree once letters, hyphens,
+    /// slashes, plus signs and brackets are removed ("RP-ENT-250721-0000957" is
+    /// "2507210000957"), so one payout can match several policies and the reverse.
+    /// Ratios are cut, not rounded, as T-SQL cuts them: <c>money / money</c> and
+    /// <c>money / n</c> at four decimals, <c>money / decimal</c> at twenty-one.
+    /// </summary>
+    private async Task<List<SheetData>> BuildRegsaverPurchasesSheetsAsync(CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetRegsaverPurchasesAsync(cancellationToken);
+
+        static string? PolicyKey(string? policy)
+        {
+            if (policy == null)
+            {
+                return null;
+            }
+
+            var kept = policy.Where(ch => !"/+()-".Contains(ch) && !char.IsAsciiLetter(ch));
+            return string.Concat(kept).TrimEnd(' ').ToUpperInvariant();
+        }
+
+        static string? NameKey(string? name) => name?.TrimEnd(' ').ToUpperInvariant();
+        static decimal? Cut(decimal? value, int decimals) =>
+            value == null ? null : Math.Round(value.Value, decimals, MidpointRounding.ToZero);
+        static decimal? MoneyRatio(decimal? amount, decimal? by) => amount == null || by == null ? null : Cut(amount / by, 4);
+        static decimal? DecimalRatio(decimal? amount, decimal? by) => amount == null || by == null ? null : Cut(amount / by, 21);
+
+        var playersByKey = data.PlayerPolicies.ToLookup(p => PolicyKey(p.PolicyId)!);
+        var teamsByKey = data.TeamPolicies.ToLookup(p => PolicyKey(p.PolicyId)!);
+        var payoutKeys = data.Payouts.Select(p => PolicyKey(p.PolicyNumber)).Where(k => k != null).ToHashSet();
+
+        IEnumerable<RegsaverPolicyHolderDto> Holders(ILookup<string, RegsaverPolicyHolderDto> byKey, InsurancePayoutRowDto payout) =>
+            PolicyKey(payout.PolicyNumber) is { } key ? byKey[key] : [];
+
+        string[] detailColumns =
+        [
+            "year", "month", "Policy Number", "PurchaseDate", "Policy Effective Date", "Net Written Premium",
+            "Payout", "Payout%", "jobName", "ParentName", "PlayerName", "RegistrationTS", "fee_total",
+            "NetPremium/FeeTotal", "Payout/FeeTotal",
+        ];
+        static object?[] Detail(InsurancePayoutRowDto vi, RegsaverPolicyHolderDto h) =>
+        [
+            vi.Year, vi.Month, vi.PolicyNumber, vi.PurchaseDate, vi.PolicyEffectiveDate, vi.NetWrittenPremium,
+            vi.Payout, MoneyRatio(vi.Payout, vi.NetWrittenPremium), h.RegistrationJobName,
+            SqlConcat(h.ParentFirstName, " ", h.ParentLastName), SqlConcat(h.FirstName, " ", h.LastName),
+            h.RegistrationTs, h.FeeTotal, DecimalRatio(vi.NetWrittenPremium, h.FeeTotal),
+            DecimalRatio(vi.Payout, h.FeeTotal),
+        ];
+
+        // Only holders that paid a fee are listed ("fee_total > 0" also drops a team with no
+        // club rep registration).
+        var playerRows = data.Payouts
+            .SelectMany(vi => Holders(playersByKey, vi).Where(h => h.FeeTotal > 0).Select(h => Detail(vi, h)))
+            .ToList();
+
+        // The team sheet is DISTINCT over its columns.
+        static string RowKey(object?[] row) => string.Join('\u001f', row.Select(cell => cell switch
+        {
+            null => "\u0000",
+            string s => s.TrimEnd(' ').ToUpperInvariant(),
+            DateTime d => d.Ticks.ToString(CultureInfo.InvariantCulture),
+            decimal m => m.ToString("G29", CultureInfo.InvariantCulture),
+            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+            _ => cell.ToString(),
+        }));
+        var teamRows = data.Payouts
+            .SelectMany(vi => Holders(teamsByKey, vi).Where(h => h.FeeTotal > 0).Select(h => Detail(vi, h)))
+            .DistinctBy(RowKey)
+            .ToList();
+
+        // By job, players then teams. Every payout counts, matched or not: an unmatched one
+        // falls under no job. The team half reports the AVERAGE payout per policy number.
+        var byPlayerJob = data.Payouts
+            .SelectMany(vi => Holders(playersByKey, vi).Select(h => h.RegistrationJobName).DefaultIfEmpty()
+                .Select(job => (vi.Year, vi.Month, Job: job, vi.Payout, vi.PolicyNumber)))
+            .GroupBy(x => (x.Year, x.Month, Job: NameKey(x.Job)))
+            .Select(g => (g.Key.Year, g.Key.Month, g.First().Job, Amount: SqlSum(g.Select(x => x.Payout))));
+        var byTeamJob = data.Payouts
+            .SelectMany(vi => Holders(teamsByKey, vi).Select(h => h.HolderJobName).DefaultIfEmpty()
+                .Select(job => (vi.Year, vi.Month, Job: job, vi.Payout, vi.PolicyNumber)))
+            .GroupBy(x => (x.Year, x.Month, Job: NameKey(x.Job)))
+            .Select(g => (g.Key.Year, g.Key.Month, g.First().Job,
+                Amount: Cut(SqlSum(g.Select(x => x.Payout)) / g.Count(x => x.PolicyNumber != null), 4)));
+        var byJob = byPlayerJob.Concat(byTeamJob)
+            .OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Job, SqlTextOrder)
+            .ToList();
+
+        var byMonth = data.Payouts
+            .GroupBy(vi => (vi.Year, vi.Month))
+            .Select(g => (g.Key.Year, g.Key.Month, Amount: SqlSum(g.Select(vi => vi.Payout))))
+            .ToList();
+
+        var unmatched = data.Payouts
+            .Where(vi => !Holders(playersByKey, vi).Any() && !Holders(teamsByKey, vi).Any())
+            .ToList();
+
+        // Both halves are labelled "Player", teams included, as in the proc.
+        var notYetPaid = data.PlayerPolicies.Concat(data.TeamPolicies)
+            .Where(h => !payoutKeys.Contains(PolicyKey(h.PolicyId)))
+            .OrderBy(h => h.HolderCreated.Year).ThenBy(h => h.HolderCreated.Month).ThenBy(h => h.HolderJobName, SqlTextOrder)
+            .ToList();
+
+        // GROUP BY … WITH ROLLUP: a line per month, a line per year after its months, a grand
+        // total at the end; nothing at all when no payout matches.
+        var shared = data.Payouts
+            .SelectMany(vi => Holders(playersByKey, vi).Where(h => h.InPayoutCustomerGroup)
+                .Select(_ => (vi.Year, vi.Month, vi.Payout)))
+            .ToList();
+        var crossCheck = new List<object?[]>();
+        object?[] CrossCheckLine(double? year, double? month, IEnumerable<(double? Year, double? Month, decimal? Payout)> rows)
+        {
+            var list = rows.ToList();
+            return [year, month, SqlSum(list.Select(x => Cut(x.Payout / 2, 4))), SqlSum(list.Select(x => x.Payout))];
+        }
+
+        foreach (var year in shared.GroupBy(x => x.Year))
+        {
+            crossCheck.AddRange(year.GroupBy(x => x.Month).Select(m => CrossCheckLine(year.Key, m.Key, m)));
+            crossCheck.Add(CrossCheckLine(year.Key, null, year));
+        }
+
+        if (shared.Count > 0)
+        {
+            crossCheck.Add(CrossCheckLine(null, null, shared));
+        }
+
+        return
+        [
+            ToSheet("RawDataPlayers", playerRows, detailColumns, row => row),
+            ToSheet("RawDataTeams", teamRows, detailColumns, row => row),
+            ToSheet("By Job", byJob, ["Year", "Month", "jobName", "Job_Payout_Sum"], x => [x.Year, x.Month, x.Job, x.Amount]),
+            // The proc gives its total no column name.
+            ToSheet("By Month", byMonth, ["Year", "Month", string.Empty], x => [x.Year, x.Month, x.Amount]),
+            ToSheet(
+                "Unmatched Policy#s",
+                unmatched,
+                [
+                    "Year", "Month", "Policy Number", "PurchaseDateString", "Policy Effective Date",
+                    "Net Written Premium", "Payout", "PurchaseDate", "Id",
+                ],
+                vi =>
+                [
+                    vi.Year, vi.Month, vi.PolicyNumber, vi.PurchaseDateString, vi.PolicyEffectiveDate,
+                    vi.NetWrittenPremium, vi.Payout, vi.PurchaseDate, vi.Id,
+                ]),
+            ToSheet(
+                "VI NotYetPaid Policy#s",
+                notYetPaid,
+                ["JobName", "Year", "Month", "viPolicyId", "PolicyType"],
+                h => [h.HolderJobName, h.HolderCreated.Year, h.HolderCreated.Month, h.PolicyId, "Player"]),
+            ToSheet("STEPS X-Check By Year/Month", crossCheck, ["Year", "Month", "STEPS_Payout", "VI_Payout"], row => row),
+        ];
+    }
 
     /// <summary>The month-end grand totals for LAST calendar month; see the overload.</summary>
     private Task<List<SheetData>> BuildMonthlyGrandTotalsSheetsAsync(CancellationToken cancellationToken) =>

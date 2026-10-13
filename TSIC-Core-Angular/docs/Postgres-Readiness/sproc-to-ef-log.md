@@ -79,6 +79,7 @@ procedure is never called.
 | 2026-10-13 | `reporting.JobKeyAttributes-ALL` | 8 correlated count subqueries per job, body written out twice; 42 columns | No job, one job and an unknown job: 1,864 rows, 0 differences, 0 reordered | Counts as grouped sets; see below |
 | 2026-10-13 | `reporting.TournamentKeyAttributes-ALL` | 3 correlated counts and a scalar subquery per job, body written out twice; `datename(weekday)` | Same three runs: 342 rows, 0 differences (ties on event dates unordered) | Shares one query with the row above |
 | 2026-10-13 | `adn.GetLastMonthsGrandTotals` | Money. Temp table, 6 table variables, a 4-way `UNION`, 4 left joins on the result; 3 sheets | Last month through the app: 237 rows, 0 differences. Every month from 2016-01 (129) against the proc body with the month as a parameter: 6,468 rows, 0 differences | Working-table types round; see below |
+| 2026-10-13 | `reporting.RegsaverRegistrants_ALL` | Money. 7 sheets; joins on `replace(translate(policy, …))` on BOTH sides, written out nine times; `DISTINCT`; `UNION ALL`; `WITH ROLLUP`; three kinds of division | Three runs, 30,828 rows (10,276 a run), 0 differences (ties unordered) | EF 1.2 s vs proc 17 s; see below |
 
 ## UI passes
 
@@ -593,3 +594,17 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
 - The grand totals read the month's transaction ids, card money by job, admin charges by job,
   the month's statistics and the jobs those name, as five sets; the join the procedure does
   across six table variables is done in C#. About 0.5 s against the procedure's 1 s.
+- **A join on a function of both columns is a job for C#.** `RegsaverRegistrants_ALL` matches
+  payouts to policies on the policy number with letters and punctuation stripped
+  (`replace(translate(…))` on each side), which no index can serve, and does it nine times.
+  The EF version reads the 6,964 payouts, the 9,395 registrations holding a policy and the 54
+  teams holding one, once each, and matches them with a lookup: 1.2 s against 17 s.
+- **`TRANSLATE` follows the collation:** given `a` to `z` it strips capitals too. The C#
+  normaliser strips both. **PORT FLAG:** Postgres `translate` is case-sensitive.
+- **Division cuts, it does not round, and where it cuts depends on the types.**
+  `money / money` and `money / int` give `money`, cut at four decimals (10/3 = 3.3333,
+  20/3 = 6.6666). `money / decimal(18,2)` gives `decimal(38,21)`, cut at twenty-one. Use
+  `sys.dm_exec_describe_first_result_set` to read an expression's type instead of deriving it.
+- **Preserved oddities:** the "not yet paid" sheet labels team policies `Player`; the by-month
+  total has no column name; the team half of "By Job" is an average per policy number under a
+  column named `Job_Payout_Sum`.
