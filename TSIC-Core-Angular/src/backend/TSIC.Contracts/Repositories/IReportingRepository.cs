@@ -578,6 +578,27 @@ public interface IReportingRepository
     Task<List<MaxExposureTeamCountExcelRowDto>> GetMaxExposureTeamCountExcelRowsAsync(
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Rostered registrants' profiles for the Players showcase exports, ordered agegroup → team →
+    /// last → first — the EF replacement for <c>reporting.ThePlayers_PlayerShowCaseExport</c>,
+    /// <c>…ExportII</c> and <c>…_IncludeInactive</c>. Job-scoped; needs a family, a team and a
+    /// division. With <paramref name="activePlayersOnly"/> the rows are active Players outside
+    /// waitlist agegroups; without it, every role and state (the include-inactive variant).
+    /// </summary>
+    Task<List<ShowcasePlayerExcelRowDto>> GetShowcasePlayerExcelRowsAsync(
+        Guid jobId,
+        bool activePlayersOnly,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distinct active club reps and rostered registrants across every job of
+    /// <paramref name="jobId"/>'s customer, ordered year (descending) → job → role → last → first
+    /// — the EF replacement for <c>reporting.CustomerEndUsersDump</c>.
+    /// </summary>
+    Task<List<CustomerEndUserExcelRowDto>> GetCustomerEndUserExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

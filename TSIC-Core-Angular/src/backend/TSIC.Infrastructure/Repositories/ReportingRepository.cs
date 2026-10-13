@@ -2223,6 +2223,165 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<ShowcasePlayerExcelRowDto>> GetShowcasePlayerExcelRowsAsync(
+        Guid jobId,
+        bool activePlayersOnly,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the three reporting.ThePlayers_PlayerShowCaseExport* procs: the same
+        // INNER joins (family user, Families, team, and the division via DivId != null). The two
+        // showcase exports keep active Players outside waitlist agegroups; the include-inactive
+        // one has no filter beyond the job. The waitlist test is upper-cased so it stays
+        // case-insensitive on any provider, and it drops a null agegroup name as SQL does.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join uF in _context.AspNetUsers.AsNoTracking() on r.FamilyUserId equals uF.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join f in _context.Families.AsNoTracking() on r.FamilyUserId equals f.FamilyUserId
+            join t in _context.Teams.AsNoTracking() on r.AssignedTeamId equals t.TeamId
+            join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+            where r.JobId == jobId && t.DivId != null
+                && (!activePlayersOnly
+                    || (r.BActive == true && roles.Name == "Player"
+                        && ag.AgegroupName != null && !ag.AgegroupName.ToUpper().Contains("WAITLIST")))
+            orderby ag.AgegroupName, t.TeamName, u.LastName, u.FirstName
+            select new ShowcasePlayerExcelRowDto
+            {
+                RegistrationId = r.RegistrationId,
+                RegistrationTs = r.RegistrationTs,
+                AgegroupName = ag.AgegroupName,
+                TeamName = t.TeamName,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                RoleName = roles.Name,
+                UniformNo = r.UniformNo,
+                Active = r.BActive,
+                Cellphone = u.Cellphone,
+                Email = u.Email,
+                City = uF.City,
+                State = uF.State,
+                StreetAddress = uF.StreetAddress,
+                PostalCode = uF.PostalCode,
+                Dob = u.Dob,
+                MomFirstName = f.MomFirstName,
+                MomLastName = f.MomLastName,
+                MomCellphone = f.MomCellphone,
+                MomEmail = f.MomEmail,
+                DadFirstName = f.DadFirstName,
+                DadLastName = f.DadLastName,
+                DadCellphone = f.DadCellphone,
+                DadEmail = f.DadEmail,
+                GradYear = r.GradYear,
+                Position = r.Position,
+                ClubTeamName = r.ClubTeamName,
+                SchoolName = r.SchoolName,
+                SportAssnId = r.SportAssnId,
+                ShortsSize = r.ShortsSize,
+                TShirt = r.TShirt,
+                HeightInches = r.HeightInches,
+                WeightLbs = r.WeightLbs,
+                StrongHand = r.StrongHand,
+                ClubCoach = r.ClubCoach,
+                ClubCoachEmail = r.ClubCoachEmail,
+                SchoolCoach = r.SchoolCoach,
+                SchoolCoachEmail = r.SchoolCoachEmail,
+                HonorsAcademic = r.HonorsAcademic,
+                HonorsAthletic = r.HonorsAthletic,
+                Instagram = r.Instagram,
+                Twitter = r.Twitter,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<CustomerEndUserExcelRowDto>> GetCustomerEndUserExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.CustomerEndUsersDump: a UNION (so de-duplicated) of each
+        // team's active club rep and each team's active rostered registrants, over every job of
+        // the calling job's customer. The proc de-duplicates on the date of birth as MM/DD/YYYY
+        // text, so the day is taken here and the text is produced by the renderer.
+        var customerId = await _context.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (Guid?)j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (customerId == null)
+        {
+            return [];
+        }
+
+        var clubReps =
+            from t in _context.Teams.AsNoTracking()
+            join j in _context.Jobs.AsNoTracking() on t.JobId equals j.JobId
+            join r in _context.Registrations.AsNoTracking() on t.ClubrepRegistrationid equals (Guid?)r.RegistrationId
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where r.BActive == true && j.CustomerId == customerId
+            select new CustomerEndUserExcelRowDto
+            {
+                Year = j.Year,
+                JobName = j.JobName,
+                Role = roles.Name,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Dob = (DateTime?)u.Dob!.Value.Date,
+                GradYear = null,
+                ClubName = r.ClubName,
+                TeamName = null,
+                Position = null,
+                SchoolName = null,
+                Email = u.Email,
+                MomEmail = null,
+                DadEmail = null,
+                Cellphone = u.Cellphone,
+                MomCellphone = null,
+                DadCellphone = null,
+                StreetAddress = u.StreetAddress,
+                City = u.City,
+                State = u.State,
+                PostalCode = u.PostalCode,
+            };
+
+        var registrants =
+            from t in _context.Teams.AsNoTracking()
+            join j in _context.Jobs.AsNoTracking() on t.JobId equals j.JobId
+            join r in _context.Registrations.AsNoTracking() on (Guid?)t.TeamId equals r.AssignedTeamId
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join uF in _context.AspNetUsers.AsNoTracking() on r.FamilyUserId equals uF.Id
+            join f in _context.Families.AsNoTracking() on uF.Id equals f.FamilyUserId
+            where r.BActive == true && j.CustomerId == customerId && t.DivId != null
+            select new CustomerEndUserExcelRowDto
+            {
+                Year = j.Year,
+                JobName = j.JobName,
+                Role = roles.Name,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Dob = (DateTime?)u.Dob!.Value.Date,
+                GradYear = r.GradYear,
+                ClubName = r.ClubName,
+                TeamName = t.TeamName,
+                Position = r.Position,
+                SchoolName = r.SchoolName,
+                Email = u.Email,
+                MomEmail = f.MomEmail,
+                DadEmail = f.DadEmail,
+                Cellphone = u.Cellphone,
+                MomCellphone = f.MomCellphone,
+                DadCellphone = f.DadCellphone,
+                StreetAddress = uF.StreetAddress,
+                City = uF.City,
+                State = uF.State,
+                PostalCode = uF.PostalCode,
+            };
+
+        return await clubReps.Union(registrants)
+            .OrderByDescending(x => x.Year).ThenBy(x => x.JobName).ThenBy(x => x.Role)
+            .ThenBy(x => x.LastName).ThenBy(x => x.FirstName)
+            .ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

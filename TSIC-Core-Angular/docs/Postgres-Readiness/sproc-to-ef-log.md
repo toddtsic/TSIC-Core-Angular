@@ -51,6 +51,10 @@ procedure is never called.
 | 2026-10-12 | `reporting.CathyCampBreakoutPerJob_AmtPaid` | Customer-and-year-scoped `select distinct`, 6 inner joins, 15 columns | 275 customer-years, 27,569 rows, 0 differences | Same |
 | 2026-10-12 | `reporting.AmericanSelect_CustomerJobRegistrationsByJobAgegroupDivTeam` | Customer-scoped `group by … with rollup`, 5 columns | 80 customers, 33,283 rows, 0 differences | `WITH ROLLUP` rebuilt in C#; see below |
 | 2026-10-12 | `utility.MaxExposure_CountsAtYear_ByTeam` | Fixed-customer grouped count with year-shifted date test, 5 columns | 1 run (ignores its job), 620 rows, 0 content differences; 4 rows differ in spelling only | Hard-wired scope and date arithmetic; see below |
+| 2026-10-12 | `reporting.ThePlayers_PlayerShowCaseExport` | One select, 8 inner joins, 43 columns, waitlist filter | 1,127 jobs, 550,018 rows, 0 differences | Three layouts over one query; see below |
+| 2026-10-12 | `reporting.ThePlayers_PlayerShowCaseExportII` | Same without the two honors columns, 41 columns | 1,127 jobs, 550,018 rows, 0 differences | Same |
+| 2026-10-12 | `reporting.ThePlayers_PlayerShowCaseExport_IncludeInactive` | Same joins, no filter, 12 columns | 1,127 jobs, 638,296 rows, 0 differences | Same |
+| 2026-10-12 | `reporting.CustomerEndUsersDump` | Customer-scoped `union` of club reps and rostered registrants, 21 columns | 80 customers, 559,664 rows, 0 content differences; 109 rows differ in spelling only | Union with null-filled columns; see below |
 
 ## UI passes
 
@@ -305,3 +309,15 @@ together. All eight matched on the first run, which is what the earlier lessons 
   joins a registration id to a team id and so returns nothing; the rollup's `teamName` column
   shows the agegroup; the MaxExposure counts ignore the job, read one fixed customer id and
   stop at 2026. The fixed id and year list are named constants in the repository.
+
+### The Players showcase exports and CustomerEndUsersDump
+
+- **Three procedures, one query with a flag.** The two showcase exports and the include-inactive
+  one share their joins; the first two add "active Player outside a waitlist agegroup". The
+  repository method takes `activePlayersOnly`, and the "II" layout is the first minus two columns.
+- **A `union` whose halves select `null as X` translates** when both halves project the same DTO
+  with the nulls assigned in the same positions; EF emits typed nulls.
+- **De-duplicate on what the procedure de-duplicated on.** The dump is distinct on the date of
+  birth as MM/DD/YYYY text, so the query projects the date without its time part; projecting the
+  raw value would have kept two rows that differ only in a time of day.
+- **`convert(varchar(10), ts, 101)` on a non-null column** is a plain `ToString("MM/dd/yyyy")`.

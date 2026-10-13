@@ -513,6 +513,10 @@ public sealed class ReportingService : IReportingService
             ["reporting.CathyCampBreakoutPerJob_AmtPaid"] = (s, jobId, ct) => s.BuildCampBreakoutPaidSheetAsync(jobId, ct),
             ["reporting.AmericanSelect_CustomerJobRegistrationsByJobAgegroupDivTeam"] = (s, jobId, ct) => s.BuildCustomerTeamCountsRollupSheetAsync(jobId, ct),
             ["utility.MaxExposure_CountsAtYear_ByTeam"] = (s, _, ct) => s.BuildMaxExposureTeamCountsSheetAsync(ct),
+            ["reporting.ThePlayers_PlayerShowCaseExport"] = (s, jobId, ct) => s.BuildShowcasePlayersSheetAsync(jobId, withHonors: true, ct),
+            ["reporting.ThePlayers_PlayerShowCaseExportII"] = (s, jobId, ct) => s.BuildShowcasePlayersSheetAsync(jobId, withHonors: false, ct),
+            ["reporting.ThePlayers_PlayerShowCaseExport_IncludeInactive"] = (s, jobId, ct) => s.BuildShowcaseAllRegistrantsSheetAsync(jobId, ct),
+            ["reporting.CustomerEndUsersDump"] = (s, jobId, ct) => s.BuildCustomerEndUsersSheetAsync(jobId, ct),
         };
 
     /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
@@ -1092,6 +1096,91 @@ public sealed class ReportingService : IReportingService
             await _reportingRepository.GetMaxExposureTeamCountExcelRowsAsync(cancellationToken),
             ["year", "customerName", "jobName", "teamName", "countRegistrantsToDate"],
             r => [r.Year, r.CustomerName, "Summer Camps " + r.Year, r.TeamName, r.RegistrantsToDate]);
+
+    /// <summary>
+    /// "Player Profiles" sheet of the two Players showcase exports: 43 columns, or 41 without the
+    /// two honors columns for the "II" variant. The registration id is upper-case text and the
+    /// dates MM/DD/YYYY text, as the proc's <c>convert</c> calls made them; phones are dashed
+    /// without a length check.
+    /// </summary>
+    private async Task<SheetData> BuildShowcasePlayersSheetAsync(Guid jobId, bool withHonors, CancellationToken cancellationToken)
+    {
+        string[] head =
+        [
+            "RegistrationID", "RegDate", "Agegroup", "Team", "FirstName", "LastName", "RoleName", "#",
+            "Cellphone", "Email", "City", "State", "Address", "ZIP", "DOB",
+            "Mom_FirstName", "Mom_LastName", "Mom_Cellphone", "Mom_Email",
+            "Dad_FirstName", "Dad_LastName", "Dad_Cellphone", "Dad_Email",
+            "agegroupName", "teamName", "grad_year", "position", "club_name", "school_name", "USLaxNo",
+            "shorts", "t-shirt", "height_inches", "weight_lbs", "strong_hand",
+            "club_coach", "club_coach_email", "school_coach", "school_coach_email",
+        ];
+        string[] honors = withHonors ? ["honors_academic", "honors_athletic"] : [];
+
+        return ToSheet(
+            "Player Profiles",
+            await _reportingRepository.GetShowcasePlayerExcelRowsAsync(jobId, activePlayersOnly: true, cancellationToken),
+            [.. head, .. honors, "Instagram", "Twitter"],
+            r =>
+            {
+                object?[] lead =
+                [
+                    r.RegistrationId.ToString().ToUpperInvariant(),
+                    r.RegistrationTs.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                    r.AgegroupName, r.TeamName, r.FirstName, r.LastName, r.RoleName, r.UniformNo,
+                    DashedPhone(r.Cellphone), r.Email, r.City, r.State, r.StreetAddress, r.PostalCode,
+                    r.Dob?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                    r.MomFirstName, r.MomLastName, DashedPhone(r.MomCellphone), r.MomEmail,
+                    r.DadFirstName, r.DadLastName, DashedPhone(r.DadCellphone), r.DadEmail,
+                    r.AgegroupName, r.TeamName, r.GradYear, r.Position, r.ClubTeamName, r.SchoolName, r.SportAssnId,
+                    r.ShortsSize, r.TShirt, r.HeightInches, r.WeightLbs, r.StrongHand,
+                    r.ClubCoach, r.ClubCoachEmail, r.SchoolCoach, r.SchoolCoachEmail,
+                ];
+                object?[] honorCells = withHonors ? [r.HonorsAcademic, r.HonorsAthletic] : [];
+                return [.. lead, .. honorCells, r.Instagram, r.Twitter];
+            });
+    }
+
+    /// <summary>
+    /// "Player Profiles" sheet of the include-inactive showcase export: the proc's 12 columns,
+    /// every role and state.
+    /// </summary>
+    private async Task<SheetData> BuildShowcaseAllRegistrantsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Player Profiles",
+            await _reportingRepository.GetShowcasePlayerExcelRowsAsync(jobId, activePlayersOnly: false, cancellationToken),
+            [
+                "RegistrationID", "RegDate", "Agegroup", "Team", "FirstName", "LastName", "RoleName", "#",
+                "bActive", "shorts", "t-shirt", "ClubTeam",
+            ],
+            r =>
+            [
+                r.RegistrationId.ToString().ToUpperInvariant(),
+                r.RegistrationTs.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                r.AgegroupName, r.TeamName, r.FirstName, r.LastName, r.RoleName, r.UniformNo,
+                r.Active, r.ShortsSize, r.TShirt, r.ClubTeamName,
+            ]);
+
+    /// <summary>
+    /// "Job Users" sheet of the customer end-users dump: the proc's 21 columns; date of birth is
+    /// MM/DD/YYYY text.
+    /// </summary>
+    private async Task<SheetData> BuildCustomerEndUsersSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Job Users",
+            await _reportingRepository.GetCustomerEndUserExcelRowsAsync(jobId, cancellationToken),
+            [
+                "year", "jobName", "Role", "LastName", "FirstName", "dob", "GradYear", "Club", "Team",
+                "Position", "School", "Email", "Mom_Email", "Dad_Email", "cellphone", "Mom_Cellphone",
+                "Dad_CellPhone", "streetAddress", "city", "State", "ZIP",
+            ],
+            r =>
+            [
+                r.Year, r.JobName, r.Role, r.LastName, r.FirstName,
+                r.Dob?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), r.GradYear, r.ClubName, r.TeamName,
+                r.Position, r.SchoolName, r.Email, r.MomEmail, r.DadEmail, r.Cellphone, r.MomCellphone,
+                r.DadCellphone, r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]);
 
     /// <summary>
     /// One layout of the job-players export family: its sheet name, header names in order, and
