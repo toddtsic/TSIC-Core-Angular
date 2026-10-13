@@ -558,6 +558,8 @@ public sealed class ReportingService : IReportingService
             ["utility.TeamRegistrationBulletinsQA"] = (s, _, ct) => s.BuildExpiredRegistrationBulletinsSheetAsync(teamRegistration: true, ct),
             ["reporting.NewTsicJobsWithTxs"] = (s, _, ct) => s.BuildNewJobsWithTransactionsSheetAsync(ct),
             ["reporting.ClubRepContacts-All"] = (s, _, ct) => s.BuildAllClubRepContactsSheetAsync(ct),
+            ["reporting.JobKeyAttributes-ALL"] = (s, jobId, ct) => s.BuildJobKeyAttributesSheetAsync(jobId, ct),
+            ["reporting.TournamentKeyAttributes-ALL"] = (s, jobId, ct) => s.BuildTournamentKeyAttributesSheetAsync(jobId, ct),
         };
 
     /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
@@ -1895,6 +1897,89 @@ public sealed class ReportingService : IReportingService
                 r.ClubName, r.SportName, r.UserName, r.JobCount, r.LastName, r.FirstName, r.Email, r.Cellphone,
                 r.Email, r.StreetAddress, r.City, r.State, r.PostalCode,
             ]);
+
+    /// <summary>
+    /// "RawData" sheet of the job key attributes: a row per job with its dates, headcounts,
+    /// over- and underpaid registrations and its registration, billing and payment settings.
+    /// Run with no job it lists every job; with one, only jobs whose admin access has not
+    /// expired (the job itself is not a filter, as in the proc).
+    /// </summary>
+    private async Task<SheetData> BuildJobKeyAttributesSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "RawData",
+            await _reportingRepository.GetJobKeyAttributesAsync(
+                adminExpiresAfter: jobId == Guid.Empty ? null : DateTime.Now,
+                jobTypeNames: null,
+                years: null,
+                orderByEventDates: false,
+                cancellationToken),
+            [
+                "customerName", "year", "season", "jobName", "jobName_QBP", "ExpiryAdmin", "ExpiryUsers",
+                "EventStart", "EventEnd", "USLaxEnd", "countCR", "countTeams", "countWLTeams", "countPlayers",
+                "countOverpaidCR", "countUnderpaidCR", "countOverpaidP", "countUnderpaidP", "JobTypeName",
+                "adnLoginID", "playerRegOn", "teamRegOn", "usePlayerRegsaver", "useTeamRegsaver", "useAdn",
+                "adnARBBillingOccurences", "adnARBIntervalLength", "AdnArbMinimunTotalCharge", "playerRegform",
+                "bEnableTSICTeams", "bAllowMobileLogin", "bSuspendPublic", "perPlayerCharge", "perTeamCharge",
+                "BillingTypeName", "PaymentMethodsAllowed_Code", "bAddProcessingFees",
+                "bApplyProcessingFeesToTeamDeposit", "fullPayOn", "crAdd", "crEdit", "crDelete",
+            ],
+            r =>
+            [
+                r.CustomerName, r.Year, r.Season, r.JobName, r.JobNameQbp, SqlUsDate(r.ExpiryAdmin),
+                SqlUsDate(r.ExpiryUsers), SqlUsDate(r.EventStartDate), SqlUsDate(r.EventEndDate),
+                SqlUsDate(r.UslaxNumberValidThroughDate), r.ClubRepCount, r.TeamCount, r.WaitlistTeamCount,
+                r.PlayerCount, r.OverpaidClubRepCount, r.UnderpaidClubRepCount, r.OverpaidPlayerCount,
+                r.UnderpaidPlayerCount, r.JobTypeName, r.AdnLoginId, r.RegistrationAllowPlayer,
+                r.RegistrationAllowTeam, r.OfferPlayerRegsaverInsurance, r.OfferTeamRegsaverInsurance, r.AdnArb,
+                r.AdnArbBillingOccurences, r.AdnArbIntervalLength, r.AdnArbMinimumTotalCharge, r.CoreRegformPlayer,
+                // coalesce(bit, 0) is an int in T-SQL, so this one flag is a number, not true/false.
+                r.EnableTsicTeams == true ? 1 : 0,
+                r.AllowMobileLogin, r.SuspendPublic, r.PerPlayerCharge, r.PerTeamCharge, r.BillingTypeName,
+                r.PaymentMethodsAllowedCode, r.AddProcessingFees, r.ApplyProcessingFeesToTeamDeposit,
+                r.TeamsFullPaymentRequired, r.ClubRepAllowAdd, r.ClubRepAllowEdit, r.ClubRepAllowDelete,
+            ]);
+
+    /// <summary>
+    /// "RawData" sheet of the tournament keys: tournament and league scheduling jobs whose admin
+    /// access has not expired, earliest event first, with headcounts and club rep settings. Run
+    /// with a job it also keeps only this year's and next year's jobs (the job itself is not a
+    /// filter, as in the proc).
+    /// </summary>
+    private async Task<SheetData> BuildTournamentKeyAttributesSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var now = DateTime.Now;
+        string[]? years = jobId == Guid.Empty
+            ? null
+            : [now.Year.ToString(CultureInfo.InvariantCulture), (now.Year + 1).ToString(CultureInfo.InvariantCulture)];
+
+        // convert(char(10), d, 23) + ' ' + datename(weekday, d): "2026-10-13 Tuesday".
+        static string? DayWithWeekday(DateTime? value) =>
+            value?.ToString("yyyy-MM-dd dddd", CultureInfo.InvariantCulture);
+
+        return ToSheet(
+            "RawData",
+            await _reportingRepository.GetJobKeyAttributesAsync(
+                adminExpiresAfter: now,
+                jobTypeNames: ["Tournament Scheduling", "League Scheduling"],
+                years,
+                orderByEventDates: true,
+                cancellationToken),
+            [
+                "jobName", "EventStart", "EventEnd", "perTeamCharge", "countCR", "countTeams", "countPlayers",
+                "bHideContacts", "fullPayOn", "playerRegOn", "teamRegOn", "crAdd", "crEdit", "crDelete",
+                "bAllowMobileLogin", "bSuspendPublic", "bAddProcessingFees", "bApplyProcessingFeesToTeamDeposit",
+                "bVIEnabled", "customerName", "year", "season",
+            ],
+            r =>
+            [
+                r.JobName, DayWithWeekday(r.EventStartDate), DayWithWeekday(r.EventEndDate), r.PerTeamCharge,
+                r.ClubRepCount, r.TeamCount, r.PlayerCount, r.HideContacts, r.TeamsFullPaymentRequired,
+                r.RegistrationAllowPlayer, r.RegistrationAllowTeam, r.ClubRepAllowAdd, r.ClubRepAllowEdit,
+                r.ClubRepAllowDelete, r.AllowMobileLogin, r.SuspendPublic, r.AddProcessingFees,
+                r.ApplyProcessingFeesToTeamDeposit, r.OfferPlayerRegsaverInsurance, r.CustomerName, r.Year,
+                r.Season,
+            ]);
+    }
 
     /// <summary>
     /// The two sheets of the RegSaver raw data: "Player Data" (player registrations carrying a

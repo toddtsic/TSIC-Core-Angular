@@ -783,6 +783,23 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Configuration and headcounts for every job with a billing type and a job type, narrowed
+    /// by whichever filters are given — the EF replacement for
+    /// <c>reporting.JobKeyAttributes-ALL</c> and <c>reporting.TournamentKeyAttributes-ALL</c>.
+    /// Ordered by event dates, or by customer, year (newest first), season, job type and name.
+    /// Cross-job.
+    /// </summary>
+    /// <param name="adminExpiresAfter">Only jobs whose admin expiry is later than this.</param>
+    /// <param name="jobTypeNames">Only jobs of these job types.</param>
+    /// <param name="years">Only jobs whose year is one of these.</param>
+    Task<List<JobKeyAttributesRowDto>> GetJobKeyAttributesAsync(
+        DateTime? adminExpiresAfter,
+        IReadOnlyList<string>? jobTypeNames,
+        IReadOnlyList<string>? years,
+        bool orderByEventDates,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Settled card revenue, check revenue and new-registration counts by job for the period
     /// [<paramref name="periodStart"/>, <paramref name="periodEnd"/>), for the job's customer or
     /// the fixed customer group it belongs to — the EF replacement for the data behind

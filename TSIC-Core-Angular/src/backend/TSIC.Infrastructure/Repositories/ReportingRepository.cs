@@ -3572,6 +3572,181 @@ public class ReportingRepository : IReportingRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<JobKeyAttributesRowDto>> GetJobKeyAttributesAsync(
+        DateTime? adminExpiresAfter,
+        IReadOnlyList<string>? jobTypeNames,
+        IReadOnlyList<string>? years,
+        bool orderByEventDates,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.JobKeyAttributes-ALL and
+        // reporting.TournamentKeyAttributes-ALL. The procs count with a correlated subquery per
+        // job per column; here the jobs, the registration counts, the team counts and the
+        // leagues are four sets joined in C#.
+        var typeNames = jobTypeNames?.ToList();
+        var yearList = years?.ToList();
+        var filtered =
+            from j in _context.Jobs.AsNoTracking()
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            join bt in _context.BillingTypes on j.BillingTypeId equals bt.BillingTypeId
+            join jt in _context.JobTypes on j.JobTypeId equals jt.JobTypeId
+            where (adminExpiresAfter == null || j.ExpiryAdmin > adminExpiresAfter)
+                && (typeNames == null || typeNames.Contains(jt.JobTypeName!))
+                && (yearList == null || yearList.Contains(j.Year!))
+            select new { j, c, bt, jt };
+
+        // Ordered BY THE DATABASE, whose collation the procs sort names under.
+        var ordered = orderByEventDates
+            ? filtered.OrderBy(x => x.j.EventStartDate).ThenBy(x => x.j.EventEndDate)
+            : filtered.OrderBy(x => x.c.CustomerName)
+                .ThenByDescending(x => x.j.Year)
+                .ThenByDescending(x => x.j.Season)
+                .ThenBy(x => x.jt.JobTypeName)
+                .ThenBy(x => x.j.JobName);
+
+        var jobs = await ordered
+            .Select(x => new
+            {
+                x.j.JobId,
+                x.c.CustomerName,
+                x.c.AdnLoginId,
+                x.j.Year,
+                x.j.Season,
+                x.j.JobName,
+                x.j.JobNameQbp,
+                x.jt.JobTypeName,
+                x.bt.BillingTypeName,
+                x.j.ExpiryAdmin,
+                x.j.ExpiryUsers,
+                x.j.EventStartDate,
+                x.j.EventEndDate,
+                x.j.UslaxNumberValidThroughDate,
+                x.j.BRegistrationAllowPlayer,
+                x.j.BRegistrationAllowTeam,
+                x.j.BOfferPlayerRegsaverInsurance,
+                x.j.BOfferTeamRegsaverInsurance,
+                x.j.AdnArb,
+                x.j.AdnArbbillingOccurences,
+                x.j.AdnArbintervalLength,
+                x.j.AdnArbMinimunTotalCharge,
+                x.j.CoreRegformPlayer,
+                x.j.BEnableTsicteams,
+                x.j.BAllowMobileLogin,
+                x.j.BSuspendPublic,
+                x.j.PerPlayerCharge,
+                x.j.PerTeamCharge,
+                x.j.PaymentMethodsAllowedCode,
+                x.j.BAddProcessingFees,
+                x.j.BApplyProcessingFeesToTeamDeposit,
+                x.j.BTeamsFullPaymentRequired,
+                x.j.BClubRepAllowAdd,
+                x.j.BClubRepAllowEdit,
+                x.j.BClubRepAllowDelete,
+            })
+            .ToListAsync(cancellationToken);
+
+        // Active club rep and player registrations per job, with how many have paid more, and
+        // how many less, than their fee.
+        var registrationCounts = await (
+            from r in _context.Registrations.AsNoTracking()
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            where r.BActive == true && (role.Name == "Club Rep" || role.Name == "Player")
+            group r by new { r.JobId, IsClubRep = role.Name == "Club Rep" } into g
+            select new
+            {
+                g.Key.JobId,
+                g.Key.IsClubRep,
+                Count = g.Count(),
+                Overpaid = g.Sum(x => x.PaidTotal > x.FeeTotal ? 1 : 0),
+                Underpaid = g.Sum(x => x.PaidTotal < x.FeeTotal ? 1 : 0),
+            })
+            .ToListAsync(cancellationToken);
+        var registrationsByJob = registrationCounts.ToDictionary(x => (x.JobId, x.IsClubRep));
+
+        // Active teams per job and age group name; the name decides which count a team is in.
+        var teamCounts = await (
+            from t in _context.Teams.AsNoTracking()
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            where t.Active == true
+            group t by new { t.JobId, ag.AgegroupName } into g
+            select new { g.Key.JobId, g.Key.AgegroupName, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        var teamsByJob = teamCounts.ToLookup(x => x.JobId);
+
+        // The procs read the setting with a scalar subquery, which fails outright if a listed
+        // job has two leagues. None does; if one ever did, its first league is reported.
+        var leagues = await (
+            from jl in _context.JobLeagues.AsNoTracking()
+            join l in _context.Leagues on jl.LeagueId equals l.LeagueId
+            orderby jl.JobLeagueId
+            select new { jl.JobId, l.BHideContacts })
+            .ToListAsync(cancellationToken);
+        var hideContactsByJob = leagues.ToLookup(x => x.JobId, x => x.BHideContacts);
+
+        static bool Has(string? name, string word) =>
+            name != null && name.Contains(word, StringComparison.OrdinalIgnoreCase);
+
+        return jobs
+            .Select(j =>
+            {
+                registrationsByJob.TryGetValue((j.JobId, true), out var reps);
+                registrationsByJob.TryGetValue((j.JobId, false), out var players);
+                var teams = teamsByJob[j.JobId].ToList();
+                return new JobKeyAttributesRowDto
+                {
+                    JobId = j.JobId,
+                    CustomerName = j.CustomerName,
+                    AdnLoginId = j.AdnLoginId,
+                    Year = j.Year,
+                    Season = j.Season,
+                    JobName = j.JobName,
+                    JobNameQbp = j.JobNameQbp,
+                    JobTypeName = j.JobTypeName,
+                    BillingTypeName = j.BillingTypeName,
+                    ExpiryAdmin = j.ExpiryAdmin,
+                    ExpiryUsers = j.ExpiryUsers,
+                    EventStartDate = j.EventStartDate,
+                    EventEndDate = j.EventEndDate,
+                    UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate,
+                    RegistrationAllowPlayer = j.BRegistrationAllowPlayer,
+                    RegistrationAllowTeam = j.BRegistrationAllowTeam,
+                    OfferPlayerRegsaverInsurance = j.BOfferPlayerRegsaverInsurance,
+                    OfferTeamRegsaverInsurance = j.BOfferTeamRegsaverInsurance,
+                    AdnArb = j.AdnArb,
+                    AdnArbBillingOccurences = j.AdnArbbillingOccurences,
+                    AdnArbIntervalLength = j.AdnArbintervalLength,
+                    AdnArbMinimumTotalCharge = j.AdnArbMinimunTotalCharge,
+                    CoreRegformPlayer = j.CoreRegformPlayer,
+                    EnableTsicTeams = j.BEnableTsicteams,
+                    AllowMobileLogin = j.BAllowMobileLogin,
+                    SuspendPublic = j.BSuspendPublic,
+                    PerPlayerCharge = j.PerPlayerCharge,
+                    PerTeamCharge = j.PerTeamCharge,
+                    PaymentMethodsAllowedCode = j.PaymentMethodsAllowedCode,
+                    AddProcessingFees = j.BAddProcessingFees,
+                    ApplyProcessingFeesToTeamDeposit = j.BApplyProcessingFeesToTeamDeposit,
+                    TeamsFullPaymentRequired = j.BTeamsFullPaymentRequired,
+                    ClubRepAllowAdd = j.BClubRepAllowAdd,
+                    ClubRepAllowEdit = j.BClubRepAllowEdit,
+                    ClubRepAllowDelete = j.BClubRepAllowDelete,
+                    HideContacts = hideContactsByJob[j.JobId].Select(h => (bool?)h).FirstOrDefault(),
+                    ClubRepCount = reps?.Count ?? 0,
+                    OverpaidClubRepCount = reps?.Overpaid ?? 0,
+                    UnderpaidClubRepCount = reps?.Underpaid ?? 0,
+                    PlayerCount = players?.Count ?? 0,
+                    OverpaidPlayerCount = players?.Overpaid ?? 0,
+                    UnderpaidPlayerCount = players?.Underpaid ?? 0,
+                    TeamCount = teams
+                        .Where(t => t.AgegroupName != null && !Has(t.AgegroupName, "WAITLIST") && !Has(t.AgegroupName, "DROPPED"))
+                        .Sum(t => t.Count),
+                    WaitlistTeamCount = teams
+                        .Where(t => t.AgegroupName != null && t.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase))
+                        .Sum(t => t.Count),
+                };
+            })
+            .ToList();
+    }
+
     public async Task<NuveiReconcileDto> GetNuveiReconcileAsync(
         int year,
         int month,

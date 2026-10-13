@@ -76,6 +76,8 @@ procedure is never called.
 | 2026-10-13 | `reporting.ClubRepContacts-All` | Cross-job. 6 inner joins, 11-column `GROUP BY`, sort on the count | Run once, 6,258 rows, 0 differences, 0 reordered | Email column appears twice; kept |
 | 2026-10-13 | `reporting.RegsaverPurchases_ALL_Rawdata` | Two branches (every job, or one) each written out twice; 2 sheets; 4 and 7 inner joins; the one-job team sheet swaps two columns | 1,127 jobs plus no job, 18,890 rows over both sheets, 0 differences (183 tie-reordered) | `datetime2` writes differently; see below |
 | 2026-10-13 | `adn.ReconcileNuvei` | Money. Temp table, two table variables, a split function in a join predicate, joins on amount equality; 3 sheets | Last month through the app: 369 rows, 0 differences. Every month with processor data (23, from 2024-11) against the proc body with the month as a parameter: 2,254 rows, 0 differences | Read as sets, joined in C#: 0.2 s vs 2 s; see below |
+| 2026-10-13 | `reporting.JobKeyAttributes-ALL` | 8 correlated count subqueries per job, body written out twice; 42 columns | No job, one job and an unknown job: 1,864 rows, 0 differences, 0 reordered | Counts as grouped sets; see below |
+| 2026-10-13 | `reporting.TournamentKeyAttributes-ALL` | 3 correlated counts and a scalar subquery per job, body written out twice; `datename(weekday)` | Same three runs: 342 rows, 0 differences (ties on event dates unordered) | Shares one query with the row above |
 
 ## UI passes
 
@@ -565,3 +567,15 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
   invoice number; in C# that is a `Split('_')`.
 - **PORT FLAG:** `dbo.fnSplit` (a multi-statement table function) has no caller left in the
   converted exports.
+- **Correlated count subqueries become grouped sets.** The two key-attribute procedures count
+  registrations and teams with a subquery per job per column (eight in one, three in the
+  other). The EF version reads the jobs, one grouped pass over active club rep and player
+  registrations, one grouped pass over active teams by age group name, and the leagues, and
+  joins them in C#. One repository method serves both procedures.
+- **A job id that selects nothing.** Given a job, neither key-attributes procedure filters to
+  it: one switches on "admin access not expired", the other adds "this year or next". Kept.
+- **`coalesce(bit, 0)` is an `int`.** `bEnableTSICTeams` exports as 0 or 1 while the flags
+  around it export as true or false. Kept.
+- **A latent procedure error, not reproduced:** the tournament keys read a job's league
+  setting with a scalar subquery, which fails the whole report if a listed job has two
+  leagues. No scheduling job does today. The EF version would report the first league.

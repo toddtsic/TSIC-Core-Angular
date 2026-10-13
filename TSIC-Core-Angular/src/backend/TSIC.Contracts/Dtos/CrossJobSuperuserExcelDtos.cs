@@ -159,3 +159,62 @@ public record GatewaySettlementRowDto
     public string? SettlementDateTime { get; init; }
     public string? SettlementAmount { get; init; }
 }
+
+/// <summary>
+/// One job's configuration and headcounts — the EF replacement for the data behind the
+/// <c>reporting.JobKeyAttributes-ALL</c> and <c>reporting.TournamentKeyAttributes-ALL</c> procs.
+/// </summary>
+public record JobKeyAttributesRowDto
+{
+    public required Guid JobId { get; init; }
+    public string? CustomerName { get; init; }
+    public string? AdnLoginId { get; init; }
+    public string? Year { get; init; }
+    public string? Season { get; init; }
+    public string? JobName { get; init; }
+    public string? JobNameQbp { get; init; }
+    public string? JobTypeName { get; init; }
+    public string? BillingTypeName { get; init; }
+    public required DateTime ExpiryAdmin { get; init; }
+    public required DateTime ExpiryUsers { get; init; }
+    public DateTime? EventStartDate { get; init; }
+    public DateTime? EventEndDate { get; init; }
+    public DateTime? UslaxNumberValidThroughDate { get; init; }
+    public bool? RegistrationAllowPlayer { get; init; }
+    public bool? RegistrationAllowTeam { get; init; }
+    public bool? OfferPlayerRegsaverInsurance { get; init; }
+    public bool? OfferTeamRegsaverInsurance { get; init; }
+    public bool? AdnArb { get; init; }
+    public int? AdnArbBillingOccurences { get; init; }
+    public int? AdnArbIntervalLength { get; init; }
+    public decimal? AdnArbMinimumTotalCharge { get; init; }
+    public string? CoreRegformPlayer { get; init; }
+    public bool? EnableTsicTeams { get; init; }
+    public required bool AllowMobileLogin { get; init; }
+    public required bool SuspendPublic { get; init; }
+    public decimal? PerPlayerCharge { get; init; }
+    public decimal? PerTeamCharge { get; init; }
+    public required int PaymentMethodsAllowedCode { get; init; }
+    public required bool AddProcessingFees { get; init; }
+    public bool? ApplyProcessingFeesToTeamDeposit { get; init; }
+    public bool? TeamsFullPaymentRequired { get; init; }
+    public bool? ClubRepAllowAdd { get; init; }
+    public bool? ClubRepAllowEdit { get; init; }
+    public bool? ClubRepAllowDelete { get; init; }
+
+    /// <summary>The job's league's hide-contacts setting; null when the job has no league.</summary>
+    public bool? HideContacts { get; init; }
+
+    public required int ClubRepCount { get; init; }
+    public required int OverpaidClubRepCount { get; init; }
+    public required int UnderpaidClubRepCount { get; init; }
+    public required int PlayerCount { get; init; }
+    public required int OverpaidPlayerCount { get; init; }
+    public required int UnderpaidPlayerCount { get; init; }
+
+    /// <summary>Active teams in age groups that are neither waitlist nor dropped.</summary>
+    public required int TeamCount { get; init; }
+
+    /// <summary>Active teams in age groups whose name starts with WAITLIST.</summary>
+    public required int WaitlistTeamCount { get; init; }
+}
