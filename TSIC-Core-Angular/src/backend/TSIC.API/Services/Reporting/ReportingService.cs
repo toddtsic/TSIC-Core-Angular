@@ -517,6 +517,7 @@ public sealed class ReportingService : IReportingService
             ["reporting.ThePlayers_PlayerShowCaseExportII"] = (s, jobId, ct) => s.BuildShowcasePlayersSheetAsync(jobId, withHonors: false, ct),
             ["reporting.ThePlayers_PlayerShowCaseExport_IncludeInactive"] = (s, jobId, ct) => s.BuildShowcaseAllRegistrantsSheetAsync(jobId, ct),
             ["reporting.CustomerEndUsersDump"] = (s, jobId, ct) => s.BuildCustomerEndUsersSheetAsync(jobId, ct),
+            ["reporting.Customer_RegistrationAccounting_Records"] = (s, jobId, ct) => s.BuildCustomerAccountingRecordsSheetAsync(jobId, ct),
         };
 
     /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
@@ -1181,6 +1182,61 @@ public sealed class ReportingService : IReportingService
                 r.Position, r.SchoolName, r.Email, r.MomEmail, r.DadEmail, r.Cellphone, r.MomCellphone,
                 r.DadCellphone, r.StreetAddress, r.City, r.State, r.PostalCode,
             ]);
+
+    /// <summary>
+    /// The accounting-records sheet, named "&lt;customer&gt; accounting records" (or "ALL STEPS
+    /// accounting records" for the hard-wired job, whose layout leads with the customer name and
+    /// omits the three card columns). The record date is spread over five text columns in the
+    /// proc's en-US formats, and the amount is rounded to cents. When the job or its customer
+    /// name is missing the proc emits no sheet marker, so the sheet takes the default name.
+    /// </summary>
+    private async Task<SheetData> BuildCustomerAccountingRecordsSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetCustomerAccountingRecordsAsync(jobId, cancellationToken);
+        var enUs = CultureInfo.GetCultureInfo("en-US");
+
+        // The proc holds the name in a varchar(80); the reader trims the marker.
+        var sheetName = data.AllStepsCustomers
+            ? "ALL STEPS accounting records"
+            : data.CustomerName == null
+                ? "SearchResults"
+                : (SqlLeft(data.CustomerName, 80) + " accounting records").Trim();
+
+        object?[] When(CustomerAccountingRecordExcelRowDto r) =>
+        [
+            r.CreateDate?.ToString("yyyy-MM-dd hh:mm tt", enUs),
+            r.CreateDate?.ToString("yyyy-MM-dd", enUs),
+            r.CreateDate?.ToString("yyyy", enUs),
+            r.CreateDate?.ToString("dd", enUs),
+            r.CreateDate?.ToString("HH", enUs),
+        ];
+
+        object?[] Who(CustomerAccountingRecordExcelRowDto r) =>
+        [
+            r.LastName, r.FirstName, r.Role, r.UserName, r.FamilyUserName,
+            r.PayAmount == null ? null : Math.Round(r.PayAmount.Value, 2, MidpointRounding.AwayFromZero),
+            r.CardComment, r.Comment, r.ClubName, r.AgegroupName, r.TeamName,
+        ];
+
+        string[] whenColumns = ["TxDateTime", "TxDate", "TxYear", "TxDay", "TxHour"];
+        string[] whoColumns =
+        [
+            "LastName", "FirstName", "Role", "UserName", "FamilyUsername", "Paid",
+            "CC_Comment", "NonCC_Comment", "club_name", "agegroupName", "teamName",
+        ];
+
+        return data.AllStepsCustomers
+            ? ToSheet(
+                sheetName,
+                data.Rows,
+                ["customerName", "jobName", .. whenColumns, "paymentMethod", .. whoColumns],
+                r => [r.CustomerName, r.JobName, .. When(r), r.PaymentMethod, .. Who(r)])
+            : ToSheet(
+                sheetName,
+                data.Rows,
+                ["jobName", .. whenColumns, "paymentMethod", "adnTransactionID", "adnCC4", "adnCCExpDate", .. whoColumns],
+                r => [r.JobName, .. When(r), r.PaymentMethod, r.AdnTransactionId, r.AdnCc4, r.AdnCcExpDate, .. Who(r)]);
+    }
 
     /// <summary>
     /// One layout of the job-players export family: its sheet name, header names in order, and

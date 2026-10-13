@@ -55,6 +55,7 @@ procedure is never called.
 | 2026-10-12 | `reporting.ThePlayers_PlayerShowCaseExportII` | Same without the two honors columns, 41 columns | 1,127 jobs, 550,018 rows, 0 differences | Same |
 | 2026-10-12 | `reporting.ThePlayers_PlayerShowCaseExport_IncludeInactive` | Same joins, no filter, 12 columns | 1,127 jobs, 638,296 rows, 0 differences | Same |
 | 2026-10-12 | `reporting.CustomerEndUsersDump` | Customer-scoped `union` of club reps and rostered registrants, 21 columns | 80 customers, 559,664 rows, 0 content differences; 109 rows differ in spelling only | Union with null-filled columns; see below |
+| 2026-10-12 | `reporting.Customer_RegistrationAccounting_Records` | Two branches on a hard-wired job id; 6 inner + 3 left joins; 21 or 19 columns; no `ORDER BY` | 80 customers, 131,416 rows, 0 differences; hard-wired job, 36,995 rows, 0 differences | `if`/`else` procedures, `FORMAT`, dynamic sheet name; see below |
 
 ## UI passes
 
@@ -321,3 +322,21 @@ together. All eight matched on the first run, which is what the earlier lessons 
   birth as MM/DD/YYYY text, so the query projects the date without its time part; projecting the
   raw value would have kept two rows that differ only in a time of day.
 - **`convert(varchar(10), ts, 101)` on a non-null column** is a plain `ToString("MM/dd/yyyy")`.
+
+### Customer_RegistrationAccounting_Records
+
+- **An `if @jobId = '<guid>' … else …` procedure is two layouts over one query.** The hard-wired
+  job id and its customer list are named constants in the repository; the DTO says which branch
+  ran and the sheet builder picks the layout. Both branches were proven: once per customer, and
+  once for the hard-wired job on its own (`TSIC_PARITY_JOB`).
+- **`FORMAT(d, 'yyyy-MM-dd hh:mm tt', 'en-US')` is `d.ToString(sameFormat, en-US)`.** T-SQL
+  `FORMAT` is .NET formatting underneath, so the format strings carry over unchanged.
+- **`convert(decimal(10, 2), money)` rounds half away from zero**:
+  `Math.Round(x, 2, MidpointRounding.AwayFromZero)`, not C#'s default banker's rounding.
+- **A sheet name built from data can be missing.** `'QA Test: ' + null` is null, the reader then
+  sees no marker and names the sheet "SearchResults". The builder does the same when the job or
+  its customer name is absent, and trims and truncates the name as the `varchar(80)` and the
+  reader did.
+- **A LEFT join with two conditions is a correlated `Where(…).DefaultIfEmpty()`** in the `from`.
+- **No `ORDER BY` means any order is correct.** The EF path orders by record date so the file is
+  stable from run to run; the harness skips the order check when given no sort key.

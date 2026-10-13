@@ -2382,6 +2382,91 @@ public class ReportingRepository : IReportingRepository
             .ToListAsync(cancellationToken);
     }
 
+    // The job and the customer group the accounting-records proc is hard-wired to: called for
+    // this job it reports all of these customers instead of the job's own.
+    private static readonly Guid AllStepsAccountingJobId = new("1d7e8de1-ff11-43df-880b-cc99318d1b12");
+
+    private static readonly Guid[] AllStepsAccountingCustomerIds =
+    [
+        new("f4eaaed0-8eb9-de11-8905-00137250256d"),
+        new("150db9a4-0e6d-43d4-a7f8-03dfc740ccd1"),
+        new("0d82c667-c09a-dd11-a853-00137250256d"),
+        new("122178d9-4bef-4fc7-9cdc-7393efc1966d"),
+        new("c75b4c3d-a628-4ad8-b197-435921a5cf03"),
+        new("c2416042-7a11-4938-896f-306a13cb6069"),
+        new("0ea213ce-d975-4cc7-9312-88562db6d8c5"),
+        new("b818d018-8f4b-43a5-98d6-dfd5f52e6e4c"),
+        new("1ff58860-b347-4519-8b1b-5b3af3aed8a4"),
+    ];
+
+    public async Task<CustomerAccountingRecordsDto> GetCustomerAccountingRecordsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.Customer_RegistrationAccounting_Records. Two branches, as
+        // in the proc: the hard-wired job reports the fixed customer group; any other job reports
+        // its own customer. Same joins either way: team is a LEFT join on BOTH the record's team
+        // and "this registration is that team's club rep", agegroup hangs off it, and the family
+        // user is a LEFT join.
+        var allSteps = jobId == AllStepsAccountingJobId;
+        var customer = allSteps
+            ? null
+            : await _context.Jobs.AsNoTracking()
+                .Where(j => j.JobId == jobId)
+                .Select(j => new { j.CustomerId, j.Customer.CustomerName })
+                .FirstOrDefaultAsync(cancellationToken);
+        if (!allSteps && customer == null)
+        {
+            return new CustomerAccountingRecordsDto { AllStepsCustomers = false, CustomerName = null, Rows = [] };
+        }
+
+        var customerIds = allSteps ? AllStepsAccountingCustomerIds : [customer!.CustomerId];
+        var firstDate = new DateTime(DateTime.Now.Year - 2, 1, 1);
+
+        var rows = await (
+            from ra in _context.RegistrationAccounting.AsNoTracking()
+            join r in _context.Registrations.AsNoTracking() on ra.RegistrationId equals (Guid?)r.RegistrationId
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            join c in _context.Customers.AsNoTracking() on j.CustomerId equals c.CustomerId
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            from t in _context.Teams.AsNoTracking()
+                .Where(t => ra.TeamId == t.TeamId && ra.RegistrationId == t.ClubrepRegistrationid)
+                .DefaultIfEmpty()
+            join uFj in _context.AspNetUsers.AsNoTracking() on r.FamilyUserId equals uFj.Id into uFs
+            from uF in uFs.DefaultIfEmpty()
+            where customerIds.Contains(j.CustomerId) && ra.Active == true && ra.Createdate >= firstDate
+            orderby ra.Createdate, ra.AId
+            select new CustomerAccountingRecordExcelRowDto
+            {
+                CustomerName = c.CustomerName,
+                JobName = j.JobName,
+                CreateDate = ra.Createdate,
+                PaymentMethod = ra.PaymentMethod.PaymentMethod,
+                AdnTransactionId = ra.AdnTransactionId,
+                AdnCc4 = ra.AdnCc4,
+                AdnCcExpDate = ra.AdnCcexpDate,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                Role = roles.Name,
+                UserName = u.UserName,
+                FamilyUserName = uF.UserName,
+                PayAmount = ra.Payamt,
+                CardComment = ra.Paymeth,
+                Comment = ra.Comment,
+                ClubName = r.ClubName,
+                AgegroupName = t.Agegroup.AgegroupName,
+                TeamName = t.TeamName,
+            }).ToListAsync(cancellationToken);
+
+        return new CustomerAccountingRecordsDto
+        {
+            AllStepsCustomers = allSteps,
+            CustomerName = customer?.CustomerName,
+            Rows = rows,
+        };
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

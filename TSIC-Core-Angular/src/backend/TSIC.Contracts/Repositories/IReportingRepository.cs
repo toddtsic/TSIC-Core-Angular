@@ -599,6 +599,17 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Active accounting records, from January 1 two years back, of every job of
+    /// <paramref name="jobId"/>'s customer — or of the fixed STEPS customer group when called for
+    /// the one hard-wired job — the EF replacement for
+    /// <c>reporting.Customer_RegistrationAccounting_Records</c>. Ordered by record date (the proc
+    /// leaves the order undefined).
+    /// </summary>
+    Task<CustomerAccountingRecordsDto> GetCustomerAccountingRecordsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>
