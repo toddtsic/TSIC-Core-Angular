@@ -659,6 +659,46 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Active player counts by team name across the customer's regional "American Select
+    /// Lacrosse:" jobs, in total and registered by tomorrow's date in each job's own year — the
+    /// EF replacement for the data behind <c>utility.AmericanSelect_CountsAtYear_ByTeam</c>.
+    /// Customer-scoped via the job; <paramref name="now"/> is the caller's clock, read once.
+    /// </summary>
+    Task<List<RegionalTeamPlayerCountDto>> GetRegionalTeamPlayerCountsAsync(
+        Guid jobId,
+        DateTime now,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Insurance payouts matched to registrations of the fixed customer group, ordered year →
+    /// month → job → name, plus the same matches by period — the EF replacement for
+    /// <c>reporting.RegsaverRegistrants_Charlie</c>. NOT job-scoped: the proc ignores its job.
+    /// </summary>
+    Task<RegsaverPayoutsDto> GetRegsaverPayoutsAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Club team counts by tournament name and year across the customer's tournament jobs,
+    /// leaving out jobs of <paramref name="excludedJobYear"/> — the EF replacement for the
+    /// grouped data behind <c>reporting.TournyYearOverYearClubTeams</c>. Customer-scoped via the
+    /// job. Ordered tournament → year → club, or tournament → club → year when
+    /// <paramref name="orderByClubThenYear"/> is set.
+    /// </summary>
+    Task<List<ClubTeamYearCountDto>> GetClubTeamYearCountsAsync(
+        Guid jobId,
+        string excludedJobYear,
+        bool orderByClubThenYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The job settings the clone QA export lists, or null when the job does not exist — the EF
+    /// replacement for <c>utility.JobCloneQA</c>. Job-scoped.
+    /// </summary>
+    Task<JobCloneQaDto?> GetJobCloneQaAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

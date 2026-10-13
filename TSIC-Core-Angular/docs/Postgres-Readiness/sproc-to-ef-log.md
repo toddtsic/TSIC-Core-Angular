@@ -61,6 +61,10 @@ procedure is never called.
 | 2026-10-13 | `reporting.CathyCampBreakoutPerJob_PreviousMonth` | `getdate()`-relative month; two derived tables left-joined and re-aggregated; table variable; appended total row | 1,126 jobs, 2,502 rows, 0 differences (no `ORDER BY`) | Decimal scale rules; see below |
 | 2026-10-13 | `reporting.GetJobTransactionRollup` | Table variable feeding 5 sheets; 6 inner + 2 left joins; two `GROUP BY ROLLUP`; `FORMAT(x, 'C')` | 1,114 jobs, 631,790 rows, 3 rows differ (emoji in a name, see below); proc ERRORS on 12 other jobs | Second and third behaviour changes; see below |
 | 2026-10-13 | `reporting.RefAssignmentQA` | Table variable feeding 2 sheets; 6 inner joins; correlated `MIN` subquery; `DATEDIFF`; `GROUP BY … HAVING` | 1,126 jobs, 135 rows over both sheets, 0 differences, 0 reordered | `DATEDIFF`, default date text; see below |
+| 2026-10-13 | `utility.AmericanSelect_CountsAtYear_ByTeam` | Three table variables; `PATINDEX`/`SUBSTRING` number parsing; date built by text `REPLACE`; self-join of two counting passes | 79 customers, 503 rows, 0 differences, 0 reordered | Proc sits at the app's 30 s timeout; see below |
+| 2026-10-13 | `reporting.RegsaverRegistrants_Charlie` | Ignores its job; hard-wired customer list; `money / 2`; 2 sheets | Run once, 9,628 rows over both sheets, 0 differences | `money` division truncates; see below |
+| 2026-10-13 | `reporting.TournyYearOverYearClubTeams` | `GROUPING SETS` into a temp table, then a DYNAMIC `PIVOT` with data-driven columns | 79 customers, 8,190 rows over both sheets, 0 differences, 27 spelling-only; proc ERRORS for 1 customer | First dynamic pivot; see below |
+| 2026-10-13 | `utility.JobCloneQA` | 46 single-row inserts into a `varchar` table variable, every type implicitly cast to text | 1,126 jobs, 51,796 rows, 7 rows differ (non-1252 text, see below) | Implicit casts to text; see below |
 
 ## UI passes
 
@@ -409,3 +413,39 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
 - **Behaviour change 3: the rollup procedure garbles characters outside the Windows-1252 set.**
   The same `varchar` columns turn an emoji in a first name into `??`. Three rows of 631,790
   differ for that reason and no other; the EF version returns the name as stored.
+
+### American Select counts, RegSaver payouts, year-over-year club teams, job clone QA
+
+- **A dynamic `PIVOT` is a loop in C#.** The procedure built its column list from the data
+  (`STUFF … FOR XML PATH`), then `EXEC`'d a pivot. In C#: the distinct years are the columns,
+  each tournament-and-club run is a row, a cell is the sum for that year or null. The
+  `GROUPING SETS` subtotal is one more row per tournament. No dynamic SQL survives, which is the
+  point: Postgres has no `PIVOT` at all.
+- **Never convert text to a number inside the query when a bad value exists anywhere.**
+  `CONVERT(int, j.year)` is evaluated wherever the optimiser likes, including on rows the
+  `WHERE` would have thrown away. One job has the year `all `; the first EF version failed on it
+  for every customer, and the procedure itself fails (error 245) for that job's customer. The
+  EF version does the conversion in C#, on qualifying rows only.
+- **Keep the database's ordering without comparing text in C#.** When rows must be merged or
+  re-sorted after the fetch, have SQL return them ordered by the text columns, number the runs
+  (a rank), and sort on the ranks. The file then follows the server's collation exactly, on
+  either provider.
+- **`money / 2` truncates past four decimals** (`0.0003 / 2` is `0.0001`); it does not round.
+- **Implicit casts to `varchar`:** `bit` is `1`/`0`, `decimal(18,2)` keeps its two decimals,
+  `datetime` takes the default `Oct  5 2026  9:05AM` form.
+- **`REPLACE` is case-insensitive under the database collation**; C# needs
+  `StringComparison.OrdinalIgnoreCase`. PORT FLAG: Postgres `replace` is case-sensitive.
+- **A procedure that ignores its parameter** (RegSaver payouts take a job id and never use it)
+  gets a builder that ignores it too; the harness runs it once (`@once|`).
+- **The clock again.** American Select "to date" is tomorrow's month and day in each job's own
+  year, built in the procedure by swapping year digits in a date string. The repository takes
+  the caller's clock and builds one cutoff per job year.
+- **Performance, observed not chased:** the American Select procedure ran past the app's 30 s
+  command timeout on its own customer on the first parity run, so parity called it directly
+  with a longer timeout (the harness prints `REFERENCE` for that run; it was the real
+  procedure). The EF version makes one grouped query per job year.
+- **Behaviour change 3 again:** `JobCloneQA` holds values in `varchar`, so a refund policy
+  containing a character outside Windows-1252 came out with `?` in its place on 7 jobs. The EF
+  version returns the text as stored.
+- **Behaviour change 4:** `TournyYearOverYearClubTeams` fails (error 245) for the one customer
+  owning the job whose year is `all `. The EF version returns that customer's report.

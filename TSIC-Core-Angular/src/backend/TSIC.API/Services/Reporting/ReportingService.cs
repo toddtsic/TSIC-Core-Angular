@@ -520,6 +520,8 @@ public sealed class ReportingService : IReportingService
             ["reporting.Customer_RegistrationAccounting_Records"] = (s, jobId, ct) => s.BuildCustomerAccountingRecordsSheetAsync(jobId, ct),
             ["reporting.Schedule_Export_ToTournyMachine"] = (s, jobId, ct) => s.BuildTournyMachineScheduleSheetAsync(jobId, ct),
             ["reporting.CathyCampBreakoutPerJob_PreviousMonth"] = (s, jobId, ct) => s.BuildCampBreakoutPreviousMonthSheetAsync(jobId, ct),
+            ["utility.AmericanSelect_CountsAtYear_ByTeam"] = (s, jobId, ct) => s.BuildRegionalTeamCountsSheetAsync(jobId, ct),
+            ["utility.JobCloneQA"] = (s, jobId, ct) => s.BuildJobCloneQaSheetAsync(jobId, ct),
         };
 
     /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
@@ -530,6 +532,8 @@ public sealed class ReportingService : IReportingService
             ["reporting.Schedule_Export_Teams_ToTournyMachine"] = (s, jobId, ct) => s.BuildTournyMachineTeamsSheetsAsync(jobId, ct),
             ["reporting.GetJobTransactionRollup"] = (s, jobId, ct) => s.BuildJobTransactionRollupSheetsAsync(jobId, ct),
             ["reporting.RefAssignmentQA"] = (s, jobId, ct) => s.BuildRefAssignmentQaSheetsAsync(jobId, ct),
+            ["reporting.RegsaverRegistrants_Charlie"] = (s, _, ct) => s.BuildRegsaverPayoutsSheetsAsync(ct),
+            ["reporting.TournyYearOverYearClubTeams"] = (s, jobId, ct) => s.BuildClubTeamsYearOverYearSheetsAsync(jobId, ct),
         };
 
     /// <summary>
@@ -1537,6 +1541,268 @@ public sealed class ReportingService : IReportingService
                 ["G_Date", "refRegId", "firstName", "lastName"],
                 r => [SqlDefaultDateTime(r.GameDate), r.RefRegistrationId, r.FirstName, r.LastName]),
         ];
+    }
+
+    /// <summary>
+    /// T-SQL <c>REPLACE</c>: every occurrence, matched case-insensitively. Null in, null out; an
+    /// empty pattern changes nothing.
+    /// </summary>
+    private static string? SqlReplace(string? value, string? pattern, string replacement) =>
+        value == null || pattern == null
+            ? null
+            : pattern.Length == 0 ? value : value.Replace(pattern, replacement, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Text ordered the way the database's case-insensitive collation orders it.</summary>
+    private static readonly StringComparer SqlTextOrder =
+        StringComparer.Create(CultureInfo.GetCultureInfo("en-US"), ignoreCase: true);
+
+    /// <summary>
+    /// "Counts Per Team" sheet of the American Select regional counts: players per region, year
+    /// and graduating class, to date and final. A team's class is the first number in its name
+    /// (a graduation year) less the job's year: 1 is a senior … 5 an 8th grader; any other gap
+    /// is not reported. A class nobody had registered for by this point of its year is not
+    /// reported either.
+    /// </summary>
+    private async Task<SheetData> BuildRegionalTeamCountsSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var counts = await _reportingRepository.GetRegionalTeamPlayerCountsAsync(jobId, DateTime.Now, cancellationToken);
+
+        // The proc's PATINDEX pair: the first run of digits in the name, 0 when there is none.
+        static int FirstNumber(string name)
+        {
+            var start = 0;
+            while (start < name.Length && !char.IsAsciiDigit(name[start]))
+            {
+                start++;
+            }
+
+            var end = start;
+            while (end < name.Length && char.IsAsciiDigit(name[end]))
+            {
+                end++;
+            }
+
+            return end == start ? 0 : int.Parse(name.AsSpan(start, end - start), CultureInfo.InvariantCulture);
+        }
+
+        static string? GraduatingClass(int yearsOut) => yearsOut switch
+        {
+            1 => "1:Seniors",
+            2 => "2:Juniors",
+            3 => "3:Sophmores",
+            4 => "4:Freshmen",
+            5 => "5:8thGrade",
+            _ => null,
+        };
+
+        var rows = counts
+            .Select(c =>
+            {
+                var jobYear = int.Parse(c.Year!, CultureInfo.InvariantCulture);
+                return new { Count = c, JobYear = jobYear, Class = GraduatingClass(FirstNumber(c.TeamName!) - jobYear) };
+            })
+            .Where(x => x.Class != null)
+            .GroupBy(x => (x.Count.JobId, x.Class))
+            .Select(g => new
+            {
+                // The job name without its last five characters (" 2026") and without the prefix.
+                Region = SqlReplace(
+                    SqlReplace(g.First().Count.JobName, SqlRight(g.First().Count.JobName, 5), ""),
+                    "American Select Lacrosse:", ""),
+                g.First().JobYear,
+                g.First().Class,
+                ToDate = g.Sum(x => x.Count.PlayersToDate),
+                Final = g.Sum(x => x.Count.Players),
+            })
+            .Where(x => x.ToDate > 0)
+            .OrderBy(x => x.Region, SqlTextOrder).ThenBy(x => x.JobYear).ThenBy(x => x.Class, StringComparer.Ordinal)
+            .ToList();
+
+        return ToSheet(
+            "Counts Per Team",
+            rows,
+            ["Region", "JobYear", "Agerange", "YTD", "FinalCount"],
+            r => [r.Region, r.JobYear, r.Class, r.ToDate, r.Final]);
+    }
+
+    /// <summary>
+    /// The two sheets of the RegSaver payouts export: "Payouts" (one row per matched policy) and
+    /// "By Year/Month". Half of each payout is reported as the STEPS share; <c>money / 2</c>
+    /// drops anything past four decimals. The job argument is unused, as in the proc.
+    /// </summary>
+    private async Task<List<SheetData>> BuildRegsaverPayoutsSheetsAsync(CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetRegsaverPayoutsAsync(cancellationToken);
+
+        static decimal? Half(decimal? payout) =>
+            payout == null ? null : Math.Round(payout.Value / 2, 4, MidpointRounding.ToZero);
+
+        var periods = data.PeriodPayouts
+            .GroupBy(p => (p.Year, p.Month))
+            .Select(g =>
+            {
+                var halves = g.Select(p => Half(p.Payout)).Where(h => h != null).Select(h => h!.Value).ToList();
+                return (g.Key.Year, g.Key.Month, Share: halves.Count == 0 ? (decimal?)null : halves.Sum());
+            })
+            .ToList();
+
+        return
+        [
+            ToSheet(
+                "Payouts",
+                data.Payouts,
+                [
+                    "Year", "Month", "Job", "LastName", "FirstName", "PolicyId", "PurchaseDate",
+                    "TSIC_Player_Fee", "VI_Payout", "STEPS_Payout",
+                ],
+                r =>
+                [
+                    r.Year, r.Month, r.JobName, r.LastName, r.FirstName, r.PolicyId, r.PurchaseDate,
+                    r.FeeTotal, r.Payout, Half(r.Payout),
+                ]),
+            ToSheet(
+                "By Year/Month",
+                periods,
+                ["Year", "Month", "STEPS_Payout"],
+                p => [p.Year, p.Month, p.Share]),
+        ];
+    }
+
+    /// <summary>
+    /// The job year the year-over-year "Raw Data" sheet leaves out. Hard-wired in the proc, while
+    /// its pivot leaves out the CURRENT year; the two agree only during 2026. Preserved.
+    /// </summary>
+    private const string YearOverYearRawExcludedJobYear = "2026";
+
+    /// <summary>
+    /// The two sheets of the tournament year-over-year club teams export: "Raw Data" (tournament,
+    /// year, club, teams) and "PivotedData" (a row per tournament and club with a column per
+    /// year, then a "*** TOTAL ***" row per tournament). The year columns are whatever years the
+    /// data holds; with no data the pivot sheet is empty.
+    /// </summary>
+    private async Task<List<SheetData>> BuildClubTeamsYearOverYearSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        const string totalLabel = "*** TOTAL ***";
+
+        var raw = await _reportingRepository.GetClubTeamYearCountsAsync(
+            jobId, YearOverYearRawExcludedJobYear, orderByClubThenYear: false, cancellationToken);
+        var byClub = await _reportingRepository.GetClubTeamYearCountsAsync(
+            jobId, DateTime.Now.Year.ToString(CultureInfo.InvariantCulture), orderByClubThenYear: true, cancellationToken);
+
+        var years = byClub.Select(r => r.Year).Distinct().Order().ToList();
+        var pivot = new List<object?[]>();
+        foreach (var tournament in RunsOf(byClub, r => r.JobNameRoot))
+        {
+            object?[] Line(string club, List<ClubTeamYearCountDto> source) =>
+            [
+                tournament[0].JobNameRoot,
+                club,
+                .. years.Select(year =>
+                {
+                    var inYear = source.Where(r => r.Year == year).ToList();
+                    return inYear.Count == 0 ? null : (object?)inYear.Sum(r => r.Teams);
+                }),
+            ];
+
+            // A team whose rep has no club name is listed under the total label, as the proc's
+            // ISNULL did, ahead of the tournament's own total row.
+            foreach (var club in RunsOf(tournament, r => r.Club))
+            {
+                pivot.Add(Line(club[0].Club ?? totalLabel, club));
+            }
+
+            pivot.Add(Line(totalLabel, tournament));
+        }
+
+        return
+        [
+            ToSheet(
+                "Raw Data",
+                raw,
+                ["JobNameRoot", "year", "Club", "CountClubTeams"],
+                r => [r.JobNameRoot, r.Year, r.Club, r.Teams]),
+            ToSheet(
+                "PivotedData",
+                pivot,
+                ["JobNameRoot", "Club", .. years.Select(y => y.ToString(CultureInfo.InvariantCulture))],
+                line => line),
+        ];
+    }
+
+    /// <summary>
+    /// "Job Fields" sheet of the clone QA export: 46 setting names with their values as text —
+    /// flags as 1/0, charges with two decimals, expiry dates MM/DD/YYYY. Empty when the job does
+    /// not exist; the two display-text rows are absent when the job has no display options.
+    /// </summary>
+    private async Task<SheetData> BuildJobCloneQaSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var job = await _reportingRepository.GetJobCloneQaAsync(jobId, cancellationToken);
+
+        static string? Flag(bool? value) => value == null ? null : value.Value ? "1" : "0";
+        static string? Number(int? value) => value?.ToString(CultureInfo.InvariantCulture);
+        static string? Charge(decimal? value) => value?.ToString("0.00", CultureInfo.InvariantCulture);
+        static string Day(DateTime value) => value.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
+
+        List<(string Name, string? Value)> fields = job == null
+            ? []
+            :
+            [
+                ("CustomerName", job.CustomerName),
+                ("AdnLoginId", job.AdnLoginId),
+                ("JobName", job.JobName),
+                ("JobName_QBP", job.JobNameQbp),
+                ("JobDescription", job.JobDescription),
+                ("JobPath", job.JobPath),
+                .. job.ParallaxSlide1Text1.Select(text => ("ParallaxSlide1Text1", text)),
+                .. job.ParallaxSlide1Text2.Select(text => ("ParallaxSlide1Text2", text)),
+                ("BRegistrationAllowPlayer", Flag(job.RegistrationAllowPlayer)),
+                ("BRegistrationAllowTeam", Flag(job.RegistrationAllowTeam)),
+                ("ExpiryAdmin", Day(job.ExpiryAdmin)),
+                ("ExpiryUsers", Day(job.ExpiryUsers)),
+                ("Season", job.Season),
+                ("Year", job.Year),
+                ("JobType", job.JobTypeName),
+                ("Sport", job.SportName),
+                ("AdnArb", Flag(job.AdnArb)),
+                ("AdnArbBillingOccurences", Number(job.AdnArbBillingOccurences)),
+                ("AdnArbIntervalLength", Number(job.AdnArbIntervalLength)),
+                ("AdnArbStartDate", SqlDefaultDateTime(job.AdnArbStartDate)),
+                ("BAddProcessingFees", Flag(job.AddProcessingFees)),
+                ("BApplyProcessingFeesToTeamDeposit", Flag(job.ApplyProcessingFeesToTeamDeposit)),
+                ("BTeamsFullPaymentRequired", Flag(job.TeamsFullPaymentRequired)),
+                ("PaymentMethodsAllowed_Code", job.PaymentMethodsAllowedCode switch
+                {
+                    1 => "Credit Card ONLY",
+                    2 => "Credit Card or Check",
+                    3 => "Check ONLY",
+                    _ => "?",
+                }),
+                ("PlayerReg_RefundPolicy", job.PlayerRegRefundPolicy),
+                ("BillingType", job.BillingTypeName),
+                ("PerPlayerCharge", Charge(job.PerPlayerCharge)),
+                ("PerTeamCharge", Charge(job.PerTeamCharge)),
+                ("CoreRegformPlayer", job.CoreRegformPlayer),
+                ("BOfferPlayerRegsaverInsurance", Flag(job.OfferPlayerRegsaverInsurance)),
+                ("BUseWaitlists", Flag(job.UseWaitlists)),
+                ("BAllowRosterViewPlayer", Flag(job.AllowRosterViewPlayer)),
+                ("bRestrictPlayerTeamsToAgerange", Flag(job.RestrictPlayerTeamsToAgerange)),
+                ("PlayerReg_MultiPlayerDiscount_Percent", Number(job.PlayerRegMultiPlayerDiscountPercent)),
+                ("RegformName_ClubRep", job.RegformNameClubRep),
+                ("RegformName_Coach", job.RegformNameCoach),
+                ("RegformName_Team", job.RegformNameTeam),
+                ("BAllowRosterViewAdult", Flag(job.AllowRosterViewAdult)),
+                ("BClubRepAllowEdit", Flag(job.ClubRepAllowEdit)),
+                ("BClubRepAllowDelete", Flag(job.ClubRepAllowDelete)),
+                ("BClubRepAllowAdd", Flag(job.ClubRepAllowAdd)),
+                ("BScheduleAllowPublicAccess", Flag(job.ScheduleAllowPublicAccess)),
+                ("BAllowMobileLogin", Flag(job.AllowMobileLogin)),
+                ("BSuspendPublic", Flag(job.SuspendPublic)),
+                ("BAllowMobileRegn", Flag(job.AllowMobileRegn)),
+                // The one flag the proc defaults: unset reads as off.
+                ("BEnableTSICTeams", Flag(job.EnableTsicTeams ?? false)),
+            ];
+
+        return ToSheet("Job Fields", fields, ["FieldName", "FieldValue"], f => [f.Name, f.Value]);
     }
 
     /// <summary>

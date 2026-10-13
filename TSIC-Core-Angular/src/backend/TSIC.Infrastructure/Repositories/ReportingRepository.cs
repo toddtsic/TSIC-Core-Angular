@@ -2730,6 +2730,311 @@ public class ReportingRepository : IReportingRepository
             }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<RegionalTeamPlayerCountDto>> GetRegionalTeamPlayerCountsAsync(
+        Guid jobId,
+        DateTime now,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the two counting passes of utility.AmericanSelect_CountsAtYear_ByTeam.
+        // The jobs are the customer's "American Select Lacrosse:" jobs other than Main and
+        // Showcase events (name tests upper-cased so they stay case-insensitive on any provider).
+        var customerId = await _context.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (Guid?)j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (customerId == null)
+        {
+            return [];
+        }
+
+        var jobs = await _context.Jobs.AsNoTracking()
+            .Where(j => j.CustomerId == customerId
+                && j.JobName != null
+                && j.JobName.ToUpper().StartsWith("AMERICAN SELECT LACROSSE:")
+                && !j.JobName.ToUpper().Contains("MAIN")
+                && !j.JobName.ToUpper().Contains("SHOWCASE"))
+            .Select(j => new { j.JobId, j.JobName, j.Year })
+            .ToListAsync(cancellationToken);
+
+        // "To date" is registered on or before TOMORROW's month and day in the job's own year.
+        // The proc builds that date as text and swaps this year's digits for the job's, so a
+        // job year that is not a year fails there as it fails here. A job with no year can
+        // never be placed in an age range, so it is left out.
+        var tomorrow = now.Date.AddDays(1).ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
+        var thisYear = now.Year.ToString(CultureInfo.InvariantCulture);
+
+        var counts = new List<RegionalTeamPlayerCountDto>();
+        foreach (var sameYear in jobs.Where(j => j.Year != null).GroupBy(j => j.Year!))
+        {
+            var cutoff = DateTime.Parse(
+                tomorrow.Replace(thisYear, sameYear.Key, StringComparison.OrdinalIgnoreCase),
+                CultureInfo.GetCultureInfo("en-US"));
+            var jobIds = sameYear.Select(j => j.JobId).ToList();
+
+            var teams = await (
+                from r in _context.Registrations.AsNoTracking()
+                join role in _context.AspNetRoles on r.RoleId equals role.Id
+                join t in _context.Teams on r.AssignedTeamId equals (Guid?)t.TeamId
+                where jobIds.Contains(r.JobId) && r.BActive == true && t.Active == true && role.Name == "Player"
+                    && t.TeamName != null
+                    && !t.TeamName.ToUpper().StartsWith("WAITLIST")
+                    && !t.TeamName.ToUpper().StartsWith("DROPPED")
+                group r by new { r.JobId, t.TeamName } into g
+                select new
+                {
+                    g.Key.JobId,
+                    g.Key.TeamName,
+                    Players = g.Count(),
+                    PlayersToDate = g.Count(x => x.RegistrationTs <= cutoff),
+                })
+                .ToListAsync(cancellationToken);
+
+            var names = sameYear.ToDictionary(j => j.JobId, j => j.JobName);
+            counts.AddRange(teams.Select(t => new RegionalTeamPlayerCountDto
+            {
+                JobId = t.JobId,
+                JobName = names[t.JobId],
+                Year = sameYear.Key,
+                TeamName = t.TeamName,
+                Players = t.Players,
+                PlayersToDate = t.PlayersToDate,
+            }));
+        }
+
+        return counts;
+    }
+
+    // reporting.RegsaverRegistrants_Charlie hard-wires the customers whose payouts it reports:
+    // Lax For The Cure, American Select Lacrosse, STEPS Lacrosse, XPO, STEPS Lacrosse California,
+    // Live Love Lax, Maryland Cup, Irish Prospect Camp.
+    private static readonly Guid[] RegsaverPayoutCustomerIds =
+    [
+        new("150db9a4-0e6d-43d4-a7f8-03dfc740ccd1"),
+        new("76586de3-acb3-42ee-91eb-48597ca06802"),
+        new("f4eaaed0-8eb9-de11-8905-00137250256d"),
+        new("b818d018-8f4b-43a5-98d6-dfd5f52e6e4c"),
+        new("0ea213ce-d975-4cc7-9312-88562db6d8c5"),
+        new("122178d9-4bef-4fc7-9cdc-7393efc1966d"),
+        new("ec268f1b-ae4d-4646-8c57-d222edb30fca"),
+        new("d48baa28-2fc8-4d9f-b934-491b2edab19f"),
+    ];
+
+    public async Task<RegsaverPayoutsDto> GetRegsaverPayoutsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.RegsaverRegistrants_Charlie. The proc takes a job id and
+        // never uses it: every caller gets the same fixed customer group. A payout joins to the
+        // registration holding its policy number. The detail set also INNER joins the player's
+        // user record; the period set does not, so the two are fetched separately.
+        var payouts = await (
+            from vi in _context.VerticalInsurePayouts.AsNoTracking()
+            join r in _context.Registrations on vi.PolicyNumber equals r.RegsaverPolicyId
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            where RegsaverPayoutCustomerIds.Contains(c.CustomerId)
+            let year = vi.Year ?? (double)r.RegistrationTs.Year
+            let month = vi.Month ?? (double)r.RegistrationTs.Month
+            orderby year, month, j.JobName, u.LastName, u.FirstName
+            select new RegsaverPayoutExcelRowDto
+            {
+                Year = year,
+                Month = month,
+                JobName = j.JobName,
+                LastName = u.LastName,
+                FirstName = u.FirstName,
+                PolicyId = r.RegsaverPolicyId,
+                PurchaseDate = vi.PurchaseDate,
+                FeeTotal = r.FeeTotal,
+                Payout = vi.Payout,
+            }).ToListAsync(cancellationToken);
+
+        var periodPayouts = await (
+            from vi in _context.VerticalInsurePayouts.AsNoTracking()
+            join r in _context.Registrations on vi.PolicyNumber equals r.RegsaverPolicyId
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            where RegsaverPayoutCustomerIds.Contains(c.CustomerId)
+            orderby vi.Year, vi.Month
+            select new RegsaverPayoutPeriodDto { Year = vi.Year, Month = vi.Month, Payout = vi.Payout })
+            .ToListAsync(cancellationToken);
+
+        return new RegsaverPayoutsDto { Payouts = payouts, PeriodPayouts = periodPayouts };
+    }
+
+    // reporting.TournyYearOverYearClubTeams hard-wires the event year it leaves out.
+    private const int YearOverYearExcludedEventYear = 2021;
+
+    public async Task<List<ClubTeamYearCountDto>> GetClubTeamYearCountsAsync(
+        Guid jobId,
+        string excludedJobYear,
+        bool orderByClubThenYear,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the grouped query reporting.TournyYearOverYearClubTeams runs twice.
+        // Teams join to their club rep's registration, and the JOB is the rep's, not the team's.
+        // The tournament name is the job name with its year text removed; the event year is the
+        // job year when the name carries it, otherwise the year after. A job with no year drops
+        // out in the proc (every comparison on it is unknown), hence the explicit test. "NOT …
+        // LIKE" drops null agegroup names too.
+        var customerId = await _context.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (Guid?)j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (customerId == null)
+        {
+            return [];
+        }
+
+        // One row per job and club, ordered tournament → club BY THE DATABASE. The event year is
+        // worked out here rather than in SQL: converting a job year to a number inside the query
+        // fails outright when ANY job the server chooses to look at has a year that is not one,
+        // whether or not that job qualifies.
+        var perJob = await (
+            from t in _context.Teams.AsNoTracking()
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            join r in _context.Registrations on t.ClubrepRegistrationid equals (Guid?)r.RegistrationId
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join jt in _context.JobTypes on j.JobTypeId equals jt.JobTypeId
+            where j.CustomerId == customerId
+                && j.Year != null && j.Year != excludedJobYear
+                && jt.JobTypeName == "Tournament Scheduling"
+                && t.Active == true && r.BActive == true
+                && ag.AgegroupName != null
+                && !ag.AgegroupName.ToUpper().StartsWith("WAITLIST")
+                && !ag.AgegroupName.ToUpper().StartsWith("DROPPED")
+            group r by new { j.JobId, j.JobName, j.Year, Root = j.JobName!.Replace(j.Year!, "").Trim(), r.ClubName } into g
+            orderby g.Key.Root, g.Key.ClubName
+            select new { g.Key.JobName, g.Key.Year, g.Key.Root, g.Key.ClubName, Teams = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        // Two jobs can share a tournament name and event year, so their rows are merged. Names
+        // are matched and ordered by their position in the database's ordering (a rank), never
+        // by comparing text here, so the result follows the database's collation exactly.
+        static bool Same(string? a, string? b) =>
+            a == null || b == null
+                ? a == b
+                : string.Equals(a.TrimEnd(' '), b.TrimEnd(' '), StringComparison.OrdinalIgnoreCase);
+
+        var ranked = new List<(int RootRank, int ClubRank, string? Root, string? Club, int Year, int Teams)>();
+        var rootRank = -1;
+        var clubRank = -1;
+        for (var i = 0; i < perJob.Count; i++)
+        {
+            var row = perJob[i];
+            if (i == 0 || !Same(row.Root, perJob[i - 1].Root))
+            {
+                rootRank++;
+                clubRank++;
+            }
+            else if (!Same(row.ClubName, perJob[i - 1].ClubName))
+            {
+                clubRank++;
+            }
+
+            var jobYear = int.Parse(row.Year!, NumberStyles.Integer, CultureInfo.InvariantCulture);
+            var nameCarriesYear = row.JobName != null && row.JobName.Contains(row.Year!, StringComparison.OrdinalIgnoreCase);
+            var eventYear = nameCarriesYear ? jobYear : jobYear + 1;
+            if (eventYear != YearOverYearExcludedEventYear)
+            {
+                ranked.Add((rootRank, clubRank, row.Root, row.ClubName, eventYear, row.Teams));
+            }
+        }
+
+        var merged = ranked
+            .GroupBy(x => (x.RootRank, x.ClubRank, x.Year))
+            .Select(g => (g.Key, Row: new ClubTeamYearCountDto
+            {
+                JobNameRoot = g.First().Root,
+                Year = g.Key.Year,
+                Club = g.First().Club,
+                Teams = g.Sum(x => x.Teams),
+            }));
+        var ordered = orderByClubThenYear
+            ? merged.OrderBy(x => x.Key.RootRank).ThenBy(x => x.Key.ClubRank).ThenBy(x => x.Key.Year)
+            : merged.OrderBy(x => x.Key.RootRank).ThenBy(x => x.Key.Year).ThenBy(x => x.Key.ClubRank);
+        return ordered.Select(x => x.Row).ToList();
+    }
+
+    public async Task<JobCloneQaDto?> GetJobCloneQaAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for utility.JobCloneQA: one job's settings, with its customer, job type,
+        // sport and billing type names. Those four are INNER joins in the proc; all are required
+        // foreign keys, so they always resolve. Display options are optional and, in principle,
+        // repeatable, so they come back as a list.
+        var job = await (
+            from j in _context.Jobs.AsNoTracking()
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            join jt in _context.JobTypes on j.JobTypeId equals jt.JobTypeId
+            join s in _context.Sports on j.SportId equals s.SportId
+            join bt in _context.BillingTypes on j.BillingTypeId equals bt.BillingTypeId
+            where j.JobId == jobId
+            select new { Job = j, c.CustomerName, c.AdnLoginId, jt.JobTypeName, s.SportName, bt.BillingTypeName })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (job == null)
+        {
+            return null;
+        }
+
+        var displayTexts = await _context.JobDisplayOptions.AsNoTracking()
+            .Where(o => o.JobId == jobId)
+            .Select(o => new { o.ParallaxSlide1Text1, o.ParallaxSlide1Text2 })
+            .ToListAsync(cancellationToken);
+
+        var j0 = job.Job;
+        return new JobCloneQaDto
+        {
+            CustomerName = job.CustomerName,
+            AdnLoginId = job.AdnLoginId,
+            JobName = j0.JobName,
+            JobNameQbp = j0.JobNameQbp,
+            JobDescription = j0.JobDescription,
+            JobPath = j0.JobPath,
+            ParallaxSlide1Text1 = displayTexts.Select(o => o.ParallaxSlide1Text1).ToList(),
+            ParallaxSlide1Text2 = displayTexts.Select(o => o.ParallaxSlide1Text2).ToList(),
+            RegistrationAllowPlayer = j0.BRegistrationAllowPlayer,
+            RegistrationAllowTeam = j0.BRegistrationAllowTeam,
+            ExpiryAdmin = j0.ExpiryAdmin,
+            ExpiryUsers = j0.ExpiryUsers,
+            Season = j0.Season,
+            Year = j0.Year,
+            JobTypeName = job.JobTypeName,
+            SportName = job.SportName,
+            AdnArb = j0.AdnArb,
+            AdnArbBillingOccurences = j0.AdnArbbillingOccurences,
+            AdnArbIntervalLength = j0.AdnArbintervalLength,
+            AdnArbStartDate = j0.AdnArbstartDate,
+            AddProcessingFees = j0.BAddProcessingFees,
+            ApplyProcessingFeesToTeamDeposit = j0.BApplyProcessingFeesToTeamDeposit,
+            TeamsFullPaymentRequired = j0.BTeamsFullPaymentRequired,
+            PaymentMethodsAllowedCode = j0.PaymentMethodsAllowedCode,
+            PlayerRegRefundPolicy = j0.PlayerRegRefundPolicy,
+            BillingTypeName = job.BillingTypeName,
+            PerPlayerCharge = j0.PerPlayerCharge,
+            PerTeamCharge = j0.PerTeamCharge,
+            CoreRegformPlayer = j0.CoreRegformPlayer,
+            OfferPlayerRegsaverInsurance = j0.BOfferPlayerRegsaverInsurance,
+            UseWaitlists = j0.BUseWaitlists,
+            AllowRosterViewPlayer = j0.BAllowRosterViewPlayer,
+            RestrictPlayerTeamsToAgerange = j0.BRestrictPlayerTeamsToAgerange,
+            PlayerRegMultiPlayerDiscountPercent = j0.PlayerRegMultiPlayerDiscountPercent,
+            RegformNameClubRep = j0.RegformNameClubRep,
+            RegformNameCoach = j0.RegformNameCoach,
+            RegformNameTeam = j0.RegformNameTeam,
+            AllowRosterViewAdult = j0.BAllowRosterViewAdult,
+            ClubRepAllowEdit = j0.BClubRepAllowEdit,
+            ClubRepAllowDelete = j0.BClubRepAllowDelete,
+            ClubRepAllowAdd = j0.BClubRepAllowAdd,
+            ScheduleAllowPublicAccess = j0.BScheduleAllowPublicAccess,
+            AllowMobileLogin = j0.BAllowMobileLogin,
+            SuspendPublic = j0.BSuspendPublic,
+            AllowMobileRegn = j0.BAllowMobileRegn,
+            EnableTsicTeams = j0.BEnableTsicteams,
+        };
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════
