@@ -2763,12 +2763,28 @@ public class ReportingRepository : IReportingRepository
         var tomorrow = now.Date.AddDays(1).ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
         var thisYear = now.Year.ToString(CultureInfo.InvariantCulture);
 
+        return await CountRegionalTeamPlayersAsync(
+            jobs.Where(j => j.Year != null).Select(j => (j.JobId, j.JobName, j.Year!)).ToList(),
+            jobYear => DateTime.Parse(
+                tomorrow.Replace(thisYear, jobYear, StringComparison.OrdinalIgnoreCase),
+                CultureInfo.GetCultureInfo("en-US")),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Active players by team name for a set of regional jobs, in total and registered on or
+    /// before each job year's cutoff. One grouped query per job year. Waitlist and dropped teams
+    /// (by name) and unnamed teams are left out.
+    /// </summary>
+    private async Task<List<RegionalTeamPlayerCountDto>> CountRegionalTeamPlayersAsync(
+        IReadOnlyCollection<(Guid JobId, string? JobName, string Year)> jobs,
+        Func<string, DateTime> cutoffForJobYear,
+        CancellationToken cancellationToken)
+    {
         var counts = new List<RegionalTeamPlayerCountDto>();
-        foreach (var sameYear in jobs.Where(j => j.Year != null).GroupBy(j => j.Year!))
+        foreach (var sameYear in jobs.GroupBy(j => j.Year))
         {
-            var cutoff = DateTime.Parse(
-                tomorrow.Replace(thisYear, sameYear.Key, StringComparison.OrdinalIgnoreCase),
-                CultureInfo.GetCultureInfo("en-US"));
+            var cutoff = cutoffForJobYear(sameYear.Key);
             var jobIds = sameYear.Select(j => j.JobId).ToList();
 
             var teams = await (
@@ -2802,6 +2818,62 @@ public class ReportingRepository : IReportingRepository
         }
 
         return counts;
+    }
+
+    public async Task<RegionalPlayerCountsDto> GetRegionalPlayerCountsByNamePrefixAsync(
+        Guid jobId,
+        DateTime now,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the data behind utility.AmericanSelect_CountsAtYear_ByTeamII, which
+        // builds five dynamic pivots over the same rows. The jobs are the customer's jobs whose
+        // name starts with the invoking job's name up to and including its first colon, other
+        // than Main and Showcase events. The year columns are those jobs' distinct years.
+        var job = await _context.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.CustomerId, j.JobName })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (job?.JobName == null)
+        {
+            return new RegionalPlayerCountsDto { NamePrefix = null, Years = [], Counts = [] };
+        }
+
+        var prefix = job.JobName[..(job.JobName.IndexOf(':') + 1)];
+        var prefixUpper = prefix.ToUpper();
+        var jobs = await _context.Jobs.AsNoTracking()
+            .Where(j => j.CustomerId == job.CustomerId
+                && j.JobName != null
+                && j.JobName.ToUpper().StartsWith(prefixUpper)
+                && !j.JobName.ToUpper().Contains("MAIN")
+                && !j.JobName.ToUpper().Contains("SHOWCASE"))
+            .OrderBy(j => j.Year)
+            .Select(j => new { j.JobId, j.JobName, j.Year })
+            .ToListAsync(cancellationToken);
+
+        // "To date" is measured against TOMORROW: for a job year still ahead, tomorrow itself;
+        // otherwise tomorrow's month and day in the job's year, and a year earlier still when
+        // run in October to December (registration for a year opens the autumn before).
+        var tomorrow = now.Date.AddDays(1);
+        DateTime CutoffFor(string jobYear)
+        {
+            var year = int.Parse(jobYear, NumberStyles.Integer, CultureInfo.InvariantCulture);
+            if (year > tomorrow.Year)
+            {
+                return tomorrow;
+            }
+
+            var sameDay = new DateTime(year, tomorrow.Month, tomorrow.Day);
+            return tomorrow.Month >= 10 ? sameDay.AddYears(-1) : sameDay;
+        }
+
+        var withYear = jobs.Where(j => j.Year != null).Select(j => (j.JobId, j.JobName, j.Year!)).ToList();
+        return new RegionalPlayerCountsDto
+        {
+            NamePrefix = prefix,
+            // Already in the database's order; distinct without regard to case, as there.
+            Years = withYear.Select(j => j.Item3).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            Counts = await CountRegionalTeamPlayersAsync(withYear, CutoffFor, cancellationToken),
+        };
     }
 
     // reporting.RegsaverRegistrants_Charlie hard-wires the customers whose payouts it reports:
@@ -2954,6 +3026,172 @@ public class ReportingRepository : IReportingRepository
             ? merged.OrderBy(x => x.Key.RootRank).ThenBy(x => x.Key.ClubRank).ThenBy(x => x.Key.Year)
             : merged.OrderBy(x => x.Key.RootRank).ThenBy(x => x.Key.Year).ThenBy(x => x.Key.ClubRank);
         return ordered.Select(x => x.Row).ToList();
+    }
+
+    // adn.monthlycustomerrollups hard-wires three customer groups; a customer in one of them gets
+    // the whole group's report. STEPS: CPBLL, G8, Lax For The Cure, Live Love Lax, Maryland Cup,
+    // STEPS Lacrosse, STEPS Lacrosse California, USA Lacrosse, XPO.
+    private static readonly Guid[] RollupStepsGroupCustomerIds =
+    [
+        new("ed573c65-944d-4e4e-8284-b41a8ba19286"),
+        new("c75b4c3d-a628-4ad8-b197-435921a5cf03"),
+        new("150db9a4-0e6d-43d4-a7f8-03dfc740ccd1"),
+        new("122178d9-4bef-4fc7-9cdc-7393efc1966d"),
+        new("ec268f1b-ae4d-4646-8c57-d222edb30fca"),
+        new("f4eaaed0-8eb9-de11-8905-00137250256d"),
+        new("0ea213ce-d975-4cc7-9312-88562db6d8c5"),
+        new("1c55d2cf-3d74-47c8-862c-533960f4c0ce"),
+        new("b818d018-8f4b-43a5-98d6-dfd5f52e6e4c"),
+    ];
+
+    // Yellow Jackets: Dutchess, North, Rockland, Mid Atlantic, Rivalry Challenge and Showcase.
+    private static readonly Guid[] RollupYellowJacketsGroupCustomerIds =
+    [
+        new("ee92d2b8-209b-489c-83c3-de25ad83feb0"),
+        new("4bdb07a7-38a1-402f-90dc-305cb525c37d"),
+        new("f29428b1-65d4-404e-ae8d-87a859cac20f"),
+        new("c1a71a62-1607-4a3d-a74c-0a231ded05ca"),
+        new("72b90fd8-51ac-4f45-aff7-896e95577a1e"),
+    ];
+
+    // Top of the Bay Lacrosse and the two Live Love Lax Showcase customers.
+    private static readonly Guid[] RollupTopOfTheBayGroupCustomerIds =
+    [
+        new("4ff492dd-c51b-4f7b-bc93-4c6545d309a2"),
+        new("be9ecdf1-6bb0-4560-acee-4ce4c127340b"),
+        new("024415d9-8918-42c3-91d4-d85f0077d652"),
+    ];
+
+    // The proc's fallback card fee percentage for a job that has none of its own.
+    private const decimal RollupDefaultProcessingFeePercent = 3.5m;
+
+    public async Task<MonthlyCustomerRollupDto> GetMonthlyCustomerRollupAsync(
+        Guid jobId,
+        DateTime periodStart,
+        DateTime periodEnd,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the data loads of adn.monthlycustomerrollups. Card money comes from
+        // the gateway's settled transactions (the adn.vtxs VIEW) joined to accounting records
+        // by transaction id, dated by SETTLEMENT; check money comes from accounting records
+        // dated by entry. A job is reported only when it has settled card activity AND a
+        // statistics row for the month (the proc's LEFT join to the statistics is filtered in
+        // its WHERE, which makes it an inner join); a job with checks alone is not reported.
+        var customerId = await _context.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (Guid?)j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (customerId == null)
+        {
+            return new MonthlyCustomerRollupDto { Jobs = [] };
+        }
+
+        var stepsGroup = RollupStepsGroupCustomerIds.Contains(customerId.Value);
+        var customerIds = new List<Guid> { customerId.Value };
+        foreach (var group in new[] { RollupStepsGroupCustomerIds, RollupYellowJacketsGroupCustomerIds, RollupTopOfTheBayGroupCustomerIds })
+        {
+            if (group.Contains(customerId.Value))
+            {
+                customerIds.AddRange(group.Where(id => id != customerId.Value));
+            }
+        }
+
+        // One row per settled transaction, in job-name order BY THE DATABASE: the report numbers
+        // its jobs in that order. "NOT status IN (…)" also drops a null status.
+        var settled = await (
+            from ra in _context.RegistrationAccounting.AsNoTracking()
+            join apm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm.PaymentMethodId
+            join r in _context.Registrations on ra.RegistrationId equals (Guid?)r.RegistrationId
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            join tx in _context.VTxs on ra.AdnTransactionId equals tx.TransactionId
+            where customerIds.Contains(c.CustomerId)
+                && (apm.PaymentMethod == "Credit Card Payment" || apm.PaymentMethod == "Credit Card Credit")
+                && tx.SettlementTs >= periodStart && tx.SettlementTs < periodEnd
+                && tx.TransactionStatus != null
+                && tx.TransactionStatus != "Declined" && tx.TransactionStatus != "Voided"
+            orderby j.JobName, j.JobId
+            select new
+            {
+                c.CustomerName,
+                j.JobId,
+                j.JobName,
+                j.ProcessingFeePercent,
+                j.PerPlayerCharge,
+                j.PerTeamCharge,
+                IsPayment = apm.PaymentMethod == "Credit Card Payment",
+                Amount = tx.SettlementAmount,
+            })
+            .ToListAsync(cancellationToken);
+
+        var jobIds = settled.Select(s => s.JobId).Distinct().ToList();
+
+        var stats = await _context.MonthlyJobStats.AsNoTracking()
+            .Where(m => jobIds.Contains(m.JobId) && m.Year == periodStart.Year && m.Month == periodStart.Month)
+            .Select(m => new { m.JobId, m.CountNewPlayersThisMonth, m.CountNewTeamsThisMonth })
+            .ToListAsync(cancellationToken);
+
+        var checks = await (
+            from ra in _context.RegistrationAccounting.AsNoTracking()
+            join apm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm.PaymentMethodId
+            join r in _context.Registrations on ra.RegistrationId equals (Guid?)r.RegistrationId
+            join j in _context.Jobs on r.JobId equals j.JobId
+            where customerIds.Contains(j.CustomerId)
+                && (apm.PaymentMethod == "Check Payment By Client" || apm.PaymentMethod == "Check Payment By TSIC")
+                && ra.Createdate >= periodStart && ra.Createdate < periodEnd
+                && ra.Active == true
+            group ra by r.JobId into g
+            select new { JobId = g.Key, Amount = g.Sum(x => x.Payamt) })
+            .ToListAsync(cancellationToken);
+        var checkByJob = checks.ToDictionary(c => c.JobId, c => c.Amount);
+
+        // SQL's SUM skips nulls and is null when nothing is left; "CASE … ELSE 0" contributes a
+        // zero for the other payment method, so a sum is null only if every amount it saw was.
+        static decimal? SumOrNull(IEnumerable<decimal?> values)
+        {
+            decimal? total = null;
+            foreach (var v in values)
+            {
+                if (v != null)
+                {
+                    total = (total ?? 0m) + v.Value;
+                }
+            }
+
+            return total;
+        }
+
+        var statsByJob = stats.ToLookup(s => s.JobId);
+        var jobs = new List<MonthlyCustomerRollupJobDto>();
+        foreach (var job in settled.GroupBy(s => s.JobId))
+        {
+            var first = job.First();
+            foreach (var month in statsByJob[job.Key])
+            {
+                jobs.Add(new MonthlyCustomerRollupJobDto
+                {
+                    CustomerName = first.CustomerName,
+                    JobId = job.Key,
+                    JobName = first.JobName,
+                    CardRevenue = SumOrNull(job.Select(s => s.IsPayment ? s.Amount : 0m)),
+                    CardRefunds = SumOrNull(job.Select(s => s.IsPayment ? 0m : s.Amount)),
+                    SettledAbsolute = SumOrNull(job.Select(s => s.Amount == null ? (decimal?)null : Math.Abs(s.Amount.Value))),
+                    ProcessingFeePercent = first.ProcessingFeePercent ?? RollupDefaultProcessingFeePercent,
+                    NewPlayers = month.CountNewPlayersThisMonth,
+                    NewTeams = month.CountNewTeamsThisMonth,
+                    PerPlayerCharge = first.PerPlayerCharge,
+                    PerTeamCharge = first.PerTeamCharge,
+                    CheckRevenue = checkByJob.TryGetValue(job.Key, out var check) ? check : null,
+                });
+            }
+        }
+
+        return new MonthlyCustomerRollupDto
+        {
+            SpansCustomerGroup = customerIds.Count > 1,
+            StepsGroup = stepsGroup,
+            Jobs = jobs,
+        };
     }
 
     public async Task<JobCloneQaDto?> GetJobCloneQaAsync(

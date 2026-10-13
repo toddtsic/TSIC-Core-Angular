@@ -112,3 +112,18 @@ public record JobCloneQaDto
     public bool? AllowMobileRegn { get; init; }
     public bool? EnableTsicTeams { get; init; }
 }
+
+/// <summary>
+/// Player counts across the regional jobs that share the invoking job's name prefix — the EF
+/// replacement for the data behind the <c>utility.AmericanSelect_CountsAtYear_ByTeamII</c> proc.
+/// </summary>
+public record RegionalPlayerCountsDto
+{
+    /// <summary>The job name up to and including its first colon; null when the job is unknown.</summary>
+    public string? NamePrefix { get; init; }
+
+    /// <summary>The distinct job years, in order: one pair of report columns each.</summary>
+    public required List<string> Years { get; init; }
+
+    public required List<RegionalTeamPlayerCountDto> Counts { get; init; }
+}

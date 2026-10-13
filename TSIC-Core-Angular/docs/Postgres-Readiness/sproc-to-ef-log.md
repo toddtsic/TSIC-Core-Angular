@@ -65,6 +65,8 @@ procedure is never called.
 | 2026-10-13 | `reporting.RegsaverRegistrants_Charlie` | Ignores its job; hard-wired customer list; `money / 2`; 2 sheets | Run once, 9,628 rows over both sheets, 0 differences | `money` division truncates; see below |
 | 2026-10-13 | `reporting.TournyYearOverYearClubTeams` | `GROUPING SETS` into a temp table, then a DYNAMIC `PIVOT` with data-driven columns | 79 customers, 8,190 rows over both sheets, 0 differences, 27 spelling-only; proc ERRORS for 1 customer | First dynamic pivot; see below |
 | 2026-10-13 | `utility.JobCloneQA` | 46 single-row inserts into a `varchar` table variable, every type implicitly cast to text | 1,126 jobs, 51,796 rows, 7 rows differ (non-1252 text, see below) | Implicit casts to text; see below |
+| 2026-10-13 | `utility.AmericanSelect_CountsAtYear_ByTeamII` | Five DYNAMIC pivots built with `STRING_AGG`, job name and customer id spliced into the SQL text; 5 sheets | 82 customer/prefix scopes, 3,217 rows, 0 differences, 0 reordered; 8 degenerate scopes differ in shape; proc ERRORS on 3 | EF 25 s total vs proc 234 s; see below |
+| 2026-10-13 | `adn.monthlycustomerrollups` | Money. Hard-wired customer groups; 5 table variables; `ROW_NUMBER`; an `UPDATE` of a table variable; three output layouts; reads the `adn.vtxs` VIEW | 79 customers, 197 rows, 0 differences, 0 reordered | EF 83 s total vs proc 82 s; the view is the cost; see below |
 
 ## UI passes
 
@@ -449,3 +451,37 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
   version returns the text as stored.
 - **Behaviour change 4:** `TournyYearOverYearClubTeams` fails (error 245) for the one customer
   owning the job whose year is `all `. The EF version returns that customer's report.
+
+### American Select counts II and the monthly customer rollups
+
+- **Time both sides before blaming either.** The harness now reports EF and procedure time
+  (total and slowest single run). Counts II: EF 24.7 s over 83 runs (slowest 2.1 s), procedure
+  233.8 s (slowest 36.4 s, past the app's 30 s timeout). Monthly rollups: EF 82.7 s over 80 runs
+  (slowest 6.5 s), procedure 81.5 s (slowest 3.6 s).
+- **Why the rollups cost a second per run on both paths:** `adn.vtxs` builds its settlement
+  date by PARSING TEXT (`[settlement date time]`, month names and substrings), so a date-range
+  filter on it scans every gateway transaction every time. One month read from the view takes
+  about 1.1 s regardless of customer. No query shape on top of the view avoids that; only a
+  real date column on `adn.Txs` would. Not changed here: it is a schema decision.
+- **PORT FLAG: this export depends on the `adn.vtxs` view**, which must exist on Postgres, and
+  its date parsing is T-SQL (`convert(datetime, 'MM/dd/yyyy hh:mm:ss')` from text).
+- **Preserved in the rollups:** the view already joins a transaction to its accounting records,
+  and the procedure joins the view to accounting records again, so a transaction id on two
+  records is counted four times. Same join in EF.
+- **Five dynamic pivots share one fetch.** Counts II ran the same base query five times with a
+  different `GROUP BY`. The EF version fetches player counts by job and team name once (one
+  grouped query per job year) and lays out all five sheets in C#.
+- **`ROW_NUMBER() OVER (ORDER BY name)`** is the row's position in a list the database returned
+  in that order.
+- **`UPDATE` of a table variable** is a lookup: fetch the second set, attach by key.
+- **A `LEFT JOIN` whose table is filtered in `WHERE` is an inner join** (the rollups' monthly
+  statistics). Converted as what it does.
+- **Behaviour change 5:** counts II splices the job name into dynamic SQL. A name with an
+  apostrophe before its colon (`Hero's …:`) is a syntax error (102) and the report fails; EF
+  returns it. Two such scopes locally.
+- **Behaviour change 6:** when no job matches (the invoking job's own prefix contains "Main" or
+  "Showcase"), the procedure emits five sheet markers and no data, and the app's reader files
+  two of the markers as data rows of the previous sheet: three sheets, two holding a stray
+  "QA Test: …" row. EF returns five empty sheets. Eight scopes locally.
+- **Both fail, as before:** a job year that is not a whole number fails the procedure (245) and
+  the EF version (it parses the same value). One scope locally.

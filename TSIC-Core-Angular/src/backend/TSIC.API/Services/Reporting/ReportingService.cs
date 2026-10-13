@@ -522,6 +522,7 @@ public sealed class ReportingService : IReportingService
             ["reporting.CathyCampBreakoutPerJob_PreviousMonth"] = (s, jobId, ct) => s.BuildCampBreakoutPreviousMonthSheetAsync(jobId, ct),
             ["utility.AmericanSelect_CountsAtYear_ByTeam"] = (s, jobId, ct) => s.BuildRegionalTeamCountsSheetAsync(jobId, ct),
             ["utility.JobCloneQA"] = (s, jobId, ct) => s.BuildJobCloneQaSheetAsync(jobId, ct),
+            ["adn.monthlycustomerrollups"] = (s, jobId, ct) => s.BuildMonthlyCustomerRollupSheetAsync(jobId, ct),
         };
 
     /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
@@ -534,6 +535,7 @@ public sealed class ReportingService : IReportingService
             ["reporting.RefAssignmentQA"] = (s, jobId, ct) => s.BuildRefAssignmentQaSheetsAsync(jobId, ct),
             ["reporting.RegsaverRegistrants_Charlie"] = (s, _, ct) => s.BuildRegsaverPayoutsSheetsAsync(ct),
             ["reporting.TournyYearOverYearClubTeams"] = (s, jobId, ct) => s.BuildClubTeamsYearOverYearSheetsAsync(jobId, ct),
+            ["utility.AmericanSelect_CountsAtYear_ByTeamII"] = (s, jobId, ct) => s.BuildRegionalYearToDateSheetsAsync(jobId, ct),
         };
 
     /// <summary>
@@ -1623,6 +1625,246 @@ public sealed class ReportingService : IReportingService
             rows,
             ["Region", "JobYear", "Agerange", "YTD", "FinalCount"],
             r => [r.Region, r.JobYear, r.Class, r.ToDate, r.Final]);
+    }
+
+    /// <summary>
+    /// The five sheets of the regional year-to-date counts. Three write each year as
+    /// "to-date of total" text ("YTD By Region and Grad", "YTD By Region", "YTD Rollup"); two
+    /// are laid out like a spreadsheet pivot with a to-date and a total number per year ("YTD
+    /// Pivot Region+Grad", "YTD Pivot Region"). A team's class is the first four-digit number in
+    /// its name less the job's year; teams outside the five classes are not counted. A job year
+    /// that is not a whole number fails the export, as it failed the procedure.
+    /// </summary>
+    private async Task<List<SheetData>> BuildRegionalYearToDateSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetRegionalPlayerCountsByNamePrefixAsync(jobId, DateTime.Now, cancellationToken);
+        var years = data.Years;
+
+        // The proc's PATINDEX: the first four digits in a row, or nothing.
+        static int? FirstFourDigitNumber(string name)
+        {
+            for (var i = 0; i + 4 <= name.Length; i++)
+            {
+                if (char.IsAsciiDigit(name[i]) && char.IsAsciiDigit(name[i + 1])
+                    && char.IsAsciiDigit(name[i + 2]) && char.IsAsciiDigit(name[i + 3]))
+                {
+                    return int.Parse(name.AsSpan(i, 4), CultureInfo.InvariantCulture);
+                }
+            }
+
+            return null;
+        }
+
+        static string? GradeLevel(int yearsOut) => yearsOut switch
+        {
+            1 => "1:Seniors",
+            2 => "2:Juniors",
+            3 => "3:Sophomores",
+            4 => "4:Freshmen",
+            5 => "5:8thGrade",
+            _ => null,
+        };
+
+        var facts = data.Counts
+            .Select(c =>
+            {
+                var jobYear = int.Parse(c.Year!, NumberStyles.Integer, CultureInfo.InvariantCulture);
+                var gradYear = FirstFourDigitNumber(c.TeamName!);
+                return new
+                {
+                    // The job name without its last five characters (" 2026") and without the prefix.
+                    Region = SqlReplace(SqlReplace(c.JobName, SqlRight(c.JobName, 5), ""), data.NamePrefix, ""),
+                    Level = gradYear == null ? null : GradeLevel(gradYear.Value - jobYear),
+                    c.Year,
+                    c.Players,
+                    c.PlayersToDate,
+                };
+            })
+            .Where(f => f.Level != null)
+            .OrderBy(f => f.Region, SqlTextOrder).ThenBy(f => f.Level, StringComparer.Ordinal)
+            .ToList();
+
+        int ToDate(IEnumerable<int> rows, string year) =>
+            rows.Sum(i => SqlEquals(facts[i].Year, year) ? facts[i].PlayersToDate : 0);
+        int Total(IEnumerable<int> rows, string year) =>
+            rows.Sum(i => SqlEquals(facts[i].Year, year) ? facts[i].Players : 0);
+        IEnumerable<object?> AsText(List<int> rows) => years.Select(y =>
+            (object?)string.Create(CultureInfo.InvariantCulture, $"{ToDate(rows, y)} of {Total(rows, y)}"));
+        IEnumerable<object?> AsNumbers(List<int> rows) =>
+            years.SelectMany(y => new object?[] { ToDate(rows, y), Total(rows, y) });
+
+        // Index runs: every fact, each region, and each grade level within a region.
+        var all = Enumerable.Range(0, facts.Count).ToList();
+
+        var byRegionAndGrade = new List<object?[]>();
+        var byRegion = new List<object?[]>();
+        var pivotRegionAndGrade = new List<object?[]>();
+        var pivotRegion = new List<object?[]>();
+        foreach (var region in RunsOf(all, i => facts[i].Region))
+        {
+            var name = facts[region[0]].Region;
+            byRegion.Add([name, .. AsText(region)]);
+            pivotRegion.Add([name, .. AsNumbers(region)]);
+            pivotRegionAndGrade.Add(["= " + name, .. AsNumbers(region)]);
+            foreach (var grade in RunsOf(region, i => facts[i].Level))
+            {
+                var level = facts[grade[0]].Level;
+                byRegionAndGrade.Add([name, level, .. AsText(grade)]);
+                pivotRegionAndGrade.Add(["  " + level, .. AsNumbers(grade)]);
+            }
+        }
+
+        // The proc files the grand total under a region named "ZZZZ" so that it sorts last.
+        if (facts.Count > 0)
+        {
+            pivotRegionAndGrade.Add(["Grand Total", .. AsNumbers(all)]);
+            pivotRegion.Add(["Grand Total", .. AsNumbers(all)]);
+        }
+
+        // With no year there is no column list and the proc returns nothing at all; with years
+        // but no players the rollup still returns its one row of "0 of 0".
+        var rollup = new List<object?[]>();
+        if (years.Count > 0)
+        {
+            rollup.Add(["TOTAL", .. AsText(all)]);
+        }
+
+        string[] pivotColumns = ["Row Labels", .. years.SelectMany(y => new[] { y + "_YTD", y + "_Total" })];
+        return
+        [
+            ToSheet("YTD By Region and Grad", byRegionAndGrade, ["Region", "GradeLevel", .. years], r => r),
+            ToSheet("YTD By Region", byRegion, ["Region", .. years], r => r),
+            ToSheet("YTD Rollup", rollup, ["Summary", .. years], r => r),
+            ToSheet("YTD Pivot Region+Grad", pivotRegionAndGrade, pivotColumns, r => r),
+            ToSheet("YTD Pivot Region", pivotRegion, pivotColumns, r => r),
+        ];
+    }
+
+    /// <summary>One line of the monthly revenue rollup, with the two numbers the proc orders by.</summary>
+    private sealed record RollupLine(
+        string? CustomerName,
+        string? JobName,
+        decimal? CheckRevenue,
+        decimal? CardRevenue,
+        decimal? CardFees,
+        decimal? CardRefunds,
+        decimal? TsicFees,
+        decimal? NetDeposit,
+        int JobIndex,
+        int CustomerIndex);
+
+    /// <summary>SQL <c>SUM</c>: nulls are skipped, and the total is null when nothing is left.</summary>
+    private static decimal? SqlSum(IEnumerable<decimal?> values)
+    {
+        decimal? total = null;
+        foreach (var value in values)
+        {
+            if (value != null)
+            {
+                total = (total ?? 0m) + value.Value;
+            }
+        }
+
+        return total;
+    }
+
+    /// <summary>
+    /// "Monthly Revenues" sheet for LAST calendar month: a line per job with settled card
+    /// activity, a summary line per customer after that customer's last job, and for a customer
+    /// group an "ALL CUSTOMERS SUMMARY" line at the end. Three layouts, as in the proc: a single
+    /// customer has no customer column; the STEPS group has no per-customer summaries; the other
+    /// groups have both. Every amount is US currency text.
+    /// The card fee is the settled volume (payments and refunds, unsigned) at the job's rate,
+    /// rounded to cents; the net deposit is card payments less that fee, plus refunds (which are
+    /// negative), less TSIC's per-player and per-team charges on the month's new registrations.
+    /// </summary>
+    private async Task<SheetData> BuildMonthlyCustomerRollupSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var now = DateTime.Now;
+        var periodStart = new DateTime(now.Year, now.Month, 1).AddMonths(-1);
+        var data = await _reportingRepository.GetMonthlyCustomerRollupAsync(
+            jobId, periodStart, periodStart.AddMonths(1), cancellationToken);
+        var period = periodStart.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+
+        // Jobs arrive in job-name order and are numbered in it, overall and within a customer.
+        static string CustomerKey(string? name) => name?.TrimEnd(' ').ToUpperInvariant() ?? "\0";
+        var perCustomer = new Dictionary<string, int>();
+        var lines = new List<RollupLine>();
+        foreach (var job in data.Jobs)
+        {
+            var key = CustomerKey(job.CustomerName);
+            perCustomer[key] = perCustomer.GetValueOrDefault(key) + 1;
+
+            var cardFees = job.SettledAbsolute == null
+                ? (decimal?)null
+                : Math.Round(job.SettledAbsolute.Value * job.ProcessingFeePercent!.Value / 100, 2, MidpointRounding.AwayFromZero);
+            var tsicFees = (job.NewPlayers * (job.PerPlayerCharge ?? 0m)) + (job.NewTeams * (job.PerTeamCharge ?? 0m));
+            lines.Add(new RollupLine(
+                job.CustomerName, job.JobName, job.CheckRevenue, job.CardRevenue, cardFees, job.CardRefunds, tsicFees,
+                job.CardRevenue - cardFees + job.CardRefunds - tsicFees,
+                lines.Count + 1, perCustomer[key]));
+        }
+
+        const int summaryIndex = 1000;
+        var jobLines = lines.ToList();
+        if (!(data.SpansCustomerGroup && data.StepsGroup))
+        {
+            lines.AddRange(jobLines
+                .GroupBy(l => CustomerKey(l.CustomerName))
+                .Select(g => new RollupLine(
+                    g.First().CustomerName,
+                    SqlConcat(g.First().CustomerName, " CUSTOMER JOBS SUMMARY ", period),
+                    g.Sum(l => l.CheckRevenue ?? 0m),
+                    SqlSum(g.Select(l => l.CardRevenue)),
+                    SqlSum(g.Select(l => l.CardFees)),
+                    SqlSum(g.Select(l => l.CardRefunds)),
+                    SqlSum(g.Select(l => l.TsicFees)),
+                    SqlSum(g.Select(l => l.NetDeposit)),
+                    g.Max(l => l.JobIndex),
+                    summaryIndex)));
+        }
+
+        // An aggregate with no GROUP BY returns its row even over nothing, so a group's report
+        // always ends with this line.
+        if (data.SpansCustomerGroup)
+        {
+            lines.Add(new RollupLine(
+                "ALL CUSTOMERS SUMMARY " + period,
+                string.Empty,
+                SqlSum(jobLines.Select(l => l.CheckRevenue)),
+                SqlSum(jobLines.Select(l => l.CardRevenue)),
+                SqlSum(jobLines.Select(l => l.CardFees)),
+                SqlSum(jobLines.Select(l => l.CardRefunds)),
+                SqlSum(jobLines.Select(l => l.TsicFees)),
+                SqlSum(jobLines.Select(l => l.NetDeposit)),
+                summaryIndex,
+                summaryIndex));
+        }
+
+        var ordered = lines.OrderBy(l => l.JobIndex).ThenBy(l => l.CustomerIndex).ToList();
+
+        static string? Currency(decimal? amount) => amount?.ToString("C2", SqlUsCurrency);
+        static object?[] Amounts(RollupLine l) =>
+        [
+            Currency(l.CheckRevenue ?? 0m), Currency(l.CardRevenue), Currency(l.CardRefunds),
+            Currency(l.CardRevenue + l.CardRefunds), Currency(l.CardFees), Currency(l.TsicFees),
+            Currency(l.NetDeposit),
+        ];
+
+        string[] amountColumns =
+            ["checkRevenue", "ccTotalRevenue", "ccRefunds", "ccNetRevenue", "ccFees", "tsicFees", "netDeposit"];
+
+        return data.SpansCustomerGroup
+            ? ToSheet(
+                "Monthly Revenues",
+                ordered,
+                ["customerName", "jobName", .. amountColumns],
+                l => [l.CustomerName, l.JobName, .. Amounts(l)])
+            : ToSheet(
+                "Monthly Revenues",
+                ordered,
+                ["jobName", .. amountColumns],
+                l => [l.JobName, .. Amounts(l)]);
     }
 
     /// <summary>

@@ -671,6 +671,17 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The same counts for the customer's jobs sharing the invoking job's name prefix (up to its
+    /// first colon), with the distinct job years that become the report's columns — the EF
+    /// replacement for the data behind <c>utility.AmericanSelect_CountsAtYear_ByTeamII</c>.
+    /// "To date" follows that proc's own rule; <paramref name="now"/> is the caller's clock.
+    /// </summary>
+    Task<RegionalPlayerCountsDto> GetRegionalPlayerCountsByNamePrefixAsync(
+        Guid jobId,
+        DateTime now,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Insurance payouts matched to registrations of the fixed customer group, ordered year →
     /// month → job → name, plus the same matches by period — the EF replacement for
     /// <c>reporting.RegsaverRegistrants_Charlie</c>. NOT job-scoped: the proc ignores its job.
@@ -697,6 +708,18 @@ public interface IReportingRepository
     /// </summary>
     Task<JobCloneQaDto?> GetJobCloneQaAsync(
         Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Settled card revenue, check revenue and new-registration counts by job for the period
+    /// [<paramref name="periodStart"/>, <paramref name="periodEnd"/>), for the job's customer or
+    /// the fixed customer group it belongs to — the EF replacement for the data behind
+    /// <c>adn.monthlycustomerrollups</c>. Customer-scoped via the job.
+    /// </summary>
+    Task<MonthlyCustomerRollupDto> GetMonthlyCustomerRollupAsync(
+        Guid jobId,
+        DateTime periodStart,
+        DateTime periodEnd,
         CancellationToken cancellationToken = default);
 
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
