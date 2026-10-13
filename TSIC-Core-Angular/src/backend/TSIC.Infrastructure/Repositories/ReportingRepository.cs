@@ -12,7 +12,7 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
 
-public class ReportingRepository : IReportingRepository
+public partial class ReportingRepository : IReportingRepository
 {
     private const string KindStoredProcedure = "StoredProcedure";
     private const string KindBoldReport = "BoldReport";

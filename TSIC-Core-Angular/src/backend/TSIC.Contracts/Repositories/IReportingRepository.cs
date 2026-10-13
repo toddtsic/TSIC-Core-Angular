@@ -810,6 +810,53 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Everything the registration month-end close reads for one settlement month — the EF
+    /// replacement for the data loads of <c>adn.MonthyQBPExport_Automated</c> and the five
+    /// procedures it runs for its sheets. Cross-job.
+    /// </summary>
+    Task<MonthEndRegistrationDataDto> GetMonthEndRegistrationDataAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Everything the merchandise month-end close reads for one settlement month — the EF
+    /// replacement for the data load of <c>adn.MonthyQBPExport_Automated_Merch</c>. Cross-job.
+    /// </summary>
+    Task<MonthEndMerchandiseDataDto> GetMonthEndMerchandiseDataAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>The stored billing counts (adn.Monthly_Job_Stats) of one month, oldest-written first.</summary>
+    Task<List<MonthEndJobStatDto>> GetMonthlyJobStatsAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The billing counts of one month for every job with player or team activity in it, worked
+    /// out afresh — the EF replacement for the calculation in
+    /// <c>adn.UpdateMonthlyJobStats_CalcFields</c>. Stores nothing; a job is returned whether or
+    /// not the month already has a row for it.
+    /// </summary>
+    Task<List<MonthEndJobStatDto>> ComputeMonthlyJobStatsAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stores the month's billing counts for every job that has activity in it and no row for
+    /// the month yet — the EF replacement for the write in
+    /// <c>adn.UpdateMonthlyJobStats_CalcFields</c>. A job already stored for the month is left
+    /// exactly as it is. Returns how many rows were added.
+    /// </summary>
+    Task<int> AddMissingMonthlyJobStatsAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Every insurance payout, and every policy held by a registration or a team — the EF
     /// replacement for the data loads of <c>reporting.RegsaverRegistrants_ALL</c>. Cross-job.
     /// </summary>

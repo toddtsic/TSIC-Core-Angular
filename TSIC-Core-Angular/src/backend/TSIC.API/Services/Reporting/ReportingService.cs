@@ -25,7 +25,7 @@ using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Reporting;
 
-public sealed class ReportingService : IReportingService
+public sealed partial class ReportingService : IReportingService
 {
     private readonly IReportingRepository _reportingRepository;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -3121,6 +3121,17 @@ public sealed class ReportingService : IReportingService
         bool isMerchandise,
         CancellationToken cancellationToken = default)
     {
+        if (isMerchandise)
+        {
+            var sheets = await BuildMonthEndMerchandiseSheetsAsync(settlementMonth, settlementYear, cancellationToken);
+            return new ReportExportResult
+            {
+                FileBytes = ExcelWorkbookWriter.Build(sheets),
+                ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                FileName = "TSICExcelExport.xlsx"
+            };
+        }
+
         var (reader, connection) = await _reportingRepository.ExecuteMonthlyReconciliationAsync(
             settlementMonth, settlementYear, isMerchandise, cancellationToken);
 
@@ -3340,6 +3351,11 @@ public sealed class ReportingService : IReportingService
         bool isMerchandise,
         CancellationToken cancellationToken)
     {
+        if (isMerchandise)
+        {
+            return await BuildMonthEndMerchandiseSheetsAsync(settlementMonth, settlementYear, cancellationToken);
+        }
+
         var (reader, connection) = await _reportingRepository.ExecuteMonthlyReconciliationAsync(
             settlementMonth, settlementYear, isMerchandise, cancellationToken);
         try
