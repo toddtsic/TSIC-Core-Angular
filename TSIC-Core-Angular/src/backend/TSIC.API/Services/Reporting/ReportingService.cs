@@ -12,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Syncfusion.XlsIO;
+using TSIC.API.Services.Scheduling;
 using TSIC.API.Services.Shared.Files;
 using SheetData = TSIC.API.Services.Shared.Files.ExcelSheet;
 using TSIC.API.Configuration;
@@ -19,6 +20,7 @@ using TSIC.API.Utilities;
 using TSIC.Contracts.Configuration;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Reporting;
@@ -30,6 +32,7 @@ public sealed class ReportingService : IReportingService
     private readonly IHostEnvironment _hostEnvironment;
     private readonly ReportingSettings _settings;
     private readonly FileStorageOptions _fileStorage;
+    private readonly IScheduleQaService _scheduleQaService;
     private readonly ILogger<ReportingService> _logger;
 
     private static readonly JsonSerializerOptions MonthEndJsonOptions = new(JsonSerializerDefaults.Web);
@@ -40,6 +43,7 @@ public sealed class ReportingService : IReportingService
         IHostEnvironment hostEnvironment,
         IOptions<ReportingSettings> settings,
         IOptions<FileStorageOptions> fileStorage,
+        IScheduleQaService scheduleQaService,
         ILogger<ReportingService> logger)
     {
         _reportingRepository = reportingRepository;
@@ -47,6 +51,7 @@ public sealed class ReportingService : IReportingService
         _hostEnvironment = hostEnvironment;
         _settings = settings.Value;
         _fileStorage = fileStorage.Value;
+        _scheduleQaService = scheduleQaService;
         _logger = logger;
     }
 
@@ -420,6 +425,20 @@ public sealed class ReportingService : IReportingService
     {
         // Procs already reproduced in EF keep their catalogue row (and so their spName-keyed
         // entitlement + export history) but never reach SQL Server as a proc call.
+        // The Schedule QA procedure was replaced by the scheduling QA service long before this
+        // seam existed. Its catalogue entry downloads the same workbook the QA Results view does;
+        // the layout is that workbook's, not the procedure's.
+        if (IsScheduleQaProcedure(spName))
+        {
+            var qa = await _scheduleQaService.RunValidationAsync(jobId, cancellationToken);
+            return new ReportExportResult
+            {
+                FileBytes = ScheduleQaWorkbook.Build(qa),
+                ContentType = ExcelWorkbookWriter.XlsxContentType,
+                FileName = "TSICExcelExport.xlsx"
+            };
+        }
+
         var efSheets = await BuildEfReplacementSheetsAsync(spName, jobId, cancellationToken);
         if (efSheets != null)
         {
@@ -450,6 +469,13 @@ public sealed class ReportingService : IReportingService
             await connection.CloseAsync();
         }
     }
+
+    /// <summary>True for the catalogue's spName of the retired Schedule QA procedure, bracketed or not.</summary>
+    private static bool IsScheduleQaProcedure(string spName) =>
+        string.Equals(
+            spName.Replace("[", string.Empty).Replace("]", string.Empty).Trim(),
+            "utility.Schedule_QA_Tourny",
+            StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Sheets for an export-sp report whose proc has been reproduced in EF, or null when

@@ -67,6 +67,7 @@ procedure is never called.
 | 2026-10-13 | `utility.JobCloneQA` | 46 single-row inserts into a `varchar` table variable, every type implicitly cast to text | 1,126 jobs, 51,796 rows, 7 rows differ (non-1252 text, see below) | Implicit casts to text; see below |
 | 2026-10-13 | `utility.AmericanSelect_CountsAtYear_ByTeamII` | Five DYNAMIC pivots built with `STRING_AGG`, job name and customer id spliced into the SQL text; 5 sheets | 82 customer/prefix scopes, 3,217 rows, 0 differences, 0 reordered; 8 degenerate scopes differ in shape; proc ERRORS on 3 | EF 25 s total vs proc 234 s; see below |
 | 2026-10-13 | `adn.monthlycustomerrollups` | Money. Hard-wired customer groups; 5 table variables; `ROW_NUMBER`; an `UPDATE` of a table variable; three output layouts; reads the `adn.vtxs` VIEW | 79 customers, 197 rows, 0 differences, 0 reordered | EF 83 s total vs proc 82 s; the view is the cost; see below |
+| 2026-10-13 | `utility.Schedule_QA_Tourny` | 19 sheets, second parameter, hard-wired cross-event list | NOT converted and no parity: already replaced by `ScheduleQaService` (Scheduling Checklist, QA Results). Catalogue entry re-pointed at that workbook (Todd, 10-13) | Check the app before converting; see below |
 
 ## UI passes
 
@@ -485,3 +486,16 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
   "QA Test: …" row. EF returns five empty sheets. Eight scopes locally.
 - **Both fail, as before:** a job year that is not a whole number fails the procedure (245) and
   the EF version (it parses the same value). One scope locally.
+
+### Schedule_QA_Tourny: already replaced, only the catalogue still called it
+
+- **Search the app for a procedure's name before converting it.** The scheduling rebuild had
+  already replaced this procedure with `ScheduleQaService` and its own Excel export
+  (`GET api/schedule-qa/export-excel`). The Reports catalogue was the only thing still running
+  the procedure: one library row ("Schedule QA Results (Excel)") and 7 job shelves, 3 open.
+- **Ruling (Todd, 2026-10-13): the catalogue entry downloads the existing QA workbook.** The
+  workbook builder moved out of the controller into `ScheduleQaWorkbook` so both doors share
+  it; `ReportingService` recognises the procedure's name and returns that workbook. The file
+  is the QA workbook's layout (a Summary sheet, then a sheet per check that found something),
+  NOT the procedure's 19 sheets, so there is nothing to compare and no parity claim.
+- The catalogue row, entitlement and export history are unchanged.
