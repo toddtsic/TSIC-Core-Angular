@@ -439,7 +439,10 @@ public sealed class ReportingService : IReportingService
             };
         }
 
-        var efSheets = await BuildEfReplacementSheetsAsync(spName, jobId, cancellationToken);
+        // A builder sees the job the procedure would have been given: none when the export
+        // runs without one.
+        var efSheets = await BuildEfReplacementSheetsAsync(
+            spName, useJobId ? jobId : Guid.Empty, cancellationToken);
         if (efSheets != null)
         {
             return new ReportExportResult
@@ -568,6 +571,8 @@ public sealed class ReportingService : IReportingService
             ["reporting.RegsaverRegistrants_Charlie"] = (s, _, ct) => s.BuildRegsaverPayoutsSheetsAsync(ct),
             ["reporting.TournyYearOverYearClubTeams"] = (s, jobId, ct) => s.BuildClubTeamsYearOverYearSheetsAsync(jobId, ct),
             ["utility.AmericanSelect_CountsAtYear_ByTeamII"] = (s, jobId, ct) => s.BuildRegionalYearToDateSheetsAsync(jobId, ct),
+            ["reporting.RegsaverPurchases_ALL_Rawdata"] = (s, jobId, ct) => s.BuildRegsaverRawDataSheetsAsync(jobId, ct),
+            ["adn.ReconcileNuvei"] = (s, _, ct) => s.BuildNuveiReconcileSheetsAsync(ct),
         };
 
     /// <summary>
@@ -1890,6 +1895,153 @@ public sealed class ReportingService : IReportingService
                 r.ClubName, r.SportName, r.UserName, r.JobCount, r.LastName, r.FirstName, r.Email, r.Cellphone,
                 r.Email, r.StreetAddress, r.City, r.State, r.PostalCode,
             ]);
+
+    /// <summary>
+    /// The two sheets of the RegSaver raw data: "Player Data" (player registrations carrying a
+    /// policy) and "Team Data" (teams carrying one, with the club rep who bought it and the one
+    /// who holds the team now). Run with no job it covers every job; with a job, that job only,
+    /// and the team sheet then lists Team before Pool, as the proc's second branch does.
+    /// </summary>
+    private async Task<List<SheetData>> BuildRegsaverRawDataSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        Guid? scope = jobId == Guid.Empty ? null : jobId;
+        var players = await _reportingRepository.GetRegsaverPlayerPoliciesAsync(scope, cancellationToken);
+        var teams = await _reportingRepository.GetRegsaverTeamPoliciesAsync(scope, cancellationToken);
+        var allJobs = scope == null;
+
+        return
+        [
+            ToSheet(
+                "Player Data",
+                players,
+                [
+                    "Year", "Month", "regsaverPolicyId", "RegistrationTS", "PolicyCreateDate", "jobName",
+                    "PlayerName", "assignment", "Email", "FamilyUsername", "fee_total",
+                ],
+                r =>
+                [
+                    r.RegistrationTs.Year, r.RegistrationTs.Month, r.RegsaverPolicyId,
+                    SqlDefaultDateTime2(r.RegistrationTs), SqlDefaultDateTime(r.PolicyCreateDate), r.JobName,
+                    SqlConcat(r.FirstName, " ", r.LastName), r.Assignment, r.FamilyEmail, r.FamilyUserName,
+                    r.FeeTotal,
+                ]),
+            ToSheet(
+                "Team Data",
+                teams,
+                [
+                    "jobName", "ClubPurchased", "ClubRepPurchased", "EmailCRPurchased", "ClubNow", "ClubRepNow",
+                    "EmailCRNow", "Agegroup", allJobs ? "Pool" : "Team", allJobs ? "Team" : "Pool", "TeamIsActive",
+                    "TeamPolicyId", "TeamCreateDate", "PolicyCreateDate", "Year", "Month", "TeamFeeTotalNow",
+                    "TeamOwedTotal", "TeamPaidTotal",
+                ],
+                r =>
+                [
+                    r.JobName, r.PurchaserClubName, SqlConcat(r.PurchaserFirstName, " ", r.PurchaserLastName),
+                    r.PurchaserEmail, r.CurrentClubName, SqlConcat(r.CurrentFirstName, " ", r.CurrentLastName),
+                    r.CurrentEmail, r.AgegroupName, allJobs ? r.DivName : r.TeamName,
+                    allJobs ? r.TeamName : r.DivName, r.Active, r.ViPolicyId,
+                    SqlDefaultDateTime2(r.TeamCreateDate), SqlDefaultDateTime(r.PolicyCreateDate),
+                    r.TeamCreateDate.Year, r.TeamCreateDate.Month, r.FeeTotal, r.OwedTotal, r.PaidTotal,
+                ]),
+        ];
+    }
+
+    /// <summary>
+    /// A <c>datetime2</c> as T-SQL's default <c>convert(varchar, d)</c> writes it:
+    /// "2026-03-02 05:13:30.8601453". (A <c>datetime</c> is written differently; see
+    /// <see cref="SqlDefaultDateTime"/>.)
+    /// </summary>
+    private static string SqlDefaultDateTime2(DateTime value) =>
+        value.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// T-SQL <c>convert(money, text)</c> for the gateway's amount text: four decimal places, an
+    /// empty string is zero, null stays null.
+    /// </summary>
+    private static decimal? SqlMoney(string? text) =>
+        text == null
+            ? null
+            : text.Trim().Length == 0
+                ? 0m
+                : Math.Round(
+                    decimal.Parse(text, NumberStyles.Currency, CultureInfo.InvariantCulture),
+                    4,
+                    MidpointRounding.AwayFromZero);
+
+    /// <summary>The processor reconcile for LAST calendar month; see the overload.</summary>
+    private Task<List<SheetData>> BuildNuveiReconcileSheetsAsync(CancellationToken cancellationToken) =>
+        BuildNuveiReconcileSheetsAsync(DateTime.Now.AddMonths(-1), cancellationToken);
+
+    /// <summary>
+    /// The three sheets of the gateway-to-processor reconcile for one month, each named
+    /// "m-yyyy …": "NuveiReconcile" (each funding deposit beside the batch of the same amount),
+    /// "Chargebacks" (every funding event that is not a settlement) and "Batch Reconcile" (the
+    /// gateway's net settled per day beside the batch of the same amount). A deposit or a day
+    /// with no batch of that amount still lists, with the batch columns empty; with several, it
+    /// lists once per batch.
+    /// </summary>
+    private async Task<List<SheetData>> BuildNuveiReconcileSheetsAsync(DateTime month, CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetNuveiReconcileAsync(month.Year, month.Month, cancellationToken);
+        var monthYear = string.Create(CultureInfo.InvariantCulture, $"{month.Month}-{month.Year}");
+        var batchesByNet = data.Batches.ToLookup(b => b.BatchNet);
+
+        var deposits = data.Funding
+            .Where(f => !SqlEquals(f.FundingEvent, "Chargeback"))
+            .SelectMany(f => batchesByNet[f.FundingAmount]
+                .Select(b => (NuveiBatchRowDto?)b)
+                .DefaultIfEmpty()
+                .Select(b => (Funding: f, Batch: b)))
+            .OrderBy(x => x.Funding.FundingDate)
+            .ThenBy(x => x.Batch?.BatchCloseDate)
+            .ThenBy(x => x.Funding.FundingAmount)
+            .ToList();
+
+        var notSettlements = data.Funding.Where(f => !SqlEquals(f.FundingEvent, "Settlement")).ToList();
+
+        // The gateway's day is the date at the front of its settlement text
+        // ("13-Sep-2026 04:12:31 PM EDT"). A settled transaction adds its amount, a credited one
+        // subtracts it.
+        var days = data.Settlements
+            .GroupBy(s => DateTime
+                .ParseExact(s.SettlementDateTime![..11], "dd-MMM-yyyy", CultureInfo.InvariantCulture)
+                .ToString("MM/dd/yyyy", CultureInfo.InvariantCulture))
+            .Select(g =>
+            {
+                var plus = SqlSum(g.Select(s => SqlEquals(s.TransactionStatus, "Settled Successfully") ? SqlMoney(s.SettlementAmount) : 0m));
+                var minus = SqlSum(g.Select(s => SqlEquals(s.TransactionStatus, "Credited") ? -SqlMoney(s.SettlementAmount) : 0m));
+                return (Day: g.Key, DailyTotal: plus + minus);
+            })
+            .SelectMany(d => (d.DailyTotal is { } total ? batchesByNet[total] : [])
+                .Select(b => (NuveiBatchRowDto?)b)
+                .DefaultIfEmpty()
+                .Select(b => (d.Day, d.DailyTotal, Batch: b)))
+            .OrderBy(x => x.Day, StringComparer.Ordinal)
+            .ToList();
+
+        return
+        [
+            ToSheet(
+                $"{monthYear} NuveiReconcile",
+                deposits,
+                ["fundingDate", "fundingAmount", "batchNet", "batchCloseDate"],
+                x =>
+                [
+                    SqlUsDate(x.Funding.FundingDate), x.Funding.FundingAmount, x.Batch?.BatchNet,
+                    SqlUsDate(x.Batch?.BatchCloseDate),
+                ]),
+            ToSheet(
+                $"{monthYear} Chargebacks",
+                notSettlements,
+                ["fundingDate", "fundingEvent", "fundingAmount"],
+                f => [SqlUsDate(f.FundingDate), f.FundingEvent, f.FundingAmount]),
+            ToSheet(
+                $"{monthYear} Batch Reconcile",
+                days,
+                ["Settlement Day", "DailyTotal", "batchNet", "batchCloseDate"],
+                x => [x.Day, x.DailyTotal, x.Batch?.BatchNet, SqlUsDate(x.Batch?.BatchCloseDate)]),
+        ];
+    }
 
     /// <summary>
     /// "Monthly Revenues" sheet for LAST calendar month: a line per job with settled card

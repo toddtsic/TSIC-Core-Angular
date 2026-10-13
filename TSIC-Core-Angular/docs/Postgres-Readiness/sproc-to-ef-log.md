@@ -74,6 +74,8 @@ procedure is never called.
 | 2026-10-13 | `utility.TeamRegistrationBulletinsQA` | Same query, other title and flag | As above: 167 dates, 0 differences (135 rows over both variants) | One query serves both |
 | 2026-10-13 | `reporting.NewTsicJobsWithTxs` | Cross-job. `varchar(80)` table variable, `MIN` per job, last month by `getdate()` | Run once, 42 rows, 0 differences, 0 reordered | EF 0.2 s vs proc 0.5 s |
 | 2026-10-13 | `reporting.ClubRepContacts-All` | Cross-job. 6 inner joins, 11-column `GROUP BY`, sort on the count | Run once, 6,258 rows, 0 differences, 0 reordered | Email column appears twice; kept |
+| 2026-10-13 | `reporting.RegsaverPurchases_ALL_Rawdata` | Two branches (every job, or one) each written out twice; 2 sheets; 4 and 7 inner joins; the one-job team sheet swaps two columns | 1,127 jobs plus no job, 18,890 rows over both sheets, 0 differences (183 tie-reordered) | `datetime2` writes differently; see below |
+| 2026-10-13 | `adn.ReconcileNuvei` | Money. Temp table, two table variables, a split function in a join predicate, joins on amount equality; 3 sheets | Last month through the app: 369 rows, 0 differences. Every month with processor data (23, from 2024-11) against the proc body with the month as a parameter: 2,254 rows, 0 differences | Read as sets, joined in C#: 0.2 s vs 2 s; see below |
 
 ## UI passes
 
@@ -544,3 +546,22 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
   search for, the job flag, and one column. One repository method with a switch.
 - **PORT FLAG:** the title search is `charindex`, case-insensitive on SQL Server; EF sends a
   `LIKE`. Postgres `LIKE` is case-sensitive.
+- **The seam now hands a builder the job the procedure would have been given.** An export run
+  without a job (`bUseJobId=false`) passed the procedure an empty id but passed the EF builder
+  the caller's job. `RegsaverPurchases_ALL_Rawdata` branches on exactly that, so the seam now
+  passes the empty id too. No catalogue row is affected: the only rows run without a job are
+  the RegSaver payouts, which ignore it.
+- **`convert(varchar, d)` depends on the column's type.** A `datetime` writes
+  `Mar  2 2026  6:26AM`; a `datetime2` writes `2026-03-02 05:13:30.8601453`. One sheet of the
+  RegSaver raw data has both, side by side (`RegistrationTS` is `datetime2`, the policy date
+  `datetime`). Check the column type, not the entity's `DateTime`.
+- **A report fixed to "last month" is checked for every month.** The Nuvei reconcile computes
+  its month from `getdate()`. Its body was restated with the month as a parameter and compared
+  for each of the 23 months that have processor data. Winter months (settlement text ending
+  `EST`) convert without error and match.
+- **Nuvei reconcile, as sets:** the month's funding events, the batches that could fund them,
+  the month's settled and credited transactions, and the list of job numbers. The procedure
+  runs a row-by-row split function inside a join predicate to pull the job number out of each
+  invoice number; in C# that is a `Split('_')`.
+- **PORT FLAG:** `dbo.fnSplit` (a multi-statement table function) has no caller left in the
+  converted exports.

@@ -3494,6 +3494,160 @@ public class ReportingRepository : IReportingRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<RegsaverPlayerPolicyRowDto>> GetRegsaverPlayerPoliciesAsync(
+        Guid? jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the "Player Data" result of reporting.RegsaverPurchases_ALL_Rawdata.
+        // The inner join to the family record is kept: a registration whose family user has no
+        // family record is not listed.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join uF in _context.AspNetUsers on r.FamilyUserId equals uF.Id
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            join f in _context.Families on uF.Id equals f.FamilyUserId
+            join j in _context.Jobs on r.JobId equals j.JobId
+            where (jobId == null || j.JobId == jobId)
+                && j.BOfferPlayerRegsaverInsurance == true
+                && r.RegsaverPolicyId != null
+            orderby r.RegsaverPolicyIdCreateDate descending, j.JobName, u.LastName, u.FirstName
+            select new RegsaverPlayerPolicyRowDto
+            {
+                RegistrationTs = r.RegistrationTs,
+                RegsaverPolicyId = r.RegsaverPolicyId,
+                PolicyCreateDate = r.RegsaverPolicyIdCreateDate,
+                JobName = j.JobName,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Assignment = r.Assignment,
+                FamilyEmail = uF.Email,
+                FamilyUserName = uF.UserName,
+                FeeTotal = r.FeeTotal,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<RegsaverTeamPolicyRowDto>> GetRegsaverTeamPoliciesAsync(
+        Guid? jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the "Team Data" result of reporting.RegsaverPurchases_ALL_Rawdata.
+        // Inner joins throughout, as in the proc: a team with no pool, or whose purchasing or
+        // current club rep registration is gone, is not listed.
+        return await (
+            from t in _context.Teams.AsNoTracking()
+            join rCR in _context.Registrations on t.ClubrepRegistrationid equals (Guid?)rCR.RegistrationId
+            join uCR in _context.AspNetUsers on rCR.UserId equals uCR.Id
+            join r in _context.Registrations on t.ViPolicyClubRepRegId equals (Guid?)r.RegistrationId
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            join j in _context.Jobs on t.JobId equals j.JobId
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            join d in _context.Divisions on t.DivId equals (Guid?)d.DivId
+            where (jobId == null || t.JobId == jobId)
+                && j.BOfferTeamRegsaverInsurance == true
+                && t.ViPolicyId != null
+            orderby t.ViPolicyCreateDate descending, j.JobName, r.ClubName, ag.AgegroupName, d.DivName, t.TeamName
+            select new RegsaverTeamPolicyRowDto
+            {
+                JobName = j.JobName,
+                PurchaserClubName = r.ClubName,
+                PurchaserFirstName = u.FirstName,
+                PurchaserLastName = u.LastName,
+                PurchaserEmail = u.Email,
+                CurrentClubName = rCR.ClubName,
+                CurrentFirstName = uCR.FirstName,
+                CurrentLastName = uCR.LastName,
+                CurrentEmail = uCR.Email,
+                AgegroupName = ag.AgegroupName,
+                DivName = d.DivName,
+                TeamName = t.TeamName,
+                Active = t.Active,
+                ViPolicyId = t.ViPolicyId,
+                TeamCreateDate = t.Createdate,
+                PolicyCreateDate = t.ViPolicyCreateDate,
+                FeeTotal = t.FeeTotal,
+                OwedTotal = t.OwedTotal,
+                PaidTotal = t.PaidTotal,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<NuveiReconcileDto> GetNuveiReconcileAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the data loads of adn.ReconcileNuvei, as plain sets joined in C#.
+        var monthStart = new DateTime(year, month, 1);
+        var monthEnd = monthStart.AddMonths(1);
+
+        var funding = await _context.NuveiFunding.AsNoTracking()
+            .Where(nf => nf.FundingEvent != "Monthly Fee"
+                && nf.FundingDate >= monthStart && nf.FundingDate < monthEnd)
+            .OrderBy(nf => nf.Ai)
+            .Select(nf => new NuveiFundingRowDto
+            {
+                FundingEvent = nf.FundingEvent,
+                FundingDate = nf.FundingDate,
+                FundingAmount = nf.FundingAmount,
+            })
+            .ToListAsync(cancellationToken);
+
+        // Batches from the 25th of the month before through the month's last day ("between",
+        // so the last day counts only at midnight; batch close dates carry no time).
+        var batchFrom = monthStart.AddMonths(-1).AddDays(24);
+        var batchTo = monthEnd.AddDays(-1);
+        var batches = await _context.NuveiBatches.AsNoTracking()
+            .Where(nb => nb.BatchCloseDate >= batchFrom && nb.BatchCloseDate <= batchTo)
+            .OrderBy(nb => nb.BatchCloseDate)
+            .ThenBy(nb => nb.Ai)
+            .Select(nb => new NuveiBatchRowDto { BatchCloseDate = nb.BatchCloseDate, BatchNet = nb.BatchNet })
+            .ToListAsync(cancellationToken);
+
+        // The month's settled and credited transactions, matched on the settlement TEXT
+        // ("…-Sep-2026 …") as the proc does.
+        var monthKey = monthStart.ToString("MMM-yyyy", CultureInfo.InvariantCulture);
+        var transactions = await _context.Txs.AsNoTracking()
+            .Where(t => t.SettlementDateTime != null && t.SettlementDateTime.Contains(monthKey)
+                && (t.TransactionStatus == "Settled Successfully" || t.TransactionStatus == "Credited"))
+            .Select(t => new { t.InvoiceNumber, t.TransactionStatus, t.SettlementDateTime, t.SettlementAmount })
+            .ToListAsync(cancellationToken);
+
+        // A transaction counts only when the second "_" segment of its invoice number
+        // (customer_job_registration) is an existing job's number. The proc's split trims each
+        // segment and skips empty ones.
+        var jobNumbers = (await _context.Jobs.AsNoTracking().Select(j => j.JobAi).ToListAsync(cancellationToken))
+            .ToHashSet();
+
+        static int? JobNumberOf(string? invoiceNumber)
+        {
+            var segments = (invoiceNumber ?? string.Empty)
+                .Split('_')
+                .Select(s => s.Trim(' '))
+                .Where(s => s.Length > 0)
+                .ToList();
+            return segments.Count >= 2
+                && int.TryParse(segments[1], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var n)
+                ? n
+                : null;
+        }
+
+        return new NuveiReconcileDto
+        {
+            Funding = funding,
+            Batches = batches,
+            Settlements = transactions
+                .Where(t => JobNumberOf(t.InvoiceNumber) is { } n && jobNumbers.Contains(n))
+                .Select(t => new GatewaySettlementRowDto
+                {
+                    TransactionStatus = t.TransactionStatus,
+                    SettlementDateTime = t.SettlementDateTime,
+                    SettlementAmount = t.SettlementAmount,
+                })
+                .ToList(),
+        };
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════

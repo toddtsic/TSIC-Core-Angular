@@ -755,6 +755,34 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Player registrations carrying a RegSaver policy on jobs that offer it, newest policy
+    /// first, for one job or (<paramref name="jobId"/> null) every job — the EF replacement for
+    /// the "Player Data" result of <c>reporting.RegsaverPurchases_ALL_Rawdata</c>.
+    /// </summary>
+    Task<List<RegsaverPlayerPolicyRowDto>> GetRegsaverPlayerPoliciesAsync(
+        Guid? jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Teams carrying a RegSaver policy on jobs that offer it, newest policy first, for one job
+    /// or (<paramref name="jobId"/> null) every job — the EF replacement for the "Team Data"
+    /// result of <c>reporting.RegsaverPurchases_ALL_Rawdata</c>.
+    /// </summary>
+    Task<List<RegsaverTeamPolicyRowDto>> GetRegsaverTeamPoliciesAsync(
+        Guid? jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// One month's processor funding events, the processor batches that could fund it, and the
+    /// gateway's settled and credited transactions on existing jobs — the EF replacement for
+    /// the data loads of <c>adn.ReconcileNuvei</c>. Cross-job.
+    /// </summary>
+    Task<NuveiReconcileDto> GetNuveiReconcileAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Settled card revenue, check revenue and new-registration counts by job for the period
     /// [<paramref name="periodStart"/>, <paramref name="periodEnd"/>), for the job's customer or
     /// the fixed customer group it belongs to — the EF replacement for the data behind
