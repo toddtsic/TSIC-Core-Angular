@@ -78,6 +78,7 @@ procedure is never called.
 | 2026-10-13 | `adn.ReconcileNuvei` | Money. Temp table, two table variables, a split function in a join predicate, joins on amount equality; 3 sheets | Last month through the app: 369 rows, 0 differences. Every month with processor data (23, from 2024-11) against the proc body with the month as a parameter: 2,254 rows, 0 differences | Read as sets, joined in C#: 0.2 s vs 2 s; see below |
 | 2026-10-13 | `reporting.JobKeyAttributes-ALL` | 8 correlated count subqueries per job, body written out twice; 42 columns | No job, one job and an unknown job: 1,864 rows, 0 differences, 0 reordered | Counts as grouped sets; see below |
 | 2026-10-13 | `reporting.TournamentKeyAttributes-ALL` | 3 correlated counts and a scalar subquery per job, body written out twice; `datename(weekday)` | Same three runs: 342 rows, 0 differences (ties on event dates unordered) | Shares one query with the row above |
+| 2026-10-13 | `adn.GetLastMonthsGrandTotals` | Money. Temp table, 6 table variables, a 4-way `UNION`, 4 left joins on the result; 3 sheets | Last month through the app: 237 rows, 0 differences. Every month from 2016-01 (129) against the proc body with the month as a parameter: 6,468 rows, 0 differences | Working-table types round; see below |
 
 ## UI passes
 
@@ -579,3 +580,16 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
 - **A latent procedure error, not reproduced:** the tournament keys read a job's league
   setting with a scalar subquery, which fails the whole report if a listed job has two
   leagues. No scheduling job does today. The EF version would report the first league.
+- **A working table's column type is part of the arithmetic.** In the grand totals the
+  per-player and per-team charges pass through a table variable declared `decimal` with no
+  precision, which is `decimal(18,0)`: a charge of 2.50 would be billed as 3. The processing
+  rate passes through `decimal(8,3)` as a fraction: 2.95% would become 3.0%. Neither bites
+  today (every charge is a whole dollar; every rate is 3.8% or the 3.5% default) and both are
+  reproduced, with the rule stated on the builder. **Todd: worth knowing before anyone sets a
+  fractional charge or a rate with two decimals.**
+- **Only one gateway login.** The grand totals report jobs whose customer's login is
+  `teamspt52`. The revenue rollups recognise a second TSIC-owned login as well. Kept as the
+  procedure has it.
+- The grand totals read the month's transaction ids, card money by job, admin charges by job,
+  the month's statistics and the jobs those name, as five sets; the join the procedure does
+  across six table variables is done in C#. About 0.5 s against the procedure's 1 s.

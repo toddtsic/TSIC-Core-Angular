@@ -800,6 +800,16 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The settled card totals, admin charges and new-registration counts of one month, by job
+    /// — the EF replacement for the data loads of <c>adn.GetLastMonthsGrandTotals</c>.
+    /// Cross-job.
+    /// </summary>
+    Task<MonthlyGrandTotalsDto> GetMonthlyGrandTotalsAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Settled card revenue, check revenue and new-registration counts by job for the period
     /// [<paramref name="periodStart"/>, <paramref name="periodEnd"/>), for the job's customer or
     /// the fixed customer group it belongs to — the EF replacement for the data behind

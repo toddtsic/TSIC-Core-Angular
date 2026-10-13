@@ -3065,6 +3065,10 @@ public class ReportingRepository : IReportingRepository
     // The proc's fallback card fee percentage for a job that has none of its own.
     private const decimal RollupDefaultProcessingFeePercent = 3.5m;
 
+    // The one gateway login adn.GetLastMonthsGrandTotals reports on. (The revenue rollups
+    // recognise a second TSIC-owned login; this proc does not, and neither does its replacement.)
+    private const string TsicGatewayLoginId = "teamspt52";
+
     public async Task<MonthlyCustomerRollupDto> GetMonthlyCustomerRollupAsync(
         Guid jobId,
         DateTime periodStart,
@@ -3745,6 +3749,116 @@ public class ReportingRepository : IReportingRepository
                 };
             })
             .ToList();
+    }
+
+    public async Task<MonthlyGrandTotalsDto> GetMonthlyGrandTotalsAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the data loads of adn.GetLastMonthsGrandTotals, read as sets:
+        // the month's transaction ids, card money by job, admin charges by job, the month's
+        // statistics rows, and the jobs those name.
+        var yearText = year.ToString(CultureInfo.InvariantCulture);
+        var monthText = new DateTime(year, month, 1).ToString("MMM", CultureInfo.InvariantCulture);
+        var txIds = await _context.Txs.AsNoTracking()
+            .Where(t => t.SettlementDateTime != null
+                && t.SettlementDateTime.Substring(7, 4) == yearText
+                && t.SettlementDateTime.Substring(3, 3) == monthText)
+            .Select(t => t.TransactionId)
+            .ToListAsync(cancellationToken);
+
+        // Active card payments and credits recorded against those transactions, for customers
+        // settling through TSIC's own gateway account. The id list is applied to the gateway
+        // table's key and the accounting records joined from there (see
+        // GetMonthlyCustomerRollupAsync).
+        var card = await (
+            from t in _context.Txs.AsNoTracking()
+            where txIds.Contains(t.TransactionId)
+            join ra in _context.RegistrationAccounting on t.TransactionId equals ra.AdnTransactionId
+            join apm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm.PaymentMethodId
+            join r in _context.Registrations on ra.RegistrationId equals (Guid?)r.RegistrationId
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            where c.AdnLoginId == TsicGatewayLoginId
+                && ra.Active == true
+                && (apm.PaymentMethod == "Credit Card Payment" || apm.PaymentMethod == "Credit Card Credit")
+            group ra by new { j.JobId, IsPayment = apm.PaymentMethod == "Credit Card Payment" } into g
+            select new { g.Key.JobId, g.Key.IsPayment, Amount = g.Sum(x => x.Payamt) })
+            .ToListAsync(cancellationToken);
+
+        var stats = await _context.MonthlyJobStats.AsNoTracking()
+            .Where(m => m.Year == year && m.Month == month)
+            .Select(m => new GrandTotalsMonthStatDto
+            {
+                JobId = m.JobId,
+                NewPlayers = m.CountNewPlayersThisMonth,
+                NewTeams = m.CountNewTeamsThisMonth,
+            })
+            .ToListAsync(cancellationToken);
+
+        var adminCharges = await _context.JobAdminCharges.AsNoTracking()
+            .Where(jac => jac.Year == year && jac.Month == month)
+            .GroupBy(jac => jac.JobId)
+            .Select(g => new { JobId = g.Key, Amount = g.Sum(x => x.ChargeAmount) })
+            .ToListAsync(cancellationToken);
+
+        // The proc joins card money to the month's statistics: a job with no statistics row has
+        // no card totals, and one with several has them once per row.
+        var statCount = stats.GroupBy(s => s.JobId).ToDictionary(g => g.Key, g => g.Count());
+        var cardByJob = card
+            .Where(x => statCount.ContainsKey(x.JobId))
+            .ToDictionary(x => (x.JobId, x.IsPayment), x => (x.Amount ?? 0m) * statCount[x.JobId]);
+        var adminByJob = adminCharges.ToDictionary(x => x.JobId, x => x.Amount);
+
+        var jobIds = stats.Select(s => s.JobId)
+            .Concat(cardByJob.Keys.Select(k => k.JobId))
+            .Concat(adminByJob.Keys)
+            .Distinct()
+            .ToList();
+
+        // A job is reported under its customer's group name when the customer is in one. Ordered
+        // BY THE DATABASE, whose collation the proc sorts names under.
+        var jobs = await (
+            from j in _context.Jobs.AsNoTracking()
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            join cgc0 in _context.CustomerGroupCustomers on c.CustomerId equals cgc0.CustomerId into cgcs
+            from cgc in cgcs.DefaultIfEmpty()
+            join cg0 in _context.CustomerGroups on cgc.CustomerGroupId equals cg0.Id into cgs
+            from cg in cgs.DefaultIfEmpty()
+            where jobIds.Contains(j.JobId)
+            orderby (cg != null ? cg.CustomerGroupName : c.CustomerName), j.JobName
+            select new
+            {
+                j.JobId,
+                ReportedCustomerName = cg != null ? cg.CustomerGroupName : c.CustomerName,
+                j.JobName,
+                SettlesThroughTsic = c.AdnLoginId == TsicGatewayLoginId,
+                j.ProcessingFeePercent,
+                j.PerPlayerCharge,
+                j.PerTeamCharge,
+            })
+            .ToListAsync(cancellationToken);
+
+        return new MonthlyGrandTotalsDto
+        {
+            MonthStats = stats,
+            Jobs = jobs
+                .Select(j => new GrandTotalsJobDto
+                {
+                    JobId = j.JobId,
+                    ReportedCustomerName = j.ReportedCustomerName,
+                    JobName = j.JobName,
+                    SettlesThroughTsic = j.SettlesThroughTsic,
+                    ProcessingFeePercent = j.ProcessingFeePercent,
+                    PerPlayerCharge = j.PerPlayerCharge,
+                    PerTeamCharge = j.PerTeamCharge,
+                    CardPayments = cardByJob.TryGetValue((j.JobId, true), out var payments) ? payments : null,
+                    CardCredits = cardByJob.TryGetValue((j.JobId, false), out var credits) ? credits : null,
+                    AdminCharges = adminByJob.TryGetValue(j.JobId, out var admin) ? admin : null,
+                })
+                .ToList(),
+        };
     }
 
     public async Task<NuveiReconcileDto> GetNuveiReconcileAsync(

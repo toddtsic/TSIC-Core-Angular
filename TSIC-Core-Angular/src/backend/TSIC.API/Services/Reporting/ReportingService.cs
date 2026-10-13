@@ -575,6 +575,7 @@ public sealed class ReportingService : IReportingService
             ["utility.AmericanSelect_CountsAtYear_ByTeamII"] = (s, jobId, ct) => s.BuildRegionalYearToDateSheetsAsync(jobId, ct),
             ["reporting.RegsaverPurchases_ALL_Rawdata"] = (s, jobId, ct) => s.BuildRegsaverRawDataSheetsAsync(jobId, ct),
             ["adn.ReconcileNuvei"] = (s, _, ct) => s.BuildNuveiReconcileSheetsAsync(ct),
+            ["adn.GetLastMonthsGrandTotals"] = (s, _, ct) => s.BuildMonthlyGrandTotalsSheetsAsync(ct),
         };
 
     /// <summary>
@@ -2052,6 +2053,100 @@ public sealed class ReportingService : IReportingService
                     decimal.Parse(text, NumberStyles.Currency, CultureInfo.InvariantCulture),
                     4,
                     MidpointRounding.AwayFromZero);
+
+    /// <summary>The month-end grand totals for LAST calendar month; see the overload.</summary>
+    private Task<List<SheetData>> BuildMonthlyGrandTotalsSheetsAsync(CancellationToken cancellationToken) =>
+        BuildMonthlyGrandTotalsSheetsAsync(DateTime.Now.AddMonths(-1), cancellationToken);
+
+    /// <summary>
+    /// The three sheets of the month-end grand totals for customers settling through TSIC's
+    /// gateway account: "Grand Total Per Job", "Grand Total Per Customer" and "Grand Total".
+    /// A job's grand total is its card payments plus card credits (negative), less its admin
+    /// charges, less TSIC's per-player and per-team charges on the month's new registrations,
+    /// less the card processing fee.
+    /// The processing fee is the job's rate (3.5% when it has none) on the unsigned sum of
+    /// payments and credits, rounded to cents. The rate is held to three decimal places as a
+    /// fraction and the per-player and per-team charges to whole dollars, as the proc's working
+    /// tables hold them.
+    /// </summary>
+    private async Task<List<SheetData>> BuildMonthlyGrandTotalsSheetsAsync(DateTime month, CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetMonthlyGrandTotalsAsync(month.Year, month.Month, cancellationToken);
+        var statsByJob = data.MonthStats.ToLookup(s => s.JobId);
+        var membershipsByJob = data.Jobs.ToLookup(j => j.JobId);
+
+        static decimal Cents(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
+        static decimal WholeDollars(decimal? value) => Math.Round(value ?? 0m, 0, MidpointRounding.AwayFromZero);
+
+        // Names are matched the way the database matches them: case and trailing spaces ignored.
+        static string NameKey(string? name) => (name ?? string.Empty).TrimEnd(' ').ToUpperInvariant();
+
+        var lines = new List<(string? Customer, string? JobName, decimal Payments, decimal Credits, decimal ProcessingFees, decimal AdminCharges, decimal TsicFees, decimal GrandTotal)>();
+        var listed = new HashSet<(Guid, string)>();
+        foreach (var job in data.Jobs.Where(j => j.SettlesThroughTsic))
+        {
+            if (!listed.Add((job.JobId, NameKey(job.ReportedCustomerName))))
+            {
+                continue;
+            }
+
+            // The proc's working tables hold a statistics row per group the customer is in, and
+            // an admin-charge row per reported name; its final join pairs each with the job.
+            var memberships = membershipsByJob[job.JobId].ToList();
+            var statRows = statsByJob[job.JobId]
+                .SelectMany(s => memberships.Select(_ => (GrandTotalsMonthStatDto?)s))
+                .DefaultIfEmpty()
+                .ToList();
+            var adminRows = job.AdminCharges is { } charges
+                ? memberships.GroupBy(m => NameKey(m.ReportedCustomerName)).Select(g => Cents(charges * g.Count())).ToList()
+                : [0m];
+
+            var payments = job.CardPayments ?? 0m;
+            var credits = job.CardCredits ?? 0m;
+            var rate = Math.Round((job.ProcessingFeePercent ?? 3.5m) / 100m, 3, MidpointRounding.AwayFromZero);
+            var processingFee = Cents(rate * (Math.Abs(credits) + Math.Abs(payments)));
+
+            foreach (var stat in statRows)
+            {
+                var tsicFees = stat == null
+                    ? 0m
+                    : WholeDollars(job.PerPlayerCharge) * (stat.NewPlayers ?? 0)
+                        + WholeDollars(job.PerTeamCharge) * (stat.NewTeams ?? 0);
+                foreach (var admin in adminRows)
+                {
+                    lines.Add((
+                        job.ReportedCustomerName, job.JobName, payments, credits, -processingFee, admin, -tsicFees,
+                        credits + payments - admin - tsicFees - processingFee));
+                }
+            }
+        }
+
+        var perCustomer = lines
+            .GroupBy(l => NameKey(l.Customer))
+            .Select(g => (g.First().Customer, GrandTotal: g.Sum(l => l.GrandTotal)))
+            .ToList();
+
+        // An aggregate with no GROUP BY returns its row even over nothing.
+        decimal?[] grandTotal = [perCustomer.Count == 0 ? null : perCustomer.Sum(c => c.GrandTotal)];
+
+        return
+        [
+            ToSheet(
+                "Grand Total Per Job",
+                lines,
+                [
+                    "customerName", "jobName", "sumCCPayments", "sumCCCredits", "sumCCProcessingFees",
+                    "sumAdminCharges", "TSICFees", "GrandTotal",
+                ],
+                l =>
+                [
+                    l.Customer, l.JobName, l.Payments, l.Credits, l.ProcessingFees, l.AdminCharges, l.TsicFees,
+                    l.GrandTotal,
+                ]),
+            ToSheet("Grand Total Per Customer", perCustomer, ["customerName", "GrandTotal"], c => [c.Customer, c.GrandTotal]),
+            ToSheet("Grand Total", grandTotal, ["GrandTotal"], total => [total]),
+        ];
+    }
 
     /// <summary>The processor reconcile for LAST calendar month; see the overload.</summary>
     private Task<List<SheetData>> BuildNuveiReconcileSheetsAsync(CancellationToken cancellationToken) =>

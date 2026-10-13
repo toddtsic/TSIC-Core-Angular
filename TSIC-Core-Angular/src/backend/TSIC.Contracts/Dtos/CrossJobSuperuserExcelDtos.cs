@@ -218,3 +218,51 @@ public record JobKeyAttributesRowDto
     /// <summary>Active teams in age groups whose name starts with WAITLIST.</summary>
     public required int WaitlistTeamCount { get; init; }
 }
+
+/// <summary>
+/// One month's settled card totals, admin charges and new-registration counts by job — the EF
+/// replacement for the data loads of the <c>adn.GetLastMonthsGrandTotals</c> proc.
+/// </summary>
+public record MonthlyGrandTotalsDto
+{
+    /// <summary>
+    /// Every job with activity in the month, once per customer group its customer belongs to
+    /// (once when it belongs to none), ordered by reported customer name then job name.
+    /// </summary>
+    public required List<GrandTotalsJobDto> Jobs { get; init; }
+
+    /// <summary>The month's statistics rows.</summary>
+    public required List<GrandTotalsMonthStatDto> MonthStats { get; init; }
+}
+
+/// <summary>A job under the name its customer is reported by: the customer's group, else the customer.</summary>
+public record GrandTotalsJobDto
+{
+    public required Guid JobId { get; init; }
+    public string? ReportedCustomerName { get; init; }
+    public string? JobName { get; init; }
+
+    /// <summary>True when the job's customer settles through TSIC's own gateway account.</summary>
+    public required bool SettlesThroughTsic { get; init; }
+
+    public decimal? ProcessingFeePercent { get; init; }
+    public decimal? PerPlayerCharge { get; init; }
+    public decimal? PerTeamCharge { get; init; }
+
+    /// <summary>Active card payments on transactions settled in the month; null when there are none.</summary>
+    public decimal? CardPayments { get; init; }
+
+    /// <summary>Active card credits on transactions settled in the month; null when there are none.</summary>
+    public decimal? CardCredits { get; init; }
+
+    /// <summary>The job's admin charges for the month; null when there are none.</summary>
+    public decimal? AdminCharges { get; init; }
+}
+
+/// <summary>A job's new players and teams for the month.</summary>
+public record GrandTotalsMonthStatDto
+{
+    public required Guid JobId { get; init; }
+    public int? NewPlayers { get; init; }
+    public int? NewTeams { get; init; }
+}
