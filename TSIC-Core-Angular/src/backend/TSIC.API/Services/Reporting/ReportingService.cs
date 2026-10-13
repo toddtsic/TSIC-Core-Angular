@@ -418,6 +418,19 @@ public sealed class ReportingService : IReportingService
         bool useDateUnscheduled = false,
         CancellationToken cancellationToken = default)
     {
+        // Procs already reproduced in EF keep their catalogue row (and so their spName-keyed
+        // entitlement + export history) but never reach SQL Server as a proc call.
+        var efSheets = await BuildEfReplacementSheetsAsync(spName, jobId, cancellationToken);
+        if (efSheets != null)
+        {
+            return new ReportExportResult
+            {
+                FileBytes = ExcelWorkbookWriter.Build(efSheets),
+                ContentType = ExcelWorkbookWriter.XlsxContentType,
+                FileName = "TSICExcelExport.xlsx"
+            };
+        }
+
         var (reader, connection) = await _reportingRepository.ExecuteStoredProcedureAsync(
             spName, jobId, useJobId, useDateUnscheduled, cancellationToken);
 
@@ -437,6 +450,278 @@ public sealed class ReportingService : IReportingService
             await connection.CloseAsync();
         }
     }
+
+    /// <summary>
+    /// Sheets for an export-sp report whose proc has been reproduced in EF, or null when
+    /// <paramref name="spName"/> is still served by its stored procedure. Matches the catalogue's
+    /// spName with or without brackets.
+    /// </summary>
+    private async Task<List<SheetData>?> BuildEfReplacementSheetsAsync(
+        string spName,
+        Guid jobId,
+        CancellationToken cancellationToken)
+    {
+        var normalized = spName.Replace("[", string.Empty).Replace("]", string.Empty).Trim();
+
+        if (JobPlayersLayouts.TryGetValue(normalized, out var layout))
+        {
+            return [await BuildJobPlayersSheetAsync(jobId, layout, cancellationToken)];
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// One layout of the job-players export family: its sheet name, header names in order, and
+    /// the projection of a shared row onto those columns.
+    /// </summary>
+    private sealed record JobPlayersLayout(
+        string SheetName,
+        string[] Columns,
+        Func<JobPlayersExcelRowDto, object?[]> ToRow);
+
+    /// <summary>
+    /// The legacy "player data" and "camp" exports were all column subsets of one shared proc —
+    /// same joins, filter and order — so they share one query here and differ only in sheet name,
+    /// header names and the per-row projection.
+    /// </summary>
+    private async Task<SheetData> BuildJobPlayersSheetAsync(
+        Guid jobId,
+        JobPlayersLayout layout,
+        CancellationToken cancellationToken)
+    {
+        var rows = await _reportingRepository.GetJobPlayersExcelRowsAsync(jobId, cancellationToken);
+
+        var sheet = new SheetData { Name = layout.SheetName };
+        if (rows.Count == 0)
+        {
+            // The proc path only learns its column names from the first data row, so a job with
+            // no players exports a headerless sheet. Kept identical.
+            return sheet;
+        }
+
+        sheet.WithColumns(layout.Columns);
+        foreach (var r in rows)
+        {
+            sheet.Rows.Add(layout.ToRow(r));
+        }
+
+        return sheet;
+    }
+
+    /// <summary>
+    /// Every proc of the job-players family that is now served from EF, keyed by its canonical
+    /// (unbracketed) name. Column names and order are each proc's own, verbatim.
+    /// </summary>
+    private static readonly Dictionary<string, JobPlayersLayout> JobPlayersLayouts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // "Player Data (Excel)" — STEPS layout, 40 columns.
+        ["reporting_migrate.Get_JobPlayers_STEPS_Excel"] = new(
+            "Player Data",
+            [
+                "RegistrationID", "FirstName", "LastName", "gender", "DOB",
+                "Mom_FirstName", "Mom_LastName", "Mom_Cellphone", "Mom_Email",
+                "Dad_FirstName", "Dad_LastName", "Dad_Cellphone", "Dad_Email",
+                "agegroupName", "club_name", "teamName", "paid_total", "owed_total",
+                "grad_year", "school_name", "school_grade", "position", "USLaxNo", "UsLaxNoExpiry",
+                "jersey", "shorts", "kilt", "t-shirt", "reversible", "gloves", "uniform_no",
+                "address", "city", "state", "zip", "Email", "Cellphone",
+                "Requests", "medical_note", "shoes",
+            ],
+            r =>
+            [
+                r.RegistrationId, r.FirstName, r.LastName, r.Gender, r.Dob?.Date,
+                r.MomFirstName, r.MomLastName, r.MomCellphone, r.MomEmail,
+                r.DadFirstName, r.DadLastName, r.DadCellphone, r.DadEmail,
+                r.AgegroupName, r.ClubName, r.TeamName, r.PaidTotal, r.OwedTotal,
+                r.GradYear, r.SchoolName, r.SchoolGrade, r.Position, r.SportAssnId, r.SportAssnIdExpDate,
+                r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Reversible, r.Gloves, r.UniformNo,
+                r.StreetAddress, r.City, r.State, r.PostalCode, r.Email, r.Cellphone,
+                r.SpecialRequests, r.MedicalNote, r.Shoes,
+            ]),
+
+        // "Player Details (Excel)" — Yellow Jackets layout, 36 columns. Carries the raw
+        // ClubTeamName, not the club-rep fallback.
+        ["reporting_migrate.JobPlayers_YJ_Excel"] = new(
+            "Player Details",
+            [
+                "RegistrationID", "uniform_no", "LastName", "FirstName", "address", "city", "state", "zip",
+                "agegroupName", "teamName", "school_name", "grad_year", "position", "USLaxNo", "UsLaxNoExpiry",
+                "jersey", "shorts", "t-shirt",
+                "Mom_FirstName", "Mom_LastName", "Mom_Cellphone", "Mom_Email",
+                "Dad_FirstName", "Dad_LastName", "Dad_Cellphone", "Dad_Email",
+                "owed_total", "paid_total", "school_grade", "Requests", "gender", "RegDate", "DOB",
+                "Cellphone", "Email", "ClubTeamName",
+            ],
+            r =>
+            [
+                r.RegistrationId, r.UniformNo, r.LastName, r.FirstName, r.StreetAddress, r.City, r.State, r.PostalCode,
+                r.AgegroupName, r.TeamName, r.SchoolName, r.GradYear, r.Position, r.SportAssnId, r.SportAssnIdExpDate,
+                r.JerseySize, r.ShortsSize, r.TShirt,
+                r.MomFirstName, r.MomLastName, r.MomCellphone, r.MomEmail,
+                r.DadFirstName, r.DadLastName, r.DadCellphone, r.DadEmail,
+                r.OwedTotal, r.PaidTotal, r.SchoolGrade, r.SpecialRequests, r.Gender, r.RegistrationTs.Date, r.Dob?.Date,
+                r.Cellphone, r.Email, r.ClubTeamName,
+            ]),
+
+        // "Player Data (Excel)" — E120 layout, 39 columns.
+        ["reporting_migrate.Get_JobPlayers_E120_Excel"] = new(
+            "Player Data",
+            [
+                "RegistrationID", "FirstName", "LastName", "Player", "gender", "DOB",
+                "Mom", "Mom_Cellphone", "Mom_Email", "Dad", "Dad_Cellphone", "Dad_Email",
+                "agegroupName", "teamName", "club_name", "paid_total", "owed_total",
+                "grad_year", "school_name", "position", "USLaxNo", "UsLaxNoExpiry",
+                "jersey", "shorts", "kilt", "t-shirt", "sweatshirt", "reversible", "gloves",
+                "gpa", "sat", "act", "height_inches", "weight_lbs", "uniform_no",
+                "address", "city", "state", "zip",
+            ],
+            r =>
+            [
+                r.RegistrationId, r.FirstName, r.LastName, SqlConcat(r.LastName, ", ", r.FirstName), r.Gender, r.Dob?.Date,
+                SqlConcat(r.MomFirstName, " ", r.MomLastName), r.MomCellphone, r.MomEmail,
+                SqlConcat(r.DadFirstName, " ", r.DadLastName), r.DadCellphone, r.DadEmail,
+                r.AgegroupName, r.TeamName, r.ClubName, r.PaidTotal, r.OwedTotal,
+                r.GradYear, r.SchoolName, r.Position, r.SportAssnId, r.SportAssnIdExpDate,
+                r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Sweatshirt, r.Reversible, r.Gloves,
+                r.Gpa, r.Sat, r.Act, r.HeightInches, r.WeightLbs, r.UniformNo,
+                r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]),
+
+        // "Player Data (Excel)" — Liberty layout, 41 columns. No club column: Liberty jobs are club jobs.
+        ["reporting_migrate.Get_JobPlayers_Liberty_Excel"] = new(
+            "Player Data",
+            [
+                "RegistrationID", "Player", "gender", "DOB",
+                "Mom", "Mom_Cellphone", "Mom_Email", "Dad", "Dad_Cellphone", "Dad_Email",
+                "agegroupName", "teamName", "paid_total", "owed_total",
+                "grad_year", "school_name", "position", "USLaxNo", "UsLaxNoExpiry",
+                "jersey", "shorts", "kilt", "t-shirt", "sweatshirt", "reversible", "gloves",
+                "gpa", "sat", "act", "height_inches", "weight_lbs", "uniform_no",
+                "FirstName", "LastName", "address", "city", "state", "zip",
+                "Email", "Cellphone", "Requests",
+            ],
+            r =>
+            [
+                r.RegistrationId, SqlConcat(r.LastName, ", ", r.FirstName), r.Gender, r.Dob?.Date,
+                SqlConcat(r.MomFirstName, " ", r.MomLastName), r.MomCellphone, r.MomEmail,
+                SqlConcat(r.DadFirstName, " ", r.DadLastName), r.DadCellphone, r.DadEmail,
+                r.AgegroupName, r.TeamName, r.PaidTotal, r.OwedTotal,
+                r.GradYear, r.SchoolName, r.Position, r.SportAssnId, r.SportAssnIdExpDate,
+                r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Sweatshirt, r.Reversible, r.Gloves,
+                r.Gpa, r.Sat, r.Act, r.HeightInches, r.WeightLbs, r.UniformNo,
+                r.FirstName, r.LastName, r.StreetAddress, r.City, r.State, r.PostalCode,
+                r.Email, r.Cellphone, r.SpecialRequests,
+            ]),
+
+        // "Camp Data Dump (Excel)" — 17 columns.
+        ["reporting_migrate.camp_datadump"] = new(
+            "Camp Data Dump",
+            [
+                "FirstName", "LastName", "address", "city", "state", "zip",
+                "Mom_Cellphone", "Mom_Email", "Dad_Cellphone", "Dad_Email", "Cellphone", "Email",
+                "DOB", "grad_year", "school_name", "club_name", "position",
+            ],
+            r =>
+            [
+                r.FirstName, r.LastName, r.StreetAddress, r.City, r.State, r.PostalCode,
+                r.MomCellphone, r.MomEmail, r.DadCellphone, r.DadEmail, r.Cellphone, r.Email,
+                r.Dob?.Date, r.GradYear, r.SchoolName, r.ClubName, r.Position,
+            ]),
+
+        // "Camp Export (Long)(Excel)" — 20 columns.
+        ["reporting_migrate.camp_excelexport_long"] = new(
+            "Camp Export Long",
+            [
+                "RegistrationID", "teamName", "uniform_no", "LastName", "FirstName",
+                "address", "city", "state", "zip",
+                "Mom_Cellphone", "Mom_Email", "Dad_Cellphone", "Dad_Email", "Cellphone", "Email",
+                "school_name", "club_name", "position", "grad_year", "roommate_pref",
+            ],
+            r =>
+            [
+                r.RegistrationId, r.TeamName, r.UniformNo, r.LastName, r.FirstName,
+                r.StreetAddress, r.City, r.State, r.PostalCode,
+                r.MomCellphone, r.MomEmail, r.DadCellphone, r.DadEmail, r.Cellphone, r.Email,
+                r.SchoolName, r.ClubName, r.Position, r.GradYear, r.RoommatePref,
+            ]),
+
+        // "Camp Export (Short)(Excel)" — 6 columns.
+        ["reporting_migrate.camp_excelexport_short"] = new(
+            "Camp Export Short",
+            ["teamName", "uniform_no", "LastName", "FirstName", "school_name", "club_name"],
+            r => [r.TeamName, r.UniformNo, r.LastName, r.FirstName, r.SchoolName, r.ClubName]),
+
+        // "Camper Export (Very Short)(Excel)" — 5 columns.
+        ["reporting_migrate.camp_excelexport_veryshort"] = new(
+            "Camper Very Short",
+            ["teamName", "uniform_no", "LastName", "FirstName", "position"],
+            r => [r.TeamName, r.UniformNo, r.LastName, r.FirstName, r.Position]),
+
+        // "Day/Night Groups (Excel)" — 9 columns.
+        ["reporting_migrate.camp_excelexport_daygroups"] = new(
+            "Day Night Groups",
+            [
+                "agegroupName", "dayGroup", "nightGroup", "LastName", "FirstName",
+                "roommate_pref", "school_name", "position", "uniform_no",
+            ],
+            r =>
+            [
+                r.AgegroupName, r.DayGroup, r.NightGroup, r.LastName, r.FirstName,
+                r.RoommatePref, r.SchoolName, r.Position, r.UniformNo,
+            ]),
+
+        // "Roommates (Excel)" — 9 columns.
+        ["reporting_migrate.camp_excelexport_roomies"] = new(
+            "Roommates",
+            [
+                "teamName", "LastName", "FirstName", "DOB", "roommate_pref",
+                "school_name", "school_grade", "club_name", "grad_year",
+            ],
+            r =>
+            [
+                r.TeamName, r.LastName, r.FirstName, r.Dob?.Date, r.RoommatePref,
+                r.SchoolName, r.SchoolGrade, r.ClubName, r.GradYear,
+            ]),
+
+        // "Roommates (with position)(Excel)" — 11 columns. roomStatus is the proc's
+        // left(teamName, 1): the team name's first character ('C' commuter, 'O' overnight).
+        ["reporting_migrate.camp_excelexport_room_position"] = new(
+            "Roommates w Position",
+            [
+                "teamName", "roomStatus", "LastName", "FirstName", "roommate_pref",
+                "school_name", "school_grade", "club_name", "DOB", "position", "grad_year",
+            ],
+            r =>
+            [
+                r.TeamName, SqlLeft(r.TeamName, 1), r.LastName, r.FirstName, r.RoommatePref,
+                r.SchoolName, r.SchoolGrade, r.ClubName, r.Dob?.Date, r.Position, r.GradYear,
+            ]),
+
+        // "Campers Export (Excel)" — 9 columns.
+        ["reporting_migrate.camp_excelexport_summer"] = new(
+            "Campers Summer",
+            [
+                "teamName", "LastName", "FirstName", "gender", "position", "school_grade",
+                "RegDate", "paid_total", "owed_total",
+            ],
+            r =>
+            [
+                r.TeamName, r.LastName, r.FirstName, r.Gender, r.Position, r.SchoolGrade,
+                r.RegistrationTs.Date, r.PaidTotal, r.OwedTotal,
+            ]),
+    };
+
+    /// <summary>
+    /// T-SQL <c>a + sep + b</c>: null when either side is null, where C# concatenation would
+    /// treat null as empty.
+    /// </summary>
+    private static string? SqlConcat(string? left, string separator, string? right) =>
+        left == null || right == null ? null : left + separator + right;
+
+    /// <summary>T-SQL <c>left(value, length)</c>: null stays null, a short value comes back whole.</summary>
+    private static string? SqlLeft(string? value, int length) =>
+        value == null ? null : value.Length <= length ? value : value[..length];
 
     public async Task<ReportExportResult> ExportBoldReportAsync(
         string reportName,

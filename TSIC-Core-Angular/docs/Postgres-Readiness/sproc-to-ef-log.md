@@ -1,0 +1,100 @@
+# Stored procedure to EF conversion log
+
+Port prep for the Ubuntu/Postgres branch: each app-reachable stored procedure is reproduced in EF on
+`master`, proven against the procedure on SQL Server, and committed alone. The procedure stays
+installed. One row per conversion; "What it taught" is the part worth reading before the next one.
+
+## How each one is proven
+
+1. **Parity run**: old procedure and new EF path against the same database, for every job with rows
+   plus one job id that matches nothing. Compared: sheet name, column names and order, row count,
+   every cell including its CLR type (as a set), and the sort key at every position.
+2. **Test suite**: `dotnet test` on the solution.
+3. **UI pass (per batch, after an API restart)**: Playwright runs the report from the Reports
+   Library and the downloaded file is opened.
+
+The seam is `ReportingService.BuildEfReplacementSheetsAsync`: the catalogue row, entitlement check
+and export history keep keying on the procedure name; a converted name is answered from EF and the
+procedure is never called.
+
+## Log
+
+| Date | Procedure | Shape | Parity | What it taught |
+|---|---|---|---|---|
+| 2026-10-12 | `reporting_migrate.Get_JobPlayers_STEPS_Excel` | One select, 9 joins, 40 columns | 870 jobs, 551,815 rows, 0 differences | See below |
+| 2026-10-12 | `reporting_migrate.JobPlayers_YJ_Excel` | Same joins as STEPS, 36 columns | 870 jobs, 551,815 rows, 0 differences | Sibling layouts share one query; see below |
+| 2026-10-12 | `reporting_migrate.Get_JobPlayers_E120_Excel` | Same joins, 39 columns, 3 concatenated names | 870 jobs, 551,815 rows, 0 differences | T-SQL `+` is null-propagating; see below |
+| 2026-10-12 | `reporting_migrate.Get_JobPlayers_Liberty_Excel` | Same joins, 41 columns | 870 jobs, 551,815 rows, 0 differences | Nothing new |
+| 2026-10-12 | `reporting_migrate.camp_datadump`, `camp_excelexport_long`, `_short`, `_veryshort`, `_daygroups`, `_roomies`, `_room_position`, `_summer` | Same joins again, 5 to 20 columns each | 870 jobs, 551,815 rows, 0 differences, each of the eight | One layout table; see below |
+
+## UI passes
+
+| Date | Batch | Result |
+|---|---|---|
+| 2026-10-12 | STEPS, YJ, E120, Liberty | All four run from the Reports Library and downloaded; details below |
+| 2026-10-12 | Seven camp exports, plus the batch 1 four again after the move into the layout table | All eleven run and downloaded; details below |
+
+Batch 2: the seven camp exports on `stateonelacrosse-campsandclinics-2026` (SuperUser, all-roles
+view) each returned 327 rows against 327 expected, with the procedure's sheet name, column count
+(17, 20, 6, 5, 9, 9, 11) and header row. The batch 1 four were re-run and matched their earlier
+results. No procedure's execution counter moved. `camp_excelexport_summer` is on no open job's
+shelf, so it has no UI run; it is parity-proven only.
+
+Batch 1, run through the browser against the local API:
+
+| Report | Job | Logged in as | Rows in file | Rows expected | Columns |
+|---|---|---|---|---|---|
+| STEPS | `lftc-summer-2026` | SuperUser, all-roles view | 10,050 | 10,050 | 40 |
+| YJ | `yj-fallsignups-2026` | SuperUser, all-roles view | 1,501 | 1,501 | 36 |
+| E120 | `irish-prospect-camp-december-2025` | Director | 175 | 175 | 39 |
+| Liberty | `tlc-players-2026-2027` | SuperUser, all-roles view | 18 | 18 | 41 |
+
+Sheet names and header rows matched the procedures' in every file. The procedures' execution
+counters in `sys.dm_exec_procedure_stats` were identical before and after the four runs, so the
+downloads were served from EF and the procedures were not called.
+
+- **The execution counter is the proof that the new path ran.** The file is identical by design,
+  so nothing in the download can tell the two paths apart; the counter can.
+- **A UI check needs a job that is still open to its users.** Expired jobs do not appear in role
+  selection, so pick the job from `Jobs.Jobs` where `ExpiryUsers` is in the future.
+
+### Get_JobPlayers_STEPS_Excel
+
+- **An inner join on a nullable foreign key is a filter.** The procedure inner-joins
+  `Leagues.divisions` on `teams.divID`, which is nullable; `t.DivId != null` reproduced it exactly
+  on every job. League and agegroup are non-null keys and need no filter.
+- **An empty job exports a headerless sheet.** The procedure path learns column names from the first
+  data row, so no rows means no header. The EF path returns the bare sheet in that case to match.
+- **Row order is only defined up to ties.** 3,478 rows (0.6%) came back in a different position, all
+  of them ties on the full sort key (agegroup, team, last name, first name). Compare rows as a set
+  and compare the sort key by position; do not compare whole rows by position.
+- **`convert(date, …)` belongs in the mapping.** The DTO keeps the full `DateTime`; the sheet
+  builder applies `.Date`, and the reader returns a SQL `date` as a `DateTime` too, so types match.
+- **The harness needs `UseNetTopologySuite()`** on the context options (spatial column on `Fields`),
+  and `FileStorageOptions` has `required` members, so it is created uninitialised.
+
+### The JobPlayers layout family (YJ, E120, Liberty)
+
+- **Procedures cut from one legacy superset share one query.** STEPS, YJ, E120 and Liberty have
+  identical joins, filter and order and differ only in column list, so there is one repository
+  method (`GetJobPlayersExcelRowsAsync`) and one DTO; each layout is a header list plus a row
+  projection in the service. Converting a sibling is then a few lines and cannot drift on row set.
+- **T-SQL `a + ' ' + b` is null if either side is null; C# `+` treats null as empty.** The
+  `Player`, `Mom` and `Dad` columns are built in the service with a `SqlConcat` helper that returns
+  null in that case. Doing it in C# rather than in the query also keeps it provider-neutral
+  (Postgres `||` is null-propagating too, but `CONCAT` is not on either engine).
+- **Twelve procedures, one query.** The eight camp exports are subsets of the same legacy
+  superset as the four player layouts. All twelve now live in one table in `ReportingService`
+  (`JobPlayersLayouts`): procedure name to sheet name, header list and row projection. Adding a
+  layout is one entry; the eight camp exports were committed together for that reason.
+- **Before converting a procedure, check whether it is a sibling of one already done.** Compare
+  its FROM, WHERE and ORDER BY against the converted ones first. The May 2026 Crystal retirement
+  (`73c9e2c98`) cut many procedures from a few shared sources, so families are the norm.
+- **`left(x, n)` needs a null-safe helper** (`SqlLeft`): null stays null and a short value comes
+  back whole, where C# range slicing would throw.
+- **The harness goes through the routing seam** (`BuildEfReplacementSheetsAsync`), so a procedure
+  name that is misspelled in the layout table fails parity instead of silently staying on SQL.
+- **Layouts that omit a sort-key column are still order-checked** on the key columns they do
+  carry; tied rows share the whole key, so they share any part of it.
+- **Re-prove the earlier layout when the shared query changes.** STEPS was re-run after the DTO
+  widened; still 0 differences.
