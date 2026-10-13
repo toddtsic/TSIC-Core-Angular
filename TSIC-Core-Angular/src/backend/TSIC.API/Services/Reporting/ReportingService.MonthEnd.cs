@@ -123,6 +123,19 @@ public sealed partial class ReportingService
     }
 
     /// <summary>
+    /// The registration month-end close for one settlement month, read and built without the
+    /// procedures. As they do, it first STORES the month's billing counts for every job that has
+    /// none yet (a job already stored keeps its row), then builds the sheets from what is stored.
+    /// </summary>
+    private async Task<List<SheetData>> BuildMonthEndRegistrationSheetsAsync(int month, int year, CancellationToken cancellationToken)
+    {
+        await _reportingRepository.AddMissingMonthlyJobStatsAsync(year, month, cancellationToken);
+        var monthStats = await _reportingRepository.GetMonthlyJobStatsAsync(year, month, cancellationToken);
+        var data = await _reportingRepository.GetMonthEndRegistrationDataAsync(year, month, cancellationToken);
+        return BuildMonthEndRegistrationSheets(year, month, data, monthStats);
+    }
+
+    /// <summary>
     /// The ten sheets of the registration month-end close for one settlement month, each named
     /// "m-yyyy …": Clients, Dailys, Job-Dailys, IIF-Payments, IIF-Credits, TSIC-Fees, CC-Fees,
     /// Admin-Fees, Retainers and Checks.
