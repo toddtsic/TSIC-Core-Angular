@@ -519,6 +519,7 @@ public sealed class ReportingService : IReportingService
             ["reporting.CustomerEndUsersDump"] = (s, jobId, ct) => s.BuildCustomerEndUsersSheetAsync(jobId, ct),
             ["reporting.Customer_RegistrationAccounting_Records"] = (s, jobId, ct) => s.BuildCustomerAccountingRecordsSheetAsync(jobId, ct),
             ["reporting.Schedule_Export_ToTournyMachine"] = (s, jobId, ct) => s.BuildTournyMachineScheduleSheetAsync(jobId, ct),
+            ["reporting.CathyCampBreakoutPerJob_PreviousMonth"] = (s, jobId, ct) => s.BuildCampBreakoutPreviousMonthSheetAsync(jobId, ct),
         };
 
     /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
@@ -527,6 +528,8 @@ public sealed class ReportingService : IReportingService
         {
             ["reporting.JobPushTeamResultsSummary"] = (s, jobId, ct) => s.BuildJobPushTeamSummarySheetsAsync(jobId, ct),
             ["reporting.Schedule_Export_Teams_ToTournyMachine"] = (s, jobId, ct) => s.BuildTournyMachineTeamsSheetsAsync(jobId, ct),
+            ["reporting.GetJobTransactionRollup"] = (s, jobId, ct) => s.BuildJobTransactionRollupSheetsAsync(jobId, ct),
+            ["reporting.RefAssignmentQA"] = (s, jobId, ct) => s.BuildRefAssignmentQaSheetsAsync(jobId, ct),
         };
 
     /// <summary>
@@ -1284,6 +1287,255 @@ public sealed class ReportingService : IReportingService
                     r.AgegroupName, r.DivName, r.Gender, r.TeamName, r.FirstName, r.LastName,
                     r.Email, r.City, r.State, r.PostalCode,
                 ]),
+        ];
+    }
+
+    /// <summary>
+    /// The camp breakout for LAST calendar month, sheet "ByTeam: M/yyyy": one row per team with
+    /// players registered that month, then a "Monthly / Total" row that is present even when no
+    /// team is. The card fee keeps four decimals; the balance is rounded to cents per payment method.
+    /// Preserved from the proc: the per-registrant fee is counted once per payment method the
+    /// team was paid by, so a team paid by two methods is charged twice.
+    /// </summary>
+    private async Task<SheetData> BuildCampBreakoutPreviousMonthSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        const decimal cardRate = 0.03m;
+        const decimal feePerRegistrant = 5.00m;
+        static decimal Money(decimal value) => Math.Round(value, 4, MidpointRounding.AwayFromZero);
+
+        var settlement = DateTime.Now.AddMonths(-1);
+        var teams = await _reportingRepository.GetCampBreakoutMonthTeamsAsync(
+            jobId, settlement.Month, settlement.Year, cancellationToken);
+
+        var lines = teams
+            .Select(t =>
+            {
+                // The proc LEFT joins the team to its payment groups, so a team with none still
+                // contributes one (all-null) joined row.
+                var joinedRows = Math.Max(1, t.Payments.Count);
+                var amounts = t.Payments.Where(p => p.Amount != null).Select(p => p.Amount!.Value).ToList();
+                var tsicFees = feePerRegistrant * t.Registrants * joinedRows;
+
+                // Amounts are two-decimal numbers, and SQL Server keeps this subtraction at two
+                // decimals: each joined row is rounded (half away from zero) BEFORE the sum.
+                decimal RowBalance(decimal amount) => Math.Round(
+                    amount - feePerRegistrant * t.Registrants - cardRate * amount, 2, MidpointRounding.AwayFromZero);
+                var balance = t.Payments.Count == 0
+                    ? RowBalance(0m)
+                    : t.Payments.Sum(p => RowBalance(p.Amount ?? 0m));
+                return new
+                {
+                    t.AgegroupName,
+                    t.TeamName,
+                    TeamId = (Guid?)t.TeamId,
+                    Registrants = (int?)t.Registrants,
+                    Transactions = t.Payments.Count == 0 ? (int?)null : t.Payments.Sum(p => p.Transactions),
+                    Amount = amounts.Count == 0 ? (decimal?)null : amounts.Sum(),
+                    CardFee = amounts.Count == 0 ? (decimal?)null : Money(amounts.Sum(a => cardRate * a)),
+                    TsicFees = (decimal?)tsicFees,
+                    Balance = (decimal?)balance,
+                };
+            })
+            .ToList();
+
+        // SQL SUM skips nulls and is null when nothing is left.
+        static decimal? SumOrNull(IEnumerable<decimal?> values)
+        {
+            var present = values.Where(v => v != null).Select(v => v!.Value).ToList();
+            return present.Count == 0 ? null : present.Sum();
+        }
+
+        var totalAmount = SumOrNull(lines.Select(l => l.Amount));
+        var totalCardFee = SumOrNull(lines.Select(l => l.CardFee));
+        var totalTsicFees = SumOrNull(lines.Select(l => l.TsicFees));
+        lines.Add(new
+        {
+            AgegroupName = (string?)"Monthly",
+            TeamName = (string?)"Total",
+            TeamId = (Guid?)null,
+            Registrants = lines.Count == 0 ? (int?)null : lines.Sum(l => l.Registrants),
+            Transactions = lines.All(l => l.Transactions == null) ? (int?)null : lines.Sum(l => l.Transactions),
+            Amount = totalAmount,
+            CardFee = totalCardFee,
+            TsicFees = totalTsicFees,
+            Balance = totalAmount - totalCardFee - totalTsicFees,
+        });
+
+        return ToSheet(
+            string.Create(CultureInfo.InvariantCulture, $"ByTeam: {settlement.Month}/{settlement.Year}"),
+            lines,
+            [
+                "agegroupName", "teamName", "teamId", "#Registrants", "#CCTransactions",
+                "SumCCTransactions", "CCProcessingFee", "TSICFees", "BalanceDueClient",
+            ],
+            l =>
+            [
+                l.AgegroupName, l.TeamName, l.TeamId, l.Registrants, l.Transactions,
+                l.Amount, l.CardFee, l.TsicFees, l.Balance,
+            ]);
+    }
+
+    /// <summary>Payment methods the transaction rollup counts as money received.</summary>
+    private static readonly string[] RollupPaidMethods =
+        ["Credit Card Payment", "Credit Card Credit", "Check Payment By Client", "Check Payment By TSIC"];
+
+    /// <summary>Payment methods the transaction rollup counts as adjustments.</summary>
+    private static readonly string[] RollupAdjustedMethods =
+        ["Online Correction By Client", "Online Correction By TSIC"];
+
+    /// <summary>
+    /// US currency as T-SQL <c>FORMAT(x, 'C', 'en-US')</c> writes it: negatives in parentheses.
+    /// Pinned here because the runtime's own en-US data writes a leading minus instead.
+    /// </summary>
+    private static readonly NumberFormatInfo SqlUsCurrency = BuildSqlUsCurrency();
+
+    private static NumberFormatInfo BuildSqlUsCurrency()
+    {
+        var format = (NumberFormatInfo)CultureInfo.GetCultureInfo("en-US").NumberFormat.Clone();
+        format.CurrencyNegativePattern = 0;
+        return format;
+    }
+
+    /// <summary>
+    /// The five sheets of the job transaction rollup: "RawData" (one row per player payment),
+    /// "Paid" and "Adjusted" (totals by payment method with a grand total, as currency text),
+    /// "Discounted" and "Owed" (one total each). Waitlist agegroups are left out of every sheet
+    /// except "Discounted" — preserved from the proc.
+    /// </summary>
+    private async Task<List<SheetData>> BuildJobTransactionRollupSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var all = await _reportingRepository.GetJobTransactionRollupRowsAsync(jobId, cancellationToken);
+        var rows = all.Where(r => !r.Waitlist).ToList();
+
+        // GROUP BY ROLLUP(method): a row per method, then the grand total; nothing at all when
+        // no payment qualifies. A total of all-null amounts is null, and stays null as text.
+        SheetData MethodTotals(string sheetName, string[] methods)
+        {
+            static string? Currency(IEnumerable<decimal?> amounts)
+            {
+                var present = amounts.Where(a => a != null).Select(a => a!.Value).ToList();
+                return present.Count == 0 ? null : present.Sum().ToString("C", SqlUsCurrency);
+            }
+
+            var matching = rows
+                .Where(r => methods.Any(m => SqlEquals(r.PaymentMethod, m)))
+                .OrderBy(r => r.PaymentMethod!.TrimEnd(' '), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var totals = RunsOf(matching, r => r.PaymentMethod)
+                .Select(run => (Method: run[0].PaymentMethod, Total: Currency(run.Select(r => r.PayAmount))))
+                .ToList();
+            if (totals.Count > 0)
+            {
+                totals.Add(("Grand Total", Currency(matching.Select(r => r.PayAmount))));
+            }
+
+            return ToSheet(sheetName, totals, ["PaymentMethod", "TotalAmount"], t => [t.Method, t.Total]);
+        }
+
+        // One registration appears once per payment, so each is counted once.
+        var discounted = all
+            .Where(r => r.DiscountCodeId != null)
+            .DistinctBy(r => r.RegistrationId)
+            .ToList();
+        var owing = rows.DistinctBy(r => r.RegistrationId).ToList();
+
+        return
+        [
+            ToSheet(
+                "RawData",
+                rows,
+                [
+                    "RegistrationID", "FirstName", "LastName", "gender", "dob", "agegroupName", "teamName",
+                    "fee_discount", "paid_total", "owed_total", "paymentMethod", "aID", "dueamt", "payamt",
+                    "adnCC4", "adnCCExpDate", "adnInvoiceNo", "adnTransactionID", "checkNo", "comment",
+                    "createdate", "RegDiscountCode",
+                ],
+                r =>
+                [
+                    r.RegistrationId, r.FirstName, r.LastName, r.Gender, r.Dob?.Date, r.AgegroupName, r.TeamName,
+                    r.FeeDiscount, r.PaidTotal, r.OwedTotal, r.PaymentMethod, r.AccountingId, r.DueAmount, r.PayAmount,
+                    r.AdnCc4, r.AdnCcExpDate, r.AdnInvoiceNo, r.AdnTransactionId, r.CheckNo, r.Comment,
+                    r.CreateDate?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+                    r.DiscountCodeId?.ToString(CultureInfo.InvariantCulture),
+                ]),
+            MethodTotals("Paid", RollupPaidMethods),
+            // An aggregate with no GROUP BY always returns its one row, so these two sheets are
+            // never headerless.
+            ToSheet<decimal?>(
+                "Discounted",
+                [discounted.Count == 0 ? null : discounted.Sum(r => r.FeeDiscount)],
+                ["TotalDiscounted"],
+                total => [total]),
+            MethodTotals("Adjusted", RollupAdjustedMethods),
+            ToSheet<string?>(
+                "Owed",
+                [owing.Count == 0 ? null : owing.Sum(r => r.OwedTotal).ToString("C", SqlUsCurrency)],
+                ["SumOwedTotal"],
+                total => [total]),
+        ];
+    }
+
+    /// <summary>
+    /// A date-time as T-SQL's default <c>convert(varchar, d)</c> writes it: "Oct  5 2026  9:05AM",
+    /// day and hour right-aligned in two characters.
+    /// </summary>
+    private static string? SqlDefaultDateTime(DateTime? value)
+    {
+        if (value is not { } d)
+        {
+            return null;
+        }
+
+        var hour = d.Hour % 12 == 0 ? 12 : d.Hour % 12;
+        return string.Create(CultureInfo.InvariantCulture, $"{d:MMM} {d.Day,2} {d:yyyy} {hour,2}:{d:mm}{d:tt}");
+    }
+
+    /// <summary>
+    /// The two sheets of the referee assignment QA: "raw data" (every assignment with the minutes
+    /// to the same referee's next game that day) and "Double Booked Refs" (a referee assigned
+    /// more than once at the same game time).
+    /// </summary>
+    private async Task<List<SheetData>> BuildRefAssignmentQaSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var rows = await _reportingRepository.GetRefAssignmentQaRowsAsync(jobId, cancellationToken);
+
+        // DATEDIFF(minute, a, b) counts minute boundaries crossed, not elapsed whole minutes.
+        static int? MinutesBetween(DateTime? from, DateTime? to)
+        {
+            if (from is not { } a || to is not { } b)
+            {
+                return null;
+            }
+
+            return (int)(b.Ticks / TimeSpan.TicksPerMinute - a.Ticks / TimeSpan.TicksPerMinute);
+        }
+
+        var doubleBooked = rows
+            .GroupBy(r => (r.GameDate, r.RefRegistrationId))
+            .Where(g => g.Count() > 1)
+            .Select(g => g.First())
+            .ToList();
+
+        return
+        [
+            ToSheet(
+                "raw data",
+                rows,
+                [
+                    "firstName", "lastName", "G_Date", "Gid", "fName", "agegroupName", "divName",
+                    "refRegId", "minToNextGameSameDay",
+                ],
+                r =>
+                [
+                    r.FirstName, r.LastName, SqlDefaultDateTime(r.GameDate), r.Gid, r.FieldName,
+                    r.AgegroupName, r.DivName, r.RefRegistrationId,
+                    MinutesBetween(r.GameDate, r.NextGameSameDay),
+                ]),
+            ToSheet(
+                "Double Booked Refs",
+                doubleBooked,
+                ["G_Date", "refRegId", "firstName", "lastName"],
+                r => [SqlDefaultDateTime(r.GameDate), r.RefRegistrationId, r.FirstName, r.LastName]),
         ];
     }
 

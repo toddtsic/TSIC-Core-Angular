@@ -630,6 +630,35 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Teams with active players registered in the given month, each with its settled card
+    /// payments of that month by payment method — the EF replacement for the data behind
+    /// <c>reporting.CathyCampBreakoutPerJob_PreviousMonth</c>. Job-scoped.
+    /// </summary>
+    Task<List<CampBreakoutMonthTeamDto>> GetCampBreakoutMonthTeamsAsync(
+        Guid jobId,
+        int month,
+        int year,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active players on a team, one row per accounting record (or one row when there is none),
+    /// ordered last name → first name → record date — the EF replacement for the raw data behind
+    /// <c>reporting.GetJobTransactionRollup</c>. Job-scoped. Waitlist agegroups are included and
+    /// flagged; the caller decides which sheets leave them out.
+    /// </summary>
+    Task<List<JobTransactionRollupRowDto>> GetJobTransactionRollupRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Referee game assignments for the job's referees, ordered first name → last name → game
+    /// time — the EF replacement for <c>reporting.RefAssignmentQA</c>. Job-scoped.
+    /// </summary>
+    Task<List<RefAssignmentQaRowDto>> GetRefAssignmentQaRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

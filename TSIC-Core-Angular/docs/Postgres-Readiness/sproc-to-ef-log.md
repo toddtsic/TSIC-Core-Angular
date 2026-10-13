@@ -58,6 +58,9 @@ procedure is never called.
 | 2026-10-12 | `reporting.Customer_RegistrationAccounting_Records` | Two branches on a hard-wired job id; 6 inner + 3 left joins; 21 or 19 columns; no `ORDER BY` | 80 customers, 131,416 rows, 0 differences; hard-wired job, 36,995 rows, 0 differences | `if`/`else` procedures, `FORMAT`, dynamic sheet name; see below |
 | 2026-10-13 | `reporting.Schedule_Export_ToTournyMachine` | WRITER: runs `Leagues.UpdateTournyTeamFullNames` first; then 8 columns from the schedule | Proc NOT executed (it writes). Against a read-only restatement: 1,126 jobs, 51,250 rows, 0 differences, 0 reordered | Made read-only by ruling; see below |
 | 2026-10-13 | `reporting.Schedule_Export_Teams_ToTournyMachine` | WRITER, same rewrite; two `DISTINCT` sheets, 5 inner joins, join on `IN (T1_ID, T2_ID)` | Proc NOT executed. Against a read-only restatement: 1,126 jobs, 53,526 rows over both sheets, 0 differences | Made read-only by ruling; see below |
+| 2026-10-13 | `reporting.CathyCampBreakoutPerJob_PreviousMonth` | `getdate()`-relative month; two derived tables left-joined and re-aggregated; table variable; appended total row | 1,126 jobs, 2,502 rows, 0 differences (no `ORDER BY`) | Decimal scale rules; see below |
+| 2026-10-13 | `reporting.GetJobTransactionRollup` | Table variable feeding 5 sheets; 6 inner + 2 left joins; two `GROUP BY ROLLUP`; `FORMAT(x, 'C')` | 1,114 jobs, 631,790 rows, 3 rows differ (emoji in a name, see below); proc ERRORS on 12 other jobs | Second and third behaviour changes; see below |
+| 2026-10-13 | `reporting.RefAssignmentQA` | Table variable feeding 2 sheets; 6 inner joins; correlated `MIN` subquery; `DATEDIFF`; `GROUP BY … HAVING` | 1,126 jobs, 135 rows over both sheets, 0 differences, 0 reordered | `DATEDIFF`, default date text; see below |
 
 ## UI passes
 
@@ -373,3 +376,36 @@ Catalogue titles: "Export Schedule (Excel)" and "Teams Export (Excel)" / "Teams 
 - **Preserved:** the pool filter's `'Dripped Teams'` misspelling, which excludes nothing.
 - **Formats:** `convert(varchar, d, 20)` is `yyyy-MM-dd HH:mm:ss`;
   `convert(char(5), convert(time, d))` is `HH:mm`.
+
+### Previous-month camp breakout, job transaction rollup, referee assignment QA
+
+- **Table variables are just staging.** All three load a table variable and report from it. The
+  EF version fetches the same rows once and builds every sheet from them in the service.
+- **Know the column's real type before copying arithmetic.** The table variable declared
+  `money`, but `Registration_Accounting.payamt` is `decimal(18,2)`. `SUM` of that is
+  `decimal(38,2)`, and at precision 38 SQL Server has no room to widen the scale, so
+  `amount - (5.00 * n) - (0.03 * amount)` comes back at TWO decimals, rounded half away from
+  zero, per joined row, before the outer `SUM`. Meanwhile `0.03 * amount` alone keeps four.
+  First parity run: 50 jobs off by fractions of a cent in one column. `sql_variant_property(expr,
+  'Scale')` on a read-only probe answers this in one query. PORT FLAG: Postgres `numeric` does
+  not cap at 38 and will not round here; the C# now owns the rounding, so the port inherits it.
+- **Preserved:** the previous-month breakout charges the per-registrant fee once per payment
+  method a team was paid by (the fee sits inside a `SUM` over the joined rows).
+- **`getdate()`-relative reports** take the clock once in the service and pass month and year to
+  the repository. Parity only exercises the month it is run in (September 2026 here).
+- **`GROUP BY ROLLUP(x)`** on one column is a row per value then a grand total, and no rows at
+  all when nothing qualifies.
+- **`FORMAT(x, 'C', 'en-US')` writes negatives as `($5.00)`.** The runtime's own en-US data
+  writes `-$5.00`, so the format is pinned (`CurrencyNegativePattern = 0`).
+- **An aggregate with no `GROUP BY` always returns one row**, null when nothing matched, so those
+  sheets are never headerless.
+- **`DATEDIFF(minute, a, b)` counts minute boundaries crossed**, not elapsed whole minutes:
+  truncate both to the minute, then subtract.
+- **`convert(varchar, datetime)` with no style** is `Oct  5 2026  9:05AM`: day and hour
+  right-aligned in two characters.
+- **Behaviour change 2: the rollup procedure fails outright on 12 jobs (2 of them open).** Its
+  table variable declares `teamName varchar(80)`, and a longer team name raises error 2628
+  ("String or binary data would be truncated"). The EF version returns the report.
+- **Behaviour change 3: the rollup procedure garbles characters outside the Windows-1252 set.**
+  The same `varchar` columns turn an emoji in a first name into `??`. Three rows of 631,790
+  differ for that reason and no other; the EF version returns the name as stored.

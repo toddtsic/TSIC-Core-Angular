@@ -2577,6 +2577,159 @@ public class ReportingRepository : IReportingRepository
         return new TournyMachineTeamsDto { Teams = teams, TeamContacts = contacts };
     }
 
+    public async Task<List<CampBreakoutMonthTeamDto>> GetCampBreakoutMonthTeamsAsync(
+        Guid jobId,
+        int month,
+        int year,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the two derived tables of
+        // reporting.CathyCampBreakoutPerJob_PreviousMonth. First: active players by team,
+        // registered in the month. Second: their active accounting records created in the month
+        // that have a matching gateway transaction (INNER join to adn.Txs), by team and payment
+        // method. SUM over nullable amounts is null when every amount is null, so the non-null
+        // count travels with it.
+        var teams = await (
+            from r in _context.Registrations.AsNoTracking()
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            join t in _context.Teams on r.AssignedTeamId equals (Guid?)t.TeamId
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            where r.JobId == jobId && role.Name == "Player" && r.BActive == true
+                && r.RegistrationTs.Month == month && r.RegistrationTs.Year == year
+            group r by new { t.TeamId, t.TeamName, ag.AgegroupName } into g
+            orderby g.Key.AgegroupName, g.Key.TeamName
+            select new { g.Key.AgegroupName, g.Key.TeamName, g.Key.TeamId, Registrants = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var payments = await (
+            from r in _context.Registrations.AsNoTracking()
+            join t in _context.Teams on r.AssignedTeamId equals (Guid?)t.TeamId
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            join ra in _context.RegistrationAccounting on (Guid?)r.RegistrationId equals ra.RegistrationId
+            join apm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm.PaymentMethodId
+            join tx in _context.Txs on ra.AdnTransactionId equals tx.TransactionId
+            where r.JobId == jobId && role.Name == "Player" && r.BActive == true && ra.Active == true
+                && ra.Createdate != null && ra.Createdate.Value.Month == month && ra.Createdate.Value.Year == year
+            group ra by new { t.TeamId, apm.PaymentMethod } into g
+            select new
+            {
+                g.Key.TeamId,
+                Transactions = g.Count(),
+                WithAmount = g.Count(x => x.Payamt != null),
+                Amount = g.Sum(x => x.Payamt),
+            })
+            .ToListAsync(cancellationToken);
+
+        var paymentsByTeam = payments.ToLookup(p => p.TeamId);
+        return teams
+            .Select(t => new CampBreakoutMonthTeamDto
+            {
+                AgegroupName = t.AgegroupName,
+                TeamName = t.TeamName,
+                TeamId = t.TeamId,
+                Registrants = t.Registrants,
+                Payments = paymentsByTeam[t.TeamId]
+                    .Select(p => new CampBreakoutMonthPaymentDto
+                    {
+                        TeamId = p.TeamId,
+                        Transactions = p.Transactions,
+                        Amount = p.WithAmount == 0 ? null : p.Amount,
+                    })
+                    .ToList(),
+            })
+            .ToList();
+    }
+
+    public async Task<List<JobTransactionRollupRowDto>> GetJobTransactionRollupRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the @rawdata load of reporting.GetJobTransactionRollup. INNER joins
+        // to the family user, the family record, the player, the role, the team and its
+        // agegroup, so a player missing any of them is not reported; accounting record and its
+        // payment method are LEFT joins. The proc does NOT filter on the record's active flag.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join uF in _context.AspNetUsers on r.FamilyUserId equals uF.Id
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            join f in _context.Families on r.FamilyUserId equals f.FamilyUserId
+            join t in _context.Teams on r.AssignedTeamId equals (Guid?)t.TeamId
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            join ra0 in _context.RegistrationAccounting on (Guid?)r.RegistrationId equals ra0.RegistrationId into ras
+            from ra in ras.DefaultIfEmpty()
+            join apm0 in _context.AccountingPaymentMethods on (Guid?)ra.PaymentMethodId equals (Guid?)apm0.PaymentMethodId into apms
+            from apm in apms.DefaultIfEmpty()
+            where r.JobId == jobId && r.BActive == true && role.Name == "Player"
+            orderby u.LastName, u.FirstName, ra.Createdate
+            select new JobTransactionRollupRowDto
+            {
+                RegistrationId = r.RegistrationId,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Gender = u.Gender,
+                Dob = u.Dob,
+                AgegroupName = ag.AgegroupName,
+                TeamName = t.TeamName,
+                FeeDiscount = r.FeeDiscount,
+                PaidTotal = r.PaidTotal,
+                OwedTotal = r.OwedTotal,
+                PaymentMethod = apm.PaymentMethod,
+                AccountingId = (int?)ra.AId,
+                DueAmount = ra.Dueamt,
+                PayAmount = ra.Payamt,
+                AdnCc4 = ra.AdnCc4,
+                AdnCcExpDate = ra.AdnCcexpDate,
+                AdnInvoiceNo = ra.AdnInvoiceNo,
+                AdnTransactionId = ra.AdnTransactionId,
+                CheckNo = ra.CheckNo,
+                Comment = ra.Comment,
+                CreateDate = ra.Createdate,
+                DiscountCodeId = r.DiscountCodeId,
+                // Upper-casing both sides keeps the match case-insensitive on any provider.
+                Waitlist = ag.AgegroupName != null && ag.AgegroupName.ToUpper().Contains("WAITLIST"),
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<RefAssignmentQaRowDto>> GetRefAssignmentQaRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the @refData load of reporting.RefAssignmentQA. Scoped by the
+        // REFEREE's job, not the game's. Game agegroup, division and field are INNER joins. The
+        // next game is the same referee's earliest later assignment on the same calendar day in
+        // the game's job.
+        return await (
+            from rga in _context.RefGameAssigments.AsNoTracking()
+            join s in _context.Schedule on rga.GameId equals s.Gid
+            join ag in _context.Agegroups on s.AgegroupId equals (Guid?)ag.AgegroupId
+            join d in _context.Divisions on s.DivId equals (Guid?)d.DivId
+            join f in _context.Fields on s.FieldId equals (Guid?)f.FieldId
+            join r in _context.Registrations on rga.RefRegistrationId equals (Guid?)r.RegistrationId
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            where r.JobId == jobId
+            orderby u.FirstName, u.LastName, s.GDate
+            select new RefAssignmentQaRowDto
+            {
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                GameDate = s.GDate,
+                Gid = s.Gid,
+                FieldName = f.FName,
+                AgegroupName = ag.AgegroupName,
+                DivName = d.DivName,
+                RefRegistrationId = r.RegistrationId,
+                NextGameSameDay = (
+                    from a in _context.RefGameAssigments
+                    join b in _context.Schedule on a.GameId equals b.Gid
+                    where b.JobId == s.JobId && a.RefRegistrationId == rga.RefRegistrationId
+                        && b.GDate != null && s.GDate != null
+                        && b.GDate.Value.Date == s.GDate.Value.Date && b.GDate > s.GDate
+                    select b.GDate).Min(),
+            }).ToListAsync(cancellationToken);
+    }
+
     // ══════════════════════════════════════
     // Third-Party Roster Export (retired SportsRecruits API replacement)
     // ══════════════════════════════════════
