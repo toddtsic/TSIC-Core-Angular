@@ -90,6 +90,7 @@ procedure is never called.
 |---|---|---|
 | 2026-10-12 | STEPS, YJ, E120, Liberty | All four run from the Reports Library and downloaded; details below |
 | 2026-10-12 | Seven camp exports, plus the batch 1 four again after the move into the layout table | All eleven run and downloaded; details below |
+| 2026-10-13 | The one sweep at the end: every report converted since batch 2 that a user can reach (31 from job shelves, 13 from the X-Job Report Library) | All 44 run through the browser as SuperUser and downloaded: HTTP 200, no error banner, slowest 12.1 s. `sys.dm_exec_procedure_stats` for the `reporting`, `reporting_migrate`, `utility` and `adn` schemas was identical before and after, so no procedure ran. **Not swept:** the month-end close, because building it stores stat rows |
 
 Batch 2: the seven camp exports on `stateonelacrosse-campsandclinics-2026` (SuperUser, all-roles
 view) each returned 327 rows against 327 expected, with the procedure's sheet name, column count
