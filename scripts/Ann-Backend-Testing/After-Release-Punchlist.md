@@ -855,7 +855,7 @@ WHERE r.JobId = @JobId AND r.fee_total > 0;
 - **Severity**: n/a — feature request.
 - **Status**: ⛔ **WILL NOT DO (Todd, 08-29).** Smart bulletins stay system-generated; custom text belongs in a job bulletin. **Do not re-propose an editable-text slot on the smart band.** ✅ **Acknowledged (Ann, 09-02)** — she asked whether this item existed and whether Todd had answered; the ruling above was read back to her in full, including the placement trade (a hand-authored bulletin lands BELOW the smart band, never beside the links). **Noted for the future: if the PLACEMENT is the actual obstacle, that is a different ask than the one declined here — file it fresh rather than reopening AR-056.**
 
-### AR-057: ✅ NO LONGER TRACKED (Todd, 08-30) — CLOSED · [Store admin] Nothing on the item form says where photos live — the flow itself matches legacy
+### AR-057: ✅ ACKNOWLEDGED AND CLOSED BY ANN 10-14 · NO LONGER TRACKED (Todd, 08-30) — a WITHDRAWAL, not a resolution; never re-checked · [Store admin] Nothing on the item form says where photos live — the flow itself matches legacy
 - **Topic**: Store Admin → **Items** tab → **New Item** modal
 - **Reported by**: Ann, 08-29.
 
@@ -884,7 +884,7 @@ Same on **Edit Item** — it is the same modal, so this is not specific to new i
 **One legacy convenience not carried over** (unrelated to Ann's report): on the legacy Images page, if the job had only one store item, the Store Item dropdown auto-selected it. The new tab has no dropdown, so nothing to auto-select.
 
 - **Severity**: 🟢 discoverability only — the flow works, and worked the same way in legacy.
-- **Status**: ✅ **NO LONGER TRACKED (Todd, 08-30) — CLOSED.** **Todd is working this directly and does not need punchlist input on it**, so it is withdrawn from the queue rather than resolved on its merits. **This is NOT a Won't Fix and NOT a verification** — no claim is made here that the underlying problem is fixed. The analysis above is left intact and unedited so whoever picks it up is not re-deriving it. Filed 08-29 as part of Ann's store pass (AR-057 / AR-058 / AR-059 / AR-060 / AR-061), all five withdrawn together.
+- **Status**: ✅ **ACKNOWLEDGED AND CLOSED BY ANN 10-14** — she has seen the withdrawal and accepts it. ⚠ **It remains a WITHDRAWAL, not a resolution: Todd took the store area on directly 08-30 and did not need punchlist input, so this left the queue rather than being ruled on. NOT a Won't Fix, NOT a verification — no claim is made that the item form now mentions photos.** ⏳ **NOBODY HAS CHECKED SINCE. The store has had work in the six weeks since, but whether the New Item / Edit Item modal still omits any mention of photos was never re-tested.** ✅ **The 08-29 analysis and repro above are left intact so whoever looks is not re-deriving them.** ⚙ **One of five withdrawn together from Ann's store pass — AR-057 / AR-058 / AR-059 / AR-060 / AR-061.** ORIGINAL: filed 08-29 (Ann).
 
 ### AR-058: ✅ NO LONGER TRACKED (Todd, 08-30) — CLOSED · 🔴 [Storefront APPEARANCE — Ann’s top store priority] Same-or-better than legacy. It is systematically smaller, and ONE 600px column causes it — plus no image anywhere in cart or checkout
 - **Topic**: Store → **customer-facing catalog** (`catalog.component`), and the **cart / checkout** screens
