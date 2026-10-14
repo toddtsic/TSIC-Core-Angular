@@ -27,7 +27,12 @@ import { FormFieldDataService } from '@infrastructure/services/form-field-data.s
         <div class="card shadow border-0 card-rounded">
             <div class="card-body account-step">
 
-                @if (auth.isAuthenticated()) {
+                <!-- auth.currentUser() is read FIRST and on purpose: isAuthenticated() reads
+                     localStorage, not a signal, so under OnPush nothing repainted this branch when
+                     a refused sign-in (AR-151) was logged back out — the step froze on "Loading
+                     your account..." with the header already showing Login. The signal read
+                     makes logoutLocal() repaint it; isAuthenticated() still applies the expiry. -->
+                @if (auth.currentUser() && auth.isAuthenticated()) {
                     <!-- Returning user: review-your-info summary, with optional inline edit. -->
                     <!-- Held until hydration settles: the summary is the user's stored profile, and
                          showing it half-loaded means a blank card the user can click Edit on. -->
