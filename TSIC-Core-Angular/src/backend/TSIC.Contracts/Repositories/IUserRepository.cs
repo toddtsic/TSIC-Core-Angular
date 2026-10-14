@@ -124,6 +124,13 @@ public record UserSearchResult
 
     /// <summary>"Admin" (lane-pure: all registrations within the granted role's lane) or "PendingAdult" (all Unassigned Adult).</summary>
     public required string AccountType { get; init; }
+
+    /// <summary>
+    /// Dormant lane-pure accounts only (no live registration): when the account was last live —
+    /// the latest, across its registrations, of the job's expiry (row still bActive) or the
+    /// earlier of deactivation and expiry (row deactivated). Null for every other shape.
+    /// </summary>
+    public DateTime? InactiveSince { get; init; }
 }
 
 public record UserNameInfo

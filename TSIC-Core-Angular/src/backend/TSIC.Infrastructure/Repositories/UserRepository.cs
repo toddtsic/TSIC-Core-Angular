@@ -226,6 +226,22 @@ public class UserRepository : IUserRepository
                 IsLanePureEver = _context.Registrations
                     .Where(r => r.UserId == u.Id)
                     .All(r => laneRoleIds.Contains(r.RoleId!)),
+                // When the account was last live (surfaced for the dormant shape only): per row,
+                // the job's expiry if still bActive, else the earlier of deactivation (Modified)
+                // and expiry; the account's date is the latest row.
+                LastLive = _context.Registrations
+                    .Where(r => r.UserId == u.Id)
+                    .Select(r => new
+                    {
+                        r.BActive,
+                        r.Modified,
+                        Expiry = RoleConstants.AdminRoleIds.Contains(r.RoleId!)
+                            ? r.Job.ExpiryAdmin
+                            : r.Job.ExpiryUsers
+                    })
+                    .Max(x => (DateTime?)(x.BActive == true || x.Expiry < x.Modified
+                        ? x.Expiry
+                        : x.Modified)),
                 ActiveUaCount = _context.Registrations.Count(r => r.UserId == u.Id
                     && r.BActive == true
                     && r.RoleId == RoleConstants.UnassignedAdult),
@@ -260,7 +276,10 @@ public class UserRepository : IUserRepository
                 AccountType = (x.HasLiveRegs && x.IsLanePure)
                         || (x.HasAnyRegs && !x.HasLiveRegs && x.IsLanePureEver)
                     ? "Admin"
-                    : x.HasAnyRegs ? "PendingAdult" : "NoRegistrations"
+                    : x.HasAnyRegs ? "PendingAdult" : "NoRegistrations",
+                InactiveSince = x.HasAnyRegs && !x.HasLiveRegs && x.IsLanePureEver
+                    ? x.LastLive
+                    : null
             })
             .ToListAsync(cancellationToken);
     }

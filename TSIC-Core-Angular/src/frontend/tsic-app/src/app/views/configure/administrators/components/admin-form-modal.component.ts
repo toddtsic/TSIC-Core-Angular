@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, OnInit, OnDestroy, input, output } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { AdministratorService } from '../services/administrator.service';
@@ -17,7 +18,7 @@ export interface AdminFormResult {
 @Component({
     selector: 'admin-form-modal',
     standalone: true,
-    imports: [TsicDialogComponent, FormsModule],
+    imports: [TsicDialogComponent, FormsModule, DatePipe],
     template: `
         <tsic-dialog [open]="true" size="sm" (requestClose)="close.emit()">
             <div class="modal-content">
@@ -85,6 +86,12 @@ export interface AdminFormResult {
                                                 (click)="selectUser(user)">
                                                 <span class="fw-semibold">{{ user.displayName }}</span>
                                                 <small class="text-body-secondary ms-2">({{ user.userName }})</small>
+                                                @if (user.inactiveSince) {
+                                                    <!-- Dormant account: show its history before the pick, not after. -->
+                                                    <small class="text-warning-emphasis ms-2">
+                                                        <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Inactive since {{ user.inactiveSince | date: 'M/d/yyyy' }}
+                                                    </small>
+                                                }
                                                 <span
                                                     [class]="user.accountType === 'PendingAdult'
                                                         ? 'badge ms-auto bg-warning-subtle text-warning-emphasis'
@@ -102,6 +109,13 @@ export interface AdminFormResult {
                                         </span>
                                         <button type="button" class="btn-close btn-close-sm" (click)="clearUser()" aria-label="Clear"></button>
                                     </div>
+                                    @if (selectedUser()!.inactiveSince; as since) {
+                                        <small class="text-warning-emphasis d-block mt-1">
+                                            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>No active
+                                            registration since {{ since | date: 'M/d/yyyy' }} — accepting adds a new
+                                            {{ selectedRole() }} registration on this job.
+                                        </small>
+                                    }
                                     @if (selectedUser()!.accountType === 'PendingAdult') {
                                         <small class="text-warning-emphasis d-block mt-1">
                                             <i class="bi bi-arrow-repeat me-1"></i>Accepting grants {{ selectedRole() }}

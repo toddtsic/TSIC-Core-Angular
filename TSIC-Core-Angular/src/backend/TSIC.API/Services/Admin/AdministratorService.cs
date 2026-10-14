@@ -444,7 +444,8 @@ public sealed class AdministratorService : IAdministratorService
                 UserId = r.UserId,
                 UserName = r.UserName,
                 DisplayName = $"{r.LastName}, {r.FirstName}".Trim(' ', ','),
-                AccountType = r.AccountType
+                AccountType = r.AccountType,
+                InactiveSince = r.InactiveSince
             }).ToList()
         };
     }

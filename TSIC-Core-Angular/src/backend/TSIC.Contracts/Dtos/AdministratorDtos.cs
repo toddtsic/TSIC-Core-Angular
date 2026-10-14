@@ -64,4 +64,10 @@ public record UserSearchResultDto
     /// their pending registration to the chosen admin role). AM-004.
     /// </summary>
     public required string AccountType { get; init; }
+
+    /// <summary>
+    /// Set only for a dormant account (no live registration; every past registration within
+    /// the lane): when it was last live, so the SuperUser sees the history before accepting.
+    /// </summary>
+    public required DateTime? InactiveSince { get; init; }
 }

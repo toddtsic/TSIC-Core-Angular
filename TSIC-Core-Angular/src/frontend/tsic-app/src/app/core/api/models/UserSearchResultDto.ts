@@ -7,5 +7,6 @@ export type UserSearchResultDto = {
     userName: string;
     displayName: string;
     accountType: string;
+    inactiveSince: string | null;
 };
 
