@@ -364,20 +364,22 @@ public class UserRepository : IUserRepository
         {
             // Vendor lane has no pending-coach funnel: the only misses are a shared household
             // login, a login this customer already uses, or an account with other-role history.
+            // "Other roles" outranks "already set up": a non-vendor account with vendor history
+            // here would never be offered by 3rd Party Data Access, so pointing there misleads.
             var vendorBest = matches.FirstOrDefault(m => m.IsExactUserName)
                 ?? matches.FirstOrDefault(m => m.IsFamilyCredential)
-                ?? matches.FirstOrDefault(m => m.HasCustomerVendorHistory)
-                ?? matches.FirstOrDefault(m => !m.IsLanePureEver);
+                ?? matches.FirstOrDefault(m => !m.IsLanePureEver)
+                ?? matches.FirstOrDefault(m => m.HasCustomerVendorHistory);
 
             if (vendorBest == null)
                 return AdminCandidateMissReason.NotFound;
             if (vendorBest.IsFamilyCredential)
                 return AdminCandidateMissReason.FamilyOrPlayer;
-            if (vendorBest.HasCustomerVendorHistory)
-                return AdminCandidateMissReason.VendorAlreadySetUp;
-            return vendorBest.IsLanePureEver
-                ? AdminCandidateMissReason.NotFound
-                : AdminCandidateMissReason.NotVendorAccount;
+            if (!vendorBest.IsLanePureEver)
+                return AdminCandidateMissReason.NotVendorAccount;
+            return vendorBest.HasCustomerVendorHistory
+                ? AdminCandidateMissReason.VendorAlreadySetUp
+                : AdminCandidateMissReason.NotFound;
         }
 
         // An exact username hit is what the user meant — diagnose that account. Otherwise prefer
