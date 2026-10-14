@@ -19,6 +19,14 @@
     line-height: 1.25;
 }
 
+// Vendor rows carry a label instead of action buttons; the Actions column is narrow and
+// Syncfusion cells are nowrap, so the label wraps itself.
+.vendor-managed {
+    display: block;
+    white-space: normal;
+    line-height: 1.25;
+}
+
 // Name cell: fixed-width star slot keeps names aligned on non-Director rows
 .name-cell {
     display: inline-flex;

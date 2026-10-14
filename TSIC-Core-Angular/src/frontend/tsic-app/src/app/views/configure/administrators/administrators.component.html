@@ -10,11 +10,11 @@
     <div class="page-header-actions">
         <div class="btn-group btn-group-sm">
             <button class="btn btn-outline-success" (click)="activateAll()" [disabled]="isLoading()"
-                    title="Activate all administrators">
+                    title="Activate all administrators (third-party logins excluded)">
                 <i class="bi bi-check-all"></i><span class="btn-label">Activate All</span>
             </button>
             <button class="btn btn-outline-secondary" (click)="deactivateAll()" [disabled]="isLoading()"
-                    title="Deactivate all administrators">
+                    title="Deactivate all administrators (third-party logins excluded)">
                 <i class="bi bi-x-circle"></i><span class="btn-label">Deactivate All</span>
             </button>
         </div>
@@ -100,7 +100,11 @@
             <e-column field="registeredDate" headerText="Registered" width="110" type="date" [format]="{ type: 'date', format: 'MM/dd/yyyy' }"></e-column>
             <e-column headerText="Actions" width="110" [allowSorting]="false" textAlign="Center">
                 <ng-template #template let-data>
-                    @if (!data.isSuperuser) {
+                    @if (data.roleName === 'ApiAuthorized') {
+                        <!-- Vendor logins are switched on/off only in 3rd Party Data Access
+                             (export entitlement + one active per event live there). -->
+                        <small class="text-body-secondary vendor-managed">Managed in 3rd Party Data Access</small>
+                    } @else if (!data.isSuperuser) {
                         <div class="action-buttons">
                             <button class="icon-btn" (click)="openEdit(data)" title="Edit">
                                 <i class="bi bi-pencil"></i>

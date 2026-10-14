@@ -191,6 +191,12 @@ public class UserRepository : IUserRepository
         //    within the lane. Same blocking rule as lane-pure.
         // The family-credential exclusion stays GLOBAL (not liveness-gated): a shared household
         // login is structural — accepting one would hand admin access to the whole household.
+        // ApiAuthorized replaces every shape above with the vendor rule (2026-10-14): never held
+        // any other role, and no ApiAuthorized history with this job's customer (first-time
+        // setup only — later grants belong to 3rd Party Data Access).
+        var isVendor = string.Equals(requestedRoleId, RoleConstants.ApiAuthorized, StringComparison.OrdinalIgnoreCase);
+        var jobCustomerId = await GetJobCustomerIdAsync(jobId, cancellationToken);
+
         return await _context.AspNetUsers
             .AsNoTracking()
             .Where(u =>
@@ -202,6 +208,9 @@ public class UserRepository : IUserRepository
             .Select(u => new
             {
                 User = u,
+                HasCustomerVendorHistory = _context.Registrations.Any(r => r.UserId == u.Id
+                    && r.RoleId == RoleConstants.ApiAuthorized
+                    && r.Job.CustomerId == jobCustomerId),
                 // Third shape: an account with NO registration footprint at all. Nothing to be
                 // impure about and nothing on this job to collide with, so it is offered
                 // directly (Todd 2026-08-23 — returning admins whose history has aged out).
@@ -260,10 +269,12 @@ public class UserRepository : IUserRepository
                     && r.JobId == jobId
                     && r.RoleId == requestedRoleId)
             })
-            .Where(x => (x.HasLiveRegs && x.IsLanePure && !x.HasBlockingRegOnThisJob)
-                || (x.HasAnyRegs && !x.HasLiveRegs && x.IsLanePureEver && !x.HasBlockingRegOnThisJob)
-                || (x.ActiveUaCount == 1 && !x.HasRequestedRoleOnThisJob)
-                || !x.HasAnyRegs)
+            .Where(x => (isVendor && x.IsLanePureEver && !x.HasCustomerVendorHistory)
+                || (!isVendor
+                    && ((x.HasLiveRegs && x.IsLanePure && !x.HasBlockingRegOnThisJob)
+                        || (x.HasAnyRegs && !x.HasLiveRegs && x.IsLanePureEver && !x.HasBlockingRegOnThisJob)
+                        || (x.ActiveUaCount == 1 && !x.HasRequestedRoleOnThisJob)
+                        || !x.HasAnyRegs)))
             .OrderBy(x => x.User.LastName)
             .ThenBy(x => x.User.FirstName)
             .Take(maxResults)
@@ -284,6 +295,15 @@ public class UserRepository : IUserRepository
             .ToListAsync(cancellationToken);
     }
 
+    private async Task<Guid> GetJobCustomerIdAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<AdminCandidateMissReason> DiagnoseAdminCandidateMissAsync(
         string query,
         Guid jobId,
@@ -292,6 +312,8 @@ public class UserRepository : IUserRepository
         CancellationToken cancellationToken = default)
     {
         var now = DateTime.Now;
+        var isVendor = string.Equals(requestedRoleId, RoleConstants.ApiAuthorized, StringComparison.OrdinalIgnoreCase);
+        var jobCustomerId = await GetJobCustomerIdAsync(jobId, cancellationToken);
 
         // Same name predicate as SearchAdminCandidatesAsync (CI collation, no LOWER()), but no
         // eligibility filter — we're asking WHY the eligible set is empty. Only accounts with
@@ -326,10 +348,37 @@ public class UserRepository : IUserRepository
                 // other D/SD lane role no longer blocks (dual-hat), so it must not trip this.
                 IsRequestedRoleAdminOnThisJob = _context.Registrations.Any(r => r.UserId == u.Id
                     && r.JobId == jobId
-                    && r.RoleId == requestedRoleId)
+                    && r.RoleId == requestedRoleId),
+                // Vendor rule inputs (ApiAuthorized only; see SearchAdminCandidatesAsync).
+                HasCustomerVendorHistory = _context.Registrations.Any(r => r.UserId == u.Id
+                    && r.RoleId == RoleConstants.ApiAuthorized
+                    && r.Job.CustomerId == jobCustomerId),
+                IsLanePureEver = _context.Registrations
+                    .Where(r => r.UserId == u.Id)
+                    .All(r => laneRoleIds.Contains(r.RoleId!))
             })
             .Take(25)
             .ToListAsync(cancellationToken);
+
+        if (isVendor)
+        {
+            // Vendor lane has no pending-coach funnel: the only misses are a shared household
+            // login, a login this customer already uses, or an account with other-role history.
+            var vendorBest = matches.FirstOrDefault(m => m.IsExactUserName)
+                ?? matches.FirstOrDefault(m => m.IsFamilyCredential)
+                ?? matches.FirstOrDefault(m => m.HasCustomerVendorHistory)
+                ?? matches.FirstOrDefault(m => !m.IsLanePureEver);
+
+            if (vendorBest == null)
+                return AdminCandidateMissReason.NotFound;
+            if (vendorBest.IsFamilyCredential)
+                return AdminCandidateMissReason.FamilyOrPlayer;
+            if (vendorBest.HasCustomerVendorHistory)
+                return AdminCandidateMissReason.VendorAlreadySetUp;
+            return vendorBest.IsLanePureEver
+                ? AdminCandidateMissReason.NotFound
+                : AdminCandidateMissReason.NotVendorAccount;
+        }
 
         // An exact username hit is what the user meant — diagnose that account. Otherwise prefer
         // the most actionable explanation over the generic one.

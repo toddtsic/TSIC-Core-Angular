@@ -6,5 +6,6 @@ import type { UserSearchResultDto } from './UserSearchResultDto';
 export type UserSearchResponseDto = {
     results: Array<UserSearchResultDto>;
     emptyReason?: string | null;
+    customerName?: string | null;
 };
 

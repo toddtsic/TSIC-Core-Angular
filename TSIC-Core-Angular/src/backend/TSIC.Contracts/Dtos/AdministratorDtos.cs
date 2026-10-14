@@ -45,8 +45,17 @@ public record UserSearchResponseDto
 {
     public required List<UserSearchResultDto> Results { get; init; }
 
-    /// <summary>"notFound" | "familyOrPlayer" | "alreadyAdmin" | "outsideLane"; null when Results is non-empty.</summary>
+    /// <summary>
+    /// "notFound" | "familyOrPlayer" | "alreadyAdmin" | "outsideLane" | "multiplePending" |
+    /// "vendorAlreadySetUp" | "notVendorAccount"; null when Results is non-empty.
+    /// </summary>
     public string? EmptyReason { get; init; }
+
+    /// <summary>
+    /// ApiAuthorized searches only: the job's customer name, for the dialog's "creates an
+    /// inactive third-party login for [customer]" notice. Null for every other role.
+    /// </summary>
+    public string? CustomerName { get; init; }
 }
 
 /// <summary>

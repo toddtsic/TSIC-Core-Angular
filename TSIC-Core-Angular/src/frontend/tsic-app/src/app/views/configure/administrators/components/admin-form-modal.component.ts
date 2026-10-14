@@ -6,6 +6,9 @@ import { AdministratorService } from '../services/administrator.service';
 import { Subject, takeUntil } from 'rxjs';
 import type { AdministratorDto, AddAdministratorRequest, UpdateAdministratorRequest, UserSearchResultDto } from '@core/api';
 
+/** Vendor login role — set up here (inactive), activated only in 3rd Party Data Access. */
+const VENDOR_ROLE = 'ApiAuthorized';
+
 export type ModalMode = 'add' | 'edit';
 
 export interface AdminFormResult {
@@ -68,7 +71,13 @@ export interface AdminFormResult {
                                         }Search
                                     </button>
                                 </div>
-                                @if (selectedRole()) {
+                                @if (isVendorRole()) {
+                                    <small class="text-body-secondary d-block mt-1">
+                                        Eligible: dedicated third-party accounts that have only ever held
+                                        ApiAuthorized, not yet set up for this organization. Once set up,
+                                        the login is granted event by event in 3rd Party Data Access.
+                                    </small>
+                                } @else if (selectedRole()) {
                                     <small class="text-body-secondary d-block mt-1">
                                         Eligible: accounts whose active registrations are all
                                         {{ selectedRole() === 'Director' || selectedRole() === 'SuperDirector' ? 'Director / SuperDirector' : selectedRole() }}
@@ -109,6 +118,13 @@ export interface AdminFormResult {
                                         </span>
                                         <button type="button" class="btn-close btn-close-sm" (click)="clearUser()" aria-label="Clear"></button>
                                     </div>
+                                    @if (isVendorRole()) {
+                                        <small class="text-warning-emphasis d-block mt-1">
+                                            <i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Creates an
+                                            inactive third-party login for {{ customerName() || 'this organization' }}.
+                                            No data is released until it is granted in 3rd Party Data Access.
+                                        </small>
+                                    }
                                     @if (selectedUser()!.inactiveSince; as since) {
                                         <small class="text-warning-emphasis d-block mt-1">
                                             <i class="bi bi-clock-history me-1" aria-hidden="true"></i>No active
@@ -158,6 +174,22 @@ export interface AdminFormResult {
                                                 registration, so it's ambiguous which one the grant consumes.
                                                 Delete or deactivate the extras in Search Registrations, then
                                                 accept them here.</span>
+                                            </div>
+                                        }
+                                        @case ('vendorAlreadySetUp') {
+                                            <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
+                                                <i class="bi bi-shield-check flex-shrink-0"></i>
+                                                <span>"{{ searchInput().trim() }}" is already set up for
+                                                {{ customerName() || 'this organization' }}. Grant it in
+                                                3rd Party Data Access.</span>
+                                            </div>
+                                        }
+                                        @case ('notVendorAccount') {
+                                            <div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3 small" role="status">
+                                                <i class="bi bi-person-x flex-shrink-0"></i>
+                                                <span>"{{ searchInput().trim() }}" has held roles other than
+                                                ApiAuthorized. A third-party login must be a dedicated
+                                                account.</span>
                                             </div>
                                         }
                                         @case ('outsideLane') {
@@ -263,11 +295,18 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
      * not silently rewrite the role).
      */
     readonly roleOptions = computed(() => {
-        const current = this.mode() === 'edit' ? this.admin()?.roleName : null;
-        return current && !this.availableRoles.includes(current)
-            ? [...this.availableRoles, current]
-            : this.availableRoles;
+        if (this.mode() !== 'edit') return this.availableRoles;
+        // No row becomes a vendor login by edit — that would activate one outside
+        // 3rd Party Data Access (the server refuses it too).
+        const editable = this.availableRoles.filter(r => r !== VENDOR_ROLE);
+        const current = this.admin()?.roleName;
+        return current && !editable.includes(current) ? [...editable, current] : editable;
     });
+
+    /** ApiAuthorized = set-up only: minted inactive, activated in 3rd Party Data Access. */
+    readonly isVendorRole = computed(() => this.selectedRole() === VENDOR_ROLE);
+    /** The job's customer (sent with ApiAuthorized searches) for the set-up notice. */
+    readonly customerName = signal<string | null>(null);
 
     // State
     readonly searchInput = signal('');
@@ -278,7 +317,7 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     readonly errorMessage = signal<string | null>(null);
     readonly saving = signal(false);
     readonly searching = signal(false);
-    /** Why the last search came back empty: 'notFound' | 'familyOrPlayer' | 'alreadyAdmin' | 'multiplePending' | 'outsideLane' | null. */
+    /** Why the last search came back empty: 'notFound' | 'familyOrPlayer' | 'alreadyAdmin' | 'multiplePending' | 'outsideLane' | 'vendorAlreadySetUp' | 'notVendorAccount' | null. */
     readonly emptyReason = signal<string | null>(null);
     /** Last search request errored (distinct from "no matches"). */
     readonly searchFailed = signal(false);
@@ -341,6 +380,7 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
                     this.searching.set(false);
                     this.searchResults.set(response.results);
                     this.emptyReason.set(response.emptyReason ?? null);
+                    this.customerName.set(response.customerName ?? null);
                 },
                 error: () => {
                     this.searching.set(false);

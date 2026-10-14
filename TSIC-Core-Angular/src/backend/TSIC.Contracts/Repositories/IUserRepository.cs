@@ -74,6 +74,10 @@ public interface IUserRepository
     /// Director/SuperDirector lane the OTHER role does not block — dual-hat accounts hold both
     /// roles on one job as two registrations. Pending coaches are excluded only when they already
     /// hold the requested role on this job.
+    /// ApiAuthorized replaces all of the above with the vendor rule (2026-10-14): an account that
+    /// has never held any other role (or has no registrations) and has no ApiAuthorized history
+    /// with this job's customer — the Administrators page only sets up a customer's FIRST use of
+    /// a vendor login; every later grant belongs to 3rd Party Data Access.
     /// </summary>
     Task<List<UserSearchResult>> SearchAdminCandidatesAsync(
         string query,
@@ -155,7 +159,13 @@ public enum AdminCandidateMissReason
     OutsideLane,
 
     /// <summary>A match holds MORE than one active pending registration — ambiguous; remove the extras first.</summary>
-    MultiplePending
+    MultiplePending,
+
+    /// <summary>ApiAuthorized only: the login already has vendor history with this job's customer — grant it in 3rd Party Data Access.</summary>
+    VendorAlreadySetUp,
+
+    /// <summary>ApiAuthorized only: the match has held a role other than ApiAuthorized — a vendor login must be a dedicated account.</summary>
+    NotVendorAccount
 }
 
 public record UserBasicInfo

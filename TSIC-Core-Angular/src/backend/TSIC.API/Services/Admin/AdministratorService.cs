@@ -17,7 +17,20 @@ public sealed class AdministratorService : IAdministratorService
     private readonly IUserRepository _userRepo;
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IDeviceRepository _deviceRepo;
+    private readonly IJobRepository _jobRepo;
+    private readonly IJobCloneRepository _jobCloneRepo; // sole owner of GetCustomerNameAsync
     private readonly UserManager<ApplicationUser> _userManager;
+
+    /// <summary>
+    /// Vendor logins (ApiAuthorized) are ACTIVATED only in 3rd Party Data Access (Todd
+    /// 2026-10-14) — that screen owns the export entitlement row and the one-active-per-job
+    /// invariant. This page only sets up a customer's first use of a vendor login, always
+    /// INACTIVE, and never toggles, edits, bulk-flips or deletes a vendor row.
+    /// </summary>
+    private const string VendorManagedElsewhere = "Third-party logins are activated in 3rd Party Data Access.";
+
+    private static bool IsVendorRole(string? roleId) =>
+        string.Equals(roleId, RoleConstants.ApiAuthorized, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// AM-004 lane model: eligibility for granting a role is confined to that role's lane —
@@ -56,12 +69,16 @@ public sealed class AdministratorService : IAdministratorService
         IUserRepository userRepo,
         IRegistrationRepository registrationRepo,
         IDeviceRepository deviceRepo,
+        IJobRepository jobRepo,
+        IJobCloneRepository jobCloneRepo,
         UserManager<ApplicationUser> userManager)
     {
         _adminRepo = adminRepo;
         _userRepo = userRepo;
         _registrationRepo = registrationRepo;
         _deviceRepo = deviceRepo;
+        _jobRepo = jobRepo;
+        _jobCloneRepo = jobCloneRepo;
         _userManager = userManager;
     }
 
@@ -154,12 +171,33 @@ public sealed class AdministratorService : IAdministratorService
             && allRegistrations.All(r => lane.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase));
 
         Registrations? pendingToDelete = null;
+        var isVendor = IsVendorRole(roleId);
 
+        if (isVendor)
+        {
+            // Vendor rule (Todd 2026-10-14) replaces every shape below: a dedicated account
+            // that has never held any other role, set up here ONLY for a customer's first use
+            // of it. Must match SearchAdminCandidatesAsync. The row is minted INACTIVE —
+            // activation (export entitlement + one-active-per-job) is 3rd Party Data Access's.
+            if (allRegistrations.Any(r => !IsVendorRole(r.RoleId)))
+                throw new ArgumentException(
+                    $"'{request.UserName}' has held roles other than ApiAuthorized — a third-party " +
+                    "login must be a dedicated account.");
+
+            var customerId = await _jobRepo.GetCustomerIdAsync(jobId, cancellationToken)
+                ?? throw new ArgumentException($"Job '{jobId}' not found.");
+            if (allRegistrations.Any(r => r.Job.CustomerId == customerId))
+            {
+                var customerName = await _jobCloneRepo.GetCustomerNameAsync(customerId, cancellationToken);
+                throw new ArgumentException(
+                    $"Already set up for {customerName ?? "this organization"}. Grant it in 3rd Party Data Access.");
+            }
+        }
         // Third shape: no registration footprint at all — nothing to be impure about and
         // nothing on this job to collide with. Takes the same mint-a-new-row path as a
         // lane-pure account (Todd 2026-08-23 — returning admins whose history has aged out).
         // The duplicate guards below are vacuously satisfied on an empty set.
-        if (isLanePure || isDormantLanePure || allRegistrations.Count == 0)
+        else if (isLanePure || isDormantLanePure || allRegistrations.Count == 0)
         {
             // Lane-pure account: pin with a new registration on this job.
             // An inactive admin reg on this job still blocks; reactivate via the grid instead
@@ -235,7 +273,8 @@ public sealed class AdministratorService : IAdministratorService
         var registration = new Registrations
         {
             RegistrationId = Guid.NewGuid(),
-            BActive = true,
+            // Vendor logins are set up inactive — only 3rd Party Data Access activates them.
+            BActive = !isVendor,
             JobId = jobId,
             LebUserId = currentUserId,
             Modified = DateTime.Now,
@@ -280,6 +319,12 @@ public sealed class AdministratorService : IAdministratorService
         if (!RoleNameToIdMap.TryGetValue(request.RoleName, out var roleId))
             throw new ArgumentException($"Invalid role name: '{request.RoleName}'.");
 
+        // A vendor row is never edited here, and no row becomes one: flipping an active
+        // Director row to ApiAuthorized would activate a vendor without the export
+        // entitlement or the one-active-per-job check.
+        if (IsVendorRole(registration.RoleId) || IsVendorRole(roleId))
+            throw new InvalidOperationException(VendorManagedElsewhere);
+
         // Dual-hat accounts hold Director AND SuperDirector on one job as two rows — flipping
         // this row's role must not mint a same-role duplicate of its sibling. Same invariant
         // the add path enforces; both write chokepoints carry it.
@@ -316,6 +361,10 @@ public sealed class AdministratorService : IAdministratorService
         if (registration.RoleId == RoleConstants.Superuser)
             throw new InvalidOperationException("Cannot delete a Superuser registration.");
 
+        // Vendor rows are history the 3rd Party Data Access picker reads — never deleted.
+        if (IsVendorRole(registration.RoleId))
+            throw new InvalidOperationException(VendorManagedElsewhere);
+
         // Jobs.PrimaryContactRegistrationId references this row — clear the star before
         // deleting or the FK blocks the delete. The next load re-seeds the default.
         var primaryId = await _adminRepo.GetPrimaryContactIdAsync(registration.JobId, cancellationToken);
@@ -340,6 +389,9 @@ public sealed class AdministratorService : IAdministratorService
         if (registration.RoleId == RoleConstants.Superuser)
             throw new InvalidOperationException("Cannot modify a Superuser registration.");
 
+        if (IsVendorRole(registration.RoleId))
+            throw new InvalidOperationException(VendorManagedElsewhere);
+
         registration.BActive = !(registration.BActive ?? false);
         registration.Modified = DateTime.Now;
 
@@ -355,7 +407,8 @@ public sealed class AdministratorService : IAdministratorService
     {
         var registrations = await _adminRepo.GetNonSuperuserByJobIdAsync(jobId, cancellationToken);
 
-        foreach (var reg in registrations)
+        // Bulk flips skip vendor rows — one click must never release minors' data.
+        foreach (var reg in registrations.Where(r => !IsVendorRole(r.RoleId)))
         {
             reg.BActive = isActive;
             reg.Modified = DateTime.Now;
@@ -416,6 +469,15 @@ public sealed class AdministratorService : IAdministratorService
         var results = await _userRepo.SearchAdminCandidatesAsync(
             query, jobId, roleId, lane, 10, cancellationToken);
 
+        // Vendor searches carry the customer name for the dialog's set-up notice.
+        string? customerName = null;
+        if (IsVendorRole(roleId))
+        {
+            var customerId = await _jobRepo.GetCustomerIdAsync(jobId, cancellationToken);
+            if (customerId != null)
+                customerName = await _jobCloneRepo.GetCustomerNameAsync(customerId.Value, cancellationToken);
+        }
+
         if (results.Count == 0)
         {
             // Empty is ambiguous to the user (not registered? wrong kind of account? broken?) —
@@ -432,13 +494,17 @@ public sealed class AdministratorService : IAdministratorService
                     AdminCandidateMissReason.AlreadyAdmin => "alreadyAdmin",
                     AdminCandidateMissReason.OutsideLane => "outsideLane",
                     AdminCandidateMissReason.MultiplePending => "multiplePending",
+                    AdminCandidateMissReason.VendorAlreadySetUp => "vendorAlreadySetUp",
+                    AdminCandidateMissReason.NotVendorAccount => "notVendorAccount",
                     _ => "notFound"
-                }
+                },
+                CustomerName = customerName
             };
         }
 
         return new UserSearchResponseDto
         {
+            CustomerName = customerName,
             Results = results.Select(r => new UserSearchResultDto
             {
                 UserId = r.UserId,
