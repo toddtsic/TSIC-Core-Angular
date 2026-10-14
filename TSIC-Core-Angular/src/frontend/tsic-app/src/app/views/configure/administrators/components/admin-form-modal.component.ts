@@ -70,7 +70,8 @@ export interface AdminFormResult {
                                 @if (selectedRole()) {
                                     <small class="text-body-secondary d-block mt-1">
                                         Eligible: accounts whose active registrations are all
-                                        {{ selectedRole() === 'Director' || selectedRole() === 'SuperDirector' ? 'Director / SuperDirector' : selectedRole() }},
+                                        {{ selectedRole() === 'Director' || selectedRole() === 'SuperDirector' ? 'Director / SuperDirector' : selectedRole() }}
+                                        (or, with none active, whose every past registration was),
                                         or accounts holding exactly one pending (unassigned adult) coach
                                         registration — from any event site. Family logins cannot hold
                                         admin roles.

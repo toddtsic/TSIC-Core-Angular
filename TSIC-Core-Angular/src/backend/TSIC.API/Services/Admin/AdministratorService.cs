@@ -122,6 +122,9 @@ public sealed class AdministratorService : IAdministratorService
         //     leaves the coach-approval queue; a Staff team hat is left untouched).
         //  3. No registrations at all — a known account with an empty footprint (2026-08-23).
         //     → new registration, same as shape 1.
+        //  4. Dormant lane-pure — no LIVE registration, but every registration ever held (any
+        //     state) carries a lane role (2026-10-14: a vendor login whose rows were only
+        //     deactivated). → new registration, same as shape 1.
         if (await _adminRepo.IsFamilyCredentialHolderAsync(user.Id, cancellationToken))
             throw new ArgumentException(
                 $"'{request.UserName}' is a family login — family credentials are shared within the household " +
@@ -143,6 +146,12 @@ public sealed class AdministratorService : IAdministratorService
         var lane = GetRoleLane(roleId);
         var isLanePure = liveRegistrations.Count > 0 && liveRegistrations.All(r =>
             lane.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase));
+        // Fourth shape (Todd 2026-10-14): dormant lane-pure — nothing live, but every
+        // registration ever held (any state) is within the lane. A returning vendor/admin
+        // whose rows were only deactivated. Must match SearchAdminCandidatesAsync.
+        var isDormantLanePure = liveRegistrations.Count == 0
+            && allRegistrations.Count > 0
+            && allRegistrations.All(r => lane.Contains(r.RoleId, StringComparer.OrdinalIgnoreCase));
 
         Registrations? pendingToDelete = null;
 
@@ -150,7 +159,7 @@ public sealed class AdministratorService : IAdministratorService
         // nothing on this job to collide with. Takes the same mint-a-new-row path as a
         // lane-pure account (Todd 2026-08-23 — returning admins whose history has aged out).
         // The duplicate guards below are vacuously satisfied on an empty set.
-        if (isLanePure || allRegistrations.Count == 0)
+        if (isLanePure || isDormantLanePure || allRegistrations.Count == 0)
         {
             // Lane-pure account: pin with a new registration on this job.
             // An inactive admin reg on this job still blocks; reactivate via the grid instead

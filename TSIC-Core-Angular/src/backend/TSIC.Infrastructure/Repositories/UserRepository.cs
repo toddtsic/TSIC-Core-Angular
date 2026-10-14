@@ -187,6 +187,8 @@ public class UserRepository : IUserRepository
         //    any customer, with NO expiry gate — the add path deletes that row, so a closed
         //    source event is irrelevant. Other roles on the account (Staff from a roster-swapper
         //    approval, player history, …) do NOT disqualify this shape.
+        //  - Dormant lane-pure (2026-10-14): no live registration, every registration ever held
+        //    within the lane. Same blocking rule as lane-pure.
         // The family-credential exclusion stays GLOBAL (not liveness-gated): a shared household
         // login is structural — accepting one would hand admin access to the whole household.
         return await _context.AspNetUsers
@@ -217,6 +219,13 @@ public class UserRepository : IUserRepository
                             ? r.Job.ExpiryAdmin > now
                             : r.Job.ExpiryUsers > now))
                     .All(r => laneRoleIds.Contains(r.RoleId!)),
+                // Fourth shape (Todd 2026-10-14): a DORMANT lane-pure account — no live regs, but
+                // every registration it ever held (any state) lies within the lane. A returning
+                // vendor/admin whose rows were only deactivated; never an account with any
+                // out-of-lane history. Paired with HasAnyRegs (All() over empty is vacuous).
+                IsLanePureEver = _context.Registrations
+                    .Where(r => r.UserId == u.Id)
+                    .All(r => laneRoleIds.Contains(r.RoleId!)),
                 ActiveUaCount = _context.Registrations.Count(r => r.UserId == u.Id
                     && r.BActive == true
                     && r.RoleId == RoleConstants.UnassignedAdult),
@@ -236,6 +245,7 @@ public class UserRepository : IUserRepository
                     && r.RoleId == requestedRoleId)
             })
             .Where(x => (x.HasLiveRegs && x.IsLanePure && !x.HasBlockingRegOnThisJob)
+                || (x.HasAnyRegs && !x.HasLiveRegs && x.IsLanePureEver && !x.HasBlockingRegOnThisJob)
                 || (x.ActiveUaCount == 1 && !x.HasRequestedRoleOnThisJob)
                 || !x.HasAnyRegs)
             .OrderBy(x => x.User.LastName)
@@ -247,7 +257,8 @@ public class UserRepository : IUserRepository
                 UserName = x.User.UserName!,
                 FirstName = x.User.FirstName,
                 LastName = x.User.LastName,
-                AccountType = x.HasLiveRegs && x.IsLanePure
+                AccountType = (x.HasLiveRegs && x.IsLanePure)
+                        || (x.HasAnyRegs && !x.HasLiveRegs && x.IsLanePureEver)
                     ? "Admin"
                     : x.HasAnyRegs ? "PendingAdult" : "NoRegistrations"
             })
