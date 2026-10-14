@@ -204,23 +204,23 @@ public interface IRegistrationRepository
     // ── "3rd Party Data Access" console (SU + SuperDirector vendor-login management) ──
 
     /// <summary>
-    /// Distinct accounts that have ever held ApiAuthorized on any of the customer's jobs
+    /// Distinct accounts that have ever held ApiAuthorized on any job of the given customers
     /// (active or not) AND are lane-pure (never held any other role, anywhere) —
     /// the reuse-only vendor picker.
     /// </summary>
-    Task<List<ThirdPartyVendorDto>> GetThirdPartyVendorHistoryByCustomerAsync(Guid customerId, CancellationToken cancellationToken = default);
+    Task<List<ThirdPartyVendorDto>> GetThirdPartyVendorHistoryByCustomersAsync(IReadOnlyCollection<Guid> customerIds, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Customer's jobs with an open users window (ExpiryUsers in the future), each with
+    /// The given customers' jobs with an open users window (ExpiryUsers in the future), each with
     /// its ApiAuthorized registration if one exists (active preferred, then most recent).
     /// </summary>
-    Task<List<ThirdPartyJobRowDto>> GetThirdPartyJobRowsByCustomerAsync(Guid customerId, CancellationToken cancellationToken = default);
+    Task<List<ThirdPartyJobRowDto>> GetThirdPartyJobRowsByCustomersAsync(IReadOnlyCollection<Guid> customerIds, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// True when the user has ever held ApiAuthorized on any of the customer's jobs AND is
+    /// True when the user has ever held ApiAuthorized on any job of the given customers AND is
     /// lane-pure (never held any other role, anywhere) — must match the vendor picker.
     /// </summary>
-    Task<bool> HasApiAuthorizedHistoryWithCustomerAsync(Guid customerId, string userId, CancellationToken cancellationToken = default);
+    Task<bool> HasApiAuthorizedHistoryWithCustomersAsync(IReadOnlyCollection<Guid> customerIds, string userId, CancellationToken cancellationToken = default);
 
     /// <summary>All ApiAuthorized registrations on a job, tracked (grant/disable chokepoint).</summary>
     Task<List<Registrations>> GetApiAuthorizedRegsForJobTrackedAsync(Guid jobId, CancellationToken cancellationToken = default);

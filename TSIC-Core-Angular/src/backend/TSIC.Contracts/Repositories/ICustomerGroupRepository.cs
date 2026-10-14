@@ -25,6 +25,12 @@ public interface ICustomerGroupRepository
     /// </summary>
     Task<List<CustomerLookupDto>> GetAllCustomersAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// The customer's group scope: every customer in its group, or just the customer itself
+    /// when it belongs to none (AsNoTracking). Always contains <paramref name="customerId"/>.
+    /// </summary>
+    Task<List<Guid>> GetGroupCustomerIdsAsync(Guid customerId, CancellationToken ct = default);
+
     // ── Validation ───────────────────────────────────────
 
     /// <summary>

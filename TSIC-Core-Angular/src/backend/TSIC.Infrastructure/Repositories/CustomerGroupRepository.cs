@@ -63,6 +63,30 @@ public class CustomerGroupRepository : ICustomerGroupRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<Guid>> GetGroupCustomerIdsAsync(Guid customerId, CancellationToken ct = default)
+    {
+        // Same resolution as Customer Job Revenue's group scope: the customer's (first) group,
+        // expanded to all its members.
+        var groupId = await _context.CustomerGroupCustomers
+            .AsNoTracking()
+            .Where(cgc => cgc.CustomerId == customerId)
+            .Select(cgc => (int?)cgc.CustomerGroupId)
+            .FirstOrDefaultAsync(ct);
+
+        if (groupId == null)
+        {
+            return [customerId];
+        }
+
+        var ids = await _context.CustomerGroupCustomers
+            .AsNoTracking()
+            .Where(cgc => cgc.CustomerGroupId == groupId)
+            .Select(cgc => cgc.CustomerId)
+            .ToListAsync(ct);
+
+        return ids.Count > 0 ? ids : [customerId];
+    }
+
     // ── Validation ───────────────────────────────────────
 
     public async Task<bool> GroupExistsAsync(int groupId, CancellationToken ct = default)

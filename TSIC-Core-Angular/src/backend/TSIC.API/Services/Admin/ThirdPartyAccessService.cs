@@ -28,17 +28,20 @@ public sealed class ThirdPartyAccessService : IThirdPartyAccessService
     private readonly IJobRepository _jobRepo;
     private readonly IJobCloneRepository _jobCloneRepo; // sole owner of GetCustomerNameAsync
     private readonly IReportingRepository _reportingRepo;
+    private readonly ICustomerGroupRepository _customerGroupRepo;
 
     public ThirdPartyAccessService(
         IRegistrationRepository registrationRepo,
         IJobRepository jobRepo,
         IJobCloneRepository jobCloneRepo,
-        IReportingRepository reportingRepo)
+        IReportingRepository reportingRepo,
+        ICustomerGroupRepository customerGroupRepo)
     {
         _registrationRepo = registrationRepo;
         _jobRepo = jobRepo;
         _jobCloneRepo = jobCloneRepo;
         _reportingRepo = reportingRepo;
+        _customerGroupRepo = customerGroupRepo;
     }
 
     public async Task<ThirdPartyAccessOverviewDto> GetOverviewAsync(
@@ -48,9 +51,10 @@ public sealed class ThirdPartyAccessService : IThirdPartyAccessService
             ?? throw new KeyNotFoundException($"Job '{callerJobId}' not found.");
 
         // Sequential awaits — repos share the scoped DbContext (no Task.WhenAll).
+        var customerIds = await _customerGroupRepo.GetGroupCustomerIdsAsync(customerId, ct);
         var customerName = await _jobCloneRepo.GetCustomerNameAsync(customerId, ct) ?? string.Empty;
-        var vendors = await _registrationRepo.GetThirdPartyVendorHistoryByCustomerAsync(customerId, ct);
-        var jobs = await _registrationRepo.GetThirdPartyJobRowsByCustomerAsync(customerId, ct);
+        var vendors = await _registrationRepo.GetThirdPartyVendorHistoryByCustomersAsync(customerIds, ct);
+        var jobs = await _registrationRepo.GetThirdPartyJobRowsByCustomersAsync(customerIds, ct);
 
         return new ThirdPartyAccessOverviewDto
         {
@@ -63,11 +67,11 @@ public sealed class ThirdPartyAccessService : IThirdPartyAccessService
     public async Task<ThirdPartyAccessOverviewDto> GrantAsync(
         Guid callerJobId, Guid targetJobId, string userId, string currentUserId, CancellationToken ct = default)
     {
-        var customerId = await ResolveCustomerScopeAsync(callerJobId, targetJobId, ct);
+        var customerIds = await ResolveCustomerScopeAsync(callerJobId, targetJobId, ct);
 
         // Reuse-only wall (server-side; the DDL is not the only gate): the account must
-        // already hold ApiAuthorized history with THIS customer.
-        if (!await _registrationRepo.HasApiAuthorizedHistoryWithCustomerAsync(customerId, userId, ct))
+        // already hold ApiAuthorized history within the caller's customer group.
+        if (!await _registrationRepo.HasApiAuthorizedHistoryWithCustomersAsync(customerIds, userId, ct))
             throw new ArgumentException(
                 "That account has no third-party authorization history with this organization. " +
                 "First-time vendor logins are not created here.");
@@ -150,21 +154,24 @@ public sealed class ThirdPartyAccessService : IThirdPartyAccessService
     }
 
     /// <summary>
-    /// Both jobs must exist and belong to the same customer — the console's authority is
-    /// customer-wide but never crosses customers (SuperUser included: the screen operates
-    /// from within a job, so the same wall applies). Returns the customer id.
+    /// Both jobs must exist and the target must belong to the caller's customer group
+    /// (CustomerGroupCustomers; a customer in no group is its own scope). SuperDirectors
+    /// grant across the customers of their group (Todd 10-14) but never beyond it —
+    /// SuperUser included: the screen operates from within a job, so the same wall applies.
+    /// Returns the group's customer ids.
     /// </summary>
-    private async Task<Guid> ResolveCustomerScopeAsync(Guid callerJobId, Guid targetJobId, CancellationToken ct)
+    private async Task<List<Guid>> ResolveCustomerScopeAsync(Guid callerJobId, Guid targetJobId, CancellationToken ct)
     {
         var callerCustomerId = await _jobRepo.GetCustomerIdAsync(callerJobId, ct)
             ?? throw new KeyNotFoundException($"Job '{callerJobId}' not found.");
         var targetCustomerId = await _jobRepo.GetCustomerIdAsync(targetJobId, ct)
             ?? throw new KeyNotFoundException($"Job '{targetJobId}' not found.");
 
-        if (callerCustomerId != targetCustomerId)
-            throw new InvalidOperationException("That job belongs to a different organization.");
+        var customerIds = await _customerGroupRepo.GetGroupCustomerIdsAsync(callerCustomerId, ct);
+        if (!customerIds.Contains(targetCustomerId))
+            throw new InvalidOperationException("That job belongs to an organization outside your customer group.");
 
-        return callerCustomerId;
+        return customerIds;
     }
 
     /// <summary>
