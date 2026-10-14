@@ -46,18 +46,19 @@ export class ThirdPartyAccessComponent implements OnInit {
 	readonly customerName = computed(() => this.overview()?.customerName ?? '');
 	readonly hasHistory = computed(() => this.vendors().length > 0);
 	readonly activeCount = computed(() => this.jobs().filter(j => j.assignment?.isActive).length);
-	/**
-	 * The customer's only vendor, when there is exactly one — the norm for a reuse-only
-	 * console. Drives the no-control render: with nothing to choose, the row states the
-	 * identity outright instead of burying it in a one-option picker.
-	 */
-	readonly soleVendor = computed<ThirdPartyVendorDto | null>(() => {
-		const vendors = this.vendors();
-		return vendors.length === 1 ? vendors[0] : null;
-	});
 
 	ngOnInit(): void {
 		this.load();
+	}
+
+	/**
+	 * The row's only vendor, when there is exactly one — the norm for a reuse-only
+	 * console. Drives the no-control render: with nothing to choose, the row states the
+	 * identity outright instead of burying it in a one-option picker. Per row, because a
+	 * row offers only its own customer's vendor history.
+	 */
+	soleVendorFor(job: ThirdPartyJobRowDto): ThirdPartyVendorDto | null {
+		return job.vendors.length === 1 ? job.vendors[0] : null;
 	}
 
 	/**
@@ -74,12 +75,11 @@ export class ThirdPartyAccessComponent implements OnInit {
 		return v.displayName ? v.userName : null;
 	}
 
-	selectionFor(jobId: string): string {
-		// Single-vendor customers (the norm) get that vendor preselected.
-		const chosen = this.selections()[jobId];
+	selectionFor(job: ThirdPartyJobRowDto): string {
+		// Single-vendor rows (the norm) get that vendor preselected.
+		const chosen = this.selections()[job.jobId];
 		if (chosen) return chosen;
-		const vendors = this.vendors();
-		return vendors.length === 1 ? vendors[0].userId : '';
+		return this.soleVendorFor(job)?.userId ?? '';
 	}
 
 	onSelectVendor(jobId: string, userId: string): void {
@@ -88,11 +88,12 @@ export class ThirdPartyAccessComponent implements OnInit {
 
 	/** Grant / re-enable — single click, no dialog. */
 	grant(job: ThirdPartyJobRowDto, userId: string): void {
-		const vendor = this.vendors().find(v => v.userId === userId);
-		if (!vendor || this.busyJobId()) return;
+		// Re-Activate passes the row's own assignment, which may predate its vendor history.
+		const known = job.assignment?.userId === userId || job.vendors.some(v => v.userId === userId);
+		if (!known || this.busyJobId()) return;
 
 		this.busyJobId.set(job.jobId);
-		this.accessService.grant(job.jobId, { userId: vendor.userId }).subscribe({
+		this.accessService.grant(job.jobId, { userId }).subscribe({
 			next: overview => {
 				this.busyJobId.set(null);
 				this.overview.set(overview);

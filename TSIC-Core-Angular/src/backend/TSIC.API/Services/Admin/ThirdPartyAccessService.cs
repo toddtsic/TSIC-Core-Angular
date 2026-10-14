@@ -53,25 +53,37 @@ public sealed class ThirdPartyAccessService : IThirdPartyAccessService
         // Sequential awaits — repos share the scoped DbContext (no Task.WhenAll).
         var customerIds = await _customerGroupRepo.GetGroupCustomerIdsAsync(customerId, ct);
         var customerName = await _jobCloneRepo.GetCustomerNameAsync(customerId, ct) ?? string.Empty;
-        var vendors = await _registrationRepo.GetThirdPartyVendorHistoryByCustomersAsync(customerIds, ct);
+        var history = await _registrationRepo.GetThirdPartyVendorHistoryByCustomersAsync(customerIds, ct);
         var jobs = await _registrationRepo.GetThirdPartyJobRowsByCustomersAsync(customerIds, ct);
+
+        // Each row offers only its OWN customer's vendor history (Todd 10-14): the group
+        // widens which jobs are listed, never who may be granted on them.
+        var vendorsByCustomer = history
+            .GroupBy(h => h.CustomerId)
+            .ToDictionary(g => g.Key, g => g.Select(h => h.Vendor).ToList());
 
         return new ThirdPartyAccessOverviewDto
         {
             CustomerName = customerName,
-            Vendors = vendors,
+            Vendors = history
+                .Select(h => h.Vendor)
+                .DistinctBy(v => v.UserId)
+                .ToList(),
             Jobs = jobs
+                .Select(j => j with { Vendors = vendorsByCustomer.GetValueOrDefault(j.CustomerId) ?? [] })
+                .ToList()
         };
     }
 
     public async Task<ThirdPartyAccessOverviewDto> GrantAsync(
         Guid callerJobId, Guid targetJobId, string userId, string currentUserId, CancellationToken ct = default)
     {
-        var customerIds = await ResolveCustomerScopeAsync(callerJobId, targetJobId, ct);
+        var targetCustomerId = await ResolveCustomerScopeAsync(callerJobId, targetJobId, ct);
 
         // Reuse-only wall (server-side; the DDL is not the only gate): the account must
-        // already hold ApiAuthorized history within the caller's customer group.
-        if (!await _registrationRepo.HasApiAuthorizedHistoryWithCustomersAsync(customerIds, userId, ct))
+        // already hold ApiAuthorized history with the TARGET job's own customer — group
+        // membership never lends one customer's vendor to another.
+        if (!await _registrationRepo.HasApiAuthorizedHistoryWithCustomerAsync(targetCustomerId, userId, ct))
             throw new ArgumentException(
                 "That account has no third-party authorization history with this organization. " +
                 "First-time vendor logins are not created here.");
@@ -158,9 +170,9 @@ public sealed class ThirdPartyAccessService : IThirdPartyAccessService
     /// (CustomerGroupCustomers; a customer in no group is its own scope). SuperDirectors
     /// grant across the customers of their group (Todd 10-14) but never beyond it —
     /// SuperUser included: the screen operates from within a job, so the same wall applies.
-    /// Returns the group's customer ids.
+    /// Returns the target job's customer id.
     /// </summary>
-    private async Task<List<Guid>> ResolveCustomerScopeAsync(Guid callerJobId, Guid targetJobId, CancellationToken ct)
+    private async Task<Guid> ResolveCustomerScopeAsync(Guid callerJobId, Guid targetJobId, CancellationToken ct)
     {
         var callerCustomerId = await _jobRepo.GetCustomerIdAsync(callerJobId, ct)
             ?? throw new KeyNotFoundException($"Job '{callerJobId}' not found.");
@@ -171,7 +183,7 @@ public sealed class ThirdPartyAccessService : IThirdPartyAccessService
         if (!customerIds.Contains(targetCustomerId))
             throw new InvalidOperationException("That job belongs to an organization outside your customer group.");
 
-        return customerIds;
+        return targetCustomerId;
     }
 
     /// <summary>

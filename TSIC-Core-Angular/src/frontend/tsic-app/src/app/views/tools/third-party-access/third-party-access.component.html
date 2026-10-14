@@ -66,7 +66,10 @@
 									@if (secondaryLabel(a); as login) {
 										<span class="vendor-login">{{ login }}</span>
 									}
-								} @else if (soleVendor(); as v) {
+								} @else if (job.vendors.length === 0) {
+									<!-- Vendor history is per customer: this event's organization has none. -->
+									<span class="chip chip-disabled"><i class="bi bi-dash-circle" aria-hidden="true"></i> No third-party history</span>
+								} @else if (soleVendorFor(job); as v) {
 									<!-- One vendor in history = no choice to make. Never hide the identity
 									     behind a control: show exactly who "Grant access" would authorize. -->
 									<span class="vendor-person vendor-pending">{{ primaryLabel(v) }}</span>
@@ -78,10 +81,10 @@
 									<!-- 2+ candidates: radios, not a select — every identity stays on screen. -->
 									<fieldset class="vendor-choice">
 										<legend class="visually-hidden">Third party for {{ job.jobName }}</legend>
-										@for (vendor of vendors(); track vendor.userId) {
+										@for (vendor of job.vendors; track vendor.userId) {
 											<label class="vendor-option">
 												<input type="radio" [name]="'vendor-' + job.jobId"
-													[checked]="selectionFor(job.jobId) === vendor.userId"
+													[checked]="selectionFor(job) === vendor.userId"
 													(change)="onSelectVendor(job.jobId, vendor.userId)">
 												<span class="vendor-option-text">
 													<span class="vendor-person">{{ primaryLabel(vendor) }}</span>
@@ -113,10 +116,10 @@
 										}
 										Re-Activate
 									</button>
-								} @else {
+								} @else if (job.vendors.length > 0) {
 									<button type="button" class="btn btn-sm btn-warning"
-										[disabled]="!selectionFor(job.jobId) || busyJobId() !== null"
-										(click)="grant(job, selectionFor(job.jobId))">
+										[disabled]="!selectionFor(job) || busyJobId() !== null"
+										(click)="grant(job, selectionFor(job))">
 										@if (busyJobId() === job.jobId) {
 											<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
 										}

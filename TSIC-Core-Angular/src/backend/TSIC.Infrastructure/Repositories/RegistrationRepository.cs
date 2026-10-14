@@ -730,12 +730,14 @@ public partial class RegistrationRepository : IRegistrationRepository
 
     // ── "3rd Party Data Access" console (SU + SuperDirector vendor-login management) ──
 
-    public async Task<List<ThirdPartyVendorDto>> GetThirdPartyVendorHistoryByCustomersAsync(
+    public async Task<List<ThirdPartyCustomerVendorDto>> GetThirdPartyVendorHistoryByCustomersAsync(
         IReadOnlyCollection<Guid> customerIds,
         CancellationToken cancellationToken = default)
     {
-        // ANY ApiAuthorized registration on the customers' jobs qualifies — active or not,
-        // window open or closed. History is the reuse-only picker; liveness is per-job.
+        // ANY ApiAuthorized registration on a customer's jobs qualifies for THAT customer —
+        // active or not, window open or closed. History is the reuse-only picker; liveness is
+        // per-job. Keyed by customer: history with one group member never qualifies an
+        // account on another member's jobs (Todd 10-14).
         // AM-004 lane purity, vendor lane (Todd 08-08): the account must have ONLY ever held
         // ApiAuthorized — anywhere, any customer. A routine director who once carried the
         // vendor role is NOT a vendor account and must not appear as a grant candidate.
@@ -748,6 +750,7 @@ public partial class RegistrationRepository : IRegistrationRepository
                                                             && o.RoleId != RoleConstants.ApiAuthorized))
             .Select(r => new
             {
+                r.Job.CustomerId,
                 UserId = r.UserId!,
                 UserName = r.User!.UserName,
                 r.User.FirstName,
@@ -757,13 +760,17 @@ public partial class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
 
         return raw
-            .Select(u => new ThirdPartyVendorDto
+            .Select(u => new ThirdPartyCustomerVendorDto
             {
-                UserId = u.UserId,
-                UserName = u.UserName ?? string.Empty,
-                DisplayName = $"{u.FirstName} {u.LastName}".Trim()
+                CustomerId = u.CustomerId,
+                Vendor = new ThirdPartyVendorDto
+                {
+                    UserId = u.UserId,
+                    UserName = u.UserName ?? string.Empty,
+                    DisplayName = $"{u.FirstName} {u.LastName}".Trim()
+                }
             })
-            .OrderBy(v => v.UserName)
+            .OrderBy(v => v.Vendor.UserName)
             .ToList();
     }
 
@@ -774,6 +781,7 @@ public partial class RegistrationRepository : IRegistrationRepository
         // "Active job" = users window still open (Todd's spec) — deliberately the generous
         // ExpiryUsers door, NOT JobLifecycle.EventConcluded: a concluded-but-in-window event
         // still shows so its vendor access can be administered (or shut off).
+        // Vendors is left empty here — the service keys it from the per-customer history.
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => customerIds.Contains(j.CustomerId) && j.ExpiryUsers > DateTime.Now)
@@ -781,8 +789,10 @@ public partial class RegistrationRepository : IRegistrationRepository
             .Select(j => new ThirdPartyJobRowDto
             {
                 JobId = j.JobId,
+                CustomerId = j.CustomerId,
                 JobName = j.JobName ?? string.Empty,
                 ExpiryUsers = j.ExpiryUsers,
+                Vendors = new List<ThirdPartyVendorDto>(),
                 Assignment = j.Registrations
                     .Where(r => r.RoleId == RoleConstants.ApiAuthorized && r.UserId != null)
                     .OrderByDescending(r => r.BActive == true)
@@ -800,17 +810,17 @@ public partial class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<bool> HasApiAuthorizedHistoryWithCustomersAsync(
-        IReadOnlyCollection<Guid> customerIds,
+    public async Task<bool> HasApiAuthorizedHistoryWithCustomerAsync(
+        Guid customerId,
         string userId,
         CancellationToken cancellationToken = default)
     {
-        // Same predicate as the vendor-history picker: ApiAuthorized history with THESE
-        // customers AND lane-pure (never any other role, anywhere). The wall must match the
+        // Same predicate as the vendor-history picker: ApiAuthorized history with THIS
+        // customer AND lane-pure (never any other role, anywhere). The wall must match the
         // picker exactly or a hand-crafted request could grant a non-vendor account.
         var hasHistory = await _context.Registrations
             .AsNoTracking()
-            .AnyAsync(r => customerIds.Contains(r.Job.CustomerId)
+            .AnyAsync(r => r.Job.CustomerId == customerId
                            && r.RoleId == RoleConstants.ApiAuthorized
                            && r.UserId == userId,
                 cancellationToken);
