@@ -357,6 +357,533 @@ public interface IReportingRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Staff and Referee registrations for the "Staff Data (Excel)" export — the EF replacement for
+    /// <c>reporting_migrate.Get_Staff_ForExcelExport</c>. Job-scoped, active or not; team and
+    /// agegroup are LEFT joins; ordered active flag → last → first.
+    /// </summary>
+    Task<List<JobStaffExcelRowDto>> GetJobStaffExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active accounting records of active players for the "Player Transactions (Excel)" export —
+    /// the EF replacement for <c>reporting_migrate.Get_Player_Transactions_ForExcelExport</c>.
+    /// Job-scoped; mirrors the proc's INNER joins (player user, family user, <c>Families</c>, team),
+    /// so familyless and unassigned registrants drop; ordered last → first → record date.
+    /// </summary>
+    Task<List<PlayerTransactionExcelRowDto>> GetPlayerTransactionExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active players with a non-zero discount for the "Discounted Players (Excel)" export — the EF
+    /// replacement for <c>reporting_migrate.Get_DiscountedPlayers</c>. Job-scoped; mirrors the
+    /// proc's INNER joins (player user, family user, <c>Families</c>, team) and its LEFT join to
+    /// the discount code; ordered last → first.
+    /// </summary>
+    Task<List<DiscountedPlayerExcelRowDto>> GetDiscountedPlayerExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active players' combine results for the "Player Stats Export - Parisi (Excel)" export — the
+    /// EF replacement for <c>reporting_migrate.PlayerStats_ParisiResults</c>. Job-scoped; players
+    /// must be on a team whose division is not "Unassigned"; ordered agegroup → last → first.
+    /// </summary>
+    Task<List<PlayerStatsParisiExcelRowDto>> GetPlayerStatsParisiExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Device-to-registration links for the "Mobile Users (Excel)" export — the EF replacement for
+    /// <c>reporting_migrate.UsageByJobAndRegistrant</c>. Job-scoped, any role, active or not;
+    /// ordered customer → job → role → last → first.
+    /// </summary>
+    Task<List<MobileJobUserExcelRowDto>> GetMobileJobUserExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active teams with their active club rep's contact details for the "Teams Export (Excel)"
+    /// export — the EF replacement for <c>reporting_migrate.League_Teams</c>. Job-scoped; a team
+    /// needs a division and a club rep to list; home field is a LEFT join; ordered agegroup →
+    /// division → club → team.
+    /// </summary>
+    Task<List<LeagueTeamExcelRowDto>> GetLeagueTeamExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active players across every admin-open job of <paramref name="jobId"/>'s customer, for the
+    /// "Player Data - All Customer Jobs (Excel)" export — the EF replacement for
+    /// <c>reporting_migrate.Get_Players_ForExcelExport_AllCustomers</c>. Customer-scoped (jobs with
+    /// <c>ExpiryAdmin</c> in the future); mirrors the proc's INNER joins (player user, family
+    /// user, <c>Families</c>, team); ordered customer → job → last → first → agegroup → team.
+    /// </summary>
+    Task<List<CustomerPlayersExcelRowDto>> GetCustomerPlayersExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Game counts per club, agegroup, team, field and day for the "Team Field Distribution"
+    /// export — the EF replacement for <c>reporting_migrate.TeamsFieldDistribution</c>. Job-scoped;
+    /// a game counts once for each of its two teams; ordered club → agegroup → team → day (as
+    /// MM/DD/YYYY text, so month before year) → field.
+    /// </summary>
+    Task<List<TeamFieldDistributionExcelRowDto>> GetTeamFieldDistributionExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active rostered players and staff with recruiting data for the "College Recruiter Data Dump
+    /// (excel)" export — the EF replacement for <c>reporting_migrate.JobRosters_ExportTournament</c>.
+    /// Job-scoped; the team needs a division and a club rep; family user and <c>Families</c> are
+    /// LEFT joins; ordered agegroup → team → role (descending) → last → first.
+    /// </summary>
+    Task<List<TournamentRecruitingExcelRowDto>> GetTournamentRecruitingExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active players on active teams with recruiting data for the "Rosters Recruiting Data Dump
+    /// (Excel)" exports — the EF replacement for
+    /// <c>reporting_migrate.JobRosters_RecruitingReport_DumpExcel</c> and <c>…_Public</c>, which
+    /// share one row set. Job-scoped; the team needs a division, the player a family; the club rep
+    /// is a LEFT join; ordered agegroup → team → uniform number (as a number, non-numeric first)
+    /// → last → first.
+    /// </summary>
+    Task<List<RecruitingRosterExcelRowDto>> GetRecruitingRosterExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Export runs by non-SuperUser registrations of the job, newest first — the EF replacement
+    /// for <c>reporting.ExportReportsHistory</c>.
+    /// </summary>
+    Task<List<ExportHistoryExcelRowDto>> GetExportHistoryExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Parent names and family mailing address for every active registration with a family,
+    /// ordered by mother's last name — the EF replacement for
+    /// <c>reporting.PlayerParentMailingData</c>. Job-scoped, any role.
+    /// </summary>
+    Task<List<PlayerParentMailingExcelRowDto>> GetPlayerParentMailingExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active Staff registrations with assignment and apparel sizes, ordered last → first — the EF
+    /// replacement for <c>reporting.StaffExport</c>. Job-scoped.
+    /// </summary>
+    Task<List<StaffApparelExcelRowDto>> GetStaffApparelExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Unassigned Adult registrations (active or not) with a count of the same user's Staff
+    /// registrations on the job, ordered last → first — the EF replacement for
+    /// <c>reporting.StepsCoaches_Export</c>. Job-scoped.
+    /// </summary>
+    Task<List<StepsCoachExcelRowDto>> GetStepsCoachExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Player registrations (active or not) that have a family, with club-coach and parent
+    /// contacts, ordered last → first — the EF replacement for
+    /// <c>utility.MaxExposure_ClubCoaches</c>. Job-scoped.
+    /// </summary>
+    Task<List<MaxExposureClubCoachExcelRowDto>> GetMaxExposureClubCoachExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every registration on the job whose family has more than one active Player registration
+    /// there, ordered last → first — the EF replacement for <c>utility.sibling_report</c>.
+    /// </summary>
+    Task<List<SiblingExcelRowDto>> GetSiblingExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active Club Rep registrations' contact details, ordered last → first — the EF replacement
+    /// for <c>reporting.JobClubRepContacts</c>. Job-scoped.
+    /// </summary>
+    Task<List<JobClubRepContactExcelRowDto>> GetJobClubRepContactExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active rostered registrants outside waitlist agegroups with upload flags, balance and
+    /// parent contacts, ordered team → last — the EF replacement for
+    /// <c>reporting.CathyCampCheckinWithVacAndMedform</c>. Job-scoped; needs a family, a team and
+    /// a division.
+    /// </summary>
+    Task<List<CampCheckinExcelRowDto>> GetCampCheckinExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Mobile favourite-team counts for the job: the total and the per-club/agegroup/team
+    /// breakdown (club rep is a LEFT join) — the EF replacement for
+    /// <c>reporting.JobPushTeamResultsSummary</c>.
+    /// </summary>
+    Task<JobPushTeamSummaryDto> GetJobPushTeamSummaryAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distinct active club reps and staff per team, ordered agegroup → club → team → role → last
+    /// → first — the EF replacement for <c>reporting.TournamentExportClubrepsAndCoachesEmail</c>.
+    /// Job-scoped.
+    /// </summary>
+    Task<List<TeamContactExcelRowDto>> GetTeamContactExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distinct active-player contacts across every job of <paramref name="jobId"/>'s customer,
+    /// ordered last → first — the EF replacement for <c>reporting.TLCContactsHx</c>.
+    /// </summary>
+    Task<List<CustomerPlayerContactExcelRowDto>> GetCustomerPlayerContactExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distinct player registrations with fee breakdown across the camp-or-clinic jobs of
+    /// <paramref name="jobId"/>'s customer in that job's year, ordered job → agegroup → team →
+    /// last → first — the EF replacement for <c>reporting.CathyCampBreakoutPerJob_AmtPaid</c>.
+    /// </summary>
+    Task<List<CampBreakoutPaidExcelRowDto>> GetCampBreakoutPaidExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active-player counts per job, year, agegroup and team across every job of
+    /// <paramref name="jobId"/>'s customer, ordered by those four — the detail level of the EF
+    /// replacement for <c>reporting.AmericanSelect_CustomerJobRegistrationsByJobAgegroupDivTeam</c>.
+    /// </summary>
+    Task<List<CustomerTeamCountDto>> GetCustomerTeamCountsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Year-to-date active-player counts per camp year and team for the MaxExposure customer,
+    /// ordered customer → year — the EF replacement for
+    /// <c>utility.MaxExposure_CountsAtYear_ByTeam</c>. Not job-scoped: the proc ignores its job.
+    /// </summary>
+    Task<List<MaxExposureTeamCountExcelRowDto>> GetMaxExposureTeamCountExcelRowsAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rostered registrants' profiles for the Players showcase exports, ordered agegroup → team →
+    /// last → first — the EF replacement for <c>reporting.ThePlayers_PlayerShowCaseExport</c>,
+    /// <c>…ExportII</c> and <c>…_IncludeInactive</c>. Job-scoped; needs a family, a team and a
+    /// division. With <paramref name="activePlayersOnly"/> the rows are active Players outside
+    /// waitlist agegroups; without it, every role and state (the include-inactive variant).
+    /// </summary>
+    Task<List<ShowcasePlayerExcelRowDto>> GetShowcasePlayerExcelRowsAsync(
+        Guid jobId,
+        bool activePlayersOnly,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distinct active club reps and rostered registrants across every job of
+    /// <paramref name="jobId"/>'s customer, ordered year (descending) → job → role → last → first
+    /// — the EF replacement for <c>reporting.CustomerEndUsersDump</c>.
+    /// </summary>
+    Task<List<CustomerEndUserExcelRowDto>> GetCustomerEndUserExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active accounting records, from January 1 two years back, of every job of
+    /// <paramref name="jobId"/>'s customer — or of the fixed STEPS customer group when called for
+    /// the one hard-wired job — the EF replacement for
+    /// <c>reporting.Customer_RegistrationAccounting_Records</c>. Ordered by record date (the proc
+    /// leaves the order undefined).
+    /// </summary>
+    Task<CustomerAccountingRecordsDto> GetCustomerAccountingRecordsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Team-versus-team games ordered date → field, for the TournyMachine schedule export — the EF
+    /// replacement for <c>reporting.Schedule_Export_ToTournyMachine</c>. Job-scoped. READ-ONLY:
+    /// the proc first rewrote drifted team names on the schedule
+    /// (<c>Leagues.UpdateTournyTeamFullNames</c>); this returns the names that rewrite would have
+    /// produced and stores nothing.
+    /// </summary>
+    Task<List<TournyMachineGameExcelRowDto>> GetTournyMachineGameExcelRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distinct scheduled active teams, with and without club rep contacts, ordered agegroup →
+    /// pool → team name — the EF replacement for
+    /// <c>reporting.Schedule_Export_Teams_ToTournyMachine</c>. Job-scoped and READ-ONLY, as above.
+    /// </summary>
+    Task<TournyMachineTeamsDto> GetTournyMachineTeamsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Teams with active players registered in the given month, each with its settled card
+    /// payments of that month by payment method — the EF replacement for the data behind
+    /// <c>reporting.CathyCampBreakoutPerJob_PreviousMonth</c>. Job-scoped.
+    /// </summary>
+    Task<List<CampBreakoutMonthTeamDto>> GetCampBreakoutMonthTeamsAsync(
+        Guid jobId,
+        int month,
+        int year,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active players on a team, one row per accounting record (or one row when there is none),
+    /// ordered last name → first name → record date — the EF replacement for the raw data behind
+    /// <c>reporting.GetJobTransactionRollup</c>. Job-scoped. Waitlist agegroups are included and
+    /// flagged; the caller decides which sheets leave them out.
+    /// </summary>
+    Task<List<JobTransactionRollupRowDto>> GetJobTransactionRollupRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Referee game assignments for the job's referees, ordered first name → last name → game
+    /// time — the EF replacement for <c>reporting.RefAssignmentQA</c>. Job-scoped.
+    /// </summary>
+    Task<List<RefAssignmentQaRowDto>> GetRefAssignmentQaRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active player counts by team name across the customer's regional "American Select
+    /// Lacrosse:" jobs, in total and registered by tomorrow's date in each job's own year — the
+    /// EF replacement for the data behind <c>utility.AmericanSelect_CountsAtYear_ByTeam</c>.
+    /// Customer-scoped via the job; <paramref name="now"/> is the caller's clock, read once.
+    /// </summary>
+    Task<List<RegionalTeamPlayerCountDto>> GetRegionalTeamPlayerCountsAsync(
+        Guid jobId,
+        DateTime now,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The same counts for the customer's jobs sharing the invoking job's name prefix (up to its
+    /// first colon), with the distinct job years that become the report's columns — the EF
+    /// replacement for the data behind <c>utility.AmericanSelect_CountsAtYear_ByTeamII</c>.
+    /// "To date" follows that proc's own rule; <paramref name="now"/> is the caller's clock.
+    /// </summary>
+    Task<RegionalPlayerCountsDto> GetRegionalPlayerCountsByNamePrefixAsync(
+        Guid jobId,
+        DateTime now,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Insurance payouts matched to registrations of the fixed customer group, ordered year →
+    /// month → job → name, plus the same matches by period — the EF replacement for
+    /// <c>reporting.RegsaverRegistrants_Charlie</c>. NOT job-scoped: the proc ignores its job.
+    /// </summary>
+    Task<RegsaverPayoutsDto> GetRegsaverPayoutsAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Club team counts by tournament name and year across the customer's tournament jobs,
+    /// leaving out jobs of <paramref name="excludedJobYear"/> — the EF replacement for the
+    /// grouped data behind <c>reporting.TournyYearOverYearClubTeams</c>. Customer-scoped via the
+    /// job. Ordered tournament → year → club, or tournament → club → year when
+    /// <paramref name="orderByClubThenYear"/> is set.
+    /// </summary>
+    Task<List<ClubTeamYearCountDto>> GetClubTeamYearCountsAsync(
+        Guid jobId,
+        string excludedJobYear,
+        bool orderByClubThenYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The job settings the clone QA export lists, or null when the job does not exist — the EF
+    /// replacement for <c>utility.JobCloneQA</c>. Job-scoped.
+    /// </summary>
+    Task<JobCloneQaDto?> GetJobCloneQaAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every job admin charge on every job, newest period first — the EF replacement for
+    /// <c>reporting.JobAdminFeesAll</c>. Cross-job.
+    /// </summary>
+    Task<List<JobAdminFeeAllRowDto>> GetAllJobAdminFeesAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bulletins on any job whose end date falls in [<paramref name="from"/>,
+    /// <paramref name="to"/>], soonest first — the EF replacement for
+    /// <c>utility.ExpiringBulletins</c>. Cross-job.
+    /// </summary>
+    Task<List<BulletinExpiryRowDto>> GetBulletinsEndingBetweenAsync(
+        DateTime from,
+        DateTime to,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active player (or club rep team) registration bulletins that ended before
+    /// <paramref name="asOf"/> on jobs that still allow that registration and have not expired —
+    /// the EF replacement for <c>utility.PlayerRegistrationBulletinsQA</c> and
+    /// <c>utility.TeamRegistrationBulletinsQA</c>. Cross-job.
+    /// </summary>
+    Task<List<RegistrationBulletinQaRowDto>> GetExpiredRegistrationBulletinsAsync(
+        bool teamRegistration,
+        DateTime asOf,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Jobs whose first active accounting record was entered in the given month — the EF
+    /// replacement for <c>reporting.NewTsicJobsWithTxs</c>. Cross-job.
+    /// </summary>
+    Task<List<JobFirstTransactionDto>> GetJobsFirstTransactedInMonthAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every active club rep's contact details by club and sport — the EF replacement for
+    /// <c>reporting.ClubRepContacts-All</c>. Cross-job.
+    /// </summary>
+    Task<List<ClubRepContactAllRowDto>> GetAllClubRepContactsAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Player registrations carrying a RegSaver policy on jobs that offer it, newest policy
+    /// first, for one job or (<paramref name="jobId"/> null) every job — the EF replacement for
+    /// the "Player Data" result of <c>reporting.RegsaverPurchases_ALL_Rawdata</c>.
+    /// </summary>
+    Task<List<RegsaverPlayerPolicyRowDto>> GetRegsaverPlayerPoliciesAsync(
+        Guid? jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Teams carrying a RegSaver policy on jobs that offer it, newest policy first, for one job
+    /// or (<paramref name="jobId"/> null) every job — the EF replacement for the "Team Data"
+    /// result of <c>reporting.RegsaverPurchases_ALL_Rawdata</c>.
+    /// </summary>
+    Task<List<RegsaverTeamPolicyRowDto>> GetRegsaverTeamPoliciesAsync(
+        Guid? jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// One month's processor funding events, the processor batches that could fund it, and the
+    /// gateway's settled and credited transactions on existing jobs — the EF replacement for
+    /// the data loads of <c>adn.ReconcileNuvei</c>. Cross-job.
+    /// </summary>
+    Task<NuveiReconcileDto> GetNuveiReconcileAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Configuration and headcounts for every job with a billing type and a job type, narrowed
+    /// by whichever filters are given — the EF replacement for
+    /// <c>reporting.JobKeyAttributes-ALL</c> and <c>reporting.TournamentKeyAttributes-ALL</c>.
+    /// Ordered by event dates, or by customer, year (newest first), season, job type and name.
+    /// Cross-job.
+    /// </summary>
+    /// <param name="adminExpiresAfter">Only jobs whose admin expiry is later than this.</param>
+    /// <param name="jobTypeNames">Only jobs of these job types.</param>
+    /// <param name="years">Only jobs whose year is one of these.</param>
+    Task<List<JobKeyAttributesRowDto>> GetJobKeyAttributesAsync(
+        DateTime? adminExpiresAfter,
+        IReadOnlyList<string>? jobTypeNames,
+        IReadOnlyList<string>? years,
+        bool orderByEventDates,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The settled card totals, admin charges and new-registration counts of one month, by job
+    /// — the EF replacement for the data loads of <c>adn.GetLastMonthsGrandTotals</c>.
+    /// Cross-job.
+    /// </summary>
+    Task<MonthlyGrandTotalsDto> GetMonthlyGrandTotalsAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Everything the registration month-end close reads for one settlement month — the EF
+    /// replacement for the data loads of <c>adn.MonthyQBPExport_Automated</c> and the five
+    /// procedures it runs for its sheets. Cross-job.
+    /// </summary>
+    Task<MonthEndRegistrationDataDto> GetMonthEndRegistrationDataAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Everything the merchandise month-end close reads for one settlement month — the EF
+    /// replacement for the data load of <c>adn.MonthyQBPExport_Automated_Merch</c>. Cross-job.
+    /// </summary>
+    Task<MonthEndMerchandiseDataDto> GetMonthEndMerchandiseDataAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>The stored billing counts (adn.Monthly_Job_Stats) of one month, oldest-written first.</summary>
+    Task<List<MonthEndJobStatDto>> GetMonthlyJobStatsAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The billing counts of one month for every job with player or team activity in it, worked
+    /// out afresh — the EF replacement for the calculation in
+    /// <c>adn.UpdateMonthlyJobStats_CalcFields</c>. Stores nothing; a job is returned whether or
+    /// not the month already has a row for it.
+    /// </summary>
+    Task<List<MonthEndJobStatDto>> ComputeMonthlyJobStatsAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stores the month's billing counts for every job that has activity in it and no row for
+    /// the month yet — the EF replacement for the write in
+    /// <c>adn.UpdateMonthlyJobStats_CalcFields</c>. A job already stored for the month is left
+    /// exactly as it is. Returns how many rows were added.
+    /// </summary>
+    Task<int> AddMissingMonthlyJobStatsAsync(
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every insurance payout, and every policy held by a registration or a team — the EF
+    /// replacement for the data loads of <c>reporting.RegsaverRegistrants_ALL</c>. Cross-job.
+    /// </summary>
+    Task<RegsaverPurchasesDto> GetRegsaverPurchasesAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rostered registrations with a recurring-billing subscription that is not cancelled, for
+    /// one job or (<paramref name="jobId"/> null) every job — the EF replacement for the data
+    /// load of <c>utility.GetSuspiciousArbs</c>.
+    /// </summary>
+    Task<List<ArbSubscriptionRowDto>> GetArbSubscriptionsAsync(
+        Guid? jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Settled card revenue, check revenue and new-registration counts by job for the period
+    /// [<paramref name="periodStart"/>, <paramref name="periodEnd"/>), for the job's customer or
+    /// the fixed customer group it belongs to — the EF replacement for the data behind
+    /// <c>adn.monthlycustomerrollups</c>. Customer-scoped via the job.
+    /// </summary>
+    Task<MonthlyCustomerRollupDto> GetMonthlyCustomerRollupAsync(
+        Guid jobId,
+        DateTime periodStart,
+        DateTime periodEnd,
+        CancellationToken cancellationToken = default);
+
     // ── Third-Party Roster Export (retired SportsRecruits API replacement) ──
 
     /// <summary>

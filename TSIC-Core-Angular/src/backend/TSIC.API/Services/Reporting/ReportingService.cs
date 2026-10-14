@@ -12,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Syncfusion.XlsIO;
+using TSIC.API.Services.Scheduling;
 using TSIC.API.Services.Shared.Files;
 using SheetData = TSIC.API.Services.Shared.Files.ExcelSheet;
 using TSIC.API.Configuration;
@@ -19,17 +20,19 @@ using TSIC.API.Utilities;
 using TSIC.Contracts.Configuration;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Reporting;
 
-public sealed class ReportingService : IReportingService
+public sealed partial class ReportingService : IReportingService
 {
     private readonly IReportingRepository _reportingRepository;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IHostEnvironment _hostEnvironment;
     private readonly ReportingSettings _settings;
     private readonly FileStorageOptions _fileStorage;
+    private readonly IScheduleQaService _scheduleQaService;
     private readonly ILogger<ReportingService> _logger;
 
     private static readonly JsonSerializerOptions MonthEndJsonOptions = new(JsonSerializerDefaults.Web);
@@ -40,6 +43,7 @@ public sealed class ReportingService : IReportingService
         IHostEnvironment hostEnvironment,
         IOptions<ReportingSettings> settings,
         IOptions<FileStorageOptions> fileStorage,
+        IScheduleQaService scheduleQaService,
         ILogger<ReportingService> logger)
     {
         _reportingRepository = reportingRepository;
@@ -47,6 +51,7 @@ public sealed class ReportingService : IReportingService
         _hostEnvironment = hostEnvironment;
         _settings = settings.Value;
         _fileStorage = fileStorage.Value;
+        _scheduleQaService = scheduleQaService;
         _logger = logger;
     }
 
@@ -420,7 +425,24 @@ public sealed class ReportingService : IReportingService
     {
         // Procs already reproduced in EF keep their catalogue row (and so their spName-keyed
         // entitlement + export history) but never reach SQL Server as a proc call.
-        var efSheets = await BuildEfReplacementSheetsAsync(spName, jobId, cancellationToken);
+        // The Schedule QA procedure was replaced by the scheduling QA service long before this
+        // seam existed. Its catalogue entry downloads the same workbook the QA Results view does;
+        // the layout is that workbook's, not the procedure's.
+        if (IsScheduleQaProcedure(spName))
+        {
+            var qa = await _scheduleQaService.RunValidationAsync(jobId, cancellationToken);
+            return new ReportExportResult
+            {
+                FileBytes = ScheduleQaWorkbook.Build(qa),
+                ContentType = ExcelWorkbookWriter.XlsxContentType,
+                FileName = "TSICExcelExport.xlsx"
+            };
+        }
+
+        // A builder sees the job the procedure would have been given: none when the export
+        // runs without one.
+        var efSheets = await BuildEfReplacementSheetsAsync(
+            spName, useJobId ? jobId : Guid.Empty, cancellationToken);
         if (efSheets != null)
         {
             return new ReportExportResult
@@ -451,6 +473,13 @@ public sealed class ReportingService : IReportingService
         }
     }
 
+    /// <summary>True for the catalogue's spName of the retired Schedule QA procedure, bracketed or not.</summary>
+    private static bool IsScheduleQaProcedure(string spName) =>
+        string.Equals(
+            spName.Replace("[", string.Empty).Replace("]", string.Empty).Trim(),
+            "utility.Schedule_QA_Tourny",
+            StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Sheets for an export-sp report whose proc has been reproduced in EF, or null when
     /// <paramref name="spName"/> is still served by its stored procedure. Matches the catalogue's
@@ -468,7 +497,2282 @@ public sealed class ReportingService : IReportingService
             return [await BuildJobPlayersSheetAsync(jobId, layout, cancellationToken)];
         }
 
+        if (EfExports.TryGetValue(normalized, out var build))
+        {
+            return [await build(this, jobId, cancellationToken)];
+        }
+
+        if (EfMultiSheetExports.TryGetValue(normalized, out var buildSheets))
+        {
+            return await buildSheets(this, jobId, cancellationToken);
+        }
+
         return null;
+    }
+
+    /// <summary>
+    /// Every single-sheet export now served from EF, keyed by its proc's canonical (unbracketed)
+    /// name, apart from the job-players family, which has its own layout table. Converting a proc
+    /// is one entry here plus its sheet builder.
+    /// </summary>
+    private static readonly Dictionary<string, Func<ReportingService, Guid, CancellationToken, Task<SheetData>>> EfExports =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["reporting_migrate.Get_Staff_ForExcelExport"] = (s, jobId, ct) => s.BuildJobStaffSheetAsync(jobId, ct),
+            ["reporting_migrate.Get_Player_Transactions_ForExcelExport"] = (s, jobId, ct) => s.BuildPlayerTransactionsSheetAsync(jobId, ct),
+            ["reporting_migrate.Get_DiscountedPlayers"] = (s, jobId, ct) => s.BuildDiscountedPlayersSheetAsync(jobId, ct),
+            ["reporting_migrate.PlayerStats_ParisiResults"] = (s, jobId, ct) => s.BuildPlayerStatsParisiSheetAsync(jobId, ct),
+            ["reporting_migrate.UsageByJobAndRegistrant"] = (s, jobId, ct) => s.BuildMobileJobUsersSheetAsync(jobId, ct),
+            ["reporting_migrate.League_Teams"] = (s, jobId, ct) => s.BuildLeagueTeamsSheetAsync(jobId, ct),
+            ["reporting_migrate.Get_Players_ForExcelExport_AllCustomers"] = (s, jobId, ct) => s.BuildCustomerPlayersSheetAsync(jobId, ct),
+            ["reporting_migrate.TeamsFieldDistribution"] = (s, jobId, ct) => s.BuildTeamFieldDistributionSheetAsync(jobId, ct),
+            ["reporting_migrate.JobRosters_ExportTournament"] = (s, jobId, ct) => s.BuildTournamentRecruitingSheetAsync(jobId, ct),
+            ["reporting_migrate.JobRosters_RecruitingReport_DumpExcel"] = (s, jobId, ct) => s.BuildRecruitingRostersSheetAsync(jobId, ct),
+            ["reporting_migrate.JobRosters_RecruitingReport_Public"] = (s, jobId, ct) => s.BuildRecruitingRostersPublicSheetAsync(jobId, ct),
+            ["reporting.ExportReportsHistory"] = (s, jobId, ct) => s.BuildExportHistorySheetAsync(jobId, ct),
+            ["reporting.PlayerParentMailingData"] = (s, jobId, ct) => s.BuildPlayerParentMailingSheetAsync(jobId, ct),
+            ["reporting.StaffExport"] = (s, jobId, ct) => s.BuildStaffApparelSheetAsync(jobId, ct),
+            ["reporting.StepsCoaches_Export"] = (s, jobId, ct) => s.BuildStepsCoachesSheetAsync(jobId, ct),
+            ["utility.MaxExposure_ClubCoaches"] = (s, jobId, ct) => s.BuildMaxExposureClubCoachesSheetAsync(jobId, ct),
+            ["utility.sibling_report"] = (s, jobId, ct) => s.BuildSiblingSheetAsync(jobId, ct),
+            ["reporting.JobClubRepContacts"] = (s, jobId, ct) => s.BuildJobClubRepContactsSheetAsync(jobId, ct),
+            ["reporting.CathyCampCheckinWithVacAndMedform"] = (s, jobId, ct) => s.BuildCampCheckinSheetAsync(jobId, ct),
+            ["reporting.TournamentExportClubrepsAndCoachesEmail"] = (s, jobId, ct) => s.BuildTeamContactsSheetAsync(jobId, ct),
+            ["reporting.TLCContactsHx"] = (s, jobId, ct) => s.BuildCustomerPlayerContactsSheetAsync(jobId, ct),
+            ["reporting.CathyCampBreakoutPerJob_AmtPaid"] = (s, jobId, ct) => s.BuildCampBreakoutPaidSheetAsync(jobId, ct),
+            ["reporting.AmericanSelect_CustomerJobRegistrationsByJobAgegroupDivTeam"] = (s, jobId, ct) => s.BuildCustomerTeamCountsRollupSheetAsync(jobId, ct),
+            ["utility.MaxExposure_CountsAtYear_ByTeam"] = (s, _, ct) => s.BuildMaxExposureTeamCountsSheetAsync(ct),
+            ["reporting.ThePlayers_PlayerShowCaseExport"] = (s, jobId, ct) => s.BuildShowcasePlayersSheetAsync(jobId, withHonors: true, ct),
+            ["reporting.ThePlayers_PlayerShowCaseExportII"] = (s, jobId, ct) => s.BuildShowcasePlayersSheetAsync(jobId, withHonors: false, ct),
+            ["reporting.ThePlayers_PlayerShowCaseExport_IncludeInactive"] = (s, jobId, ct) => s.BuildShowcaseAllRegistrantsSheetAsync(jobId, ct),
+            ["reporting.CustomerEndUsersDump"] = (s, jobId, ct) => s.BuildCustomerEndUsersSheetAsync(jobId, ct),
+            ["reporting.Customer_RegistrationAccounting_Records"] = (s, jobId, ct) => s.BuildCustomerAccountingRecordsSheetAsync(jobId, ct),
+            ["reporting.Schedule_Export_ToTournyMachine"] = (s, jobId, ct) => s.BuildTournyMachineScheduleSheetAsync(jobId, ct),
+            ["reporting.CathyCampBreakoutPerJob_PreviousMonth"] = (s, jobId, ct) => s.BuildCampBreakoutPreviousMonthSheetAsync(jobId, ct),
+            ["utility.AmericanSelect_CountsAtYear_ByTeam"] = (s, jobId, ct) => s.BuildRegionalTeamCountsSheetAsync(jobId, ct),
+            ["utility.JobCloneQA"] = (s, jobId, ct) => s.BuildJobCloneQaSheetAsync(jobId, ct),
+            ["adn.monthlycustomerrollups"] = (s, jobId, ct) => s.BuildMonthlyCustomerRollupSheetAsync(jobId, ct),
+            ["reporting.JobAdminFeesAll"] = (s, _, ct) => s.BuildAllJobAdminFeesSheetAsync(ct),
+            ["utility.ExpiringBulletins"] = (s, _, ct) => s.BuildExpiringBulletinsSheetAsync(ct),
+            ["utility.PlayerRegistrationBulletinsQA"] = (s, _, ct) => s.BuildExpiredRegistrationBulletinsSheetAsync(teamRegistration: false, ct),
+            ["utility.TeamRegistrationBulletinsQA"] = (s, _, ct) => s.BuildExpiredRegistrationBulletinsSheetAsync(teamRegistration: true, ct),
+            ["reporting.NewTsicJobsWithTxs"] = (s, _, ct) => s.BuildNewJobsWithTransactionsSheetAsync(ct),
+            ["reporting.ClubRepContacts-All"] = (s, _, ct) => s.BuildAllClubRepContactsSheetAsync(ct),
+            ["reporting.JobKeyAttributes-ALL"] = (s, jobId, ct) => s.BuildJobKeyAttributesSheetAsync(jobId, ct),
+            ["reporting.TournamentKeyAttributes-ALL"] = (s, jobId, ct) => s.BuildTournamentKeyAttributesSheetAsync(jobId, ct),
+            ["utility.GetSuspiciousArbs"] = (s, jobId, ct) => s.BuildSuspiciousArbsSheetAsync(jobId, ct),
+        };
+
+    /// <summary>Exports served from EF whose proc returns more than one sheet.</summary>
+    private static readonly Dictionary<string, Func<ReportingService, Guid, CancellationToken, Task<List<SheetData>>>> EfMultiSheetExports =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["reporting.JobPushTeamResultsSummary"] = (s, jobId, ct) => s.BuildJobPushTeamSummarySheetsAsync(jobId, ct),
+            ["reporting.Schedule_Export_Teams_ToTournyMachine"] = (s, jobId, ct) => s.BuildTournyMachineTeamsSheetsAsync(jobId, ct),
+            ["reporting.GetJobTransactionRollup"] = (s, jobId, ct) => s.BuildJobTransactionRollupSheetsAsync(jobId, ct),
+            ["reporting.RefAssignmentQA"] = (s, jobId, ct) => s.BuildRefAssignmentQaSheetsAsync(jobId, ct),
+            ["reporting.RegsaverRegistrants_Charlie"] = (s, _, ct) => s.BuildRegsaverPayoutsSheetsAsync(ct),
+            ["reporting.TournyYearOverYearClubTeams"] = (s, jobId, ct) => s.BuildClubTeamsYearOverYearSheetsAsync(jobId, ct),
+            ["utility.AmericanSelect_CountsAtYear_ByTeamII"] = (s, jobId, ct) => s.BuildRegionalYearToDateSheetsAsync(jobId, ct),
+            ["reporting.RegsaverPurchases_ALL_Rawdata"] = (s, jobId, ct) => s.BuildRegsaverRawDataSheetsAsync(jobId, ct),
+            ["adn.ReconcileNuvei"] = (s, _, ct) => s.BuildNuveiReconcileSheetsAsync(ct),
+            ["adn.GetLastMonthsGrandTotals"] = (s, _, ct) => s.BuildMonthlyGrandTotalsSheetsAsync(ct),
+            ["reporting.RegsaverRegistrants_ALL"] = (s, _, ct) => s.BuildRegsaverPurchasesSheetsAsync(ct),
+        };
+
+    /// <summary>
+    /// A sheet from already-fetched rows. The proc path only learns its column names from the
+    /// first data row, so a result with no rows exports a headerless sheet; kept identical here.
+    /// </summary>
+    private static SheetData ToSheet<T>(
+        string sheetName,
+        IReadOnlyCollection<T> rows,
+        string[] columns,
+        Func<T, object?[]> toRow)
+    {
+        var sheet = new SheetData { Name = sheetName };
+        if (rows.Count == 0)
+        {
+            return sheet;
+        }
+
+        sheet.WithColumns(columns);
+        foreach (var r in rows)
+        {
+            sheet.Rows.Add(toRow(r));
+        }
+
+        return sheet;
+    }
+
+    /// <summary>
+    /// "Staff" sheet of the "Staff Data (Excel)" export: the proc's 10 columns, same names and order.
+    /// </summary>
+    private async Task<SheetData> BuildJobStaffSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Staff",
+            await _reportingRepository.GetJobStaffExcelRowsAsync(jobId, cancellationToken),
+            [
+                "RegistrationID", "Active?", "FirstName", "LastName", "Email", "Username",
+                "Staff", "agegroupName", "teamName", "cellphone",
+            ],
+            r =>
+            [
+                r.RegistrationId, r.Active, r.FirstName, r.LastName, r.Email, r.UserName,
+                SqlConcat(r.LastName, ", ", r.FirstName), r.AgegroupName, r.TeamName, r.Cellphone,
+            ]);
+
+    /// <summary>
+    /// "Player Transactions" sheet of the "Player Transactions (Excel)" export: the proc's 20
+    /// columns, same names and order. <c>createdate</c> is text, as the proc's
+    /// <c>convert(char(19), …, 120)</c> made it.
+    /// </summary>
+    private async Task<SheetData> BuildPlayerTransactionsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Player Transactions",
+            await _reportingRepository.GetPlayerTransactionExcelRowsAsync(jobId, cancellationToken),
+            [
+                "RegistrationID", "FirstName", "LastName", "gender", "DOB", "agegroupName", "teamName",
+                "paid_total", "owed_total", "paymentMethod", "aID", "dueamt", "payamt",
+                "adnCC4", "adnCCExpDate", "adnInvoiceNo", "adnTransactionID", "checkNo", "comment", "createdate",
+            ],
+            r =>
+            [
+                r.RegistrationId, r.FirstName, r.LastName, r.Gender, r.Dob?.Date, r.AgegroupName, r.TeamName,
+                r.PaidTotal, r.OwedTotal, r.PaymentMethod, r.AccountingId, r.DueAmount, r.PayAmount,
+                r.AdnCc4, r.AdnCcExpDate, r.AdnInvoiceNo, r.AdnTransactionId, r.CheckNo, r.Comment,
+                r.CreateDate?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+            ]);
+
+    /// <summary>
+    /// "Discounted Players" sheet of the "Discounted Players (Excel)" export: the proc's 17
+    /// columns, same names and order.
+    /// </summary>
+    private async Task<SheetData> BuildDiscountedPlayersSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Discounted Players",
+            await _reportingRepository.GetDiscountedPlayerExcelRowsAsync(jobId, cancellationToken),
+            [
+                "LastName", "FirstName", "agegroupName", "teamName",
+                "Mom_FirstName", "Mom_Email", "Mom_Cellphone", "Mom_LastName",
+                "Dad_FirstName", "Dad_LastName", "Dad_Email", "Dad_Cellphone",
+                "fee_discount", "codeName", "active", "codeStartDate", "codeEndDate",
+            ],
+            r =>
+            [
+                r.LastName, r.FirstName, r.AgegroupName, r.TeamName,
+                r.MomFirstName, r.MomEmail, r.MomCellphone, r.MomLastName,
+                r.DadFirstName, r.DadLastName, r.DadEmail, r.DadCellphone,
+                r.FeeDiscount, r.CodeName, r.CodeActive, r.CodeStartDate, r.CodeEndDate,
+            ]);
+
+    /// <summary>
+    /// "Parisi Stats" sheet of the "Player Stats Export - Parisi (Excel)" export: the proc's 11
+    /// columns, same names and order.
+    /// </summary>
+    private async Task<SheetData> BuildPlayerStatsParisiSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Parisi Stats",
+            await _reportingRepository.GetPlayerStatsParisiExcelRowsAsync(jobId, cancellationToken),
+            [
+                "agegroupName", "FirstName", "LastName", "teamName", "uniform_no", "school_name", "club_name",
+                "fastestshot", "five_ten_five", "fourtyyarddash", "threehundredshuttle",
+            ],
+            r =>
+            [
+                r.AgegroupName, r.FirstName, r.LastName, r.TeamName, r.UniformNo, r.SchoolName, r.ClubName,
+                r.FastestShot, r.FiveTenFive, r.FortyYardDash, r.ThreeHundredShuttle,
+            ]);
+
+    /// <summary>
+    /// "Mobile Users" sheet of the "Mobile Users (Excel)" export: the proc's 7 columns, same names
+    /// and order.
+    /// </summary>
+    private async Task<SheetData> BuildMobileJobUsersSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Mobile Users",
+            await _reportingRepository.GetMobileJobUserExcelRowsAsync(jobId, cancellationToken),
+            ["customerName", "jobName", "Role", "LastName", "FirstName", "Type", "modified"],
+            r => [r.CustomerName, r.JobName, r.Role, r.LastName, r.FirstName, r.DeviceType, r.Modified]);
+
+    /// <summary>
+    /// "Teams Export" sheet of the "Teams Export (Excel)" export: the proc's 15 columns, same names
+    /// and order. <c>Comment</c> has its carriage returns turned into commas and <c>teamID</c> is
+    /// upper-case text, as the proc's <c>replace(…, char(13), ',')</c> and
+    /// <c>convert(varchar, uniqueidentifier)</c> made them.
+    /// </summary>
+    private async Task<SheetData> BuildLeagueTeamsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Teams Export",
+            await _reportingRepository.GetLeagueTeamExcelRowsAsync(jobId, cancellationToken),
+            [
+                "Agegroup", "Division", "Team", "Club", "LastName", "FirstName", "Email", "City",
+                "State", "ZIP", "Phone", "Comment", "HomeField", "teamID", "LOP",
+            ],
+            r =>
+            [
+                r.AgegroupName, r.DivName, r.TeamName, r.ClubName, r.LastName, r.FirstName, r.Email, r.City,
+                r.State, r.PostalCode, r.Cellphone, r.TeamComments?.Replace('\r', ','), r.HomeField,
+                r.TeamId.ToString().ToUpperInvariant(), r.LevelOfPlay,
+            ]);
+
+    /// <summary>
+    /// "Customer Players" sheet of the "Player Data - All Customer Jobs (Excel)" export: the
+    /// proc's 47 columns, same names and order.
+    /// </summary>
+    private async Task<SheetData> BuildCustomerPlayersSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Customer Players",
+            await _reportingRepository.GetCustomerPlayersExcelRowsAsync(jobId, cancellationToken),
+            [
+                "customerName", "jobName", "RegistrationID", "RegistrationTS", "FirstName", "LastName",
+                "Player", "gender", "DOB",
+                "Mom_FirstName", "Mom_LastName", "Mom", "Mom_Cellphone", "Mom_Email",
+                "Dad_FirstName", "Dad_LastName", "Dad", "Dad_Cellphone", "Dad_Email",
+                "agegroupName", "teamName", "club_name", "paid_total", "owed_total",
+                "grad_year", "school_name", "school_grade", "position", "USLaxNo", "UsLaxNoExpiry",
+                "jersey", "shorts", "kilt", "t-shirt", "sweatshirt", "reversible", "gloves",
+                "gpa", "sat", "act", "height_inches", "weight_lbs",
+                "uniform_no", "address", "city", "state", "zip",
+            ],
+            r =>
+            [
+                r.CustomerName, r.JobName, r.RegistrationId, r.RegistrationTs, r.FirstName, r.LastName,
+                SqlConcat(r.LastName, ", ", r.FirstName), r.Gender, r.Dob?.Date,
+                r.MomFirstName, r.MomLastName, SqlConcat(r.MomFirstName, " ", r.MomLastName), r.MomCellphone, r.MomEmail,
+                r.DadFirstName, r.DadLastName, SqlConcat(r.DadFirstName, " ", r.DadLastName), r.DadCellphone, r.DadEmail,
+                r.AgegroupName, r.TeamName, r.ClubName, r.PaidTotal, r.OwedTotal,
+                r.GradYear, r.SchoolName, r.SchoolGrade, r.Position, r.SportAssnId, r.SportAssnIdExpDate,
+                r.JerseySize, r.ShortsSize, r.Kilt, r.TShirt, r.Sweatshirt, r.Reversible, r.Gloves,
+                r.Gpa, r.Sat, r.Act, r.HeightInches, r.WeightLbs,
+                r.UniformNo, r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]);
+
+    /// <summary>
+    /// "Field Distribution" sheet of the "Team Field Distribution" export: the proc's 6 columns,
+    /// same names and order. <c>GameDay</c> is MM/DD/YYYY text, as the proc's
+    /// <c>convert(char(10), …, 101)</c> made it.
+    /// </summary>
+    private async Task<SheetData> BuildTeamFieldDistributionSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Field Distribution",
+            await _reportingRepository.GetTeamFieldDistributionExcelRowsAsync(jobId, cancellationToken),
+            ["club_name", "agegroupName", "teamName", "fName", "GameDay", "Count"],
+            r =>
+            [
+                r.ClubName, r.AgegroupName, r.TeamName, r.FieldName,
+                r.GameDay?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), r.GameCount,
+            ]);
+
+    /// <summary>
+    /// "Recruiting" sheet of the "College Recruiter Data Dump (excel)" export: the proc's 46
+    /// columns, same names and order, with the proc's text formatting reproduced: ten-digit phones
+    /// dashed, parent emails lower-cased with a placeholder when missing, date of birth as
+    /// MM/DD/YYYY text, and a placeholder "Club Rep" user's contact details blanked.
+    /// </summary>
+    private async Task<SheetData> BuildTournamentRecruitingSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Recruiting",
+            await _reportingRepository.GetTournamentRecruitingExcelRowsAsync(jobId, cancellationToken),
+            [
+                "role", "RegistrationID", "FirstName", "LastName", "rosterPerson", "Email", "gender", "dob",
+                "streetAddress", "city", "state", "zip", "cellphone", "UsLaxNo",
+                "agegroupName", "divName", "club_name", "club_name_player", "teamName",
+                "Mom", "Mom_Email", "Mom_Phone", "Dad", "Dad_Email", "Dad_Phone",
+                "uniform_no", "grad_year", "school_name", "position", "gpa", "psat", "sat", "class_rank",
+                "height_inches", "weight_lbs", "act", "satMath", "satVerbal", "satWriting",
+                "bCollegeCommit", "College Committed",
+                "ClubRep_FirstName", "ClubRep_LastName", "rosterCR", "ClubRep_Email", "ClubRep_Phone",
+            ],
+            r =>
+            {
+                // The proc blanks the rep's details when the team is held by the placeholder user.
+                var placeholderRep = SqlEquals(r.ClubRepFirstName, "Club") && SqlEquals(r.ClubRepLastName, "Rep");
+                return
+                [
+                    r.Role, r.RegistrationId, r.FirstName, r.LastName, SqlConcat(r.FirstName, " ", r.LastName),
+                    r.Email, r.Gender, r.Dob?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                    r.StreetAddress, r.City, r.State, r.PostalCode,
+                    SqlLen(r.Cellphone) == 10
+                        ? $"{SqlSubstring(r.Cellphone, 1, 3)}-{SqlSubstring(r.Cellphone, 4, 3)}-{SqlSubstring(r.Cellphone, 7, 4)}"
+                        : r.Cellphone,
+                    r.SportAssnId,
+                    r.AgegroupName, r.DivName, r.ClubName, r.PlayerClubName, r.TeamName,
+                    SqlConcat(r.MomFirstName, " ", r.MomLastName),
+                    r.MomEmail?.ToLowerInvariant() ?? "not@given.com", ParentPhone(r.MomCellphone),
+                    SqlConcat(r.DadFirstName, " ", r.DadLastName),
+                    r.DadEmail?.ToLowerInvariant() ?? "not@given.com", ParentPhone(r.DadCellphone),
+                    r.UniformNo, r.GradYear, r.SchoolName, SqlConcat(r.Position, " - ", r.ClubTeamName),
+                    r.Gpa, r.Psat,
+                    // Preserved from the proc: its test reads "satVerbal is null", so the branch
+                    // that would total the three scores always adds a null and yields null;
+                    // every other row gets an empty string.
+                    r.SatMath != null && r.SatVerbal == null && r.SatWriting != null ? null : string.Empty,
+                    r.ClassRank, r.HeightInches, r.WeightLbs, r.Act, r.SatMath, r.SatVerbal, r.SatWriting,
+                    r.CollegeCommitted == true ? "Yes" : "No", r.CollegeCommit,
+                    placeholderRep ? string.Empty : r.ClubRepFirstName,
+                    placeholderRep ? string.Empty : r.ClubRepLastName,
+                    placeholderRep ? string.Empty : SqlConcat(r.ClubRepFirstName, " ", r.ClubRepLastName),
+                    placeholderRep ? string.Empty : r.ClubRepEmail,
+                    placeholderRep ? string.Empty : r.ClubRepCellphone,
+                ];
+            });
+
+    /// <summary>
+    /// The recruiting dump's parent-phone format: a ten-character number becomes 123-456-7890
+    /// (first three, middle three, last four); anything else is passed through.
+    /// </summary>
+    private static string? ParentPhone(string? phone) =>
+        SqlLen(phone) == 10
+            ? $"{SqlLeft(phone, 3)}-{SqlSubstring(phone, 4, 3)}-{SqlRight(phone, 4)}"
+            : phone;
+
+    /// <summary>
+    /// "Recruiting Rosters" sheet of the admin "Rosters Recruiting Data Dump (Excel)" export: the
+    /// proc's 26 columns, same names and order — including its second <c>grad_year</c> column.
+    /// Phones are dashed without a length check and missing scores read "0", as in the proc.
+    /// </summary>
+    private async Task<SheetData> BuildRecruitingRostersSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Recruiting Rosters",
+            await _reportingRepository.GetRecruitingRosterExcelRowsAsync(jobId, cancellationToken),
+            [
+                "agegroupName", "teamName", "lastName", "firstName", "uniform_no", "rosterPerson",
+                "phone", "email", "Address", "City", "State", "ZIP", "school", "grad_year",
+                "satMath", "satVerbal", "satWriting", "act", "gpa", "position", "club_name",
+                "clubrep", "clubrepEmail", "clubrepPhone", "grad_year", "ClubTeamName",
+            ],
+            r =>
+            [
+                r.AgegroupName, r.TeamName, r.LastName, r.FirstName, r.UniformNo?.Replace("#", string.Empty),
+                SqlConcat(r.FirstName, " ", r.LastName),
+                DashedPhone(r.Cellphone), r.Email, r.StreetAddress, r.City, r.State, r.PostalCode,
+                r.SchoolName, r.GradYear,
+                r.SatMath ?? "0", r.SatVerbal ?? "0", r.SatWriting ?? "0", r.Act ?? "0", r.Gpa, r.Position, r.ClubName,
+                SqlConcat(r.ClubRepFirstName, " ", r.ClubRepLastName), r.ClubRepEmail, DashedPhone(r.ClubRepCellphone),
+                r.GradYear, r.ClubTeamName,
+            ]);
+
+    /// <summary>
+    /// "Recruiting Public" sheet of the public "Rosters Recruiting Data Dump Public (Excel)"
+    /// export: the same rows as the admin dump, reduced to the proc's 9 public-safe columns —
+    /// no phone, email, address, club rep or academic scores.
+    /// </summary>
+    private async Task<SheetData> BuildRecruitingRostersPublicSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Recruiting Public",
+            await _reportingRepository.GetRecruitingRosterExcelRowsAsync(jobId, cancellationToken),
+            [
+                "agegroupName", "teamName", "lastName", "firstName", "uniform_no", "club_name",
+                "school", "grad_year", "position",
+            ],
+            r =>
+            [
+                r.AgegroupName, r.TeamName, r.LastName, r.FirstName, r.UniformNo?.Replace("#", string.Empty), r.ClubName,
+                r.SchoolName, r.GradYear, r.Position,
+            ]);
+
+    /// <summary>
+    /// The recruiting rosters' phone format: first three, next three, next four characters joined
+    /// by dashes, whatever the length; null stays null.
+    /// </summary>
+    private static string? DashedPhone(string? phone) =>
+        phone == null
+            ? null
+            : $"{SqlSubstring(phone, 1, 3)}-{SqlSubstring(phone, 4, 3)}-{SqlSubstring(phone, 7, 4)}";
+
+    /// <summary>
+    /// "Export History" sheet: the proc's 4 columns. <c>WhenExported</c> is text to the second, as
+    /// the proc's <c>convert(varchar(19), …, 120)</c> made it.
+    /// </summary>
+    private async Task<SheetData> BuildExportHistorySheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Export History",
+            await _reportingRepository.GetExportHistoryExcelRowsAsync(jobId, cancellationToken),
+            ["Job", "Export", "ExportedBy", "WhenExported"],
+            r =>
+            [
+                r.JobName, r.Export, SqlConcat(r.FirstName, " ", r.LastName),
+                r.ExportDate?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+            ]);
+
+    /// <summary>"PlayerParents" sheet: the proc's 8 columns, same names and order.</summary>
+    private async Task<SheetData> BuildPlayerParentMailingSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "PlayerParents",
+            await _reportingRepository.GetPlayerParentMailingExcelRowsAsync(jobId, cancellationToken),
+            ["Mom_LastName", "Mom_FirstName", "Dad_LastName", "Dad_FirstName", "Address", "City", "State", "Zip"],
+            r =>
+            [
+                r.MomLastName, r.MomFirstName, r.DadLastName, r.DadFirstName,
+                r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]);
+
+    /// <summary>
+    /// "Recruiters" sheet of the staff apparel export: the proc's 9 columns, a ten-character
+    /// cellphone dashed.
+    /// </summary>
+    private async Task<SheetData> BuildStaffApparelSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Recruiters",
+            await _reportingRepository.GetStaffApparelExcelRowsAsync(jobId, cancellationToken),
+            [
+                "LastName", "FirstName", "Assignment", "cellphone", "Email",
+                "jersey_size", "shorts_size", "sweatpants", "shoes",
+            ],
+            r =>
+            [
+                r.LastName, r.FirstName, r.Assignment,
+                SqlLen(r.Cellphone) == 10 ? DashedPhone(r.Cellphone) : r.Cellphone, r.Email,
+                r.JerseySize, r.ShortsSize, r.Sweatpants, r.Shoes,
+            ]);
+
+    /// <summary>"Club Coaches" sheet of the STEPS coaches export: the proc's 17 columns.</summary>
+    private async Task<SheetData> BuildStepsCoachesSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Club Coaches",
+            await _reportingRepository.GetStepsCoachExcelRowsAsync(jobId, cancellationToken),
+            [
+                "Active", "Waiver", "FirstName", "LastName", "Gender", "Email", "cellphone",
+                "Address", "city", "State", "Zip", "Shirt", "Shorts", "Sweatshirt", "Sweatpants",
+                "CoachingRequests", "CountTeamsCoaching",
+            ],
+            r =>
+            [
+                r.Active, r.WaiverSigned, r.FirstName, r.LastName, r.Gender, r.Email, r.Cellphone,
+                r.StreetAddress, r.City, r.State, r.PostalCode, r.JerseySize, r.ShortsSize, r.Sweatshirt, r.Sweatpants,
+                r.SpecialRequests, r.TeamsCoaching,
+            ]);
+
+    /// <summary>
+    /// "Club Coaches" sheet of the MaxExposure club-coach export: the proc's 15 columns.
+    /// <c>Dad</c> is the father's first name twice — preserved from the proc.
+    /// </summary>
+    private async Task<SheetData> BuildMaxExposureClubCoachesSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Club Coaches",
+            await _reportingRepository.GetMaxExposureClubCoachExcelRowsAsync(jobId, cancellationToken),
+            [
+                "LastName", "FirstName", "DOB", "school_name", "grad_year", "cellphone", "Email",
+                "club_coach", "club_coach_email", "Mom", "Mom_Cellphone", "Mom_Email",
+                "Dad", "Dad_Cellphone", "Dad_Email",
+            ],
+            r =>
+            [
+                r.LastName, r.FirstName, r.Dob, r.SchoolName, r.GradYear, r.Cellphone, r.Email,
+                r.ClubCoach, r.ClubCoachEmail, SqlConcat(r.MomFirstName, " ", r.MomLastName), r.MomCellphone, r.MomEmail,
+                SqlConcat(r.DadFirstName, " ", r.DadFirstName), r.DadCellphone, r.DadEmail,
+            ]);
+
+    /// <summary>
+    /// "Counts Per Team" sheet of the sibling report: the proc's 3 columns (the sheet name is the
+    /// proc's own, a leftover from the report it was copied from).
+    /// </summary>
+    private async Task<SheetData> BuildSiblingSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Counts Per Team",
+            await _reportingRepository.GetSiblingExcelRowsAsync(jobId, cancellationToken),
+            ["LastName", "FirstName", "RegistrationID"],
+            r => [r.LastName, r.FirstName, r.RegistrationId]);
+
+    /// <summary>"Club Rep Contacts" sheet: the proc's 11 columns, same names and order.</summary>
+    private async Task<SheetData> BuildJobClubRepContactsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Club Rep Contacts",
+            await _reportingRepository.GetJobClubRepContactExcelRowsAsync(jobId, cancellationToken),
+            ["Year", "JobName", "Club", "LastName", "FirstName", "Email", "Cell", "Address", "City", "State", "Zip"],
+            r =>
+            [
+                r.Year, r.JobName, r.ClubName, r.LastName, r.FirstName, r.Email, r.Cellphone,
+                r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]);
+
+    /// <summary>
+    /// "Rosters" sheet of the camp check-in export: the proc's 12 columns, parent phones dashed
+    /// without a length check.
+    /// </summary>
+    private async Task<SheetData> BuildCampCheckinSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Rosters",
+            await _reportingRepository.GetCampCheckinExcelRowsAsync(jobId, cancellationToken),
+            [
+                "leagueName", "teamName", "LastName", "FirstName", "position", "VacCard", "MedForm", "Owes",
+                "Mom", "MomCell", "Dad", "DadCell",
+            ],
+            r =>
+            [
+                r.LeagueName, r.TeamName, r.LastName, r.FirstName, r.Position,
+                r.UploadedVaccineCard, r.UploadedMedForm, r.OwedTotal,
+                SqlConcat(r.MomFirstName, " ", r.MomLastName), DashedPhone(r.MomCellphone),
+                SqlConcat(r.DadFirstName, " ", r.DadLastName), DashedPhone(r.DadCellphone),
+            ]);
+
+    /// <summary>
+    /// The two sheets of the push-results summary: "Favorites Per Event" (one count) and
+    /// "Favorites Per Team" (club, agegroup, team, count).
+    /// </summary>
+    private async Task<List<SheetData>> BuildJobPushTeamSummarySheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var summary = await _reportingRepository.GetJobPushTeamSummaryAsync(jobId, cancellationToken);
+        return
+        [
+            // A count always returns its one row, so this sheet is never headerless.
+            ToSheet<int>("Favorites Per Event", [summary.TotalFavorites], ["CountsPerEvent"], total => [total]),
+            ToSheet(
+                "Favorites Per Team",
+                summary.Teams,
+                ["Club", "Agegroup", "Team", "Count"],
+                r => [r.ClubName, r.AgegroupName, r.TeamName, r.FavoriteCount]),
+        ];
+    }
+
+    /// <summary>"Team Contacts" sheet: the proc's 7 columns, same names and order.</summary>
+    private async Task<SheetData> BuildTeamContactsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Team Contacts",
+            await _reportingRepository.GetTeamContactExcelRowsAsync(jobId, cancellationToken),
+            ["AgegroupName", "ClubName", "TeamName", "Role", "LastName", "FirstName", "Email"],
+            r => [r.AgegroupName, r.ClubName, r.TeamName, r.Role, r.LastName, r.FirstName, r.Email]);
+
+    /// <summary>"Job Users" sheet of the customer contact history: the proc's 8 columns.</summary>
+    private async Task<SheetData> BuildCustomerPlayerContactsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Job Users",
+            await _reportingRepository.GetCustomerPlayerContactExcelRowsAsync(jobId, cancellationToken),
+            [
+                "LastName", "FirstName", "Email", "Mom_Email", "Dad_Email",
+                "cellphone", "Mom_Cellphone", "Dad_Cellphone",
+            ],
+            r =>
+            [
+                r.LastName, r.FirstName, r.Email, r.MomEmail, r.DadEmail,
+                r.Cellphone, r.MomCellphone, r.DadCellphone,
+            ]);
+
+    /// <summary>
+    /// "Players" sheet of the camp breakout: the proc's 15 columns, including its second
+    /// <c>fee_total</c>.
+    /// </summary>
+    private async Task<SheetData> BuildCampBreakoutPaidSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Players",
+            await _reportingRepository.GetCampBreakoutPaidExcelRowsAsync(jobId, cancellationToken),
+            [
+                "jobName", "agegroupName", "teamName", "LastName", "FirstName", "IsActive", "ClubTeamName",
+                "grad_year", "fee_base", "fee_total", "fee_discount", "fee_processing", "fee_total",
+                "paid_total", "owed_total",
+            ],
+            r =>
+            [
+                r.JobName, r.AgegroupName, r.TeamName, r.LastName, r.FirstName, r.Active, r.ClubTeamName,
+                r.GradYear, r.FeeBase, r.FeeTotal, r.FeeDiscount, r.FeeProcessing, r.FeeTotal,
+                r.PaidTotal, r.OwedTotal,
+            ]);
+
+    /// <summary>
+    /// "Counts Per Team" sheet of the customer registrations rollup. The proc's
+    /// <c>GROUP BY … WITH ROLLUP</c> is rebuilt here from the per-team counts: a grand total, then
+    /// for each job, each job-year and each agegroup a subtotal row ahead of its detail rows
+    /// (subtotals carry nulls, which sort first). Preserved from the proc: the <c>teamName</c>
+    /// column shows the agegroup name, not the team, and the count column has no header.
+    /// </summary>
+    private async Task<SheetData> BuildCustomerTeamCountsRollupSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var detail = await _reportingRepository.GetCustomerTeamCountsAsync(jobId, cancellationToken);
+
+        var rows = new List<(string? Job, string? Year, string? Agegroup, string? Team, int Count)>();
+        if (detail.Count > 0)
+        {
+            rows.Add((null, null, null, null, detail.Sum(d => d.PlayerCount)));
+        }
+
+        foreach (var job in RunsOf(detail, d => d.JobName))
+        {
+            rows.Add((job[0].JobName, null, null, null, job.Sum(d => d.PlayerCount)));
+            foreach (var year in RunsOf(job, d => d.Year))
+            {
+                rows.Add((year[0].JobName, year[0].Year, null, null, year.Sum(d => d.PlayerCount)));
+                foreach (var agegroup in RunsOf(year, d => d.AgegroupName))
+                {
+                    rows.Add((agegroup[0].JobName, agegroup[0].Year, agegroup[0].AgegroupName, null, agegroup.Sum(d => d.PlayerCount)));
+                    rows.AddRange(agegroup.Select(d => (d.JobName, d.Year, d.AgegroupName, d.TeamName, d.PlayerCount)));
+                }
+            }
+        }
+
+        return ToSheet(
+            "Counts Per Team",
+            rows,
+            ["JobName", "JobYear", "agegroupName", "teamName", string.Empty],
+            r =>
+            [
+                r.Job, r.Year,
+                r.Year != null && r.Agegroup == null && r.Team == null ? "JOB ROLLUP" : r.Agegroup,
+                r.Year != null && r.Agegroup != null && r.Team == null ? "AGEGROUP ROLLUP" : r.Agegroup,
+                r.Count,
+            ]);
+    }
+
+    /// <summary>
+    /// Splits rows already sorted by <paramref name="key"/> into runs of equal key, comparing as
+    /// the database collation groups: case and trailing spaces ignored, null equal to null.
+    /// </summary>
+    private static IEnumerable<List<T>> RunsOf<T>(IReadOnlyList<T> sorted, Func<T, string?> key)
+    {
+        static bool Same(string? a, string? b) =>
+            a == null || b == null
+                ? a == b
+                : string.Equals(a.TrimEnd(' '), b.TrimEnd(' '), StringComparison.OrdinalIgnoreCase);
+
+        var start = 0;
+        while (start < sorted.Count)
+        {
+            var run = new List<T> { sorted[start] };
+            var end = start + 1;
+            while (end < sorted.Count && Same(key(sorted[end]), key(sorted[start])))
+            {
+                run.Add(sorted[end]);
+                end++;
+            }
+
+            yield return run;
+            start = end;
+        }
+    }
+
+    /// <summary>
+    /// "Counts Per Team" sheet of the MaxExposure year-to-date counts: the proc's 5 columns. The
+    /// job argument is unused, as in the proc.
+    /// </summary>
+    private async Task<SheetData> BuildMaxExposureTeamCountsSheetAsync(CancellationToken cancellationToken) =>
+        ToSheet(
+            "Counts Per Team",
+            await _reportingRepository.GetMaxExposureTeamCountExcelRowsAsync(cancellationToken),
+            ["year", "customerName", "jobName", "teamName", "countRegistrantsToDate"],
+            r => [r.Year, r.CustomerName, "Summer Camps " + r.Year, r.TeamName, r.RegistrantsToDate]);
+
+    /// <summary>
+    /// "Player Profiles" sheet of the two Players showcase exports: 43 columns, or 41 without the
+    /// two honors columns for the "II" variant. The registration id is upper-case text and the
+    /// dates MM/DD/YYYY text, as the proc's <c>convert</c> calls made them; phones are dashed
+    /// without a length check.
+    /// </summary>
+    private async Task<SheetData> BuildShowcasePlayersSheetAsync(Guid jobId, bool withHonors, CancellationToken cancellationToken)
+    {
+        string[] head =
+        [
+            "RegistrationID", "RegDate", "Agegroup", "Team", "FirstName", "LastName", "RoleName", "#",
+            "Cellphone", "Email", "City", "State", "Address", "ZIP", "DOB",
+            "Mom_FirstName", "Mom_LastName", "Mom_Cellphone", "Mom_Email",
+            "Dad_FirstName", "Dad_LastName", "Dad_Cellphone", "Dad_Email",
+            "agegroupName", "teamName", "grad_year", "position", "club_name", "school_name", "USLaxNo",
+            "shorts", "t-shirt", "height_inches", "weight_lbs", "strong_hand",
+            "club_coach", "club_coach_email", "school_coach", "school_coach_email",
+        ];
+        string[] honors = withHonors ? ["honors_academic", "honors_athletic"] : [];
+
+        return ToSheet(
+            "Player Profiles",
+            await _reportingRepository.GetShowcasePlayerExcelRowsAsync(jobId, activePlayersOnly: true, cancellationToken),
+            [.. head, .. honors, "Instagram", "Twitter"],
+            r =>
+            {
+                object?[] lead =
+                [
+                    r.RegistrationId.ToString().ToUpperInvariant(),
+                    r.RegistrationTs.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                    r.AgegroupName, r.TeamName, r.FirstName, r.LastName, r.RoleName, r.UniformNo,
+                    DashedPhone(r.Cellphone), r.Email, r.City, r.State, r.StreetAddress, r.PostalCode,
+                    r.Dob?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                    r.MomFirstName, r.MomLastName, DashedPhone(r.MomCellphone), r.MomEmail,
+                    r.DadFirstName, r.DadLastName, DashedPhone(r.DadCellphone), r.DadEmail,
+                    r.AgegroupName, r.TeamName, r.GradYear, r.Position, r.ClubTeamName, r.SchoolName, r.SportAssnId,
+                    r.ShortsSize, r.TShirt, r.HeightInches, r.WeightLbs, r.StrongHand,
+                    r.ClubCoach, r.ClubCoachEmail, r.SchoolCoach, r.SchoolCoachEmail,
+                ];
+                object?[] honorCells = withHonors ? [r.HonorsAcademic, r.HonorsAthletic] : [];
+                return [.. lead, .. honorCells, r.Instagram, r.Twitter];
+            });
+    }
+
+    /// <summary>
+    /// "Player Profiles" sheet of the include-inactive showcase export: the proc's 12 columns,
+    /// every role and state.
+    /// </summary>
+    private async Task<SheetData> BuildShowcaseAllRegistrantsSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Player Profiles",
+            await _reportingRepository.GetShowcasePlayerExcelRowsAsync(jobId, activePlayersOnly: false, cancellationToken),
+            [
+                "RegistrationID", "RegDate", "Agegroup", "Team", "FirstName", "LastName", "RoleName", "#",
+                "bActive", "shorts", "t-shirt", "ClubTeam",
+            ],
+            r =>
+            [
+                r.RegistrationId.ToString().ToUpperInvariant(),
+                r.RegistrationTs.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                r.AgegroupName, r.TeamName, r.FirstName, r.LastName, r.RoleName, r.UniformNo,
+                r.Active, r.ShortsSize, r.TShirt, r.ClubTeamName,
+            ]);
+
+    /// <summary>
+    /// "Job Users" sheet of the customer end-users dump: the proc's 21 columns; date of birth is
+    /// MM/DD/YYYY text.
+    /// </summary>
+    private async Task<SheetData> BuildCustomerEndUsersSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Job Users",
+            await _reportingRepository.GetCustomerEndUserExcelRowsAsync(jobId, cancellationToken),
+            [
+                "year", "jobName", "Role", "LastName", "FirstName", "dob", "GradYear", "Club", "Team",
+                "Position", "School", "Email", "Mom_Email", "Dad_Email", "cellphone", "Mom_Cellphone",
+                "Dad_CellPhone", "streetAddress", "city", "State", "ZIP",
+            ],
+            r =>
+            [
+                r.Year, r.JobName, r.Role, r.LastName, r.FirstName,
+                r.Dob?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), r.GradYear, r.ClubName, r.TeamName,
+                r.Position, r.SchoolName, r.Email, r.MomEmail, r.DadEmail, r.Cellphone, r.MomCellphone,
+                r.DadCellphone, r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]);
+
+    /// <summary>
+    /// The accounting-records sheet, named "&lt;customer&gt; accounting records" (or "ALL STEPS
+    /// accounting records" for the hard-wired job, whose layout leads with the customer name and
+    /// omits the three card columns). The record date is spread over five text columns in the
+    /// proc's en-US formats, and the amount is rounded to cents. When the job or its customer
+    /// name is missing the proc emits no sheet marker, so the sheet takes the default name.
+    /// </summary>
+    private async Task<SheetData> BuildCustomerAccountingRecordsSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetCustomerAccountingRecordsAsync(jobId, cancellationToken);
+        var enUs = CultureInfo.GetCultureInfo("en-US");
+
+        // The proc holds the name in a varchar(80); the reader trims the marker.
+        var sheetName = data.AllStepsCustomers
+            ? "ALL STEPS accounting records"
+            : data.CustomerName == null
+                ? "SearchResults"
+                : (SqlLeft(data.CustomerName, 80) + " accounting records").Trim();
+
+        object?[] When(CustomerAccountingRecordExcelRowDto r) =>
+        [
+            r.CreateDate?.ToString("yyyy-MM-dd hh:mm tt", enUs),
+            r.CreateDate?.ToString("yyyy-MM-dd", enUs),
+            r.CreateDate?.ToString("yyyy", enUs),
+            r.CreateDate?.ToString("dd", enUs),
+            r.CreateDate?.ToString("HH", enUs),
+        ];
+
+        object?[] Who(CustomerAccountingRecordExcelRowDto r) =>
+        [
+            r.LastName, r.FirstName, r.Role, r.UserName, r.FamilyUserName,
+            r.PayAmount == null ? null : Math.Round(r.PayAmount.Value, 2, MidpointRounding.AwayFromZero),
+            r.CardComment, r.Comment, r.ClubName, r.AgegroupName, r.TeamName,
+        ];
+
+        string[] whenColumns = ["TxDateTime", "TxDate", "TxYear", "TxDay", "TxHour"];
+        string[] whoColumns =
+        [
+            "LastName", "FirstName", "Role", "UserName", "FamilyUsername", "Paid",
+            "CC_Comment", "NonCC_Comment", "club_name", "agegroupName", "teamName",
+        ];
+
+        return data.AllStepsCustomers
+            ? ToSheet(
+                sheetName,
+                data.Rows,
+                ["customerName", "jobName", .. whenColumns, "paymentMethod", .. whoColumns],
+                r => [r.CustomerName, r.JobName, .. When(r), r.PaymentMethod, .. Who(r)])
+            : ToSheet(
+                sheetName,
+                data.Rows,
+                ["jobName", .. whenColumns, "paymentMethod", "adnTransactionID", "adnCC4", "adnCCExpDate", .. whoColumns],
+                r => [r.JobName, .. When(r), r.PaymentMethod, r.AdnTransactionId, r.AdnCc4, r.AdnCcExpDate, .. Who(r)]);
+    }
+
+    /// <summary>
+    /// "Schedule" sheet of the TournyMachine schedule export: the proc's 8 columns, the game time
+    /// spelled three ways as text. Read-only — see the repository method.
+    /// </summary>
+    private async Task<SheetData> BuildTournyMachineScheduleSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "Schedule",
+            await _reportingRepository.GetTournyMachineGameExcelRowsAsync(jobId, cancellationToken),
+            ["Team 1", "Team 2", "Date/Time", "Field Name", "Division Name", "Pool Name", "gDay", "gTime"],
+            r =>
+            [
+                r.Team1, r.Team2,
+                r.GameDate?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+                r.FieldName, r.AgegroupName, r.DivName,
+                r.GameDate?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                r.GameDate?.ToString("HH:mm", CultureInfo.InvariantCulture),
+            ]);
+
+    /// <summary>
+    /// The two sheets of the TournyMachine teams export: "Team Export" and "USLax Export".
+    /// Read-only — see the repository method.
+    /// </summary>
+    private async Task<List<SheetData>> BuildTournyMachineTeamsSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetTournyMachineTeamsAsync(jobId, cancellationToken);
+        return
+        [
+            ToSheet(
+                "Team Export",
+                data.Teams,
+                ["Division", "Division Abb", "Pool Name", "Team Name", "Gender"],
+                r => [r.AgegroupName, r.AgegroupName, r.DivName, r.TeamName, r.Gender]),
+            ToSheet(
+                "USLax Export",
+                data.TeamContacts,
+                [
+                    "Division", "Pool Name", "Gender", "Team Name", "ClubRep FirstName", "ClubRep LastName",
+                    "ClubRep EMail", "City", "ClubRep State", "ClubRep ZIP",
+                ],
+                r =>
+                [
+                    r.AgegroupName, r.DivName, r.Gender, r.TeamName, r.FirstName, r.LastName,
+                    r.Email, r.City, r.State, r.PostalCode,
+                ]),
+        ];
+    }
+
+    /// <summary>
+    /// The camp breakout for LAST calendar month, sheet "ByTeam: M/yyyy": one row per team with
+    /// players registered that month, then a "Monthly / Total" row that is present even when no
+    /// team is. The card fee keeps four decimals; the balance is rounded to cents per payment method.
+    /// Preserved from the proc: the per-registrant fee is counted once per payment method the
+    /// team was paid by, so a team paid by two methods is charged twice.
+    /// </summary>
+    private async Task<SheetData> BuildCampBreakoutPreviousMonthSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        const decimal cardRate = 0.03m;
+        const decimal feePerRegistrant = 5.00m;
+        static decimal Money(decimal value) => Math.Round(value, 4, MidpointRounding.AwayFromZero);
+
+        var settlement = DateTime.Now.AddMonths(-1);
+        var teams = await _reportingRepository.GetCampBreakoutMonthTeamsAsync(
+            jobId, settlement.Month, settlement.Year, cancellationToken);
+
+        var lines = teams
+            .Select(t =>
+            {
+                // The proc LEFT joins the team to its payment groups, so a team with none still
+                // contributes one (all-null) joined row.
+                var joinedRows = Math.Max(1, t.Payments.Count);
+                var amounts = t.Payments.Where(p => p.Amount != null).Select(p => p.Amount!.Value).ToList();
+                var tsicFees = feePerRegistrant * t.Registrants * joinedRows;
+
+                // Amounts are two-decimal numbers, and SQL Server keeps this subtraction at two
+                // decimals: each joined row is rounded (half away from zero) BEFORE the sum.
+                decimal RowBalance(decimal amount) => Math.Round(
+                    amount - feePerRegistrant * t.Registrants - cardRate * amount, 2, MidpointRounding.AwayFromZero);
+                var balance = t.Payments.Count == 0
+                    ? RowBalance(0m)
+                    : t.Payments.Sum(p => RowBalance(p.Amount ?? 0m));
+                return new
+                {
+                    t.AgegroupName,
+                    t.TeamName,
+                    TeamId = (Guid?)t.TeamId,
+                    Registrants = (int?)t.Registrants,
+                    Transactions = t.Payments.Count == 0 ? (int?)null : t.Payments.Sum(p => p.Transactions),
+                    Amount = amounts.Count == 0 ? (decimal?)null : amounts.Sum(),
+                    CardFee = amounts.Count == 0 ? (decimal?)null : Money(amounts.Sum(a => cardRate * a)),
+                    TsicFees = (decimal?)tsicFees,
+                    Balance = (decimal?)balance,
+                };
+            })
+            .ToList();
+
+        // SQL SUM skips nulls and is null when nothing is left.
+        static decimal? SumOrNull(IEnumerable<decimal?> values)
+        {
+            var present = values.Where(v => v != null).Select(v => v!.Value).ToList();
+            return present.Count == 0 ? null : present.Sum();
+        }
+
+        var totalAmount = SumOrNull(lines.Select(l => l.Amount));
+        var totalCardFee = SumOrNull(lines.Select(l => l.CardFee));
+        var totalTsicFees = SumOrNull(lines.Select(l => l.TsicFees));
+        lines.Add(new
+        {
+            AgegroupName = (string?)"Monthly",
+            TeamName = (string?)"Total",
+            TeamId = (Guid?)null,
+            Registrants = lines.Count == 0 ? (int?)null : lines.Sum(l => l.Registrants),
+            Transactions = lines.All(l => l.Transactions == null) ? (int?)null : lines.Sum(l => l.Transactions),
+            Amount = totalAmount,
+            CardFee = totalCardFee,
+            TsicFees = totalTsicFees,
+            Balance = totalAmount - totalCardFee - totalTsicFees,
+        });
+
+        return ToSheet(
+            string.Create(CultureInfo.InvariantCulture, $"ByTeam: {settlement.Month}/{settlement.Year}"),
+            lines,
+            [
+                "agegroupName", "teamName", "teamId", "#Registrants", "#CCTransactions",
+                "SumCCTransactions", "CCProcessingFee", "TSICFees", "BalanceDueClient",
+            ],
+            l =>
+            [
+                l.AgegroupName, l.TeamName, l.TeamId, l.Registrants, l.Transactions,
+                l.Amount, l.CardFee, l.TsicFees, l.Balance,
+            ]);
+    }
+
+    /// <summary>Payment methods the transaction rollup counts as money received.</summary>
+    private static readonly string[] RollupPaidMethods =
+        ["Credit Card Payment", "Credit Card Credit", "Check Payment By Client", "Check Payment By TSIC"];
+
+    /// <summary>Payment methods the transaction rollup counts as adjustments.</summary>
+    private static readonly string[] RollupAdjustedMethods =
+        ["Online Correction By Client", "Online Correction By TSIC"];
+
+    /// <summary>
+    /// US currency as T-SQL <c>FORMAT(x, 'C', 'en-US')</c> writes it: negatives in parentheses.
+    /// Pinned here because the runtime's own en-US data writes a leading minus instead.
+    /// </summary>
+    private static readonly NumberFormatInfo SqlUsCurrency = BuildSqlUsCurrency();
+
+    private static NumberFormatInfo BuildSqlUsCurrency()
+    {
+        var format = (NumberFormatInfo)CultureInfo.GetCultureInfo("en-US").NumberFormat.Clone();
+        format.CurrencyNegativePattern = 0;
+        return format;
+    }
+
+    /// <summary>
+    /// The five sheets of the job transaction rollup: "RawData" (one row per player payment),
+    /// "Paid" and "Adjusted" (totals by payment method with a grand total, as currency text),
+    /// "Discounted" and "Owed" (one total each). Waitlist agegroups are left out of every sheet
+    /// except "Discounted" — preserved from the proc.
+    /// </summary>
+    private async Task<List<SheetData>> BuildJobTransactionRollupSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var all = await _reportingRepository.GetJobTransactionRollupRowsAsync(jobId, cancellationToken);
+        var rows = all.Where(r => !r.Waitlist).ToList();
+
+        // GROUP BY ROLLUP(method): a row per method, then the grand total; nothing at all when
+        // no payment qualifies. A total of all-null amounts is null, and stays null as text.
+        SheetData MethodTotals(string sheetName, string[] methods)
+        {
+            static string? Currency(IEnumerable<decimal?> amounts)
+            {
+                var present = amounts.Where(a => a != null).Select(a => a!.Value).ToList();
+                return present.Count == 0 ? null : present.Sum().ToString("C", SqlUsCurrency);
+            }
+
+            var matching = rows
+                .Where(r => methods.Any(m => SqlEquals(r.PaymentMethod, m)))
+                .OrderBy(r => r.PaymentMethod!.TrimEnd(' '), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var totals = RunsOf(matching, r => r.PaymentMethod)
+                .Select(run => (Method: run[0].PaymentMethod, Total: Currency(run.Select(r => r.PayAmount))))
+                .ToList();
+            if (totals.Count > 0)
+            {
+                totals.Add(("Grand Total", Currency(matching.Select(r => r.PayAmount))));
+            }
+
+            return ToSheet(sheetName, totals, ["PaymentMethod", "TotalAmount"], t => [t.Method, t.Total]);
+        }
+
+        // One registration appears once per payment, so each is counted once.
+        var discounted = all
+            .Where(r => r.DiscountCodeId != null)
+            .DistinctBy(r => r.RegistrationId)
+            .ToList();
+        var owing = rows.DistinctBy(r => r.RegistrationId).ToList();
+
+        return
+        [
+            ToSheet(
+                "RawData",
+                rows,
+                [
+                    "RegistrationID", "FirstName", "LastName", "gender", "dob", "agegroupName", "teamName",
+                    "fee_discount", "paid_total", "owed_total", "paymentMethod", "aID", "dueamt", "payamt",
+                    "adnCC4", "adnCCExpDate", "adnInvoiceNo", "adnTransactionID", "checkNo", "comment",
+                    "createdate", "RegDiscountCode",
+                ],
+                r =>
+                [
+                    r.RegistrationId, r.FirstName, r.LastName, r.Gender, r.Dob?.Date, r.AgegroupName, r.TeamName,
+                    r.FeeDiscount, r.PaidTotal, r.OwedTotal, r.PaymentMethod, r.AccountingId, r.DueAmount, r.PayAmount,
+                    r.AdnCc4, r.AdnCcExpDate, r.AdnInvoiceNo, r.AdnTransactionId, r.CheckNo, r.Comment,
+                    r.CreateDate?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+                    r.DiscountCodeId?.ToString(CultureInfo.InvariantCulture),
+                ]),
+            MethodTotals("Paid", RollupPaidMethods),
+            // An aggregate with no GROUP BY always returns its one row, so these two sheets are
+            // never headerless.
+            ToSheet<decimal?>(
+                "Discounted",
+                [discounted.Count == 0 ? null : discounted.Sum(r => r.FeeDiscount)],
+                ["TotalDiscounted"],
+                total => [total]),
+            MethodTotals("Adjusted", RollupAdjustedMethods),
+            ToSheet<string?>(
+                "Owed",
+                [owing.Count == 0 ? null : owing.Sum(r => r.OwedTotal).ToString("C", SqlUsCurrency)],
+                ["SumOwedTotal"],
+                total => [total]),
+        ];
+    }
+
+    /// <summary>
+    /// A date-time as T-SQL's default <c>convert(varchar, d)</c> writes it: "Oct  5 2026  9:05AM",
+    /// day and hour right-aligned in two characters.
+    /// </summary>
+    private static string? SqlDefaultDateTime(DateTime? value)
+    {
+        if (value is not { } d)
+        {
+            return null;
+        }
+
+        var hour = d.Hour % 12 == 0 ? 12 : d.Hour % 12;
+        return string.Create(CultureInfo.InvariantCulture, $"{d:MMM} {d.Day,2} {d:yyyy} {hour,2}:{d:mm}{d:tt}");
+    }
+
+    /// <summary>
+    /// The two sheets of the referee assignment QA: "raw data" (every assignment with the minutes
+    /// to the same referee's next game that day) and "Double Booked Refs" (a referee assigned
+    /// more than once at the same game time).
+    /// </summary>
+    private async Task<List<SheetData>> BuildRefAssignmentQaSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var rows = await _reportingRepository.GetRefAssignmentQaRowsAsync(jobId, cancellationToken);
+
+        // DATEDIFF(minute, a, b) counts minute boundaries crossed, not elapsed whole minutes.
+        static int? MinutesBetween(DateTime? from, DateTime? to)
+        {
+            if (from is not { } a || to is not { } b)
+            {
+                return null;
+            }
+
+            return (int)(b.Ticks / TimeSpan.TicksPerMinute - a.Ticks / TimeSpan.TicksPerMinute);
+        }
+
+        var doubleBooked = rows
+            .GroupBy(r => (r.GameDate, r.RefRegistrationId))
+            .Where(g => g.Count() > 1)
+            .Select(g => g.First())
+            .ToList();
+
+        return
+        [
+            ToSheet(
+                "raw data",
+                rows,
+                [
+                    "firstName", "lastName", "G_Date", "Gid", "fName", "agegroupName", "divName",
+                    "refRegId", "minToNextGameSameDay",
+                ],
+                r =>
+                [
+                    r.FirstName, r.LastName, SqlDefaultDateTime(r.GameDate), r.Gid, r.FieldName,
+                    r.AgegroupName, r.DivName, r.RefRegistrationId,
+                    MinutesBetween(r.GameDate, r.NextGameSameDay),
+                ]),
+            ToSheet(
+                "Double Booked Refs",
+                doubleBooked,
+                ["G_Date", "refRegId", "firstName", "lastName"],
+                r => [SqlDefaultDateTime(r.GameDate), r.RefRegistrationId, r.FirstName, r.LastName]),
+        ];
+    }
+
+    /// <summary>
+    /// T-SQL <c>REPLACE</c>: every occurrence, matched case-insensitively. Null in, null out; an
+    /// empty pattern changes nothing.
+    /// </summary>
+    private static string? SqlReplace(string? value, string? pattern, string replacement) =>
+        value == null || pattern == null
+            ? null
+            : pattern.Length == 0 ? value : value.Replace(pattern, replacement, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Text ordered the way the database's case-insensitive collation orders it.</summary>
+    private static readonly StringComparer SqlTextOrder =
+        StringComparer.Create(CultureInfo.GetCultureInfo("en-US"), ignoreCase: true);
+
+    /// <summary>
+    /// "Counts Per Team" sheet of the American Select regional counts: players per region, year
+    /// and graduating class, to date and final. A team's class is the first number in its name
+    /// (a graduation year) less the job's year: 1 is a senior … 5 an 8th grader; any other gap
+    /// is not reported. A class nobody had registered for by this point of its year is not
+    /// reported either.
+    /// </summary>
+    private async Task<SheetData> BuildRegionalTeamCountsSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var counts = await _reportingRepository.GetRegionalTeamPlayerCountsAsync(jobId, DateTime.Now, cancellationToken);
+
+        // The proc's PATINDEX pair: the first run of digits in the name, 0 when there is none.
+        static int FirstNumber(string name)
+        {
+            var start = 0;
+            while (start < name.Length && !char.IsAsciiDigit(name[start]))
+            {
+                start++;
+            }
+
+            var end = start;
+            while (end < name.Length && char.IsAsciiDigit(name[end]))
+            {
+                end++;
+            }
+
+            return end == start ? 0 : int.Parse(name.AsSpan(start, end - start), CultureInfo.InvariantCulture);
+        }
+
+        static string? GraduatingClass(int yearsOut) => yearsOut switch
+        {
+            1 => "1:Seniors",
+            2 => "2:Juniors",
+            3 => "3:Sophmores",
+            4 => "4:Freshmen",
+            5 => "5:8thGrade",
+            _ => null,
+        };
+
+        var rows = counts
+            .Select(c =>
+            {
+                var jobYear = int.Parse(c.Year!, CultureInfo.InvariantCulture);
+                return new { Count = c, JobYear = jobYear, Class = GraduatingClass(FirstNumber(c.TeamName!) - jobYear) };
+            })
+            .Where(x => x.Class != null)
+            .GroupBy(x => (x.Count.JobId, x.Class))
+            .Select(g => new
+            {
+                // The job name without its last five characters (" 2026") and without the prefix.
+                Region = SqlReplace(
+                    SqlReplace(g.First().Count.JobName, SqlRight(g.First().Count.JobName, 5), ""),
+                    "American Select Lacrosse:", ""),
+                g.First().JobYear,
+                g.First().Class,
+                ToDate = g.Sum(x => x.Count.PlayersToDate),
+                Final = g.Sum(x => x.Count.Players),
+            })
+            .Where(x => x.ToDate > 0)
+            .OrderBy(x => x.Region, SqlTextOrder).ThenBy(x => x.JobYear).ThenBy(x => x.Class, StringComparer.Ordinal)
+            .ToList();
+
+        return ToSheet(
+            "Counts Per Team",
+            rows,
+            ["Region", "JobYear", "Agerange", "YTD", "FinalCount"],
+            r => [r.Region, r.JobYear, r.Class, r.ToDate, r.Final]);
+    }
+
+    /// <summary>
+    /// The five sheets of the regional year-to-date counts. Three write each year as
+    /// "to-date of total" text ("YTD By Region and Grad", "YTD By Region", "YTD Rollup"); two
+    /// are laid out like a spreadsheet pivot with a to-date and a total number per year ("YTD
+    /// Pivot Region+Grad", "YTD Pivot Region"). A team's class is the first four-digit number in
+    /// its name less the job's year; teams outside the five classes are not counted. A job year
+    /// that is not a whole number fails the export, as it failed the procedure.
+    /// </summary>
+    private async Task<List<SheetData>> BuildRegionalYearToDateSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetRegionalPlayerCountsByNamePrefixAsync(jobId, DateTime.Now, cancellationToken);
+        var years = data.Years;
+
+        // The proc's PATINDEX: the first four digits in a row, or nothing.
+        static int? FirstFourDigitNumber(string name)
+        {
+            for (var i = 0; i + 4 <= name.Length; i++)
+            {
+                if (char.IsAsciiDigit(name[i]) && char.IsAsciiDigit(name[i + 1])
+                    && char.IsAsciiDigit(name[i + 2]) && char.IsAsciiDigit(name[i + 3]))
+                {
+                    return int.Parse(name.AsSpan(i, 4), CultureInfo.InvariantCulture);
+                }
+            }
+
+            return null;
+        }
+
+        static string? GradeLevel(int yearsOut) => yearsOut switch
+        {
+            1 => "1:Seniors",
+            2 => "2:Juniors",
+            3 => "3:Sophomores",
+            4 => "4:Freshmen",
+            5 => "5:8thGrade",
+            _ => null,
+        };
+
+        var facts = data.Counts
+            .Select(c =>
+            {
+                var jobYear = int.Parse(c.Year!, NumberStyles.Integer, CultureInfo.InvariantCulture);
+                var gradYear = FirstFourDigitNumber(c.TeamName!);
+                return new
+                {
+                    // The job name without its last five characters (" 2026") and without the prefix.
+                    Region = SqlReplace(SqlReplace(c.JobName, SqlRight(c.JobName, 5), ""), data.NamePrefix, ""),
+                    Level = gradYear == null ? null : GradeLevel(gradYear.Value - jobYear),
+                    c.Year,
+                    c.Players,
+                    c.PlayersToDate,
+                };
+            })
+            .Where(f => f.Level != null)
+            .OrderBy(f => f.Region, SqlTextOrder).ThenBy(f => f.Level, StringComparer.Ordinal)
+            .ToList();
+
+        int ToDate(IEnumerable<int> rows, string year) =>
+            rows.Sum(i => SqlEquals(facts[i].Year, year) ? facts[i].PlayersToDate : 0);
+        int Total(IEnumerable<int> rows, string year) =>
+            rows.Sum(i => SqlEquals(facts[i].Year, year) ? facts[i].Players : 0);
+        IEnumerable<object?> AsText(List<int> rows) => years.Select(y =>
+            (object?)string.Create(CultureInfo.InvariantCulture, $"{ToDate(rows, y)} of {Total(rows, y)}"));
+        IEnumerable<object?> AsNumbers(List<int> rows) =>
+            years.SelectMany(y => new object?[] { ToDate(rows, y), Total(rows, y) });
+
+        // Index runs: every fact, each region, and each grade level within a region.
+        var all = Enumerable.Range(0, facts.Count).ToList();
+
+        var byRegionAndGrade = new List<object?[]>();
+        var byRegion = new List<object?[]>();
+        var pivotRegionAndGrade = new List<object?[]>();
+        var pivotRegion = new List<object?[]>();
+        foreach (var region in RunsOf(all, i => facts[i].Region))
+        {
+            var name = facts[region[0]].Region;
+            byRegion.Add([name, .. AsText(region)]);
+            pivotRegion.Add([name, .. AsNumbers(region)]);
+            pivotRegionAndGrade.Add(["= " + name, .. AsNumbers(region)]);
+            foreach (var grade in RunsOf(region, i => facts[i].Level))
+            {
+                var level = facts[grade[0]].Level;
+                byRegionAndGrade.Add([name, level, .. AsText(grade)]);
+                pivotRegionAndGrade.Add(["  " + level, .. AsNumbers(grade)]);
+            }
+        }
+
+        // The proc files the grand total under a region named "ZZZZ" so that it sorts last.
+        if (facts.Count > 0)
+        {
+            pivotRegionAndGrade.Add(["Grand Total", .. AsNumbers(all)]);
+            pivotRegion.Add(["Grand Total", .. AsNumbers(all)]);
+        }
+
+        // With no year there is no column list and the proc returns nothing at all; with years
+        // but no players the rollup still returns its one row of "0 of 0".
+        var rollup = new List<object?[]>();
+        if (years.Count > 0)
+        {
+            rollup.Add(["TOTAL", .. AsText(all)]);
+        }
+
+        string[] pivotColumns = ["Row Labels", .. years.SelectMany(y => new[] { y + "_YTD", y + "_Total" })];
+        return
+        [
+            ToSheet("YTD By Region and Grad", byRegionAndGrade, ["Region", "GradeLevel", .. years], r => r),
+            ToSheet("YTD By Region", byRegion, ["Region", .. years], r => r),
+            ToSheet("YTD Rollup", rollup, ["Summary", .. years], r => r),
+            ToSheet("YTD Pivot Region+Grad", pivotRegionAndGrade, pivotColumns, r => r),
+            ToSheet("YTD Pivot Region", pivotRegion, pivotColumns, r => r),
+        ];
+    }
+
+    /// <summary>One line of the monthly revenue rollup, with the two numbers the proc orders by.</summary>
+    private sealed record RollupLine(
+        string? CustomerName,
+        string? JobName,
+        decimal? CheckRevenue,
+        decimal? CardRevenue,
+        decimal? CardFees,
+        decimal? CardRefunds,
+        decimal? TsicFees,
+        decimal? NetDeposit,
+        int JobIndex,
+        int CustomerIndex);
+
+    /// <summary>SQL <c>SUM</c>: nulls are skipped, and the total is null when nothing is left.</summary>
+    private static decimal? SqlSum(IEnumerable<decimal?> values)
+    {
+        decimal? total = null;
+        foreach (var value in values)
+        {
+            if (value != null)
+            {
+                total = (total ?? 0m) + value.Value;
+            }
+        }
+
+        return total;
+    }
+
+    /// <summary>A date as T-SQL's <c>convert(char(10), d, 101)</c> writes it: mm/dd/yyyy.</summary>
+    private static string? SqlUsDate(DateTime? value) =>
+        value?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
+
+    /// <summary>"RawData" sheet of the cross-job admin fees summary: every job admin charge, newest period first.</summary>
+    private async Task<SheetData> BuildAllJobAdminFeesSheetAsync(CancellationToken cancellationToken) =>
+        ToSheet(
+            "RawData",
+            await _reportingRepository.GetAllJobAdminFeesAsync(cancellationToken),
+            ["Year", "Month", "CreateDate", "jobName", "Name", "ChargeAmount", "Comment"],
+            r => [r.Year, r.Month, SqlUsDate(r.CreateDate), r.JobName, r.ChargeTypeName, r.ChargeAmount, r.Comment]);
+
+    /// <summary>"3Mo-Expire" sheet: bulletins on any job that end within the next three months, soonest first.</summary>
+    private async Task<SheetData> BuildExpiringBulletinsSheetAsync(CancellationToken cancellationToken)
+    {
+        var now = DateTime.Now;
+        return ToSheet(
+            "3Mo-Expire",
+            await _reportingRepository.GetBulletinsEndingBetweenAsync(now, now.AddMonths(3), cancellationToken),
+            ["jobName", "title", "StartDate", "EndDate", "IsActive"],
+            r => [r.JobName, r.Title, SqlUsDate(r.StartDate), SqlUsDate(r.EndDate), r.Active]);
+    }
+
+    /// <summary>
+    /// "Expired Bulletins" sheet: active registration bulletins that have ended on jobs still
+    /// open for that registration. The player variant also lists the job's USA Lacrosse
+    /// valid-through date; the team variant has no such column.
+    /// </summary>
+    private async Task<SheetData> BuildExpiredRegistrationBulletinsSheetAsync(
+        bool teamRegistration,
+        CancellationToken cancellationToken)
+    {
+        var rows = await _reportingRepository.GetExpiredRegistrationBulletinsAsync(
+            teamRegistration, DateTime.Now, cancellationToken);
+
+        return teamRegistration
+            ? ToSheet(
+                "Expired Bulletins",
+                rows,
+                ["jobName", "bRegistrationAllowTeam", "ExpiryUsers", "active", "title", "StartDate", "EndDate"],
+                r =>
+                [
+                    r.JobName, r.RegistrationAllowed, SqlUsDate(r.ExpiryUsers), r.Active, r.Title,
+                    SqlUsDate(r.StartDate), SqlUsDate(r.EndDate),
+                ])
+            : ToSheet(
+                "Expired Bulletins",
+                rows,
+                [
+                    "jobName", "bRegistrationAllowPlayer", "ExpiryUsers", "USLaxNumberValidThroughDate",
+                    "active", "title", "StartDate", "EndDate",
+                ],
+                r =>
+                [
+                    r.JobName, r.RegistrationAllowed, SqlUsDate(r.ExpiryUsers), r.UslaxNumberValidThroughDate,
+                    r.Active, r.Title, SqlUsDate(r.StartDate), SqlUsDate(r.EndDate),
+                ]);
+    }
+
+    /// <summary>
+    /// "New Jobs: m/yyyy" sheet for LAST calendar month: the jobs whose first active accounting
+    /// record was entered that month.
+    /// </summary>
+    private async Task<SheetData> BuildNewJobsWithTransactionsSheetAsync(CancellationToken cancellationToken)
+    {
+        var lastMonth = DateTime.Now.AddMonths(-1);
+        return ToSheet(
+            string.Create(CultureInfo.InvariantCulture, $"New Jobs: {lastMonth.Month}/{lastMonth.Year}"),
+            await _reportingRepository.GetJobsFirstTransactedInMonthAsync(lastMonth.Year, lastMonth.Month, cancellationToken),
+            ["jobId", "jobName", "minTxDate"],
+            r => [r.JobId, r.JobName, SqlDefaultDateTime(r.FirstTransactionDate)]);
+    }
+
+    /// <summary>
+    /// "Raw Data" sheet of the cross-job club rep contacts: a row per rep, club and sport, most
+    /// registrations first. The proc selects the email twice; both columns are kept.
+    /// </summary>
+    private async Task<SheetData> BuildAllClubRepContactsSheetAsync(CancellationToken cancellationToken) =>
+        ToSheet(
+            "Raw Data",
+            await _reportingRepository.GetAllClubRepContactsAsync(cancellationToken),
+            [
+                "Club", "sportName", "UserName", "#Jobs", "LastName", "FirstName", "Email", "cellphone",
+                "Email", "streetAddress", "city", "state", "postalCode",
+            ],
+            r =>
+            [
+                r.ClubName, r.SportName, r.UserName, r.JobCount, r.LastName, r.FirstName, r.Email, r.Cellphone,
+                r.Email, r.StreetAddress, r.City, r.State, r.PostalCode,
+            ]);
+
+    /// <summary>
+    /// "RawData" sheet of the job key attributes: a row per job with its dates, headcounts,
+    /// over- and underpaid registrations and its registration, billing and payment settings.
+    /// Run with no job it lists every job; with one, only jobs whose admin access has not
+    /// expired (the job itself is not a filter, as in the proc).
+    /// </summary>
+    private async Task<SheetData> BuildJobKeyAttributesSheetAsync(Guid jobId, CancellationToken cancellationToken) =>
+        ToSheet(
+            "RawData",
+            await _reportingRepository.GetJobKeyAttributesAsync(
+                adminExpiresAfter: jobId == Guid.Empty ? null : DateTime.Now,
+                jobTypeNames: null,
+                years: null,
+                orderByEventDates: false,
+                cancellationToken),
+            [
+                "customerName", "year", "season", "jobName", "jobName_QBP", "ExpiryAdmin", "ExpiryUsers",
+                "EventStart", "EventEnd", "USLaxEnd", "countCR", "countTeams", "countWLTeams", "countPlayers",
+                "countOverpaidCR", "countUnderpaidCR", "countOverpaidP", "countUnderpaidP", "JobTypeName",
+                "adnLoginID", "playerRegOn", "teamRegOn", "usePlayerRegsaver", "useTeamRegsaver", "useAdn",
+                "adnARBBillingOccurences", "adnARBIntervalLength", "AdnArbMinimunTotalCharge", "playerRegform",
+                "bEnableTSICTeams", "bAllowMobileLogin", "bSuspendPublic", "perPlayerCharge", "perTeamCharge",
+                "BillingTypeName", "PaymentMethodsAllowed_Code", "bAddProcessingFees",
+                "bApplyProcessingFeesToTeamDeposit", "fullPayOn", "crAdd", "crEdit", "crDelete",
+            ],
+            r =>
+            [
+                r.CustomerName, r.Year, r.Season, r.JobName, r.JobNameQbp, SqlUsDate(r.ExpiryAdmin),
+                SqlUsDate(r.ExpiryUsers), SqlUsDate(r.EventStartDate), SqlUsDate(r.EventEndDate),
+                SqlUsDate(r.UslaxNumberValidThroughDate), r.ClubRepCount, r.TeamCount, r.WaitlistTeamCount,
+                r.PlayerCount, r.OverpaidClubRepCount, r.UnderpaidClubRepCount, r.OverpaidPlayerCount,
+                r.UnderpaidPlayerCount, r.JobTypeName, r.AdnLoginId, r.RegistrationAllowPlayer,
+                r.RegistrationAllowTeam, r.OfferPlayerRegsaverInsurance, r.OfferTeamRegsaverInsurance, r.AdnArb,
+                r.AdnArbBillingOccurences, r.AdnArbIntervalLength, r.AdnArbMinimumTotalCharge, r.CoreRegformPlayer,
+                // coalesce(bit, 0) is an int in T-SQL, so this one flag is a number, not true/false.
+                r.EnableTsicTeams == true ? 1 : 0,
+                r.AllowMobileLogin, r.SuspendPublic, r.PerPlayerCharge, r.PerTeamCharge, r.BillingTypeName,
+                r.PaymentMethodsAllowedCode, r.AddProcessingFees, r.ApplyProcessingFeesToTeamDeposit,
+                r.TeamsFullPaymentRequired, r.ClubRepAllowAdd, r.ClubRepAllowEdit, r.ClubRepAllowDelete,
+            ]);
+
+    /// <summary>
+    /// "RawData" sheet of the tournament keys: tournament and league scheduling jobs whose admin
+    /// access has not expired, earliest event first, with headcounts and club rep settings. Run
+    /// with a job it also keeps only this year's and next year's jobs (the job itself is not a
+    /// filter, as in the proc).
+    /// </summary>
+    private async Task<SheetData> BuildTournamentKeyAttributesSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var now = DateTime.Now;
+        string[]? years = jobId == Guid.Empty
+            ? null
+            : [now.Year.ToString(CultureInfo.InvariantCulture), (now.Year + 1).ToString(CultureInfo.InvariantCulture)];
+
+        // convert(char(10), d, 23) + ' ' + datename(weekday, d): "2026-10-13 Tuesday".
+        static string? DayWithWeekday(DateTime? value) =>
+            value?.ToString("yyyy-MM-dd dddd", CultureInfo.InvariantCulture);
+
+        return ToSheet(
+            "RawData",
+            await _reportingRepository.GetJobKeyAttributesAsync(
+                adminExpiresAfter: now,
+                jobTypeNames: ["Tournament Scheduling", "League Scheduling"],
+                years,
+                orderByEventDates: true,
+                cancellationToken),
+            [
+                "jobName", "EventStart", "EventEnd", "perTeamCharge", "countCR", "countTeams", "countPlayers",
+                "bHideContacts", "fullPayOn", "playerRegOn", "teamRegOn", "crAdd", "crEdit", "crDelete",
+                "bAllowMobileLogin", "bSuspendPublic", "bAddProcessingFees", "bApplyProcessingFeesToTeamDeposit",
+                "bVIEnabled", "customerName", "year", "season",
+            ],
+            r =>
+            [
+                r.JobName, DayWithWeekday(r.EventStartDate), DayWithWeekday(r.EventEndDate), r.PerTeamCharge,
+                r.ClubRepCount, r.TeamCount, r.PlayerCount, r.HideContacts, r.TeamsFullPaymentRequired,
+                r.RegistrationAllowPlayer, r.RegistrationAllowTeam, r.ClubRepAllowAdd, r.ClubRepAllowEdit,
+                r.ClubRepAllowDelete, r.AllowMobileLogin, r.SuspendPublic, r.AddProcessingFees,
+                r.ApplyProcessingFeesToTeamDeposit, r.OfferPlayerRegsaverInsurance, r.CustomerName, r.Year,
+                r.Season,
+            ]);
+    }
+
+    /// <summary>
+    /// The two sheets of the RegSaver raw data: "Player Data" (player registrations carrying a
+    /// policy) and "Team Data" (teams carrying one, with the club rep who bought it and the one
+    /// who holds the team now). Run with no job it covers every job; with a job, that job only,
+    /// and the team sheet then lists Team before Pool, as the proc's second branch does.
+    /// </summary>
+    private async Task<List<SheetData>> BuildRegsaverRawDataSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        Guid? scope = jobId == Guid.Empty ? null : jobId;
+        var players = await _reportingRepository.GetRegsaverPlayerPoliciesAsync(scope, cancellationToken);
+        var teams = await _reportingRepository.GetRegsaverTeamPoliciesAsync(scope, cancellationToken);
+        var allJobs = scope == null;
+
+        return
+        [
+            ToSheet(
+                "Player Data",
+                players,
+                [
+                    "Year", "Month", "regsaverPolicyId", "RegistrationTS", "PolicyCreateDate", "jobName",
+                    "PlayerName", "assignment", "Email", "FamilyUsername", "fee_total",
+                ],
+                r =>
+                [
+                    r.RegistrationTs.Year, r.RegistrationTs.Month, r.RegsaverPolicyId,
+                    SqlDefaultDateTime2(r.RegistrationTs), SqlDefaultDateTime(r.PolicyCreateDate), r.JobName,
+                    SqlConcat(r.FirstName, " ", r.LastName), r.Assignment, r.FamilyEmail, r.FamilyUserName,
+                    r.FeeTotal,
+                ]),
+            ToSheet(
+                "Team Data",
+                teams,
+                [
+                    "jobName", "ClubPurchased", "ClubRepPurchased", "EmailCRPurchased", "ClubNow", "ClubRepNow",
+                    "EmailCRNow", "Agegroup", allJobs ? "Pool" : "Team", allJobs ? "Team" : "Pool", "TeamIsActive",
+                    "TeamPolicyId", "TeamCreateDate", "PolicyCreateDate", "Year", "Month", "TeamFeeTotalNow",
+                    "TeamOwedTotal", "TeamPaidTotal",
+                ],
+                r =>
+                [
+                    r.JobName, r.PurchaserClubName, SqlConcat(r.PurchaserFirstName, " ", r.PurchaserLastName),
+                    r.PurchaserEmail, r.CurrentClubName, SqlConcat(r.CurrentFirstName, " ", r.CurrentLastName),
+                    r.CurrentEmail, r.AgegroupName, allJobs ? r.DivName : r.TeamName,
+                    allJobs ? r.TeamName : r.DivName, r.Active, r.ViPolicyId,
+                    SqlDefaultDateTime2(r.TeamCreateDate), SqlDefaultDateTime(r.PolicyCreateDate),
+                    r.TeamCreateDate.Year, r.TeamCreateDate.Month, r.FeeTotal, r.OwedTotal, r.PaidTotal,
+                ]),
+        ];
+    }
+
+    /// <summary>
+    /// A <c>datetime2</c> as T-SQL's default <c>convert(varchar, d)</c> writes it:
+    /// "2026-03-02 05:13:30.8601453". (A <c>datetime</c> is written differently; see
+    /// <see cref="SqlDefaultDateTime"/>.)
+    /// </summary>
+    private static string SqlDefaultDateTime2(DateTime value) =>
+        value.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// T-SQL <c>convert(money, text)</c> for the gateway's amount text: four decimal places, an
+    /// empty string is zero, null stays null.
+    /// </summary>
+    private static decimal? SqlMoney(string? text) =>
+        text == null
+            ? null
+            : text.Trim().Length == 0
+                ? 0m
+                : Math.Round(
+                    decimal.Parse(text, NumberStyles.Currency, CultureInfo.InvariantCulture),
+                    4,
+                    MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// The seven sheets of the RegSaver purchases export, every job: payouts matched to player
+    /// policies and to team policies, payouts by job and by month, payouts matching no policy,
+    /// policies with no payout yet, and the half-share cross-check for the customers it is
+    /// reported for.
+    /// A payout and a policy match when their policy numbers agree once letters, hyphens,
+    /// slashes, plus signs and brackets are removed ("RP-ENT-250721-0000957" is
+    /// "2507210000957"), so one payout can match several policies and the reverse.
+    /// Ratios are cut, not rounded, as T-SQL cuts them: <c>money / money</c> and
+    /// <c>money / n</c> at four decimals, <c>money / decimal</c> at twenty-one.
+    /// </summary>
+    private async Task<List<SheetData>> BuildRegsaverPurchasesSheetsAsync(CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetRegsaverPurchasesAsync(cancellationToken);
+
+        static string? PolicyKey(string? policy)
+        {
+            if (policy == null)
+            {
+                return null;
+            }
+
+            var kept = policy.Where(ch => !"/+()-".Contains(ch) && !char.IsAsciiLetter(ch));
+            return string.Concat(kept).TrimEnd(' ').ToUpperInvariant();
+        }
+
+        static string? NameKey(string? name) => name?.TrimEnd(' ').ToUpperInvariant();
+        static decimal? Cut(decimal? value, int decimals) =>
+            value == null ? null : Math.Round(value.Value, decimals, MidpointRounding.ToZero);
+        static decimal? MoneyRatio(decimal? amount, decimal? by) => amount == null || by == null ? null : Cut(amount / by, 4);
+        static decimal? DecimalRatio(decimal? amount, decimal? by) => amount == null || by == null ? null : Cut(amount / by, 21);
+
+        var playersByKey = data.PlayerPolicies.ToLookup(p => PolicyKey(p.PolicyId)!);
+        var teamsByKey = data.TeamPolicies.ToLookup(p => PolicyKey(p.PolicyId)!);
+        var payoutKeys = data.Payouts.Select(p => PolicyKey(p.PolicyNumber)).Where(k => k != null).ToHashSet();
+
+        IEnumerable<RegsaverPolicyHolderDto> Holders(ILookup<string, RegsaverPolicyHolderDto> byKey, InsurancePayoutRowDto payout) =>
+            PolicyKey(payout.PolicyNumber) is { } key ? byKey[key] : [];
+
+        string[] detailColumns =
+        [
+            "year", "month", "Policy Number", "PurchaseDate", "Policy Effective Date", "Net Written Premium",
+            "Payout", "Payout%", "jobName", "ParentName", "PlayerName", "RegistrationTS", "fee_total",
+            "NetPremium/FeeTotal", "Payout/FeeTotal",
+        ];
+        static object?[] Detail(InsurancePayoutRowDto vi, RegsaverPolicyHolderDto h) =>
+        [
+            vi.Year, vi.Month, vi.PolicyNumber, vi.PurchaseDate, vi.PolicyEffectiveDate, vi.NetWrittenPremium,
+            vi.Payout, MoneyRatio(vi.Payout, vi.NetWrittenPremium), h.RegistrationJobName,
+            SqlConcat(h.ParentFirstName, " ", h.ParentLastName), SqlConcat(h.FirstName, " ", h.LastName),
+            h.RegistrationTs, h.FeeTotal, DecimalRatio(vi.NetWrittenPremium, h.FeeTotal),
+            DecimalRatio(vi.Payout, h.FeeTotal),
+        ];
+
+        // Only holders that paid a fee are listed ("fee_total > 0" also drops a team with no
+        // club rep registration).
+        var playerRows = data.Payouts
+            .SelectMany(vi => Holders(playersByKey, vi).Where(h => h.FeeTotal > 0).Select(h => Detail(vi, h)))
+            .ToList();
+
+        // The team sheet is DISTINCT over its columns.
+        static string RowKey(object?[] row) => string.Join('\u001f', row.Select(cell => cell switch
+        {
+            null => "\u0000",
+            string s => s.TrimEnd(' ').ToUpperInvariant(),
+            DateTime d => d.Ticks.ToString(CultureInfo.InvariantCulture),
+            decimal m => m.ToString("G29", CultureInfo.InvariantCulture),
+            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+            _ => cell.ToString(),
+        }));
+        var teamRows = data.Payouts
+            .SelectMany(vi => Holders(teamsByKey, vi).Where(h => h.FeeTotal > 0).Select(h => Detail(vi, h)))
+            .DistinctBy(RowKey)
+            .ToList();
+
+        // By job, players then teams. Every payout counts, matched or not: an unmatched one
+        // falls under no job. The team half reports the AVERAGE payout per policy number.
+        var byPlayerJob = data.Payouts
+            .SelectMany(vi => Holders(playersByKey, vi).Select(h => h.RegistrationJobName).DefaultIfEmpty()
+                .Select(job => (vi.Year, vi.Month, Job: job, vi.Payout, vi.PolicyNumber)))
+            .GroupBy(x => (x.Year, x.Month, Job: NameKey(x.Job)))
+            .Select(g => (g.Key.Year, g.Key.Month, g.First().Job, Amount: SqlSum(g.Select(x => x.Payout))));
+        var byTeamJob = data.Payouts
+            .SelectMany(vi => Holders(teamsByKey, vi).Select(h => h.HolderJobName).DefaultIfEmpty()
+                .Select(job => (vi.Year, vi.Month, Job: job, vi.Payout, vi.PolicyNumber)))
+            .GroupBy(x => (x.Year, x.Month, Job: NameKey(x.Job)))
+            .Select(g => (g.Key.Year, g.Key.Month, g.First().Job,
+                Amount: Cut(SqlSum(g.Select(x => x.Payout)) / g.Count(x => x.PolicyNumber != null), 4)));
+        var byJob = byPlayerJob.Concat(byTeamJob)
+            .OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Job, SqlTextOrder)
+            .ToList();
+
+        var byMonth = data.Payouts
+            .GroupBy(vi => (vi.Year, vi.Month))
+            .Select(g => (g.Key.Year, g.Key.Month, Amount: SqlSum(g.Select(vi => vi.Payout))))
+            .ToList();
+
+        var unmatched = data.Payouts
+            .Where(vi => !Holders(playersByKey, vi).Any() && !Holders(teamsByKey, vi).Any())
+            .ToList();
+
+        // Both halves are labelled "Player", teams included, as in the proc.
+        var notYetPaid = data.PlayerPolicies.Concat(data.TeamPolicies)
+            .Where(h => !payoutKeys.Contains(PolicyKey(h.PolicyId)))
+            .OrderBy(h => h.HolderCreated.Year).ThenBy(h => h.HolderCreated.Month).ThenBy(h => h.HolderJobName, SqlTextOrder)
+            .ToList();
+
+        // GROUP BY … WITH ROLLUP: a line per month, a line per year after its months, a grand
+        // total at the end; nothing at all when no payout matches.
+        var shared = data.Payouts
+            .SelectMany(vi => Holders(playersByKey, vi).Where(h => h.InPayoutCustomerGroup)
+                .Select(_ => (vi.Year, vi.Month, vi.Payout)))
+            .ToList();
+        var crossCheck = new List<object?[]>();
+        object?[] CrossCheckLine(double? year, double? month, IEnumerable<(double? Year, double? Month, decimal? Payout)> rows)
+        {
+            var list = rows.ToList();
+            return [year, month, SqlSum(list.Select(x => Cut(x.Payout / 2, 4))), SqlSum(list.Select(x => x.Payout))];
+        }
+
+        foreach (var year in shared.GroupBy(x => x.Year))
+        {
+            crossCheck.AddRange(year.GroupBy(x => x.Month).Select(m => CrossCheckLine(year.Key, m.Key, m)));
+            crossCheck.Add(CrossCheckLine(year.Key, null, year));
+        }
+
+        if (shared.Count > 0)
+        {
+            crossCheck.Add(CrossCheckLine(null, null, shared));
+        }
+
+        return
+        [
+            ToSheet("RawDataPlayers", playerRows, detailColumns, row => row),
+            ToSheet("RawDataTeams", teamRows, detailColumns, row => row),
+            ToSheet("By Job", byJob, ["Year", "Month", "jobName", "Job_Payout_Sum"], x => [x.Year, x.Month, x.Job, x.Amount]),
+            // The proc gives its total no column name.
+            ToSheet("By Month", byMonth, ["Year", "Month", string.Empty], x => [x.Year, x.Month, x.Amount]),
+            ToSheet(
+                "Unmatched Policy#s",
+                unmatched,
+                [
+                    "Year", "Month", "Policy Number", "PurchaseDateString", "Policy Effective Date",
+                    "Net Written Premium", "Payout", "PurchaseDate", "Id",
+                ],
+                vi =>
+                [
+                    vi.Year, vi.Month, vi.PolicyNumber, vi.PurchaseDateString, vi.PolicyEffectiveDate,
+                    vi.NetWrittenPremium, vi.Payout, vi.PurchaseDate, vi.Id,
+                ]),
+            ToSheet(
+                "VI NotYetPaid Policy#s",
+                notYetPaid,
+                ["JobName", "Year", "Month", "viPolicyId", "PolicyType"],
+                h => [h.HolderJobName, h.HolderCreated.Year, h.HolderCreated.Month, h.PolicyId, "Player"]),
+            ToSheet("STEPS X-Check By Year/Month", crossCheck, ["Year", "Month", "STEPS_Payout", "VI_Payout"], row => row),
+        ];
+    }
+
+    /// <summary>
+    /// "Suspicious" sheet: recurring-billing subscriptions, still running, whose registration
+    /// does not owe exactly nothing as of now, for one job or (no job) every job.
+    /// <para>
+    /// A subscription bills <c>sOcc</c> times, <c>sIL</c> months apart, from its start date.
+    /// The number billed so far (<c>occAON</c>) is the first count whose NEXT date has not
+    /// passed. Owed as of now is what those bills come to, less what has been paid, plus
+    /// whatever part of the fee the subscription was never going to cover.
+    /// </para>
+    /// <para>
+    /// Listed when the subscription has not run past its end, that balance is not zero, and the
+    /// latest bill is more than a calendar day old (it takes that long to be swept in). The
+    /// flags: <c>playerMoved?</c> the subscription total is not the team's fee less the
+    /// discount; <c>disCode?</c> it IS the team's fee but not the registration's;
+    /// <c>isDblChrg?</c> overpaid by whole bills with no discount in play; <c>trueFail?</c>
+    /// underpaid by whole bills; <c>isExpired?</c> the last bill date has passed.
+    /// </para>
+    /// </summary>
+    private async Task<SheetData> BuildSuspiciousArbsSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var subscriptions = await _reportingRepository.GetArbSubscriptionsAsync(
+            jobId == Guid.Empty ? null : jobId, cancellationToken);
+        var now = DateTime.Now;
+
+        // adn.GetOccurencesAsOfNow: start at 1 and step while the date that many intervals
+        // after the start is in the past. With no start date or interval it stays 1. The
+        // function never returns for an interval of zero or less; that is answered with 1.
+        int Occurrences(DateTime? start, int? interval)
+        {
+            if (start is not { } s || interval is not { } months || months <= 0)
+            {
+                return 1;
+            }
+
+            var occurrences = 1;
+            while (s.AddMonths(occurrences * months) < now)
+            {
+                occurrences++;
+            }
+
+            return occurrences;
+        }
+
+        static DateTime? After(DateTime? start, int? months) =>
+            start is { } s && months is { } m ? s.AddMonths(m) : null;
+
+        var rows = new List<object?[]>();
+        foreach (var r in subscriptions)
+        {
+            var occurrences = Occurrences(r.StartDate, r.IntervalLength);
+            var perBill = r.AmountPerOccurence;
+            var subscriptionTotal = perBill * r.BillingOccurences;
+            var billedSoFar = occurrences * perBill;
+            var owed = billedSoFar - r.PaidTotal + (r.FeeTotal - subscriptionTotal);
+            var latestBill = After(r.StartDate, (occurrences - 1) * r.IntervalLength);
+            var finalBill = After(r.StartDate, r.IntervalLength * (r.BillingOccurences - 1));
+            var end = After(r.StartDate, r.IntervalLength * r.BillingOccurences);
+
+            // Every test on a missing value fails, as in SQL.
+            if (!(end > now) || owed is not { } balance || balance == 0m
+                || latestBill is not { } latest || (now.Date - latest.Date).Days <= 1)
+            {
+                continue;
+            }
+
+            var remainder = balance % perBill;
+            var teamFee = r.TeamPerRegistrantFee is { } own && own != 0m ? own : r.AgegroupRosterFee;
+            var isTeamFee = subscriptionTotal != null && subscriptionTotal == teamFee;
+            var playerMoved = subscriptionTotal != null && subscriptionTotal == teamFee - r.FeeDiscount ? 0 : 1;
+            var discountCode = subscriptionTotal == r.FeeTotal || !isTeamFee ? 0 : 1;
+            var doubleCharge = remainder == 0m && balance < 0m && discountCode == 0 ? 1 : 0;
+            var trueFail = remainder == 0m && balance > 0m ? 1 : 0;
+            var expired = finalBill >= now ? 0 : 1;
+
+            // The next bill is worked out from the latest one's DATE (its time of day is gone),
+            // and only while bills remain.
+            DateTime? nextBill = occurrences < r.BillingOccurences && r.IntervalLength is { } interval
+                ? latest.Date.AddMonths(interval)
+                : null;
+
+            rows.Add(
+            [
+                r.JobName, r.FirstName, r.LastName, r.SubscriptionId, r.SubscriptionStatus, r.BillingOccurences,
+                r.IntervalLength, perBill, occurrences, SqlUsDate(r.StartDate), SqlUsDate(latest),
+                SqlUsDate(nextBill), nextBill is { } next ? (next.Date - now.Date).Days : null, SqlUsDate(finalBill),
+                billedSoFar, r.PaidTotal, balance, remainder, r.FeeTotal, subscriptionTotal,
+                r.TeamPerRegistrantFee > 0m ? r.TeamPerRegistrantFee : r.AgegroupRosterFee,
+                // The proc's working table holds the flags as tinyint, and "is 1st?" as int.
+                (byte)playerMoved, (byte)discountCode, (byte)doubleCharge, (byte)trueFail, (byte)expired,
+                occurrences == 1 ? 1 : 0,
+            ]);
+        }
+
+        var ordered = rows
+            .OrderByDescending(row => (byte)row[21]!)
+            .ThenByDescending(row => (byte)row[22]!)
+            .ThenByDescending(row => (byte)row[23]!)
+            .ThenByDescending(row => (byte)row[24]!)
+            .ToList();
+
+        return ToSheet(
+            "Suspicious",
+            ordered,
+            [
+                "jobName", "FirstName", "LastName", "sId", "sStatus", "sOcc", "sIL", "sPerOcc", "occAON", "sSDate",
+                "recentPDate", "nextPDate", "daysToNextP", "finalPDate", "chargesAON", "Paid", "owedAON",
+                "owedAON%sPerOcc", "feeTot", "sumArbCharges", "teamTotFee", "playerMoved?", "disCode?",
+                "isDblChrg?", "trueFail?", "isExpired?", "is 1st?",
+            ],
+            row => row);
+    }
+
+    /// <summary>The month-end grand totals for LAST calendar month; see the overload.</summary>
+    private Task<List<SheetData>> BuildMonthlyGrandTotalsSheetsAsync(CancellationToken cancellationToken) =>
+        BuildMonthlyGrandTotalsSheetsAsync(DateTime.Now.AddMonths(-1), cancellationToken);
+
+    /// <summary>
+    /// The three sheets of the month-end grand totals for customers settling through TSIC's
+    /// gateway account: "Grand Total Per Job", "Grand Total Per Customer" and "Grand Total".
+    /// A job's grand total is its card payments plus card credits (negative), less its admin
+    /// charges, less TSIC's per-player and per-team charges on the month's new registrations,
+    /// less the card processing fee.
+    /// The processing fee is the job's rate (3.5% when it has none) on the unsigned sum of
+    /// payments and credits, rounded to cents. The rate is held to three decimal places as a
+    /// fraction and the per-player and per-team charges to whole dollars, as the proc's working
+    /// tables hold them.
+    /// </summary>
+    private async Task<List<SheetData>> BuildMonthlyGrandTotalsSheetsAsync(DateTime month, CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetMonthlyGrandTotalsAsync(month.Year, month.Month, cancellationToken);
+        var statsByJob = data.MonthStats.ToLookup(s => s.JobId);
+        var membershipsByJob = data.Jobs.ToLookup(j => j.JobId);
+
+        static decimal Cents(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
+        static decimal WholeDollars(decimal? value) => Math.Round(value ?? 0m, 0, MidpointRounding.AwayFromZero);
+
+        // Names are matched the way the database matches them: case and trailing spaces ignored.
+        static string NameKey(string? name) => (name ?? string.Empty).TrimEnd(' ').ToUpperInvariant();
+
+        var lines = new List<(string? Customer, string? JobName, decimal Payments, decimal Credits, decimal ProcessingFees, decimal AdminCharges, decimal TsicFees, decimal GrandTotal)>();
+        var listed = new HashSet<(Guid, string)>();
+        foreach (var job in data.Jobs.Where(j => j.SettlesThroughTsic))
+        {
+            if (!listed.Add((job.JobId, NameKey(job.ReportedCustomerName))))
+            {
+                continue;
+            }
+
+            // The proc's working tables hold a statistics row per group the customer is in, and
+            // an admin-charge row per reported name; its final join pairs each with the job.
+            var memberships = membershipsByJob[job.JobId].ToList();
+            var statRows = statsByJob[job.JobId]
+                .SelectMany(s => memberships.Select(_ => (GrandTotalsMonthStatDto?)s))
+                .DefaultIfEmpty()
+                .ToList();
+            var adminRows = job.AdminCharges is { } charges
+                ? memberships.GroupBy(m => NameKey(m.ReportedCustomerName)).Select(g => Cents(charges * g.Count())).ToList()
+                : [0m];
+
+            var payments = job.CardPayments ?? 0m;
+            var credits = job.CardCredits ?? 0m;
+            var rate = Math.Round((job.ProcessingFeePercent ?? 3.5m) / 100m, 3, MidpointRounding.AwayFromZero);
+            var processingFee = Cents(rate * (Math.Abs(credits) + Math.Abs(payments)));
+
+            foreach (var stat in statRows)
+            {
+                var tsicFees = stat == null
+                    ? 0m
+                    : WholeDollars(job.PerPlayerCharge) * (stat.NewPlayers ?? 0)
+                        + WholeDollars(job.PerTeamCharge) * (stat.NewTeams ?? 0);
+                foreach (var admin in adminRows)
+                {
+                    lines.Add((
+                        job.ReportedCustomerName, job.JobName, payments, credits, -processingFee, admin, -tsicFees,
+                        credits + payments - admin - tsicFees - processingFee));
+                }
+            }
+        }
+
+        var perCustomer = lines
+            .GroupBy(l => NameKey(l.Customer))
+            .Select(g => (g.First().Customer, GrandTotal: g.Sum(l => l.GrandTotal)))
+            .ToList();
+
+        // An aggregate with no GROUP BY returns its row even over nothing.
+        decimal?[] grandTotal = [perCustomer.Count == 0 ? null : perCustomer.Sum(c => c.GrandTotal)];
+
+        return
+        [
+            ToSheet(
+                "Grand Total Per Job",
+                lines,
+                [
+                    "customerName", "jobName", "sumCCPayments", "sumCCCredits", "sumCCProcessingFees",
+                    "sumAdminCharges", "TSICFees", "GrandTotal",
+                ],
+                l =>
+                [
+                    l.Customer, l.JobName, l.Payments, l.Credits, l.ProcessingFees, l.AdminCharges, l.TsicFees,
+                    l.GrandTotal,
+                ]),
+            ToSheet("Grand Total Per Customer", perCustomer, ["customerName", "GrandTotal"], c => [c.Customer, c.GrandTotal]),
+            ToSheet("Grand Total", grandTotal, ["GrandTotal"], total => [total]),
+        ];
+    }
+
+    /// <summary>The processor reconcile for LAST calendar month; see the overload.</summary>
+    private Task<List<SheetData>> BuildNuveiReconcileSheetsAsync(CancellationToken cancellationToken) =>
+        BuildNuveiReconcileSheetsAsync(DateTime.Now.AddMonths(-1), cancellationToken);
+
+    /// <summary>
+    /// The three sheets of the gateway-to-processor reconcile for one month, each named
+    /// "m-yyyy …": "NuveiReconcile" (each funding deposit beside the batch of the same amount),
+    /// "Chargebacks" (every funding event that is not a settlement) and "Batch Reconcile" (the
+    /// gateway's net settled per day beside the batch of the same amount). A deposit or a day
+    /// with no batch of that amount still lists, with the batch columns empty; with several, it
+    /// lists once per batch.
+    /// </summary>
+    private async Task<List<SheetData>> BuildNuveiReconcileSheetsAsync(DateTime month, CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetNuveiReconcileAsync(month.Year, month.Month, cancellationToken);
+        var monthYear = string.Create(CultureInfo.InvariantCulture, $"{month.Month}-{month.Year}");
+        var batchesByNet = data.Batches.ToLookup(b => b.BatchNet);
+
+        var deposits = data.Funding
+            .Where(f => !SqlEquals(f.FundingEvent, "Chargeback"))
+            .SelectMany(f => batchesByNet[f.FundingAmount]
+                .Select(b => (NuveiBatchRowDto?)b)
+                .DefaultIfEmpty()
+                .Select(b => (Funding: f, Batch: b)))
+            .OrderBy(x => x.Funding.FundingDate)
+            .ThenBy(x => x.Batch?.BatchCloseDate)
+            .ThenBy(x => x.Funding.FundingAmount)
+            .ToList();
+
+        var notSettlements = data.Funding.Where(f => !SqlEquals(f.FundingEvent, "Settlement")).ToList();
+
+        // The gateway's day is the date at the front of its settlement text
+        // ("13-Sep-2026 04:12:31 PM EDT"). A settled transaction adds its amount, a credited one
+        // subtracts it.
+        var days = data.Settlements
+            .GroupBy(s => DateTime
+                .ParseExact(s.SettlementDateTime![..11], "dd-MMM-yyyy", CultureInfo.InvariantCulture)
+                .ToString("MM/dd/yyyy", CultureInfo.InvariantCulture))
+            .Select(g =>
+            {
+                var plus = SqlSum(g.Select(s => SqlEquals(s.TransactionStatus, "Settled Successfully") ? SqlMoney(s.SettlementAmount) : 0m));
+                var minus = SqlSum(g.Select(s => SqlEquals(s.TransactionStatus, "Credited") ? -SqlMoney(s.SettlementAmount) : 0m));
+                return (Day: g.Key, DailyTotal: plus + minus);
+            })
+            .SelectMany(d => (d.DailyTotal is { } total ? batchesByNet[total] : [])
+                .Select(b => (NuveiBatchRowDto?)b)
+                .DefaultIfEmpty()
+                .Select(b => (d.Day, d.DailyTotal, Batch: b)))
+            .OrderBy(x => x.Day, StringComparer.Ordinal)
+            .ToList();
+
+        return
+        [
+            ToSheet(
+                $"{monthYear} NuveiReconcile",
+                deposits,
+                ["fundingDate", "fundingAmount", "batchNet", "batchCloseDate"],
+                x =>
+                [
+                    SqlUsDate(x.Funding.FundingDate), x.Funding.FundingAmount, x.Batch?.BatchNet,
+                    SqlUsDate(x.Batch?.BatchCloseDate),
+                ]),
+            ToSheet(
+                $"{monthYear} Chargebacks",
+                notSettlements,
+                ["fundingDate", "fundingEvent", "fundingAmount"],
+                f => [SqlUsDate(f.FundingDate), f.FundingEvent, f.FundingAmount]),
+            ToSheet(
+                $"{monthYear} Batch Reconcile",
+                days,
+                ["Settlement Day", "DailyTotal", "batchNet", "batchCloseDate"],
+                x => [x.Day, x.DailyTotal, x.Batch?.BatchNet, SqlUsDate(x.Batch?.BatchCloseDate)]),
+        ];
+    }
+
+    /// <summary>
+    /// "Monthly Revenues" sheet for LAST calendar month: a line per job with settled card
+    /// activity, a summary line per customer after that customer's last job, and for a customer
+    /// group an "ALL CUSTOMERS SUMMARY" line at the end. Three layouts, as in the proc: a single
+    /// customer has no customer column; the STEPS group has no per-customer summaries; the other
+    /// groups have both. Every amount is US currency text.
+    /// The card fee is the settled volume (payments and refunds, unsigned) at the job's rate,
+    /// rounded to cents; the net deposit is card payments less that fee, plus refunds (which are
+    /// negative), less TSIC's per-player and per-team charges on the month's new registrations.
+    /// </summary>
+    private async Task<SheetData> BuildMonthlyCustomerRollupSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var now = DateTime.Now;
+        var periodStart = new DateTime(now.Year, now.Month, 1).AddMonths(-1);
+        var data = await _reportingRepository.GetMonthlyCustomerRollupAsync(
+            jobId, periodStart, periodStart.AddMonths(1), cancellationToken);
+        var period = periodStart.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+
+        // Jobs arrive in job-name order and are numbered in it, overall and within a customer.
+        static string CustomerKey(string? name) => name?.TrimEnd(' ').ToUpperInvariant() ?? "\0";
+        var perCustomer = new Dictionary<string, int>();
+        var lines = new List<RollupLine>();
+        foreach (var job in data.Jobs)
+        {
+            var key = CustomerKey(job.CustomerName);
+            perCustomer[key] = perCustomer.GetValueOrDefault(key) + 1;
+
+            var cardFees = job.SettledAbsolute == null
+                ? (decimal?)null
+                : Math.Round(job.SettledAbsolute.Value * job.ProcessingFeePercent!.Value / 100, 2, MidpointRounding.AwayFromZero);
+            var tsicFees = (job.NewPlayers * (job.PerPlayerCharge ?? 0m)) + (job.NewTeams * (job.PerTeamCharge ?? 0m));
+            lines.Add(new RollupLine(
+                job.CustomerName, job.JobName, job.CheckRevenue, job.CardRevenue, cardFees, job.CardRefunds, tsicFees,
+                job.CardRevenue - cardFees + job.CardRefunds - tsicFees,
+                lines.Count + 1, perCustomer[key]));
+        }
+
+        const int summaryIndex = 1000;
+        var jobLines = lines.ToList();
+        if (!(data.SpansCustomerGroup && data.StepsGroup))
+        {
+            lines.AddRange(jobLines
+                .GroupBy(l => CustomerKey(l.CustomerName))
+                .Select(g => new RollupLine(
+                    g.First().CustomerName,
+                    SqlConcat(g.First().CustomerName, " CUSTOMER JOBS SUMMARY ", period),
+                    g.Sum(l => l.CheckRevenue ?? 0m),
+                    SqlSum(g.Select(l => l.CardRevenue)),
+                    SqlSum(g.Select(l => l.CardFees)),
+                    SqlSum(g.Select(l => l.CardRefunds)),
+                    SqlSum(g.Select(l => l.TsicFees)),
+                    SqlSum(g.Select(l => l.NetDeposit)),
+                    g.Max(l => l.JobIndex),
+                    summaryIndex)));
+        }
+
+        // An aggregate with no GROUP BY returns its row even over nothing, so a group's report
+        // always ends with this line.
+        if (data.SpansCustomerGroup)
+        {
+            lines.Add(new RollupLine(
+                "ALL CUSTOMERS SUMMARY " + period,
+                string.Empty,
+                SqlSum(jobLines.Select(l => l.CheckRevenue)),
+                SqlSum(jobLines.Select(l => l.CardRevenue)),
+                SqlSum(jobLines.Select(l => l.CardFees)),
+                SqlSum(jobLines.Select(l => l.CardRefunds)),
+                SqlSum(jobLines.Select(l => l.TsicFees)),
+                SqlSum(jobLines.Select(l => l.NetDeposit)),
+                summaryIndex,
+                summaryIndex));
+        }
+
+        var ordered = lines.OrderBy(l => l.JobIndex).ThenBy(l => l.CustomerIndex).ToList();
+
+        static string? Currency(decimal? amount) => amount?.ToString("C2", SqlUsCurrency);
+        static object?[] Amounts(RollupLine l) =>
+        [
+            Currency(l.CheckRevenue ?? 0m), Currency(l.CardRevenue), Currency(l.CardRefunds),
+            Currency(l.CardRevenue + l.CardRefunds), Currency(l.CardFees), Currency(l.TsicFees),
+            Currency(l.NetDeposit),
+        ];
+
+        string[] amountColumns =
+            ["checkRevenue", "ccTotalRevenue", "ccRefunds", "ccNetRevenue", "ccFees", "tsicFees", "netDeposit"];
+
+        return data.SpansCustomerGroup
+            ? ToSheet(
+                "Monthly Revenues",
+                ordered,
+                ["customerName", "jobName", .. amountColumns],
+                l => [l.CustomerName, l.JobName, .. Amounts(l)])
+            : ToSheet(
+                "Monthly Revenues",
+                ordered,
+                ["jobName", .. amountColumns],
+                l => [l.JobName, .. Amounts(l)]);
+    }
+
+    /// <summary>
+    /// The two sheets of the RegSaver payouts export: "Payouts" (one row per matched policy) and
+    /// "By Year/Month". Half of each payout is reported as the STEPS share; <c>money / 2</c>
+    /// drops anything past four decimals. The job argument is unused, as in the proc.
+    /// </summary>
+    private async Task<List<SheetData>> BuildRegsaverPayoutsSheetsAsync(CancellationToken cancellationToken)
+    {
+        var data = await _reportingRepository.GetRegsaverPayoutsAsync(cancellationToken);
+
+        static decimal? Half(decimal? payout) =>
+            payout == null ? null : Math.Round(payout.Value / 2, 4, MidpointRounding.ToZero);
+
+        var periods = data.PeriodPayouts
+            .GroupBy(p => (p.Year, p.Month))
+            .Select(g =>
+            {
+                var halves = g.Select(p => Half(p.Payout)).Where(h => h != null).Select(h => h!.Value).ToList();
+                return (g.Key.Year, g.Key.Month, Share: halves.Count == 0 ? (decimal?)null : halves.Sum());
+            })
+            .ToList();
+
+        return
+        [
+            ToSheet(
+                "Payouts",
+                data.Payouts,
+                [
+                    "Year", "Month", "Job", "LastName", "FirstName", "PolicyId", "PurchaseDate",
+                    "TSIC_Player_Fee", "VI_Payout", "STEPS_Payout",
+                ],
+                r =>
+                [
+                    r.Year, r.Month, r.JobName, r.LastName, r.FirstName, r.PolicyId, r.PurchaseDate,
+                    r.FeeTotal, r.Payout, Half(r.Payout),
+                ]),
+            ToSheet(
+                "By Year/Month",
+                periods,
+                ["Year", "Month", "STEPS_Payout"],
+                p => [p.Year, p.Month, p.Share]),
+        ];
+    }
+
+    /// <summary>
+    /// The job year the year-over-year "Raw Data" sheet leaves out. Hard-wired in the proc, while
+    /// its pivot leaves out the CURRENT year; the two agree only during 2026. Preserved.
+    /// </summary>
+    private const string YearOverYearRawExcludedJobYear = "2026";
+
+    /// <summary>
+    /// The two sheets of the tournament year-over-year club teams export: "Raw Data" (tournament,
+    /// year, club, teams) and "PivotedData" (a row per tournament and club with a column per
+    /// year, then a "*** TOTAL ***" row per tournament). The year columns are whatever years the
+    /// data holds; with no data the pivot sheet is empty.
+    /// </summary>
+    private async Task<List<SheetData>> BuildClubTeamsYearOverYearSheetsAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        const string totalLabel = "*** TOTAL ***";
+
+        var raw = await _reportingRepository.GetClubTeamYearCountsAsync(
+            jobId, YearOverYearRawExcludedJobYear, orderByClubThenYear: false, cancellationToken);
+        var byClub = await _reportingRepository.GetClubTeamYearCountsAsync(
+            jobId, DateTime.Now.Year.ToString(CultureInfo.InvariantCulture), orderByClubThenYear: true, cancellationToken);
+
+        var years = byClub.Select(r => r.Year).Distinct().Order().ToList();
+        var pivot = new List<object?[]>();
+        foreach (var tournament in RunsOf(byClub, r => r.JobNameRoot))
+        {
+            object?[] Line(string club, List<ClubTeamYearCountDto> source) =>
+            [
+                tournament[0].JobNameRoot,
+                club,
+                .. years.Select(year =>
+                {
+                    var inYear = source.Where(r => r.Year == year).ToList();
+                    return inYear.Count == 0 ? null : (object?)inYear.Sum(r => r.Teams);
+                }),
+            ];
+
+            // A team whose rep has no club name is listed under the total label, as the proc's
+            // ISNULL did, ahead of the tournament's own total row.
+            foreach (var club in RunsOf(tournament, r => r.Club))
+            {
+                pivot.Add(Line(club[0].Club ?? totalLabel, club));
+            }
+
+            pivot.Add(Line(totalLabel, tournament));
+        }
+
+        return
+        [
+            ToSheet(
+                "Raw Data",
+                raw,
+                ["JobNameRoot", "year", "Club", "CountClubTeams"],
+                r => [r.JobNameRoot, r.Year, r.Club, r.Teams]),
+            ToSheet(
+                "PivotedData",
+                pivot,
+                ["JobNameRoot", "Club", .. years.Select(y => y.ToString(CultureInfo.InvariantCulture))],
+                line => line),
+        ];
+    }
+
+    /// <summary>
+    /// "Job Fields" sheet of the clone QA export: 46 setting names with their values as text —
+    /// flags as 1/0, charges with two decimals, expiry dates MM/DD/YYYY. Empty when the job does
+    /// not exist; the two display-text rows are absent when the job has no display options.
+    /// </summary>
+    private async Task<SheetData> BuildJobCloneQaSheetAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var job = await _reportingRepository.GetJobCloneQaAsync(jobId, cancellationToken);
+
+        static string? Flag(bool? value) => value == null ? null : value.Value ? "1" : "0";
+        static string? Number(int? value) => value?.ToString(CultureInfo.InvariantCulture);
+        static string? Charge(decimal? value) => value?.ToString("0.00", CultureInfo.InvariantCulture);
+        static string Day(DateTime value) => value.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
+
+        List<(string Name, string? Value)> fields = job == null
+            ? []
+            :
+            [
+                ("CustomerName", job.CustomerName),
+                ("AdnLoginId", job.AdnLoginId),
+                ("JobName", job.JobName),
+                ("JobName_QBP", job.JobNameQbp),
+                ("JobDescription", job.JobDescription),
+                ("JobPath", job.JobPath),
+                .. job.ParallaxSlide1Text1.Select(text => ("ParallaxSlide1Text1", text)),
+                .. job.ParallaxSlide1Text2.Select(text => ("ParallaxSlide1Text2", text)),
+                ("BRegistrationAllowPlayer", Flag(job.RegistrationAllowPlayer)),
+                ("BRegistrationAllowTeam", Flag(job.RegistrationAllowTeam)),
+                ("ExpiryAdmin", Day(job.ExpiryAdmin)),
+                ("ExpiryUsers", Day(job.ExpiryUsers)),
+                ("Season", job.Season),
+                ("Year", job.Year),
+                ("JobType", job.JobTypeName),
+                ("Sport", job.SportName),
+                ("AdnArb", Flag(job.AdnArb)),
+                ("AdnArbBillingOccurences", Number(job.AdnArbBillingOccurences)),
+                ("AdnArbIntervalLength", Number(job.AdnArbIntervalLength)),
+                ("AdnArbStartDate", SqlDefaultDateTime(job.AdnArbStartDate)),
+                ("BAddProcessingFees", Flag(job.AddProcessingFees)),
+                ("BApplyProcessingFeesToTeamDeposit", Flag(job.ApplyProcessingFeesToTeamDeposit)),
+                ("BTeamsFullPaymentRequired", Flag(job.TeamsFullPaymentRequired)),
+                ("PaymentMethodsAllowed_Code", job.PaymentMethodsAllowedCode switch
+                {
+                    1 => "Credit Card ONLY",
+                    2 => "Credit Card or Check",
+                    3 => "Check ONLY",
+                    _ => "?",
+                }),
+                ("PlayerReg_RefundPolicy", job.PlayerRegRefundPolicy),
+                ("BillingType", job.BillingTypeName),
+                ("PerPlayerCharge", Charge(job.PerPlayerCharge)),
+                ("PerTeamCharge", Charge(job.PerTeamCharge)),
+                ("CoreRegformPlayer", job.CoreRegformPlayer),
+                ("BOfferPlayerRegsaverInsurance", Flag(job.OfferPlayerRegsaverInsurance)),
+                ("BUseWaitlists", Flag(job.UseWaitlists)),
+                ("BAllowRosterViewPlayer", Flag(job.AllowRosterViewPlayer)),
+                ("bRestrictPlayerTeamsToAgerange", Flag(job.RestrictPlayerTeamsToAgerange)),
+                ("PlayerReg_MultiPlayerDiscount_Percent", Number(job.PlayerRegMultiPlayerDiscountPercent)),
+                ("RegformName_ClubRep", job.RegformNameClubRep),
+                ("RegformName_Coach", job.RegformNameCoach),
+                ("RegformName_Team", job.RegformNameTeam),
+                ("BAllowRosterViewAdult", Flag(job.AllowRosterViewAdult)),
+                ("BClubRepAllowEdit", Flag(job.ClubRepAllowEdit)),
+                ("BClubRepAllowDelete", Flag(job.ClubRepAllowDelete)),
+                ("BClubRepAllowAdd", Flag(job.ClubRepAllowAdd)),
+                ("BScheduleAllowPublicAccess", Flag(job.ScheduleAllowPublicAccess)),
+                ("BAllowMobileLogin", Flag(job.AllowMobileLogin)),
+                ("BSuspendPublic", Flag(job.SuspendPublic)),
+                ("BAllowMobileRegn", Flag(job.AllowMobileRegn)),
+                // The one flag the proc defaults: unset reads as off.
+                ("BEnableTSICTeams", Flag(job.EnableTsicTeams ?? false)),
+            ];
+
+        return ToSheet("Job Fields", fields, ["FieldName", "FieldValue"], f => [f.Name, f.Value]);
     }
 
     /// <summary>
@@ -491,22 +2795,7 @@ public sealed class ReportingService : IReportingService
         CancellationToken cancellationToken)
     {
         var rows = await _reportingRepository.GetJobPlayersExcelRowsAsync(jobId, cancellationToken);
-
-        var sheet = new SheetData { Name = layout.SheetName };
-        if (rows.Count == 0)
-        {
-            // The proc path only learns its column names from the first data row, so a job with
-            // no players exports a headerless sheet. Kept identical.
-            return sheet;
-        }
-
-        sheet.WithColumns(layout.Columns);
-        foreach (var r in rows)
-        {
-            sheet.Rows.Add(layout.ToRow(r));
-        }
-
-        return sheet;
+        return ToSheet(layout.SheetName, rows, layout.Columns, layout.ToRow);
     }
 
     /// <summary>
@@ -723,6 +3012,35 @@ public sealed class ReportingService : IReportingService
     private static string? SqlLeft(string? value, int length) =>
         value == null ? null : value.Length <= length ? value : value[..length];
 
+    /// <summary>T-SQL <c>right(value, length)</c>: null stays null, a short value comes back whole.</summary>
+    private static string? SqlRight(string? value, int length) =>
+        value == null ? null : value.Length <= length ? value : value[^length..];
+
+    /// <summary>
+    /// T-SQL <c>substring(value, start, length)</c> with a 1-based start: null stays null, and a
+    /// range running past the end is cut short instead of throwing.
+    /// </summary>
+    private static string? SqlSubstring(string? value, int start, int length)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        var from = Math.Min(start - 1, value.Length);
+        return value.Substring(from, Math.Min(length, value.Length - from));
+    }
+
+    /// <summary>T-SQL <c>len(value)</c>: trailing spaces do not count; null stays null.</summary>
+    private static int? SqlLen(string? value) => value?.TrimEnd(' ').Length;
+
+    /// <summary>
+    /// T-SQL <c>a = 'literal'</c> under the database's case-insensitive collation: case and
+    /// trailing spaces are ignored, and null equals nothing.
+    /// </summary>
+    private static bool SqlEquals(string? value, string literal) =>
+        value != null && string.Equals(value.TrimEnd(' '), literal, StringComparison.OrdinalIgnoreCase);
+
     public async Task<ReportExportResult> ExportBoldReportAsync(
         string reportName,
         Guid jobId,
@@ -803,24 +3121,13 @@ public sealed class ReportingService : IReportingService
         bool isMerchandise,
         CancellationToken cancellationToken = default)
     {
-        var (reader, connection) = await _reportingRepository.ExecuteMonthlyReconciliationAsync(
-            settlementMonth, settlementYear, isMerchandise, cancellationToken);
-
-        try
+        var sheets = await RunStackSheetsAsync(settlementMonth, settlementYear, isMerchandise, cancellationToken);
+        return new ReportExportResult
         {
-            var reportBytes = await BuildExcelFromDataReader(reader);
-            return new ReportExportResult
-            {
-                FileBytes = reportBytes,
-                ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                FileName = "TSICExcelExport.xlsx"
-            };
-        }
-        finally
-        {
-            await reader.CloseAsync();
-            await connection.CloseAsync();
-        }
+            FileBytes = ExcelWorkbookWriter.Build(sheets),
+            ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            FileName = "TSICExcelExport.xlsx"
+        };
     }
 
     // Persisted artifact filenames within a month's folder. meta.json is written LAST and its presence
@@ -1022,17 +3329,10 @@ public sealed class ReportingService : IReportingService
         bool isMerchandise,
         CancellationToken cancellationToken)
     {
-        var (reader, connection) = await _reportingRepository.ExecuteMonthlyReconciliationAsync(
-            settlementMonth, settlementYear, isMerchandise, cancellationToken);
-        try
-        {
-            return await ReadReaderIntoSheetsAsync(reader);
-        }
-        finally
-        {
-            await reader.CloseAsync();
-            await connection.CloseAsync();
-        }
+        // Both closes are built in C# from sets read by EF; the procedures stay installed, unused.
+        return isMerchandise
+            ? await BuildMonthEndMerchandiseSheetsAsync(settlementMonth, settlementYear, cancellationToken)
+            : await BuildMonthEndRegistrationSheetsAsync(settlementMonth, settlementYear, cancellationToken);
     }
 
     /// <summary>
