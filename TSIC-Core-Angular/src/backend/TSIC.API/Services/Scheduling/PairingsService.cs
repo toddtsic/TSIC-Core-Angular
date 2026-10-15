@@ -160,6 +160,22 @@ public sealed class PairingsService : IPairingsService
         var masterPairings = await _pairingsRepo.GetMasterPairingsAsync(
             request.TeamCount, request.NoRounds, ct);
 
+        // The master table starts at 3 teams; a 2-team pool plays 1 v 2 every round.
+        if (masterPairings.Count == 0 && request.TeamCount == 2)
+        {
+            masterPairings = Enumerable.Range(1, request.NoRounds)
+                .Select(rnd => new Masterpairingtable
+                {
+                    GNo = rnd,
+                    GCnt = request.NoRounds,
+                    TCnt = 2,
+                    Rnd = rnd,
+                    T1 = 1,
+                    T2 = 2
+                })
+                .ToList();
+        }
+
         var newRecords = masterPairings.Select(mp => new PairingsLeagueSeason
         {
             GameNumber = mp.GNo + maxGame,
