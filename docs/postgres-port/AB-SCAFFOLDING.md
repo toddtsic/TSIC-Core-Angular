@@ -34,6 +34,29 @@ listed here and marked in code with `PG-AB`. **Cutover = delete every item below
 
 ## Raw-SQL sites (step 2)
 
-| Site | SQL Server | Postgres | Status |
+Every site branches on the active provider (`Database.IsNpgsql()` or the `DatabaseProvider`
+setting). The SQL Server arm is marked `PG-AB`. All rows below were verified on both databases.
+
+| Site | SQL Server arm (`PG-AB`, delete) | Postgres arm (keep) | Verified |
 |---|---|---|---|
-| (to be filled in as each site is done) | | | |
+| `Data/DbAppLock.cs`, used by `ScheduleRepository` slot placement and `TeamChatRepository` thread lock | `sp_getapplock` | `pg_advisory_xact_lock(hashtextextended(..))` under a transaction-local `lock_timeout` | Second tx times out while first holds; acquires after commit (both DBs) |
+| `TeamChatRepository.NextSeqSql` | `NEXT VALUE FOR teamchat.MessageSequence` | `nextval('teamchat."MessageSequence"')` | Sequence draws on PG |
+| `UsageWriterBackgroundService` | `SqlBulkCopy` (CheckConstraints) | Npgsql binary `COPY logs."AppUsage"` (FKs always enforced) | Live API: 5 requests → 5 rows, values and identity correct |
+| `AdnReconciliationRepository` month-end | T-SQL temp tables, 3 result sets | `ReconciliationPgSql`: same 3 result sets, same quirks (EDT-only parse, CI `_M` match) | 6 months (~19k txs, EDT + EST) identical |
+| `Data/DbErrors.cs`, used by `ReportingService` unique-key handling and `RegistrationRepository` seat-commit retry | `SqlException` 2627/2601, 1205 | `PostgresException` 23505; 40P01 / 40001 (Serializable conflict) | Real duplicate insert classified on both |
+
+Made provider-neutral (no `PG-AB` arm, kept):
+
+- `JobCloneRepository` ancillary walk quotes identifiers with EF's `ISqlGenerationHelper`, and
+  walks only tables that exist in the active database (`information_schema.tables`). On
+  Postgres that skips EF-mapped tables the migration excluded (e.g. `adn.jobinvoices`,
+  `Jobs.emailFailures`); on SQL Server nothing changes. Goes away with the deferred dead-code
+  cleanup of unused entities.
+
+SQL Server only, deliberately not ported (unreachable or SQL Server-targeted):
+
+- Reporting stored-procedure paths (`ExecuteStoredProcedureAsync` fallback, `export-bold`,
+  `ExecuteMonthlyReconciliationAsync`): no catalog row or caller reaches them.
+- `CustomerJobRevenueRepository.GetLegacySprocDataAsync`: QA comparison against legacy procs.
+- `NavEditorService` / `WidgetEditorService` export scripts: generated T-SQL text for deploying
+  defaults to the (SQL Server) production database; never executed by the app. Revisit at cutover.

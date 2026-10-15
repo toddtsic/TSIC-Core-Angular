@@ -300,6 +300,13 @@ public sealed class UsageWriterBackgroundService : BackgroundService
         if (table.Rows.Count == 0)
             return 0;
 
+        if (string.Equals(_configuration["DatabaseProvider"], "Postgres", StringComparison.Ordinal))
+        {
+            await CopyToPostgresAsync(table, connectionString, cancellationToken).ConfigureAwait(false);
+            return table.Rows.Count;
+        }
+
+        // PG-AB: SQL Server arm (SqlBulkCopy) — delete at cutover.
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -327,6 +334,48 @@ public sealed class UsageWriterBackgroundService : BackgroundService
 
         await bulk.WriteToServerAsync(table, cancellationToken).ConfigureAwait(false);
         return table.Rows.Count;
+    }
+
+    /// <summary>
+    /// Postgres equivalent of the SqlBulkCopy above: binary COPY, columns by NAME, Id left to
+    /// its identity. COPY always enforces the foreign keys -- the CheckConstraints guarantee
+    /// is the default here -- so a bad classifier id still fails the batch.
+    /// </summary>
+    private static async Task CopyToPostgresAsync(DataTable table, string connectionString, CancellationToken cancellationToken)
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        var columns = table.Columns.Cast<DataColumn>().ToList();
+        var copy = $"COPY logs.\"AppUsage\" ({string.Join(", ", columns.Select(c => $"\"{c.ColumnName}\""))}) FROM STDIN (FORMAT BINARY)";
+        await using var importer = await connection.BeginBinaryImportAsync(copy, cancellationToken).ConfigureAwait(false);
+
+        foreach (DataRow row in table.Rows)
+        {
+            await importer.StartRowAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var column in columns)
+            {
+                var value = row[column];
+                if (value is DBNull)
+                {
+                    await importer.WriteNullAsync(cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+                var type = value switch
+                {
+                    DateTime => NpgsqlTypes.NpgsqlDbType.Timestamp,
+                    int => NpgsqlTypes.NpgsqlDbType.Integer,
+                    short => NpgsqlTypes.NpgsqlDbType.Smallint,
+                    bool => NpgsqlTypes.NpgsqlDbType.Boolean,
+                    Guid => NpgsqlTypes.NpgsqlDbType.Uuid,
+                    string => NpgsqlTypes.NpgsqlDbType.Text,
+                    _ => throw new NotSupportedException($"AppUsage.{column.ColumnName}: {value.GetType().Name}")
+                };
+                await importer.WriteAsync(value, type, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        await importer.CompleteAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

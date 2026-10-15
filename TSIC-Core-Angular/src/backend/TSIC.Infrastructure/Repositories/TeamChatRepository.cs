@@ -1,5 +1,4 @@
 using System.Data;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using TSIC.Contracts.Dtos.TeamChat;
@@ -25,19 +24,13 @@ public class TeamChatRepository : ITeamChatRepository
     /// OUTSIDE the transaction, so two concurrent posts can draw 100 and 101 and then commit
     /// in the opposite order -- a reader paging by LastTouchSeq walks past the one that landed
     /// late and never comes back for it. The lock is held to COMMIT, not just to allocation.
+    /// (Postgres nextval is likewise non-transactional, so the same reasoning holds there.)
     ///
     /// LockTimeout is five seconds: a post that cannot get the thread lock in five seconds is
     /// better off failing loudly than queueing behind an unknown number of others.
     /// </summary>
-    private const string TakeThreadLockSql = @"
-        DECLARE @rc int;
-        EXEC @rc = sp_getapplock
-            @Resource    = @resource,
-            @LockMode    = 'Exclusive',
-            @LockOwner   = 'Transaction',
-            @LockTimeout = 5000;
-        IF @rc < 0
-            RAISERROR('teamchat: could not acquire the thread lock (sp_getapplock returned %d)', 16, 1, @rc);";
+    private Task TakeThreadLockAsync(Guid teamId, CancellationToken ct) =>
+        TSIC.Infrastructure.Data.DbAppLock.AcquireAsync(_context.Database, $"teamchat:{teamId}", 5000, ct);
 
     /// <summary>
     /// Drawn with raw ADO, NOT <c>SqlQueryRaw</c>. EF composes over a raw query the moment it is
@@ -46,7 +39,9 @@ public class TeamChatRepository : ITeamChatRepository
     /// (Msg 11719). That made every post 500 before it reached an insert. ToListAsync does not
     /// help; the wrapping is what is illegal, not the paging.
     /// </summary>
-    private const string NextSeqSql = "SELECT NEXT VALUE FOR teamchat.MessageSequence";
+    private string NextSeqSql => _context.Database.IsNpgsql()
+        ? "SELECT nextval('teamchat.\"MessageSequence\"')"
+        : "SELECT NEXT VALUE FOR teamchat.MessageSequence"; // PG-AB: SQL Server arm
 
     private readonly SqlDbContext _context;
 
@@ -225,10 +220,7 @@ public class TeamChatRepository : ITeamChatRepository
 
         await using (var tx = await _context.Database.BeginTransactionAsync(ct))
         {
-            await _context.Database.ExecuteSqlRawAsync(
-                TakeThreadLockSql,
-                [new SqlParameter("@resource", $"teamchat:{teamId}")],
-                ct);
+            await TakeThreadLockAsync(teamId, ct);
 
             // Authoritative idempotency check, now that nobody else can be mid-append on this
             // thread. Two retries arriving together both pass the pre-check above.
@@ -293,10 +285,7 @@ public class TeamChatRepository : ITeamChatRepository
         // never learns it is gone.
         await using var tx = await _context.Database.BeginTransactionAsync(ct);
 
-        await _context.Database.ExecuteSqlRawAsync(
-            TakeThreadLockSql,
-            [new SqlParameter("@resource", $"teamchat:{teamId}")],
-            ct);
+        await TakeThreadLockAsync(teamId, ct);
 
         var seq = await NextSeqAsync(ct);
 

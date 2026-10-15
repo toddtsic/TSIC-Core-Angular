@@ -365,14 +365,25 @@ public class JobCloneRepository : IJobCloneRepository
         var breakdown = new List<string>();
         if (_context.Database.IsRelational())
         {
-            foreach (var (tableSql, columnSql, displayName) in GetAncillaryJobTables())
+            // Postgres port: the model still maps tables the migration left behind (no app code
+            // uses them). Walk only tables that exist in the active database — on SQL Server
+            // that is all of them, so nothing changes there.
+            var existing = (await _context.Database
+                    .SqlQueryRaw<ExistingTable>(
+                        $"SELECT table_schema AS {Sql.DelimitIdentifier("Schema")}, table_name AS {Sql.DelimitIdentifier("Name")} " +
+                        "FROM information_schema.tables")
+                    .ToListAsync(ct))
+                .Select(t => $"{t.Schema}.{t.Name}")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (tableSql, columnSql, displayName) in GetAncillaryJobTables(existing))
             {
                 // EF1002: the interpolated identifiers come from EF model metadata
                 // (bracket-quoted table/column names), never from user input; jobId is a
                 // real SQL parameter ({0}).
 #pragma warning disable EF1002
                 var count = await _context.Database
-                    .SqlQueryRaw<int>($"SELECT COUNT(*) AS [Value] FROM {tableSql} WHERE {columnSql} = {{0}}", jobId)
+                    .SqlQueryRaw<int>($"SELECT CAST(COUNT(*) AS int) AS {Sql.DelimitIdentifier("Value")} FROM {tableSql} WHERE {columnSql} = {{0}}", jobId)
                     .SingleAsync(ct);
 #pragma warning restore EF1002
                 if (count > 0)
@@ -404,7 +415,16 @@ public class JobCloneRepository : IJobCloneRepository
     /// mapped, keyed entity with a Guid JobId property outside the clone manifest.
     /// Public-static-shaped via instance model access; the D2 test walks the same model.
     /// </summary>
-    private List<(string TableSql, string ColumnSql, string DisplayName)> GetAncillaryJobTables()
+    private Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper Sql =>
+        Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions.GetService<Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper>(_context);
+
+    private sealed class ExistingTable
+    {
+        public string Schema { get; set; } = "";
+        public string Name { get; set; } = "";
+    }
+
+    private List<(string TableSql, string ColumnSql, string DisplayName)> GetAncillaryJobTables(HashSet<string> existingTables)
     {
         var result = new List<(string, string, string)>();
         foreach (var entityType in _context.Model.GetEntityTypes())
@@ -420,11 +440,13 @@ public class JobCloneRepository : IJobCloneRepository
             var tableName = entityType.GetTableName();
             if (tableName == null) continue;                                // not table-mapped
             var schema = entityType.GetSchema() ?? "dbo";
+            if (!existingTables.Contains($"{schema}.{tableName}")) continue;   // not in this database
             var storeObject = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, entityType.GetSchema());
             var columnName = jobIdProp.GetColumnName(storeObject);
             if (columnName == null) continue;
 
-            result.Add(($"[{schema}].[{tableName}]", $"[{columnName}]", tableName));
+            // The provider's own quoting ([x] on SQL Server, "x" on Postgres).
+            result.Add((Sql.DelimitIdentifier(tableName, schema), Sql.DelimitIdentifier(columnName), tableName));
         }
         return result;
     }

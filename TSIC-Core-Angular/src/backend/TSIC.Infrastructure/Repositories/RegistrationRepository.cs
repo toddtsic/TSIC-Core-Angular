@@ -1162,9 +1162,10 @@ public partial class RegistrationRepository : IRegistrationRepository
                 await tx.CommitAsync(cancellationToken);
                 return true;
             }
-            catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 1205 && !retried)
+            catch (Exception ex) when (!retried && TSIC.Infrastructure.Data.DbErrors.IsRetryableConflict(ex))
             {
-                // Deadlock victim on a contended seat — retry once; the re-count resolves it.
+                // Deadlock victim (or, on Postgres, a Serializable conflict) on a contended seat —
+                // retry once; the re-count resolves it.
                 retried = true;
             }
         }

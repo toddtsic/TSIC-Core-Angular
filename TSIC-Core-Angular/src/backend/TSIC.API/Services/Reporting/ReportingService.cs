@@ -207,9 +207,9 @@ public sealed partial class ReportingService : IReportingService
         return (row, false);
     }
 
-    // SQL Server: 2627 = unique constraint, 2601 = unique index
+    // Unique constraint/index violation on either provider (SQL Server 2627/2601, Postgres 23505).
     private static bool IsUniqueKeyViolation(DbUpdateException ex)
-        => ex.InnerException is SqlException sql && (sql.Number == 2627 || sql.Number == 2601);
+        => TSIC.Infrastructure.Data.DbErrors.IsUniqueViolation(ex);
 
     // ── Reports LIBRARY ──────────────────────────────────────────────────────
 

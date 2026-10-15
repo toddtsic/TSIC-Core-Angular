@@ -107,6 +107,88 @@ public class AdnReconciliationRepository : IAdnReconciliationRepository
         DROP TABLE #sba;
         """;
 
+    /// <summary>
+    /// Postgres equivalent of <see cref="ReconciliationSql"/>: same three result sets, same
+    /// columns and types. The month key arrives as @mkey (built in C#, as DATENAME(month) does).
+    /// Mirrors the T-SQL exactly, including its quirks: only ' EDT' is stripped before parsing, so
+    /// an EST settlement parses to NULL just as TRY_CONVERT leaves it; CHARINDEX on the CI
+    /// collation is matched case-insensitively. Regexes run under "C" — the case-insensitive
+    /// column collation does not support them.
+    /// </summary>
+    private const string ReconciliationPgSql = """
+        DROP TABLE IF EXISTS pg_temp.rc_month, pg_temp.rc_ra, pg_temp.rc_sba, pg_temp.rc_reg, pg_temp.rc_merch;
+
+        CREATE TEMP TABLE rc_month AS
+        SELECT t."Transaction ID"::varchar(50) AS tid, t."Invoice Number" AS inv, t."Transaction Status" AS status,
+               t."Settlement Amount"::numeric(19,4) AS rawamt,
+               CASE WHEN t."Transaction Status" = 'Credited'
+                    THEN -(t."Settlement Amount"::numeric(19,4))
+                    ELSE t."Settlement Amount"::numeric(19,4) END AS signedamt,
+               CASE WHEN strpos(lower(t."Invoice Number"), '_m') > 0 THEN 1 ELSE 0 END AS ismerch,
+               CASE WHEN replace(t."Settlement Date Time", ' EDT', '') COLLATE "C"
+                         ~ '^\d{1,2}-[A-Za-z]{3}-\d{4} \d{1,2}:\d{2}:\d{2} [AP]M$'
+                    THEN to_timestamp(replace(t."Settlement Date Time", ' EDT', ''), 'DD-Mon-YYYY HH12:MI:SS AM')::timestamp
+                    END AS settledat
+        FROM adn."Txs" t
+        WHERE t."Settlement Date Time" LIKE @mkey
+          AND t."Transaction Status" IN ('Settled Successfully', 'Credited');
+
+        CREATE TEMP TABLE rc_ra AS
+        SELECT DISTINCT "adnTransactionID"::varchar(50) AS tid FROM "Jobs"."Registration_Accounting" WHERE "adnTransactionID" IS NOT NULL;
+
+        CREATE TEMP TABLE rc_sba AS
+        SELECT DISTINCT "AdnTransactionId"::varchar(50) AS tid FROM stores."StoreCartBatchAccounting" WHERE "AdnTransactionId" IS NOT NULL;
+
+        CREATE TEMP TABLE rc_reg AS
+        SELECT m.tid, m.inv, m.status, m.rawamt, m.signedamt,
+               CASE WHEN EXISTS (SELECT 1 FROM rc_ra r WHERE r.tid = m.tid) THEN 1 ELSE 0 END AS matched
+        FROM rc_month m WHERE m.ismerch = 0;
+
+        CREATE TEMP TABLE rc_merch AS
+        SELECT m.tid, m.inv, m.status, m.rawamt, m.signedamt,
+               CASE WHEN EXISTS (SELECT 1 FROM rc_sba s WHERE s.tid = m.tid) THEN 1 ELSE 0 END AS matched
+        FROM rc_month m WHERE m.ismerch = 1;
+
+        SELECT stack, transactioncount, matchedcount, unmatchedcount, unmatchedtotal,
+               paidcount, paidtotal, creditcount, credittotal
+        FROM (
+            SELECT 'Reg' AS stack, 1 AS ord,
+                COUNT(*)::int AS transactioncount,
+                COALESCE(SUM(matched), 0)::int AS matchedcount,
+                COALESCE(SUM(CASE WHEN matched = 0 THEN 1 ELSE 0 END), 0)::int AS unmatchedcount,
+                COALESCE(SUM(CASE WHEN matched = 0 THEN signedamt ELSE 0::numeric(19,4) END), 0::numeric(19,4)) AS unmatchedtotal,
+                COALESCE(SUM(CASE WHEN status = 'Settled Successfully' THEN 1 ELSE 0 END), 0)::int AS paidcount,
+                COALESCE(SUM(CASE WHEN status = 'Settled Successfully' THEN rawamt ELSE 0::numeric(19,4) END), 0::numeric(19,4)) AS paidtotal,
+                COALESCE(SUM(CASE WHEN status = 'Credited' THEN 1 ELSE 0 END), 0)::int AS creditcount,
+                COALESCE(SUM(CASE WHEN status = 'Credited' THEN rawamt ELSE 0::numeric(19,4) END), 0::numeric(19,4)) AS credittotal
+            FROM rc_reg
+            UNION ALL
+            SELECT 'Merch', 2,
+                COUNT(*)::int,
+                COALESCE(SUM(matched), 0)::int,
+                COALESCE(SUM(CASE WHEN matched = 0 THEN 1 ELSE 0 END), 0)::int,
+                COALESCE(SUM(CASE WHEN matched = 0 THEN signedamt ELSE 0::numeric(19,4) END), 0::numeric(19,4)),
+                COALESCE(SUM(CASE WHEN status = 'Settled Successfully' THEN 1 ELSE 0 END), 0)::int,
+                COALESCE(SUM(CASE WHEN status = 'Settled Successfully' THEN rawamt ELSE 0::numeric(19,4) END), 0::numeric(19,4)),
+                COALESCE(SUM(CASE WHEN status = 'Credited' THEN 1 ELSE 0 END), 0)::int,
+                COALESCE(SUM(CASE WHEN status = 'Credited' THEN rawamt ELSE 0::numeric(19,4) END), 0::numeric(19,4))
+            FROM rc_merch
+        ) s
+        ORDER BY ord;
+
+        SELECT stack, tid, inv, amt, status
+        FROM (
+            SELECT 'Reg' AS stack, 1 AS ord, tid, inv, signedamt AS amt, status FROM rc_reg WHERE matched = 0
+            UNION ALL
+            SELECT 'Merch', 2, tid, inv, signedamt, status FROM rc_merch WHERE matched = 0
+        ) u
+        ORDER BY ord, amt;
+
+        SELECT MAX(settledat) AS latestsettlement FROM rc_month;
+
+        DROP TABLE rc_reg, rc_merch, rc_month, rc_ra, rc_sba;
+        """;
+
     private readonly SqlDbContext _context;
 
     public AdnReconciliationRepository(SqlDbContext context)
@@ -125,14 +207,30 @@ public class AdnReconciliationRepository : IAdnReconciliationRepository
         var connectionString = _context.Database.GetConnectionString()
             ?? throw new InvalidOperationException("No connection string configured for the reconciliation query.");
 
-        await using var connection = new SqlConnection(connectionString);
+        System.Data.Common.DbConnection connection;
+        System.Data.Common.DbCommand cmd;
+        if (_context.Database.IsNpgsql())
+        {
+            connection = new Npgsql.NpgsqlConnection(connectionString);
+            cmd = connection.CreateCommand();
+            cmd.CommandText = ReconciliationPgSql;
+            var monthAbbrev = new DateTime(settlementYear, settlementMonth, 1)
+                .ToString("MMM", System.Globalization.CultureInfo.InvariantCulture);
+            cmd.Parameters.Add(new Npgsql.NpgsqlParameter("mkey", $"%{monthAbbrev}-{settlementYear}%"));
+        }
+        else
+        {
+            // PG-AB: SQL Server arm — delete at cutover.
+            connection = new SqlConnection(connectionString);
+            cmd = connection.CreateCommand();
+            cmd.CommandText = ReconciliationSql;
+            cmd.Parameters.Add(new SqlParameter("@settlementMonth", SqlDbType.Int) { Value = settlementMonth });
+            cmd.Parameters.Add(new SqlParameter("@settlementYear", SqlDbType.Int) { Value = settlementYear });
+        }
+        await using var ownedConnection = connection;
+        await using var ownedCommand = cmd;
         await connection.OpenAsync(cancellationToken);
-
-        await using var cmd = connection.CreateCommand();
-        cmd.CommandText = ReconciliationSql;
         cmd.CommandTimeout = 240;
-        cmd.Parameters.Add(new SqlParameter("@settlementMonth", SqlDbType.Int) { Value = settlementMonth });
-        cmd.Parameters.Add(new SqlParameter("@settlementYear", SqlDbType.Int) { Value = settlementYear });
 
         var summaries = new Dictionary<string, StackTotals>(StringComparer.Ordinal);
         var unmatched = new Dictionary<string, List<ReconciliationUnmatched>>(StringComparer.Ordinal)

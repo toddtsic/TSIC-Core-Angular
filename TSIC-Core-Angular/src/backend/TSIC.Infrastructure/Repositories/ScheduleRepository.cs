@@ -674,22 +674,8 @@ public sealed class ScheduleRepository : IScheduleRepository
 
         await using var tx = await _context.Database.BeginTransactionAsync(ct);
 
-        var resource = new Microsoft.Data.SqlClient.SqlParameter("@resource", System.Data.SqlDbType.NVarChar, 255)
-        {
-            Value = $"schedule-slot|{game.JobId:N}|{fieldId:N}|{gDate:yyyyMMddHHmmss}"
-        };
-        var status = new Microsoft.Data.SqlClient.SqlParameter("@status", System.Data.SqlDbType.Int)
-        {
-            Direction = System.Data.ParameterDirection.Output
-        };
-        await _context.Database.ExecuteSqlRawAsync(
-            "EXEC @status = sp_getapplock @Resource = @resource, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 15000;",
-            new object[] { resource, status }, ct);
-
-        // 0 = granted, 1 = granted after waiting; negative = timed out, deadlock victim, or error.
-        if (status.Value is not int lockResult || lockResult < 0)
-            throw new InvalidOperationException(
-                $"Could not acquire the schedule slot lock (sp_getapplock returned {status.Value}).");
+        await TSIC.Infrastructure.Data.DbAppLock.AcquireAsync(
+            _context.Database, $"schedule-slot|{game.JobId:N}|{fieldId:N}|{gDate:yyyyMMddHHmmss}", 15000, ct);
 
         var occupied = await _context.Schedule
             .AsNoTracking()
