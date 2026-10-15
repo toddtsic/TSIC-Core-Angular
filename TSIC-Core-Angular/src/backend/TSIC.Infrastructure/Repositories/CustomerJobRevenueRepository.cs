@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.CustomerJobRevenue;
@@ -183,6 +184,56 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
     private sealed record RawRollupRow(
         string JobName, int Year, int Month, string Label, decimal Payment, decimal FeePct);
 
+    // adn.Txs holds the gateway's text as-is. These two reproduce what the adn.vTxs view
+    // derives from it, so the screen reads the table and gets the view's values.
+
+    private static readonly string[] SettlementMonths =
+        ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    /// <summary>
+    /// "13-Sep-2026 04:12:31 PM EDT" → 2026-09-13 16:12:31 (the zone suffix is dropped, as the
+    /// view drops it). An unrecognised month gives null, as the view's CASE does; any other
+    /// malformed text throws, as the view's CONVERT does.
+    /// </summary>
+    private static DateTime? ParseSettlementTs(string? text)
+    {
+        if (text == null || text.Length < 7)
+        {
+            return null;
+        }
+        var month = Array.FindIndex(SettlementMonths,
+            m => string.Equals(m, text.Substring(3, 3), StringComparison.OrdinalIgnoreCase));
+        if (month < 0)
+        {
+            return null;
+        }
+        var time = text.Length > 11 ? text.Substring(11, Math.Min(12, text.Length - 11)) : string.Empty;
+        return DateTime.ParseExact(
+            $"{month + 1:00}/{text[..2]}/{text.Substring(7, 4)} {time.Trim()}",
+            "MM/dd/yyyy hh:mm:ss tt",
+            CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// The settlement amount text as money (4 places, written as 4 places: 311.4000), negated
+    /// for a Credited transaction. Blank text is 0, as CONVERT(money, '') is.
+    /// </summary>
+    private static decimal? SettlementAmount(string? amountText, string? status)
+    {
+        if (amountText == null)
+        {
+            return null;
+        }
+        // Adding 0.0000m sets the scale to 4 without changing the value, as the money type does.
+        var amount = 0.0000m + (amountText.Trim().Length == 0
+            ? 0m
+            : Math.Round(
+                decimal.Parse(amountText, NumberStyles.Currency, CultureInfo.InvariantCulture),
+                4,
+                MidpointRounding.AwayFromZero));
+        return string.Equals(status?.TrimEnd(), "Credited", StringComparison.OrdinalIgnoreCase) ? -amount : amount;
+    }
+
     /// <summary>Customer-group scope: jobId → customerId → group members (or just the one customer).</summary>
     private async Task<List<Guid>> GetCustomerGroupIdsAsync(Guid jobId, CancellationToken ct)
     {
@@ -244,42 +295,58 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
 
         if (isTsicAdn)
         {
-            // --- Settlement-based categories (CC / E-Check families) from adn.vTxs ---
+            // --- Settlement-based categories (CC / E-Check families) from adn.Txs ---
+            // The gateway text is read raw; settlement date, amount sign and the date range are
+            // applied here (see ParseSettlementTs / SettlementAmount).
             string[] adnMethods = ["Credit Card Payment", "Credit Card Credit", "E-Check Payment", "Failed E-Check Payment"];
-            var vtxRows = await (
+            var txRows = await (
                 from ra in _context.RegistrationAccounting
                 join apm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals apm.PaymentMethodId
                 join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
                 join j in _context.Jobs on r.JobId equals j.JobId
-                join v in _context.VTxs on ra.AdnTransactionId equals v.TransactionId
+                join t in _context.Txs on ra.AdnTransactionId equals t.TransactionId
                 where customerIds.Contains(j.CustomerId)
                     && adnMethods.Contains(apm.PaymentMethod!)
-                    && v.TransactionStatus != "Declined" && v.TransactionStatus != "Voided"
-                    && v.SettlementTs != null
-                    && (start == null || v.SettlementTs >= start)
-                    && (endEx == null || v.SettlementTs < endEx)
+                    && t.TransactionStatus != "Declined" && t.TransactionStatus != "Voided"
                     && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
-                group new { v.SettlementAmount } by new
+                select new
                 {
                     j.JobName,
-                    Year = v.SettlementTs!.Value.Year,
-                    Month = v.SettlementTs.Value.Month,
                     Method = apm.PaymentMethod,
                     j.ProcessingFeePercent,
-                    j.EcprocessingFeePercent
-                } into g
-                select new
+                    j.EcprocessingFeePercent,
+                    t.TransactionStatus,
+                    t.SettlementDateTime,
+                    t.SettlementAmount
+                })
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            var vtxRows = txRows
+                .Select(x => new { x, Ts = ParseSettlementTs(x.SettlementDateTime) })
+                .Where(x => x.Ts != null
+                    && (start == null || x.Ts >= start)
+                    && (endEx == null || x.Ts < endEx))
+                .GroupBy(x => new
+                {
+                    x.x.JobName,
+                    x.Ts!.Value.Year,
+                    x.Ts.Value.Month,
+                    x.x.Method,
+                    x.x.ProcessingFeePercent,
+                    x.x.EcprocessingFeePercent
+                })
+                .Select(g => new
                 {
                     g.Key.JobName,
                     g.Key.Year,
                     g.Key.Month,
                     g.Key.Method,
-                    Amount = g.Sum(x => x.SettlementAmount ?? 0m),
+                    Amount = g.Sum(x => SettlementAmount(x.x.SettlementAmount, x.x.TransactionStatus) ?? 0m),
                     g.Key.ProcessingFeePercent,
                     g.Key.EcprocessingFeePercent
                 })
-                .AsNoTracking()
-                .ToListAsync(ct);
+                .ToList();
 
             foreach (var row in vtxRows)
             {
@@ -347,9 +414,9 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 && (start == null || ra.Createdate >= start)
                 && (endEx == null || ra.Createdate < endEx)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
-                && (!isTsicAdn || !_context.VTxs.Any(v =>
-                        v.TransactionId == ra.AdnTransactionId
-                        && (v.TransactionStatus == "Declined" || v.TransactionStatus == "Voided")))
+                && (!isTsicAdn || !_context.Txs.Any(t =>
+                        t.TransactionId == ra.AdnTransactionId
+                        && (t.TransactionStatus == "Declined" || t.TransactionStatus == "Voided")))
             group new { ra.Payamt } by new { j.JobName, Year = ra.Createdate!.Value.Year, Month = ra.Createdate.Value.Month } into g
             select new { g.Key.JobName, g.Key.Year, g.Key.Month, Amount = g.Sum(x => x.Payamt ?? 0m) })
             .AsNoTracking()
@@ -540,7 +607,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             select new { ra, apm, r, u, j };
 
         // Check rows are RA-dated in both variants; CC/E-Check rows are settlement-dated for
-        // TSICADN (join adn.vTxs) and RA-dated for non-ADN.
+        // TSICADN (join adn.Txs) and RA-dated for non-ADN.
         var useVtx = isTsicAdn && method != "check";
 
         if (method == "check")
@@ -550,9 +617,9 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
                 && x.ra.Createdate != null
                 && (start == null || x.ra.Createdate >= start)
                 && (endEx == null || x.ra.Createdate < endEx)
-                && (!isTsicAdn || !_context.VTxs.Any(v =>
-                        v.TransactionId == x.ra.AdnTransactionId
-                        && (v.TransactionStatus == "Declined" || v.TransactionStatus == "Voided"))));
+                && (!isTsicAdn || !_context.Txs.Any(t =>
+                        t.TransactionId == x.ra.AdnTransactionId
+                        && (t.TransactionStatus == "Declined" || t.TransactionStatus == "Voided"))));
         }
         else if (!useVtx)
         {
@@ -566,27 +633,40 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         List<JobPaymentRecordDto> records;
         if (useVtx)
         {
-            records = await (
+            var txRecords = await (
                 from x in query
-                join v in _context.VTxs on x.ra.AdnTransactionId equals v.TransactionId
-                where v.TransactionStatus != "Declined" && v.TransactionStatus != "Voided"
-                    && v.SettlementTs != null
-                    && (start == null || v.SettlementTs >= start)
-                    && (endEx == null || v.SettlementTs < endEx)
-                select new JobPaymentRecordDto
+                join t in _context.Txs on x.ra.AdnTransactionId equals t.TransactionId
+                where t.TransactionStatus != "Declined" && t.TransactionStatus != "Voided"
+                select new
                 {
                     JobName = x.j.JobName!,
-                    Year = v.SettlementTs!.Value.Year,
-                    Month = v.SettlementTs.Value.Month,
                     Registrant = x.r.ClubName == null
                         ? x.u.FirstName + " " + x.u.LastName
                         : x.u.FirstName + " " + x.u.LastName + " (" + x.r.ClubName + ")",
                     PaymentMethod = x.apm.PaymentMethod!,
-                    PaymentDate = v.SettlementTs.Value,
-                    PaymentAmount = v.SettlementAmount ?? 0m
+                    t.TransactionStatus,
+                    t.SettlementDateTime,
+                    t.SettlementAmount
                 })
                 .AsNoTracking()
                 .ToListAsync(ct);
+
+            records = txRecords
+                .Select(x => new { x, Ts = ParseSettlementTs(x.SettlementDateTime) })
+                .Where(x => x.Ts != null
+                    && (start == null || x.Ts >= start)
+                    && (endEx == null || x.Ts < endEx))
+                .Select(x => new JobPaymentRecordDto
+                {
+                    JobName = x.x.JobName,
+                    Year = x.Ts!.Value.Year,
+                    Month = x.Ts.Value.Month,
+                    Registrant = x.x.Registrant,
+                    PaymentMethod = x.x.PaymentMethod,
+                    PaymentDate = x.Ts.Value,
+                    PaymentAmount = SettlementAmount(x.x.SettlementAmount, x.x.TransactionStatus) ?? 0m
+                })
+                .ToList();
         }
         else
         {
