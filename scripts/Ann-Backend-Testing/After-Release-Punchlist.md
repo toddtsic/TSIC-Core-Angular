@@ -99,7 +99,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 | **AR-160** | **NEW 10-14 (Ann).** 🟡 **On Your Registered Teams with Club Rep Permissions → Delete ON: a team that CAN be deleted shows the trash can (correct), and a team that CANNOT shows NOTHING. She asks for a faded trash can with a slash or X plus a hover saying why.** 🎯 **The defect is the ABSENCE, not the rule — a rep cannot tell *"you may not delete this team"* from *"this screen has no delete at all"*.** ✅ **AR-034 ALREADY SOLVED THIS EXACT PROBLEM THE SAME WAY — the control renders, greyed when it cannot fire, and `showDeleteBlockedReason()` names the blocker: *"the disabled state does the teaching, per house pattern, on the row's own facts."* So this is applying a settled pattern, not a new idea.** ⚠ **Third sighting of the hover point (AR-130, AR-142): hover alone is not enough — no hover on touch, not keyboard-reachable — so the icon state must read as blocked without it, which her slash/X already does.** ⏳ **For Todd: reason text per blocker, and confirm it does not change what the Delete-OFF case renders (AR-146 / AR-154).** | 🔴 OPEN |
 | **AR-161** | **NEW 10-14 (Ann). 🔍 BOTH PARTS LOCATED AT FILING.** 🟡 **(1) The Archive action's icon is `bi-box-arrow-in-down` — it reads as DOWNLOAD. ✅ The correct icon is already in the same file two lines above: `bi-archive`, used on the Archived section header. One-word swap.** 🟡 **(2) An ARCHIVED row offers Restore and nothing else; an ACTIVE row offers Edit plus either Archive or Delete, chosen by `removalFor(row)`. 🎯 So her "reasonable criteria" are ALREADY written and enforced (`clubTeamRemoval` / `clubTeamArchiveLockReason`) — this is offering the existing Delete on the archived side under the same rule, not inventing one. The disabled-with-reason pattern is already there too.** ⏳ **For Todd: the ruling needed is whether Delete belongs beside Restore at all — an archived team was kept on purpose to preserve history, and this puts "keep it" and "destroy it" one pixel apart. Danger styling and a confirm already exist.** | 🔴 OPEN |
 | **AR-162** | **10-15 (Ann). NOT A SYSTEM PROBLEM.** Prime Time Recruiting Showcase 2026 (LI Elite): Ava Case shows "No record". **USA Lacrosse knew her number when she registered and does not know it today.** Reconcile of all **2,143** players: **2,142 Active, Ava the only failure.** Number Tester: **Unknown**. Her stored **05/31/2027** expiry can only come from USA Lacrosse for that exact number; record unchanged since she registered 10-05. Family contacts USA Lacrosse. **Reopen only on a second post-09-01 "No record" with NO expiry stored.** | ✅ CLOSED |
-| **AR-163** | **NEW 10-15 (Ann).** Approved Coach/Staff: **(1)** note which team is selected on the dashboard; **(2)** a Manage badge on the dashboard, like the Club Rep option to edit rosters, saying **View Roster/Email Team**; **(3)** upper-right menu: replace **View Roster** with **"View Roster/Email Team"**; **(4)** on View Roster, badges next to the current team name linking to their other Coach rosters. | 🔴 OPEN |
+| **AR-163** | **NEW 10-15 (Ann).** Approved Coach/Staff: **(1)** note which team is selected on the dashboard; **(2)** a Manage badge on the dashboard, like the Club Rep option to edit rosters, saying **View Roster/Email Team**; **(3)** upper-right menu: replace **View Roster** with **"View Roster/Email Team"**; **(4)** on View Roster, badges next to the current team name linking to their other Coach rosters. **⛔ BY DESIGN (Todd 10-15): each sign-in covers one registration, a deliberate security rule; another team's roster = Switch Role, same as a parent with several children. Reopen only if a coach cannot do something they need even after Switch Role.** | ⛔ WON'T DO — BY DESIGN |
 | **AR-164** | **NEW 10-15 (Ann).** Coach registration: **remove the "Anything else the director should know?" field.** Directors will not consistently check these notes under Coach Approvals, so coaches will feel ignored; the team checkbox list is all that is needed, and a coach will email the Director directly for anything special. | 🔴 OPEN |
 |:--|:--|:--|
 | **AR-004** | ✅ **VERIFIED BY ANN IN DEV 08-26 — CLOSED.** 🟡 **BUILT (Todd, 08-23)** — `MyRosterPdfService`, `Pos` **30f→40f + Wrap:true**, the 10f paid for by `Contact 2` 157f→147f (it wraps, so it grows taller rather than clipping). Arithmetic confirms Ann's symptom exactly: 24pt usable vs `midfield` at 27.6pt in Helvetica 8. **Data query killed the 08-21 sizing instruction — `Long Stick Midfield` DOES NOT EXIST, it is stored `LSM`**; `position` is free text and its longest values are junk (`still figuring it out`, 23 rows), which is why the fix wraps instead of widening further. Widest value needing to fit is `unknown` (32.0pt), not `midfield`. **Packed Roster untouched.** ✅ **VERIFIED PASSING (Ann, 08-24) — CLOSED.** | ✅ VERIFIED |
@@ -5353,7 +5353,7 @@ Account details matter at registration, and **every registration path already of
 - **Status**: ✅ **CLOSED — Todd, 10-15.** Not a defect. Related: AR-145 (what "No record" can mean), AR-149 (Re-Validate checks the number on screen).
 
 
-### AR-163: 🔴 OPEN — filed 10-15 (Ann) · [Coach / Staff — after role selection] Show which team is selected, add a View Roster/Email Team badge and menu label, and link between a coach's rosters
+### AR-163: ⛔ WON'T DO — BY DESIGN (Todd, 10-15) — CLOSED · [Coach / Staff — after role selection] Show which team is selected, add a View Roster/Email Team badge and menu label, and link between a coach's rosters
 - **Topic**: approved **Coach / Staff** navigation and functions after a role is selected
 - **Reported by**: Ann, 10-15, on her test registrant **Adult_Scenario_50** (Staff on American Select Lacrosse:Main Event 2027 — California Yellow 2029 and Connecticut Blue 2032; Hero's Lacrosse:Players 2026-2027 — 2028 Green Team). Screenshot of the role picker.
 
@@ -5366,7 +5366,23 @@ Account details matter at registration, and **every registration path already of
 | **3** | In the upper-right menus once a role is selected, replace **View Roster** with **"View Roster/Email Team"** |
 | **4** | On **View Roster**, next to the current team's name, **badges linking to their other Coach rosters** so they can move back and forth |
 
-- **Status**: 🔴 **OPEN — filed 10-15 (Ann).**
+**⛔ DECISION (Todd, 10-15): the current behavior is intentional and stays as it is.**
+
+**Why:** Each sign-in is tied to exactly one registration. That's a deliberate security rule. When a coach picks a team on the role screen, the system signs them in for **that team only**: they can see and email that team's roster and nothing else. This keeps every page and every action limited to the one team the coach chose, so a session can never reach a roster it wasn't opened for.
+
+**It's the same as a parent with more than one child.** The role screen lists each child separately, and the parent works with one child at a time. To work with another child, they choose that child. Coaches work the same way: each team is a separate choice.
+
+**What a coach with two teams does:**
+- The role screen lists each team separately, by team name.
+- To change teams, click **Switch Role** (upper right) and pick the other team. That signs them in for the other team.
+
+**On each part of the request:**
+- **Part 4 (links to the coach's other rosters):** not possible under this rule. A link straight to another team's roster would be refused, because the coach isn't signed in for that team. **Switch Role** is how to move between teams.
+- **Parts 1–3** (showing which team is selected on the dashboard, a "View Roster/Email Team" badge, renaming the menu item) are cosmetic. Under the same decision, nothing changes.
+
+**What would reopen this:** a coach being unable to do something they need for their team even after using Switch Role. A request for these same changes again isn't grounds to reopen.
+
+- **Status**: ⛔ **WON'T DO — BY DESIGN — CLOSED, Todd 10-15.**
 
 
 ### AR-164: 🔴 OPEN — filed 10-15 (Ann) · [Coach Registration] Remove the "Anything else the director should know?" field
