@@ -9,8 +9,7 @@ import {
 	OnDestroy,
 	signal
 } from '@angular/core';
-import { Location } from '@angular/common';
-import { ActivatedRoute, ActivatedRouteSnapshot, Router } from '@angular/router';
+import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -33,8 +32,6 @@ export class JobLandingComponent implements OnDestroy {
 	private readonly pulseService = inject(JobPulseService);
 	private readonly auth = inject(AuthService);
 	private readonly route = inject(ActivatedRoute);
-	private readonly router = inject(Router);
-	private readonly location = inject(Location);
 	private observer: IntersectionObserver | null = null;
 
 	readonly publicJobPath = input<string>('', { alias: 'jobPath' });
@@ -94,8 +91,7 @@ export class JobLandingComponent implements OnDestroy {
 	readonly dashboardLink = computed(() => ['/', this.activeJobPath(), 'dashboard']);
 
 	// The event's lifecycle phase, derived from FACTS via the shared resolver (same
-	// pulse → same phase everywhere). Used here for the status line + concluded/
-	// superseded notices; the Smart Bulletins band uses the same resolver to gate
+	// pulse → same phase everywhere). Used here for the status line; the Smart Bulletins band uses the same resolver to gate
 	// its CTAs, so the two can never drift apart.
 	readonly phase = computed<EventPhase>(() => derivePhase(this.pulse(), new Date()));
 
@@ -177,30 +173,6 @@ export class JobLandingComponent implements OnDestroy {
 		if (days <= 14) return `Event begins in ${days} days`;
 		const dateLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(target);
 		return `Event begins ${dateLabel}`;
-	}
-
-	// Stale event with a live later-year sibling — collapses the entire page
-	// to a single callout that redirects to the live event.
-	readonly isSuperseded = computed(() => !!this.pulse()?.supersededByLaterEvent);
-	readonly supersedingName = computed(() => this.pulse()?.supersededByLaterEvent?.jobName ?? '');
-
-	/**
-	 * Cross-event redirect for the superseded callout. Clears local auth so
-	 * the live event's landing loads anonymously — otherwise the JWT for the
-	 * stale event bleeds context (myAssignedTeamId, name, etc.) into the new
-	 * landing's pulse fetch.
-	 *
-	 * A FULL page load, not router.navigate (AR-147): /old → /new matches the same
-	 * `:jobPath` route, so the router reuses this component and the layout — job
-	 * metadata, bulletins and the reveal observer are all mount-time, so the URL
-	 * changed and the old superseded screen stayed put.
-	 */
-	goToSupersedingEvent(): void {
-		const target = this.pulse()?.supersededByLaterEvent;
-		if (!target) return;
-		this.auth.logoutLocal();
-		const url = this.router.serializeUrl(this.router.createUrlTree(['/', target.jobPath]));
-		window.location.assign(this.location.prepareExternalUrl(url));
 	}
 
 	constructor() {

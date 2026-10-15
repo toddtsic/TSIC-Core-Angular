@@ -17,76 +17,59 @@
 		</div>
 	}
 
-	@if (isSuperseded()) {
+	<!-- AR-147: no superseded takeover. A site with a live later-year sibling renders
+	     its normal page; the server has already closed its registration door. -->
 
-		<!-- ══════════════════════════════════════════════════
-		     SUPERSEDED — entire landing collapses to a single
-		     callout redirecting to the live later-year sibling.
-		     ══════════════════════════════════════════════════ -->
-		<section class="jl-superseded">
-			<div class="jl-container jl-superseded__inner">
-				<p class="jl-superseded__msg">This event has concluded</p>
-				<button type="button" class="jl-superseded__cta" (click)="goToSupersedingEvent()">
-					<span>Register for {{ supersedingName() }}</span>
-					<i class="bi bi-arrow-right" aria-hidden="true"></i>
-				</button>
-			</div>
-		</section>
-
-	} @else {
-
-		<!-- ══════════════════════════════════════════════════
-		     BANNER — widget self-contains via rounded corners +
-		     shadow; we just cap its width on wide screens.
-		     ══════════════════════════════════════════════════ -->
-		<app-client-banner></app-client-banner>
+	<!-- ══════════════════════════════════════════════════
+	     BANNER — widget self-contains via rounded corners +
+	     shadow; we just cap its width on wide screens.
+	     ══════════════════════════════════════════════════ -->
+	<app-client-banner></app-client-banner>
 
 
-		<!-- ══════════════════════════════════════════════════
-		     ADMIN — the way in to the widget dashboard. There is
-		     no nav entry for it (nav.NavItem has no dashboard row),
-		     so without this a director cannot reach their own
-		     dashboard without knowing the URL. Admin roles only;
-		     the public never sees this.
-		     ══════════════════════════════════════════════════ -->
-		@if (showDashboardLink()) {
-			<app-admin-nav-pill icon="bi-speedometer2" label="Dashboard" [link]="dashboardLink()" />
-		}
-
-
-		<!-- CONCLUDED notice now lives in the Smart Bulletins band's Event Status
-		     bulletin (so it shows on the admin dashboard too, not just here). -->
-
-
-		<!-- ══════════════════════════════════════════════════
-		     STATUS LINE — phase-aware public deadline line
-		     (event-begins / registration closes / opens), tone
-		     softens with distance.
-		     ══════════════════════════════════════════════════ -->
-		@if (heroStatus(); as cd) {
-			<div class="jl-countdown" [class.jl-countdown--upcoming]="cd.tone === 'upcoming'" role="status">
-				<span class="jl-countdown__dot" aria-hidden="true"></span>
-				<span class="jl-countdown__text">{{ cd.text }}</span>
-			</div>
-		}
-
-
-		<!-- ══════════════════════════════════════════════════
-		     BULLETINS — the unified surface, and the whole body of this
-		     page: there is no separate hero. The app-bulletins widget
-		     renders the director's hand-authored bulletins FIRST, then
-		     the ✨ SMART band (self-assembling Registration + Store
-		     viewers). The same widget powers the admin dashboard, so it
-		     sees exactly what the public sees.
-		     ══════════════════════════════════════════════════ -->
-		<section class="jl-bulletins">
-			<div class="jl-bulletins__inner">
-				<div class="reveal reveal-delay-1">
-					<app-bulletins></app-bulletins>
-				</div>
-			</div>
-		</section>
-
+	<!-- ══════════════════════════════════════════════════
+	     ADMIN — the way in to the widget dashboard. There is
+	     no nav entry for it (nav.NavItem has no dashboard row),
+	     so without this a director cannot reach their own
+	     dashboard without knowing the URL. Admin roles only;
+	     the public never sees this.
+	     ══════════════════════════════════════════════════ -->
+	@if (showDashboardLink()) {
+		<app-admin-nav-pill icon="bi-speedometer2" label="Dashboard" [link]="dashboardLink()" />
 	}
+
+
+	<!-- CONCLUDED notice now lives in the Smart Bulletins band's Event Status
+	     bulletin (so it shows on the admin dashboard too, not just here). -->
+
+
+	<!-- ══════════════════════════════════════════════════
+	     STATUS LINE — phase-aware public deadline line
+	     (event-begins / registration closes / opens), tone
+	     softens with distance.
+	     ══════════════════════════════════════════════════ -->
+	@if (heroStatus(); as cd) {
+		<div class="jl-countdown" [class.jl-countdown--upcoming]="cd.tone === 'upcoming'" role="status">
+			<span class="jl-countdown__dot" aria-hidden="true"></span>
+			<span class="jl-countdown__text">{{ cd.text }}</span>
+		</div>
+	}
+
+
+	<!-- ══════════════════════════════════════════════════
+	     BULLETINS — the unified surface, and the whole body of this
+	     page: there is no separate hero. The app-bulletins widget
+	     renders the director's hand-authored bulletins FIRST, then
+	     the ✨ SMART band (self-assembling Registration + Store
+	     viewers). The same widget powers the admin dashboard, so it
+	     sees exactly what the public sees.
+	     ══════════════════════════════════════════════════ -->
+	<section class="jl-bulletins">
+		<div class="jl-bulletins__inner">
+			<div class="reveal reveal-delay-1">
+				<app-bulletins></app-bulletins>
+			</div>
+		</div>
+	</section>
 
 </div>
