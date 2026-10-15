@@ -44,7 +44,7 @@ import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam,
           } @else {
             <button type="button" class="btn-cancel" [disabled]="saving()" (click)="keepBoth()">Keep both</button>
             <button type="button" class="btn-save" [disabled]="saving()" (click)="archiveOld()">
-              <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Archive {{ team().clubTeamName }}
+              <i class="bi bi-archive" aria-hidden="true"></i>Archive {{ team().clubTeamName }}
             </button>
           }
         </div>

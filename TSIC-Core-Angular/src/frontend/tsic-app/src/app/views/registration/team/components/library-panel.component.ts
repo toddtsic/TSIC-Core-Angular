@@ -263,7 +263,7 @@ interface LibRow {
                     [attr.title]="removal.lockReason ?? 'Archive: hide it from your Club Team Library, keep its history'"
                     [attr.aria-disabled]="!!removal.lockReason"
                     (click)="removal.lockReason ? explainLock(removal.lockReason) : archive.emit(team)">
-              <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i><span class="visually-hidden">Archive</span>
+              <i class="bi bi-archive" aria-hidden="true"></i><span class="visually-hidden">Archive</span>
             </button>
           } @else {
             <button type="button" class="btn-lib btn-lib--danger" [class.is-locked]="!!removal.lockReason"

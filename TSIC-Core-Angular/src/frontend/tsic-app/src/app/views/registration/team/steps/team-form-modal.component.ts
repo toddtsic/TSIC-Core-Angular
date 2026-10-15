@@ -229,7 +229,7 @@ import { isDuplicateLibraryName, libraryGradYearOptions, looksLikeDifferentTeam,
                 @if (saving()) {
                   <span class="spinner-border spinner-border-sm me-1"></span>Archiving...
                 } @else {
-                  <i class="bi bi-box-arrow-in-down me-1"></i>Archive {{ editingTeam?.clubTeamName }}
+                  <i class="bi bi-archive me-1"></i>Archive {{ editingTeam?.clubTeamName }}
                 }
               </button>
             }

@@ -130,7 +130,7 @@ interface LibraryGroup {
               <li>Team not in your library? <strong>Add a New Team</strong> &mdash; it's saved to your library and registered here in one step.</li>
               <li>Name wrong or changed? Click the <i class="bi bi-pencil" aria-hidden="true"></i> pencil on its row to <strong>edit it</strong>. Don't add a second entry. That changes your library only.</li>
               <li>Just this event's name? Rename it from the <strong>Registered Teams</strong> list instead — your library keeps its own name.</li>
-              <li>No longer used? Click <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i> on its row to <strong>archive</strong> it.</li>
+              <li>No longer used? Click <i class="bi bi-archive" aria-hidden="true"></i> on its row to <strong>archive</strong> it.</li>
             </ul>
           }
         </div>
@@ -392,7 +392,7 @@ interface LibraryGroup {
                                         [attr.title]="removal.lockReason ?? 'Archive team'" [attr.aria-label]="removal.lockReason ?? 'Archive team'"
                                         [attr.aria-disabled]="!!removal.lockReason"
                                         (click)="handleRemove(team, !!registered)">
-                                  <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>
+                                  <i class="bi bi-archive" aria-hidden="true"></i>
                                 </button>
                               } @else {
                                 <button type="button" class="lib-icon-action lib-icon-action--danger" [class.is-locked]="!!removal.lockReason"
