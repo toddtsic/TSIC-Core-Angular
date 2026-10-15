@@ -159,8 +159,11 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
     <ng-template #fieldRowTpl let-field let-pid="pid">
       <!-- DOB above the USA Lacrosse number: not in any form definition. Prefilled from the
            account; the value here is what USA Lacrosse is checked against, and the account is
-           updated only when USA Lacrosse confirms it. The pair shares ONE grid cell — as two
-           cells, the 2-column grid put DOB beside the field before it, not above the number. -->
+           updated only when USA Lacrosse confirms it. The pair is ONE grid item — as two
+           cells, the 2-column grid put DOB beside the field before it, not above the number.
+           It spans two grid rows on a subgrid, so DOB and the number each own a row and the
+           next field fills the cell beside the number (AR-135: in one row-cell the pair left
+           a field-tall gap in the other column). -->
       @if (showUsLaxDob(pid, field)) {
         <div class="uslax-pair">
           <div class="field-row">
@@ -175,7 +178,7 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
                    [ngModel]="usLaxDob(pid)"
                    (ngModelChange)="setUsLaxDob(pid, $event)"
                    [class.is-required]="!usLaxDob(pid)">
-            <div class="field-help">Must match USA Lacrosse's record. A corrected date updates the player's account once USA Lacrosse confirms it.</div>
+            <div class="field-help">Must match USA Lacrosse's record.</div>
           </div>
           <ng-container *ngTemplateOutlet="fieldCoreTpl; context: { $implicit: field, pid: pid }"></ng-container>
         </div>
@@ -497,9 +500,9 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
         grid-column: 1 / -1;
       }
       .uslax-pair {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
+        grid-row: span 2;
+        display: grid;
+        grid-template-rows: subgrid;
       }
 
       /* field-label, req-star, field-input, field-select,
