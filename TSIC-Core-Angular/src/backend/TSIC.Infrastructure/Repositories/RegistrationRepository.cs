@@ -4687,26 +4687,44 @@ public partial class RegistrationRepository : IRegistrationRepository
         // unit the result is the whole-bucket index. Weeks divide days by 7 rather than use
         // DATEDIFF(week), whose boundary is Sunday regardless of DATEFIRST. Same shape as
         // UsageStatsRepository's bucketing, deliberately: the two reports must slice alike.
-        // Postgres port: day/month boundary counts written portably — (x.Date - since.Date).Days
-        // and the year*12+month difference are exactly DATEDIFF(day) and DATEDIFF(month).
-        var sinceDay = since.Date;
-        var grouped = bucket switch
+        // Provider-neutral (SQL Server and Postgres): the month index is the year*12+month
+        // difference, exactly DATEDIFF(month). Day/week group by calendar date in SQL and index
+        // in memory — (date - since.Date).Days is DATEDIFF(day) — summing day counts into weeks.
+        if (bucket == UsageBucket.Month)
         {
-            UsageBucket.Day => query.GroupBy(r => new { Index = (r.RegistrationTs.Date - sinceDay).Days, RoleId = r.RoleId! }),
-            UsageBucket.Week => query.GroupBy(r => new { Index = (r.RegistrationTs.Date - sinceDay).Days / 7, RoleId = r.RoleId! }),
-            UsageBucket.Month => query.GroupBy(r => new { Index = (r.RegistrationTs.Year - since.Year) * 12 + r.RegistrationTs.Month - since.Month, RoleId = r.RoleId! }),
+            // Counted in SQL: one row per (bucket, role), never a registration id list.
+            return await query
+                .GroupBy(r => new { Index = (r.RegistrationTs.Year - since.Year) * 12 + r.RegistrationTs.Month - since.Month, RoleId = r.RoleId! })
+                .Select(g => new RegistrationCountByBucketDto
+                {
+                    BucketIndex = g.Key.Index,
+                    RoleId = g.Key.RoleId,
+                    Count = g.Count(),
+                })
+                .ToListAsync(ct);
+        }
+
+        var daysPerBucket = bucket switch
+        {
+            UsageBucket.Day => 1,
+            UsageBucket.Week => 7,
             _ => throw new ArgumentOutOfRangeException(nameof(bucket)),
         };
+        var perDay = await query
+            .GroupBy(r => new { Day = r.RegistrationTs.Date, RoleId = r.RoleId! })
+            .Select(g => new { g.Key.Day, g.Key.RoleId, Count = g.Count() })
+            .ToListAsync(ct);
 
-        // Counted in SQL: one row per (bucket, role), never a registration id list.
-        return await grouped
+        var sinceDay = since.Date;
+        return perDay
+            .GroupBy(x => new { Index = (x.Day - sinceDay).Days / daysPerBucket, x.RoleId })
             .Select(g => new RegistrationCountByBucketDto
             {
                 BucketIndex = g.Key.Index,
                 RoleId = g.Key.RoleId,
-                Count = g.Count(),
+                Count = g.Sum(x => x.Count),
             })
-            .ToListAsync(ct);
+            .ToList();
     }
 
     public async Task<List<PaidRegistrationsByDayCountDto>> GetPaidRegistrationsByDayAsync(
@@ -4725,7 +4743,8 @@ public partial class RegistrationRepository : IRegistrationRepository
         //
         // DATEDIFF(day) from a midnight `since` is the whole-day index, as in
         // GetRegistrationCountsByBucketAsync, so the two registration reports slice days alike.
-        return await (
+        // Grouped by calendar date in SQL (provider-neutral); the index is taken in memory.
+        var perDay = await (
             from r in _context.Registrations
             join role in _context.AspNetRoles on r.RoleId equals role.Id
             where jobIds.Contains(r.JobId)
@@ -4734,19 +4753,31 @@ public partial class RegistrationRepository : IRegistrationRepository
                   && r.RegistrationTs >= since
             group r by new
             {
-                Index = (r.RegistrationTs.Date - since.Date).Days,
+                Day = r.RegistrationTs.Date,
                 r.JobId,
                 RoleName = role.Name,
             } into g
-            select new PaidRegistrationsByDayCountDto
+            select new
             {
-                DayIndex = g.Key.Index,
-                JobId = g.Key.JobId,
-                RoleName = g.Key.RoleName ?? string.Empty,
+                g.Key.Day,
+                g.Key.JobId,
+                g.Key.RoleName,
                 Registrations = g.Count(),
                 Paid = g.Sum(x => x.PaidTotal),
             })
             .AsNoTracking()
             .ToListAsync(ct);
+
+        var sinceDay = since.Date;
+        return perDay
+            .Select(x => new PaidRegistrationsByDayCountDto
+            {
+                DayIndex = (x.Day - sinceDay).Days,
+                JobId = x.JobId,
+                RoleName = x.RoleName ?? string.Empty,
+                Registrations = x.Registrations,
+                Paid = x.Paid,
+            })
+            .ToList();
     }
 }

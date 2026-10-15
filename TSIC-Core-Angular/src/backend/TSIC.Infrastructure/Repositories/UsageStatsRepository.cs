@@ -189,20 +189,35 @@ public class UsageStatsRepository : IUsageStatsRepository
         // DATEDIFF counts unit BOUNDARIES crossed from `since`, so with `since` aligned to
         // the unit the result is the whole-bucket index. Weeks divide days by 7 rather than
         // use DATEDIFF(week), whose boundary is Sunday regardless of DATEFIRST.
-        // Postgres port: portable boundary counts, identical to DATEDIFF(day) / DATEDIFF(month).
-        var sinceDay = since.Date;
-        var indexed = bucket switch
+        // Provider-neutral (SQL Server and Postgres): month index in SQL; day/week take distinct
+        // (calendar date, job, registration) in SQL, then index in memory and re-distinct, since
+        // several days of one registration collapse into a single week row.
+        if (bucket == UsageBucket.Month)
         {
-            UsageBucket.Day => query.Select(u => new { Index = (u.OccurredAt.Date - sinceDay).Days, u.JobId, RegId = u.RegId!.Value }),
-            UsageBucket.Week => query.Select(u => new { Index = (u.OccurredAt.Date - sinceDay).Days / 7, u.JobId, RegId = u.RegId!.Value }),
-            UsageBucket.Month => query.Select(u => new { Index = (u.OccurredAt.Year - since.Year) * 12 + u.OccurredAt.Month - since.Month, u.JobId, RegId = u.RegId!.Value }),
+            return await query
+                .Select(u => new { Index = (u.OccurredAt.Year - since.Year) * 12 + u.OccurredAt.Month - since.Month, u.JobId, RegId = u.RegId!.Value })
+                .Distinct()
+                .Select(x => new UsageRegistrationByBucketDto { BucketIndex = x.Index, JobId = x.JobId, RegistrationId = x.RegId })
+                .ToListAsync(cancellationToken);
+        }
+
+        var daysPerBucket = bucket switch
+        {
+            UsageBucket.Day => 1,
+            UsageBucket.Week => 7,
             _ => throw new ArgumentOutOfRangeException(nameof(bucket)),
         };
+        var perDay = await query
+            .Select(u => new { Day = u.OccurredAt.Date, u.JobId, RegId = u.RegId!.Value })
+            .Distinct()
+            .ToListAsync(cancellationToken);
 
-        return await indexed
+        var sinceDay = since.Date;
+        return perDay
+            .Select(x => (Index: (x.Day - sinceDay).Days / daysPerBucket, x.JobId, x.RegId))
             .Distinct()
             .Select(x => new UsageRegistrationByBucketDto { BucketIndex = x.Index, JobId = x.JobId, RegistrationId = x.RegId })
-            .ToListAsync(cancellationToken);
+            .ToList();
     }
 
     public async Task<IReadOnlyList<UsageRegistrationDayDto>> GetDistinctRegistrationDaysAsync(

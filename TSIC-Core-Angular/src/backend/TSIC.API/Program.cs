@@ -554,6 +554,23 @@ builder.Services.AddScoped<IProfileMetadataMigrationService>(sp => sp.GetRequire
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
+// PG-AB: DatabaseProvider picks the database — "SqlServer" (default, every overlay but
+// Development on this branch) or "Postgres". On Postgres the Pg* connection strings replace
+// the base ones in configuration, so every consumer (EF, raw ADO, the startup audit) sees the
+// active database. Cutover: delete this block and the SqlServer arms below.
+var databaseProvider = builder.Configuration["DatabaseProvider"] ?? "SqlServer";
+var usePostgres = databaseProvider switch
+{
+    "SqlServer" => false,
+    "Postgres" => true,
+    _ => throw new InvalidOperationException($"DatabaseProvider '{databaseProvider}' must be SqlServer or Postgres")
+};
+if (usePostgres)
+{
+    foreach (var name in new[] { "DefaultConnection", "LogsConnection" })
+        builder.Configuration[$"ConnectionStrings:{name}"] = builder.Configuration.GetConnectionString("Pg" + name);
+}
+
 // Only register SqlServer DbContexts if not running tests
 // Tests will provide in-memory versions via WebApplicationTestFactory
 if (!builder.Environment.IsEnvironment("Testing"))
@@ -561,13 +578,19 @@ if (!builder.Environment.IsEnvironment("Testing"))
     // FeeTotal/OwedTotal are derived money written solely by RecalcTotals (TSIC.Contracts),
     // so the Stage-A observe/shadow interceptor was removed as redundant.
     builder.Services.AddDbContext<SqlDbContext>(options =>
-        options.UseNpgsql(
-            builder.Configuration.GetConnectionString("DefaultConnection"),
-            x => x.UseNetTopologySuite()));
+    {
+        var cs = builder.Configuration.GetConnectionString("DefaultConnection");
+        if (usePostgres) options.UseNpgsql(cs, x => x.UseNetTopologySuite());
+        else options.UseSqlServer(cs, x => x.UseNetTopologySuite()); // PG-AB
+    });
 
     // Separate DbContext for Identity operations only
     builder.Services.AddDbContext<TsicIdentityDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    {
+        var cs = builder.Configuration.GetConnectionString("DefaultConnection");
+        if (usePostgres) options.UseNpgsql(cs);
+        else options.UseSqlServer(cs); // PG-AB
+    });
 
     // Usage telemetry lives in its own database (TSICLogs), read side only --
     // the write path is the usage filter and does not go through EF.
@@ -582,7 +605,10 @@ if (!builder.Environment.IsEnvironment("Testing"))
     if (!string.IsNullOrWhiteSpace(logsConnection))
     {
         builder.Services.AddDbContext<LogsDbContext>(options =>
-            options.UseNpgsql(logsConnection));
+        {
+            if (usePostgres) options.UseNpgsql(logsConnection);
+            else options.UseSqlServer(logsConnection); // PG-AB
+        });
 
         builder.Services.AddScoped<IUsageStatsRepository, UsageStatsRepository>();
     }
@@ -1026,8 +1052,8 @@ builder.Host.UseSerilog();
 
     var (dbServer, dbName) = ParseConnStr(cfg.GetConnectionString("DefaultConnection"));
     bootLog.Information(
-        "[STARTUP-CONFIG] db: server={Server} database={Database}",
-        dbServer, dbName);
+        "[STARTUP-CONFIG] db: provider={Provider} server={Server} database={Database}", // PG-AB: provider
+        cfg["DatabaseProvider"] ?? "SqlServer", dbServer, dbName);
 
     // logsDatabase=(none) means LogsConnection is missing from this environment's
     // overlay and LogsDbContext was NOT registered. The site runs fine; usage

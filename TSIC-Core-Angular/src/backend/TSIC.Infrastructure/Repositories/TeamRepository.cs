@@ -2081,18 +2081,31 @@ public class TeamRepository : ITeamRepository
         // Bucket indexing is UsageStatsRepository's, unchanged: DATEDIFF counts unit boundaries
         // crossed from an aligned `since`, and weeks divide days by 7 rather than trust
         // DATEDIFF(week), whose boundary is Sunday regardless of DATEFIRST.
-        // Postgres port: portable boundary counts, identical to DATEDIFF(day) / DATEDIFF(month).
-        var sinceDay = since.Date;
-        var grouped = bucket switch
+        // Provider-neutral, as RegistrationRepository.GetRegistrationCountsByBucketAsync: month
+        // index in SQL; day/week grouped by calendar date in SQL and indexed in memory.
+        if (bucket == UsageBucket.Month)
         {
-            UsageBucket.Day => query.GroupBy(t => (t.Createdate.Date - sinceDay).Days),
-            UsageBucket.Week => query.GroupBy(t => (t.Createdate.Date - sinceDay).Days / 7),
-            UsageBucket.Month => query.GroupBy(t => (t.Createdate.Year - since.Year) * 12 + t.Createdate.Month - since.Month),
+            return await query
+                .GroupBy(t => (t.Createdate.Year - since.Year) * 12 + t.Createdate.Month - since.Month)
+                .Select(g => new TeamCountByBucketDto { BucketIndex = g.Key, Count = g.Count() })
+                .ToListAsync(ct);
+        }
+
+        var daysPerBucket = bucket switch
+        {
+            UsageBucket.Day => 1,
+            UsageBucket.Week => 7,
             _ => throw new ArgumentOutOfRangeException(nameof(bucket)),
         };
-
-        return await grouped
-            .Select(g => new TeamCountByBucketDto { BucketIndex = g.Key, Count = g.Count() })
+        var perDay = await query
+            .GroupBy(t => t.Createdate.Date)
+            .Select(g => new { Day = g.Key, Count = g.Count() })
             .ToListAsync(ct);
+
+        var sinceDay = since.Date;
+        return perDay
+            .GroupBy(x => (x.Day - sinceDay).Days / daysPerBucket)
+            .Select(g => new TeamCountByBucketDto { BucketIndex = g.Key, Count = g.Sum(x => x.Count) })
+            .ToList();
     }
 }
