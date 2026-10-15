@@ -4687,11 +4687,14 @@ public partial class RegistrationRepository : IRegistrationRepository
         // unit the result is the whole-bucket index. Weeks divide days by 7 rather than use
         // DATEDIFF(week), whose boundary is Sunday regardless of DATEFIRST. Same shape as
         // UsageStatsRepository's bucketing, deliberately: the two reports must slice alike.
+        // Postgres port: day/month boundary counts written portably — (x.Date - since.Date).Days
+        // and the year*12+month difference are exactly DATEDIFF(day) and DATEDIFF(month).
+        var sinceDay = since.Date;
         var grouped = bucket switch
         {
-            UsageBucket.Day => query.GroupBy(r => new { Index = EF.Functions.DateDiffDay(since, r.RegistrationTs), RoleId = r.RoleId! }),
-            UsageBucket.Week => query.GroupBy(r => new { Index = EF.Functions.DateDiffDay(since, r.RegistrationTs) / 7, RoleId = r.RoleId! }),
-            UsageBucket.Month => query.GroupBy(r => new { Index = EF.Functions.DateDiffMonth(since, r.RegistrationTs), RoleId = r.RoleId! }),
+            UsageBucket.Day => query.GroupBy(r => new { Index = (r.RegistrationTs.Date - sinceDay).Days, RoleId = r.RoleId! }),
+            UsageBucket.Week => query.GroupBy(r => new { Index = (r.RegistrationTs.Date - sinceDay).Days / 7, RoleId = r.RoleId! }),
+            UsageBucket.Month => query.GroupBy(r => new { Index = (r.RegistrationTs.Year - since.Year) * 12 + r.RegistrationTs.Month - since.Month, RoleId = r.RoleId! }),
             _ => throw new ArgumentOutOfRangeException(nameof(bucket)),
         };
 
@@ -4731,7 +4734,7 @@ public partial class RegistrationRepository : IRegistrationRepository
                   && r.RegistrationTs >= since
             group r by new
             {
-                Index = EF.Functions.DateDiffDay(since, r.RegistrationTs),
+                Index = (r.RegistrationTs.Date - since.Date).Days,
                 r.JobId,
                 RoleName = role.Name,
             } into g

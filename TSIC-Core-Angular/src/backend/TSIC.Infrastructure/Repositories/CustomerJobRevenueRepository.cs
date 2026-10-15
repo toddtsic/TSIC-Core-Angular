@@ -239,6 +239,10 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         // Sproc contract: @endDate is advanced one day, then all comparisons are < end.
         DateTime? endEx = endDate?.Date.AddDays(1);
         DateTime? start = startDate;
+        // Month-bucketed tables are filtered on their first-of-month: firstOfMonth(Y,M) >= start
+        // is MonthKey(Y,M) >= the key of the first month starting on/after start (likewise < endEx).
+        int? startMonthKey = FirstMonthKeyOnOrAfter(start);
+        int? endExMonthKey = FirstMonthKeyOnOrAfter(endEx);
 
         var raw = new List<RawRollupRow>();
 
@@ -367,8 +371,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             from jc in _context.JobAdminCharges
             join j in _context.Jobs on jc.JobId equals j.JobId
             where customerIds.Contains(j.CustomerId)
-                && (start == null || EF.Functions.DateFromParts(jc.Year, jc.Month, 1) >= start)
-                && (endEx == null || EF.Functions.DateFromParts(jc.Year, jc.Month, 1) < endEx)
+                && (startMonthKey == null || jc.Year * 12 + jc.Month >= startMonthKey)
+                && (endExMonthKey == null || jc.Year * 12 + jc.Month < endExMonthKey)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
             group new { jc.ChargeAmount } by new { j.JobName, jc.Year, jc.Month } into g
             select new { g.Key.JobName, g.Key.Year, g.Key.Month, Amount = g.Sum(x => x.ChargeAmount) })
@@ -407,8 +411,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             from mjs in _context.MonthlyJobStats
             join j in _context.Jobs on mjs.JobId equals j.JobId
             where customerIds.Contains(j.CustomerId)
-                && (start == null || EF.Functions.DateFromParts(mjs.Year, mjs.Month, 1) >= start)
-                && (endEx == null || EF.Functions.DateFromParts(mjs.Year, mjs.Month, 1) < endEx)
+                && (startMonthKey == null || mjs.Year * 12 + mjs.Month >= startMonthKey)
+                && (endExMonthKey == null || mjs.Year * 12 + mjs.Month < endExMonthKey)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
             select new
             {
@@ -458,8 +462,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             from mjs in _context.MonthlyJobStats
             join j in _context.Jobs on mjs.JobId equals j.JobId
             where customerIds.Contains(j.CustomerId)
-                && (start == null || EF.Functions.DateFromParts(mjs.Year, mjs.Month, 1) >= start)
-                && (endEx == null || EF.Functions.DateFromParts(mjs.Year, mjs.Month, 1) < endEx)
+                && (startMonthKey == null || mjs.Year * 12 + mjs.Month >= startMonthKey)
+                && (endExMonthKey == null || mjs.Year * 12 + mjs.Month < endExMonthKey)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
             orderby j.JobName, mjs.Year, mjs.Month
             select new JobMonthlyCountDto
@@ -483,8 +487,8 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             from jac in _context.JobAdminCharges
             join j in _context.Jobs on jac.JobId equals j.JobId
             where customerIds.Contains(j.CustomerId)
-                && (start == null || EF.Functions.DateFromParts(jac.Year, jac.Month, 1) >= start)
-                && (endEx == null || EF.Functions.DateFromParts(jac.Year, jac.Month, 1) < endEx)
+                && (startMonthKey == null || jac.Year * 12 + jac.Month >= startMonthKey)
+                && (endExMonthKey == null || jac.Year * 12 + jac.Month < endExMonthKey)
                 && (jobFilter.Count == 0 || jobFilter.Contains(j.JobName!))
             orderby j.JobName, jac.Year, jac.Month, jac.ChargeType.Name
             select new JobAdminFeeDto
@@ -1757,6 +1761,15 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
     /// the same season - see <see cref="JobSeasonNaming.ParseYear"/>.
     /// </summary>
     private static int? ParseJobYear(string? raw) => JobSeasonNaming.ParseYear(raw);
+
+    // Year * 12 + Month of the first month whose 1st is on or after `at`'s date. Date only: the
+    // DATEFROMPARTS comparison this replaces bound its parameter as `date`, dropping the time.
+    private static int? FirstMonthKeyOnOrAfter(DateTime? at)
+    {
+        if (at?.Date is not DateTime d) return null;
+        var key = d.Year * 12 + d.Month;
+        return d == new DateTime(d.Year, d.Month, 1) ? key : key + 1;
+    }
 
     /// <summary>
     /// The lineage key: the job name with its season designator removed. The boundary rules and

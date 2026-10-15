@@ -189,11 +189,13 @@ public class UsageStatsRepository : IUsageStatsRepository
         // DATEDIFF counts unit BOUNDARIES crossed from `since`, so with `since` aligned to
         // the unit the result is the whole-bucket index. Weeks divide days by 7 rather than
         // use DATEDIFF(week), whose boundary is Sunday regardless of DATEFIRST.
+        // Postgres port: portable boundary counts, identical to DATEDIFF(day) / DATEDIFF(month).
+        var sinceDay = since.Date;
         var indexed = bucket switch
         {
-            UsageBucket.Day => query.Select(u => new { Index = EF.Functions.DateDiffDay(since, u.OccurredAt), u.JobId, RegId = u.RegId!.Value }),
-            UsageBucket.Week => query.Select(u => new { Index = EF.Functions.DateDiffDay(since, u.OccurredAt) / 7, u.JobId, RegId = u.RegId!.Value }),
-            UsageBucket.Month => query.Select(u => new { Index = EF.Functions.DateDiffMonth(since, u.OccurredAt), u.JobId, RegId = u.RegId!.Value }),
+            UsageBucket.Day => query.Select(u => new { Index = (u.OccurredAt.Date - sinceDay).Days, u.JobId, RegId = u.RegId!.Value }),
+            UsageBucket.Week => query.Select(u => new { Index = (u.OccurredAt.Date - sinceDay).Days / 7, u.JobId, RegId = u.RegId!.Value }),
+            UsageBucket.Month => query.Select(u => new { Index = (u.OccurredAt.Year - since.Year) * 12 + u.OccurredAt.Month - since.Month, u.JobId, RegId = u.RegId!.Value }),
             _ => throw new ArgumentOutOfRangeException(nameof(bucket)),
         };
 

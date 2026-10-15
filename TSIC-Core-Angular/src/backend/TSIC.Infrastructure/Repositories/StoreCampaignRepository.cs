@@ -23,6 +23,13 @@ public class StoreCampaignRepository : IStoreCampaignRepository
         // Legacy measured the window against the LINE's Modified stamp but displayed the BATCH's —
         // a cart whose last edit was inside the window shows the batch date. Preserved verbatim.
         var now = DateTime.Now;
+        // Postgres port: DATEDIFF(hour, Modified, now) counts hour boundaries, i.e. whole hours
+        // between the two hour-floors. As a range on Modified against now's hour-floor:
+        //   >= minAgeHours  <=>  Modified <  nowHour + (1 - minAgeHours)h
+        //   <= maxAgeHours  <=>  Modified >= nowHour - maxAgeHours h
+        var nowHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, now.Kind);
+        var modifiedBefore = nowHour.AddHours(1 - minAgeHours);
+        var modifiedFrom = nowHour.AddHours(-maxAgeHours);
 
         var rows = await _context.StoreCartBatchSkus
             .AsNoTracking()
@@ -30,8 +37,8 @@ public class StoreCampaignRepository : IStoreCampaignRepository
                 cbs.Active
                 && cbs.StoreCartBatch.StoreCart.StoreId == storeId
                 && !cbs.StoreCartBatch.StoreCartBatchAccounting.Any()
-                && EF.Functions.DateDiffHour(cbs.Modified, now) >= minAgeHours
-                && EF.Functions.DateDiffHour(cbs.Modified, now) <= maxAgeHours)
+                && cbs.Modified < modifiedBefore
+                && cbs.Modified >= modifiedFrom)
             .OrderByDescending(cbs => cbs.StoreCartBatch.Modified)
             .Select(cbs => new
             {

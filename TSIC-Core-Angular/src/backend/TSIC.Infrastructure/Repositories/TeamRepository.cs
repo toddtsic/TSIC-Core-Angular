@@ -2081,11 +2081,13 @@ public class TeamRepository : ITeamRepository
         // Bucket indexing is UsageStatsRepository's, unchanged: DATEDIFF counts unit boundaries
         // crossed from an aligned `since`, and weeks divide days by 7 rather than trust
         // DATEDIFF(week), whose boundary is Sunday regardless of DATEFIRST.
+        // Postgres port: portable boundary counts, identical to DATEDIFF(day) / DATEDIFF(month).
+        var sinceDay = since.Date;
         var grouped = bucket switch
         {
-            UsageBucket.Day => query.GroupBy(t => EF.Functions.DateDiffDay(since, t.Createdate)),
-            UsageBucket.Week => query.GroupBy(t => EF.Functions.DateDiffDay(since, t.Createdate) / 7),
-            UsageBucket.Month => query.GroupBy(t => EF.Functions.DateDiffMonth(since, t.Createdate)),
+            UsageBucket.Day => query.GroupBy(t => (t.Createdate.Date - sinceDay).Days),
+            UsageBucket.Week => query.GroupBy(t => (t.Createdate.Date - sinceDay).Days / 7),
+            UsageBucket.Month => query.GroupBy(t => (t.Createdate.Year - since.Year) * 12 + t.Createdate.Month - since.Month),
             _ => throw new ArgumentOutOfRangeException(nameof(bucket)),
         };
 
