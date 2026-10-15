@@ -71,6 +71,11 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
 
+// Postgres port: the migrated datetime/datetime2 columns are `timestamp` (no time zone), matching
+// SQL Server semantics. Legacy mode maps DateTime there instead of to timestamptz, so the ~800
+// DateTime.Now/UtcNow call sites write unchanged. Must be set before any Npgsql type is touched.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── ASPNETCORE_ENVIRONMENT must be set explicitly ───────────────────
@@ -556,13 +561,13 @@ if (!builder.Environment.IsEnvironment("Testing"))
     // FeeTotal/OwedTotal are derived money written solely by RecalcTotals (TSIC.Contracts),
     // so the Stage-A observe/shadow interceptor was removed as redundant.
     builder.Services.AddDbContext<SqlDbContext>(options =>
-        options.UseSqlServer(
+        options.UseNpgsql(
             builder.Configuration.GetConnectionString("DefaultConnection"),
             x => x.UseNetTopologySuite()));
 
     // Separate DbContext for Identity operations only
     builder.Services.AddDbContext<TsicIdentityDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
     // Usage telemetry lives in its own database (TSICLogs), read side only --
     // the write path is the usage filter and does not go through EF.
@@ -577,7 +582,7 @@ if (!builder.Environment.IsEnvironment("Testing"))
     if (!string.IsNullOrWhiteSpace(logsConnection))
     {
         builder.Services.AddDbContext<LogsDbContext>(options =>
-            options.UseSqlServer(logsConnection));
+            options.UseNpgsql(logsConnection));
 
         builder.Services.AddScoped<IUsageStatsRepository, UsageStatsRepository>();
     }

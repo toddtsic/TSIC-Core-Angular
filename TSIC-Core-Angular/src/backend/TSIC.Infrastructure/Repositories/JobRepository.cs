@@ -115,7 +115,8 @@ public class JobRepository : IJobRepository
     {
         return await _context.Jobs
             .AsNoTracking()
-            .Where(j => j.JobPath != null && EF.Functions.Collate(j.JobPath!, "SQL_Latin1_General_CP1_CI_AS") == jobPath)
+            // Postgres port: jobPath carries the case-insensitive `ci` collation, so plain == matches CI.
+            .Where(j => j.JobPath != null && j.JobPath == jobPath)
             .Select(j => (Guid?)j.JobId)
             .FirstOrDefaultAsync(cancellationToken);
     }
