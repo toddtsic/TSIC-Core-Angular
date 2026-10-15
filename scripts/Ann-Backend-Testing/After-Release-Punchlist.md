@@ -98,7 +98,7 @@ Items intentionally deferred to **after go-live** — enhancements, non-blocking
 | **AR-159** | **NEW 10-14 (Ann) — split out of AR-145 on verification.** 🟡 **Open the Reconciliation grid with the `Email?` ticks already at the TOP.** 🎯 **AR-145 shipped sort-ON-CLICK; on open the grid is in ordinary order and the flagged rows are scattered.** ✅ **Same argument that carried AR-145 — *"a reviewer sorting by it never learns they exist"* — and a reviewer who does not know to click is in the same position on a 444-row grid. AR-145 made the tick CORRECT; this makes it FINDABLE.** ⏳ **For Todd: a default sort overrides the A→Z order reviewers expect. Alternatives recorded, not Ann's ask: sort only when something is ticked, or leave the order and surface a count/filter.** | 🔴 OPEN |
 | **AR-160** | **NEW 10-14 (Ann).** 🟡 **On Your Registered Teams with Club Rep Permissions → Delete ON: a team that CAN be deleted shows the trash can (correct), and a team that CANNOT shows NOTHING. She asks for a faded trash can with a slash or X plus a hover saying why.** 🎯 **The defect is the ABSENCE, not the rule — a rep cannot tell *"you may not delete this team"* from *"this screen has no delete at all"*.** ✅ **AR-034 ALREADY SOLVED THIS EXACT PROBLEM THE SAME WAY — the control renders, greyed when it cannot fire, and `showDeleteBlockedReason()` names the blocker: *"the disabled state does the teaching, per house pattern, on the row's own facts."* So this is applying a settled pattern, not a new idea.** ⚠ **Third sighting of the hover point (AR-130, AR-142): hover alone is not enough — no hover on touch, not keyboard-reachable — so the icon state must read as blocked without it, which her slash/X already does.** ⏳ **For Todd: reason text per blocker, and confirm it does not change what the Delete-OFF case renders (AR-146 / AR-154).** | 🔴 OPEN |
 | **AR-161** | **NEW 10-14 (Ann). 🔍 BOTH PARTS LOCATED AT FILING.** 🟡 **(1) The Archive action's icon is `bi-box-arrow-in-down` — it reads as DOWNLOAD. ✅ The correct icon is already in the same file two lines above: `bi-archive`, used on the Archived section header. One-word swap.** 🟡 **(2) An ARCHIVED row offers Restore and nothing else; an ACTIVE row offers Edit plus either Archive or Delete, chosen by `removalFor(row)`. 🎯 So her "reasonable criteria" are ALREADY written and enforced (`clubTeamRemoval` / `clubTeamArchiveLockReason`) — this is offering the existing Delete on the archived side under the same rule, not inventing one. The disabled-with-reason pattern is already there too.** ⏳ **For Todd: the ruling needed is whether Delete belongs beside Restore at all — an archived team was kept on purpose to preserve history, and this puts "keep it" and "destroy it" one pixel apart. Danger styling and a confirm already exist.** | 🔴 OPEN |
-| **AR-162** | **NEW 10-15 (Ann).** 🔴 **Prime Time Recruiting Showcase 2026 (LI Elite): Ava Case registered 10-05 — after the USA Lacrosse gate went live 09-01 — and shows "No record". Why was she allowed?** ✅ **Number entered correctly; fly-in Re-Validate also FAILS, so USA Lacrosse does not know it today. Job (dev copy) is set up to reject this at submit: field required, no team switch, cutoff 11-30.** 🎯 **Three causes left, only prod separates them: (A) number was valid 10-05 and USA Lacrosse dropped it — not ours; (B) an admin changed it afterwards — the fly-in profile save writes the number UNCHECKED and warns after; (C) an earlier 08-20..10-04 registration, since the gate judges only new rows or changed numbers.** ⏳ **For Todd: run the prod query in the entry.** | 🔴 OPEN |
+| **AR-162** | **10-15 (Ann). NOT A SYSTEM PROBLEM.** Prime Time Recruiting Showcase 2026 (LI Elite): Ava Case shows "No record". **USA Lacrosse knew her number when she registered and does not know it today.** Reconcile of all **2,143** players: **2,142 Active, Ava the only failure.** Number Tester: **Unknown**. Her stored **05/31/2027** expiry can only come from USA Lacrosse for that exact number; record unchanged since she registered 10-05. Family contacts USA Lacrosse. **Reopen only on a second post-09-01 "No record" with NO expiry stored.** | ✅ CLOSED |
 | **AR-163** | **NEW 10-15 (Ann).** Approved Coach/Staff: **(1)** note which team is selected on the dashboard; **(2)** a Manage badge on the dashboard, like the Club Rep option to edit rosters, saying **View Roster/Email Team**; **(3)** upper-right menu: replace **View Roster** with **"View Roster/Email Team"**; **(4)** on View Roster, badges next to the current team name linking to their other Coach rosters. | 🔴 OPEN |
 | **AR-164** | **NEW 10-15 (Ann).** Coach registration: **remove the "Anything else the director should know?" field.** Directors will not consistently check these notes under Coach Approvals, so coaches will feel ignored; the team checkbox list is all that is needed, and a coach will email the Director directly for anything special. | 🔴 OPEN |
 |:--|:--|:--|
@@ -5329,47 +5329,28 @@ Account details matter at registration, and **every registration path already of
 - **Status**: 🔴 **OPEN — filed 10-14 (Ann), both parts located.** **For Todd:** ✅ **part 1 is a one-word icon swap.** ⏳ **part 2 is offering the existing Delete to archived rows under the rules `removalFor` already applies — the ruling needed is whether Delete belongs beside Restore at all.** ⚙ **Related: AR-160** (same disabled-with-reason pattern on the Teams screen), **AR-034** (where that pattern was settled), **AR-131** (library identity — the 112 N.A. duplicate pairs are exactly the rows a rep would want to tidy).
 
 
-### AR-162: 🔴 OPEN — filed 10-15 (Ann) · ⏳ NEEDS ONE PROD QUERY (Todd) to say which of three causes it is · [USA Lacrosse / Membership Reconciliation] A player who registered 10-05 — well after the validation gate went live — shows "No record". Why was she allowed to register?
+### AR-162: ✅ CLOSED (Todd, 10-15) — NOT A SYSTEM PROBLEM · [USA Lacrosse / Membership Reconciliation] Ava Case "No record" — USA Lacrosse knew her number when she registered and does not know it today
 
-- **Topic**: **Long Island Elite Lacrosse:Prime Time Recruiting Showcase 2026** (`lielite-primetimerecruitingshowcase-2026`, JobId `F5FF0B87-C9A9-444E-BB0F-3BB5ABE59BF5`), player **Ava Case**, on **PRODUCTION**
+- **Topic**: **Long Island Elite Lacrosse:Prime Time Recruiting Showcase 2026** (`lielite-primetimerecruitingshowcase-2026`), player **Ava Case**, number **010030429078**
 - **Reported by**: Ann, 10-15. *"Ava Case player, has NO record. This issue is that she registered on October 5th which is well after the fix went in for validation, so the question is why was she allowed to register?"*
+- **Checked by Todd + Claude, 10-15**, on a local restore of the prod backup taken 10-15 06:59.
 
-**✅ ESTABLISHED WITH ANN, 10-15.**
+**Short answer:** our validation did its job. USA Lacrosse recognized Ava's number when she registered, and does not recognize it today. That is for the family to take up with USA Lacrosse.
 
-| | |
-|:--|:--|
-| **The number** | entered correctly — a proper USA Lacrosse number, not malformed (so not the AR-145 malformed-number case) |
-| **Re-Validate on the fly-in** | ⛔ **does NOT pass** — the single-number lookup agrees with the Reconciliation screen's batch lookup. **USA Lacrosse does not know this number TODAY.** The screen is reporting truthfully; this is not a batch-lookup artifact |
-| **Job config** (dev copy, ~08-19 — confirm on prod) | USA Lacrosse Number field is **`required: true`** with the `/api/validation/uslax` remote; **0 of 167 teams** carry the AR-128 "Don't validate" switch; `USLaxNumberValidThroughDate` = **2026-11-30**. ✅ **The job is set up so a brand-new 10-05 registration with an unknown number is REJECTED at submit** |
-| **The gate was live on prod by 10-05** | ✅ submit-time enforcement is `308b41219` (09-01); prod deploys since include AR-113, verified on prod 09-28 |
-| **Prior registration before ~08-19** | ⛔ **none** — dev's prod copy has **no Ava Case account at all**, on any job |
+**What we checked (all of it can be repeated on screen):**
 
-**🎯 SO THE QUESTION BECOMES: HOW DID A NUMBER USA LACROSSE DOES NOT KNOW END UP ON A REGISTRATION THE GATE SHOULD HAVE JUDGED?** Three explanations remain, and **only prod data separates them**:
+1. **Is this happening to other players?** No. *Search → USLax# Status Emails → Players → Reconcile* checked all **2,143** players on Prime Time Recruiting Showcase 2026. **2,142 are Active. Ava is the only failure.** If the gate were letting bad numbers through, there would be more than one.
+2. **What does USA Lacrosse say about the number right now?** *Tools → USA Lacrosse Number Tester*, 010030429078 → **Unknown**: no name, no birth date, nothing. That screen shows USA Lacrosse's own answer with none of our checks applied.
+3. **Did USA Lacrosse ever know this number?** Yes. Her registration has a USA Lacrosse expiry of **05/31/2027** on file, and our system can only store that date when USA Lacrosse sends it back for that exact number. We don't make it up, and an admin can't type it in.
+4. **Did someone change the number after she registered?** No. Every way of changing a player's number in the system (the family editing their registration, or an admin saving the profile panel) records the time and who did it. Ava's record has not been changed since she registered on 10-05 at 3:06 AM.
+5. **Why does Re-Validate show "No record" but the expiry still says 05/31/2027?** By design. Re-Validate only updates the expiry when USA Lacrosse returns one, and this time it returned nothing, so there was nothing to write. The 05/31/2027 left on file is the date USA Lacrosse last gave, and it's the evidence that the number was once valid.
 
-| | What happened | Defect? | Tell in the query below |
-|:--|:--|:--|:--|
-| **A** | USA Lacrosse **knew** the number on 10-05 and has since dropped / merged / lapsed it | ⛔ **Not ours** — family takes it up with USA Lacrosse | `RegistrationTS` ≈ 10-05, `modified` = `RegistrationTS`, modified by the family |
-| **B** | An **admin changed the number after registration**. The Search fly-in profile save writes `SportAssnId` **unchecked** (`RegistrationRepository.UpdateRegistrationProfileAsync`, `:3180` — only the *expiry* is protected, `:3202`), and the panel runs Re-Validate **after** the save, as a warning toast only | 🔴 **Yes** — admin path saves an unconfirmed number | `modified` later than `RegistrationTS`, `last_modified_by` = an admin |
-| **C** | She already had a registration on this job from **08-20 to 10-04**, and 10-05 was an UPDATE. The submit gate judges **only new rows or a changed number** (`IsGated`, `PlayerRegistrationService.cs:730-734`) — an unchanged number on an existing row is waved through **by design** (so a returning family is not re-blocked) | 🟡 **Gap in the design**, not a bug in it — but only if that earlier row's number was itself unverified | `RegistrationTS` before 10-05 |
+**What to tell the family:** USA Lacrosse no longer has a membership under 010030429078. They should contact USA Lacrosse at membership@usalacrosse.com or 410-235-6882. A merged, replaced or cancelled membership is the usual cause. If they come back with a different number, enter it in the profile panel and click Re-Validate.
 
-**📋 FOR TODD — RUN ON PROD:**
+**What would reopen this:** a *second* player who registered after 09-01 and shows "No record" with **no** USA Lacrosse expiry stored. That pattern would mean a number got past the gate without USA Lacrosse ever recognizing it. Ava's case is the opposite, so on its own it isn't grounds to reopen.
 
-```sql
-select r.RegistrationID, u.FirstName, u.LastName, r.RegistrationTS, r.modified,
-       mu.UserName as last_modified_by, r.sportAssnID, r.sportAssnIDExpDate,
-       r.bActive, r.Family_UserId, t.TeamName, t.bDoNotValidateUSLaxNumber
-from Jobs.Registrations r
-join dbo.AspNetUsers u on u.Id = r.UserId
-left join dbo.AspNetUsers mu on mu.Id = r.lebUserID
-left join Leagues.teams t on t.TeamId = r.assigned_teamID
-where r.jobID = 'F5FF0B87-C9A9-444E-BB0F-3BB5ABE59BF5'
-  and u.LastName = 'Case';
-```
-
-- ⚙ **Also check on prod:** that the job's USA Lacrosse field is still `required` and no team switch has been ticked since ~08-19 — either would let a number through by configuration, not by defect.
-- 🔍 **A lead, not a finding:** a **Sloane Case** is on this same job (registered 08-17, number `010030063082`, used every year since 2024). If the two share a family account, **compare their numbers** — the query returns `Family_UserId` for both. A sibling's number would normally fail as a name/DOB mismatch rather than "No record", so this is worth a glance, not a conclusion.
-- **Severity**: 🔴 **if B or C** — a registration holds a USA Lacrosse number nobody confirmed, on a job that requires it, and B means **any admin edit can do it again**. ⛔ **None if A.**
-- **Status**: 🔴 **OPEN — filed 10-15 (Ann).** **For Todd:** ⏳ **run the query; it decides A, B or C.** If **B**, the fix is to validate (or refuse) a changed `SportAssnId` in the profile save on USA-Lacrosse-required jobs, instead of saving first and warning after. ⚙ **Related: AR-128** (the team switch), **AR-141** (the test number), **AR-145** (what "No record" can mean), **AR-149** (Re-Validate checks the number on screen), **AR-069** (the audited admin edit path — name/DOB only).
+- ⛔ **The earlier draft of this entry (three causes A/B/C, a Sloane Case sibling lead, 🔴 severity) is withdrawn.** The data ruled out B and C, Sloane Case is a different family and is not on this job, and the severity was unfounded.
+- **Status**: ✅ **CLOSED — Todd, 10-15.** Not a defect. Related: AR-145 (what "No record" can mean), AR-149 (Re-Validate checks the number on screen).
 
 
 ### AR-163: 🔴 OPEN — filed 10-15 (Ann) · [Coach / Staff — after role selection] Show which team is selected, add a View Roster/Email Team badge and menu label, and link between a coach's rosters
