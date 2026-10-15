@@ -1966,26 +1966,19 @@ public class AdultRegistrationService : IAdultRegistrationService
     /// <summary>
     /// Fallback profile fields when <c>AdultProfileMetadataJson</c> is not configured.
     /// <para>
-    /// UnassignedAdult (Club/League coaches) now express their team preference via the
-    /// team-request multi-select, so the free-text becomes an OPTIONAL general note
-    /// (composed alongside the requested-team labels into SpecialRequests). Staff
-    /// (Tournament coaches) have already selected specific teams via the multi-select,
-    /// so asking again in free text is redundant — return empty.
+    /// Coaches get no free-text field: UnassignedAdult (Club/League coaches) and Staff
+    /// (Tournament coaches) both express their team preference via the team-request
+    /// multi-select, and a coach who needs anything else emails the director (AR-164 —
+    /// a note directors do not reliably read in Coach Approvals leaves the coach ignored).
     /// </para>
     /// </summary>
     private static List<JobRegFieldDto> BuildFallbackFields(AdultRoleType roleType)
     {
-        // Staff: teams-coaching multi-select already captures intent. No free-text needed.
-        if (roleType == AdultRoleType.Staff) return [];
-
-        // UnassignedAdult: team picker is the primary mechanism → note is optional.
-        var required = roleType != AdultRoleType.UnassignedAdult;
+        // Coaches: the teams multi-select captures intent. No free-text needed.
+        if (roleType is AdultRoleType.Staff or AdultRoleType.UnassignedAdult) return [];
 
         var (label, placeholder) = roleType switch
         {
-            AdultRoleType.UnassignedAdult => (
-                "Anything else the director should know?",
-                "Optional — e.g. age groups you prefer, scheduling notes, prior coaching"),
             AdultRoleType.Referee => (
                 "Special Requests",
                 "Enter special requests, or 'none' if you don't have any"),
@@ -2034,7 +2027,7 @@ public class AdultRegistrationService : IAdultRegistrationService
             InputType = roleType == AdultRoleType.Recruiter ? "TEXT" : "TEXTAREA",
             Order = fields.Count + 1,
             Visibility = "public",
-            Validation = new FieldValidation { Required = required, Message = placeholder }
+            Validation = new FieldValidation { Required = true, Message = placeholder }
         });
 
         return fields;
