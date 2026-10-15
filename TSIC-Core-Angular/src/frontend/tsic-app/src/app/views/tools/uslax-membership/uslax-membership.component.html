@@ -219,9 +219,11 @@
     <!-- height="100%" fills the wrapper's viewport-sized box, so the grid scrolls INSIDE itself and
          its horizontal scrollbar is always on screen — not at the foot of a 300-row page (AR-085).
          Header wrap lets "Meets Valid Thru?" stack instead of truncating; the SCSS below stops
-         ej2 breaking mid-word. -->
+         ej2 breaking mid-word.
+         AR-159: opens sorted on Email? so the worklist is on top. needsEmailSortComparer orders
+         the rest by last name, first name — the same order the old lastName default gave. -->
     <ejs-grid width="100%" height="100%" #grid tsicRowNumbers [dataSource]="gridRows()" [allowSorting]="true"
-              [sortSettings]="{ columns: [{ field: 'lastName', direction: 'Ascending' }] }"
+              [sortSettings]="{ columns: [{ field: 'needsEmail', direction: 'Ascending' }] }"
               [allowTextWrap]="true"
               [textWrapSettings]="{ wrapMode: 'Header' }"
               [allowExcelExport]="true"
