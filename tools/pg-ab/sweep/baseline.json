@@ -1,0 +1,1997 @@
+{
+ "/api/account/me": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/account/username-available": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/admin-expiry/expired-jobs": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Administrators": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Administrators/users/search": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/adn-reconciliation/ledger": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/adn-reconciliation/files": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/adn-reconciliation/reconcile": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/adult-registration/{jobPath}/job-info": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/adult-registration/{jobPath}/available-teams": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/AgeRanges/admin": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/arb-defensive/flagged": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/arb-defensive/substitution-variables": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/arb-defensive/subscription-info/{registrationId}": {
+  "verdict": "SAME",
+  "pg": 404,
+  "ss": 404
+ },
+ "/api/asl-rosters/index": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/asl-rosters/region": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/asl-rosters/team/{teamId}": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/Auth/registrations": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Auth/suggested-events": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Auth/club-library-door": {
+  "verdict": "SAME",
+  "pg": 204,
+  "ss": 204
+ },
+ "/api/auto-build/game-summary": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/auto-build/prerequisites": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/auto-build/has-championship-pairings": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/auto-build/strategy-profiles": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/auto-build/projected-config": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/bracket-seeds": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/bracket-seeds/divisions/{gid}": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/bracket-seeds/rank-ceiling/{divId}": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Bulletins/token-catalog": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Bulletins/job/{jobPath}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Bulletins/admin": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/camp-groups/teams": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/camp-groups/options": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/camp-groups/teams/{teamId}/campers": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/change-password/role-options": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/change-password/{regId}/merge-candidates": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/change-password/{regId}/family-merge-candidates": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/checkin/teams": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/checkin/team-roster": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/checkin/teams/{teamId}/players": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/club-reps/me": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/club-rosters/teams": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/club-rosters/teams/{teamId}/roster": {
+  "verdict": "SAME",
+  "pg": 403,
+  "ss": 403
+ },
+ "/api/clubs/search": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/customer-configure": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/customer-configure/{customerId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/customer-groups": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/customer-job-revenue/jobs": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/customer-job-revenue/rollup": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/customer-job-revenue/team-billing": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/customer-job-revenue/yoy": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/customer-job-revenue/team-retention": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/customer-job-revenue/adjustments": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/customer-job-revenue/legacy-compare": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/job-ddl-options": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Device/subscriptions/{jobId}": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/DiscountCodes": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/email/unsubscribe": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/email-log": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/events": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/events/{jobId}/alerts": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/events/{jobId}/docs": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/events/{jobId}/game-clock": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/events/{jobId}/active-games": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Family/me": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Family/users": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Family/players": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/fees/agegroup/{agegroupId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/fees/league/{leagueId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/fees/job": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/fees/affected-count": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/field": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/insurance/post-registration-offer": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/insurance/team/pre-submit": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/job-config": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/job-config/registration-readiness": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/job-config/reference-data": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/job-filter-tree": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Jobs/{jobPath}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Jobs/{jobPath}/available-teams": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Jobs/{jobPath}/menus": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Jobs/{jobPath}/pulse": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/job-visibility": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/tree": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/fees/resolution-map": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/sports": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/standings-sort-profiles": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/leagues/{leagueId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/agegroups/{agegroupId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/divisions/{divId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/teams/{teamId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/clubs-for-job": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/leagues/siblings": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/agegroups/by-league/{leagueId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/divisions/by-agegroup/{agegroupId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/teams/by-division/{divId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/ladt/divisions/common": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/last-months-job-stats": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/master-schedule": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/master-schedule/coach-pdf": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/files/medform/{playerUserId}": {
+  "verdict": "SAME",
+  "pg": 403,
+  "ss": 403
+ },
+ "/api/files/medform/by-registration/{registrationId}": {
+  "verdict": "SAME",
+  "pg": 404,
+  "ss": 404
+ },
+ "/api/menu-admin/menus": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/mobile/auth/ownerships/{regId}/teams": {
+  "verdict": "SAME",
+  "pg": 403,
+  "ss": 403
+ },
+ "/api/mobile-scorers": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/my-email-deliverability/status": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/my-email-deliverability/sent-history": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/my-roster": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/my-roster/pdf": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/nav/merged": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/nav/editor/defaults": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/nav/editor/legacy-menus": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/nav/editor/job-overrides": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/nav/editor/export-sql": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/nav/editor/visibility-options": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/packed-roster/fields": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/packed-roster/recruiter": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Pairings/agegroups": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Pairings/division/{divId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Pairings/who-plays-who": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Pairings/bracket-strategies": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Pairings/division/{divId}/teams": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/player-registration/confirmation": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/player-registration/existing": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/player-registration/family-registrations": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/pool-assignment/divisions": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/pool-assignment/divisions/{divId}/teams": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/admin/profile-migration/profiles": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/admin/profile-migration/known-profile-types": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/admin/profile-migration/adult/current/config": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/admin/profile-migration/adult/summary": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/admin/profile-migration/allowed-field-domain": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/admin/profile-migration/profiles/current/options": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/admin/profile-migration/profiles/current/metadata": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/admin/profile-migration/profiles/current/config": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/admin/profile-migration/profiles/current/adult-metadata": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/admin/profile-migration/profiles/current/form": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/public-rosters/tree": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/public-rosters/team/{teamId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/push-notifications/device-count": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/push-notifications/readiness": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/push-notifications/available-teams": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/push-notifications/history": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/referee-assignment/referees": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/referee-assignment/filter-options": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/referee-assignment/assignments": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/referee-assignment/game-details/{gid}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/referee-assignment/calendar-events": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/reference/states": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/player-invite/validate": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/team-invite/validate": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/registration-search/filter-options": {
+  "verdict": "BODY",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/registration-search/cadt-tree": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/registration-search/{registrationId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/registration-search/{registrationId}/family-accounting": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/registration-search/payment-methods": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/registration-search/{registrationId}/subscription": {
+  "verdict": "SAME",
+  "pg": 404,
+  "ss": 404
+ },
+ "/api/registration-search/change-job-options": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/catalogue": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/library": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/editor/job-roles": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/editor": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/Reporting/export-sp": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/Reporting/ThirdPartyRosterExport": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/export-monthly-reconciliation": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/export-monthly-reconciliation-merch": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobPlayers_TSICDAILY": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/Score_Input": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Job_Rosters_NoMedical": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/Club_AllJobs_Rosters_NoMedical": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/Job_Club_Rosters": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/JobRosters_TryoutsCheckReport": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/League_StandingsExcel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Schedule_Export": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/FieldUtilizationAcrossLeaguesByDate": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/TournyCheckin": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/CovidTournyCheckin": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/AmericanSelectTournyCheckin": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/AmericanSelectMainEventRosters": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/AmericanSelectEvaluation": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/FieldUtilizationAcrossLeaguesByDateTournament": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/FieldUtilizationAcrossLeaguesTournament": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/TournamentRosterPacked": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/TournamentRosterPacked_PositionSchool_Public": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Job_ClubRep_And_Coaches": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobRosters_RecruitingReport_Public_DumpExcel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobRosters_PackedByPositionAGNoClubPlayers": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobRosters_PackedByPosition_XPO": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Schedule_ExportExcel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Schedule_Gamecards": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/Schedule_ExportExcel_Unscored": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Produce_Job_Invoices_LastMonth": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_Invoices_LastMonth": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/Get_Invoices_LastMonthSummariesOnly": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/Get_OutdoorEdRosters": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_OutdoorEdRostersSpringOnly": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/ClubRep_BalanceDue_ByAgegroupTeamFee": {
+  "verdict": "SAME",
+  "pg": 403,
+  "ss": 403
+ },
+ "/api/Reporting/StoreLabels": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/StorePickupSignoff": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/StorePerPlayerPickup": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/StorePerPlayerPivot": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/TSICFeesYTDByCustomerAndJob": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/TSICFeesYTDByCustomer": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/ISP_CheckinFlat": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobPlayers_STEPS": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Job_CampCheckin": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Job_CampCheckinII": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/PlayerStats_E120": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/CustomerJobRevenueRollups": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_CustomerPlayers1": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_DiscountedPlayers": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_TeamFieldDistribution": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/clubrostersNoMedicalII": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/LeagueForfeitReport": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/LeagueRefReport": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/League_Teams": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/League_Coaches": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/League_Standings": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Mobile_JobUsers": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/League_ClubReps": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/ScheduleMaster": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/ScheduleByAgT": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/ScheduleByClubAgTPerPage": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/ScheduleByClubAgT": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/ScheduleByAgDiv": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/tournamentumml2": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/tournamentumml1": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_Team_Transactions_ForExcelExport": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/FieldUtilizationWithNominations": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/TournamentRosterPacked_PositionSchool": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/TournamentRecruitingReport": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/TournamentRecruitingReportASL": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/TournamentRecruitingReportUSL": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/TournamentPlayers_RosterRequestAndRegistrants_DataDump": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/TournamentRecruitingReport_DataDump": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobPlayer_Transactions": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_ClubAllJobPlayerTransactions": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/JobTeams_WithClubRep_AllTransactions_Excel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/JobTeams_WithClubRep_Excel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Rosters_WithClubRep_A": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobPlayers_Liberty_Excel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobPlayers_STEPS_Excel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobPlayers_E120_Excel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/JobStaff_Excel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Schedule_ByAgegroup": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/JobRosters_MSYSA": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobRosters_RecruitingReport": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobRosters_RecruitingReport_XPO": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/JobRosters_DayGroupsPackedXPO": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/PlayerStats_ParisiExportExcel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/JobPlayers_YJ_Excel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Club_JobPlayers_Excel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/JobPlayers_Showcase_Excel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Get_JobRosters_RecruitingReport_DumpExcel": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/Job_UniformData": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_commuters": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/CustomerJobPlayerRollup": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_daygroups": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_nightgroups_pdf": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_daygroups_pdf": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_nightgroups": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_roomies": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_datadump": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_excelexport_summer": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_excelexport_summer_pdf": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Reporting/camp_excelexport_veryshort": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_excelexport_short": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_excelexport_long": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_excelexport_daygroups": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_excelexport_roomies": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Reporting/camp_excelexport_room_position": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/Rescheduler/filter-options": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Rescheduler/affected-count": {
+  "verdict": "STATUS",
+  "pg": 200,
+  "ss": 500
+ },
+ "/api/Rescheduler/recipient-count": {
+  "verdict": "STATUS",
+  "pg": 200,
+  "ss": 500
+ },
+ "/api/roster-swapper/pools": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/roster-swapper/unassigned-queue": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/roster-table/fields": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-cascade": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-cascade/processing-order": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-division/agegroups": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-division/{divId}/pairings": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-division/{divId}/teams": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-division/{divId}/grid": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-division/event-grid": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-division/who-plays-who": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-division/game-dates": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-division/field-directions/{fieldId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-list/fields": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-qa/validate": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-qa/export-excel": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/schedule-review/recipients": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/scheduling-checklist": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/scheduling-checklist/dashboard": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/self-roster-update/{jobPath}/players": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/storefront-info": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/items": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/sales/lines": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/images": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/colors": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/sizes": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/purchase-history": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/cart": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/skus/availability": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/store/family-players": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/payment-methods": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/analytics/sales-pivot": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/analytics/sales-by-item": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/analytics/payments": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/analytics/family-purchases": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/analytics/family-purchases/{familyUserId}": {
+  "verdict": "SAME",
+  "pg": 404,
+  "ss": 404
+ },
+ "/api/store/analytics/restocked": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/analytics/quantity-adjustments": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/export/items": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/export/skus": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/export/sales": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/export/quantity-adjustments": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/admins": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/store/admins/candidates": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/stp/club-reps": {
+  "verdict": "SAME",
+  "pg": 403,
+  "ss": 403
+ },
+ "/api/teams/{teamId}/attendance/events": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/teams/{teamId}/attendance/player/{userId}/history": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/teams/attendance/event-types": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/teams/{teamId}/chat/messages": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/teams/{teamId}/chat/messages/history": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/teams/{teamId}/chat/preferences": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/team-links": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/team-links/available-teams": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/teams/{teamId}/roster": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/teams/{teamId}/links": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/teams/{teamId}/pushes": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/team-registration/my-clubs": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/team-registration/metadata": {
+  "verdict": "SAME",
+  "pg": 403,
+  "ss": 403
+ },
+ "/api/team-registration/club-team-history": {
+  "verdict": "SAME",
+  "pg": 403,
+  "ss": 403
+ },
+ "/api/team-search/filter-options": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/team-search/cadt-tree": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/team-search/{teamId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/team-search/{teamId}/subscription": {
+  "verdict": "SAME",
+  "pg": 404,
+  "ss": 404
+ },
+ "/api/team-search/club-rep/{clubRepRegId}/accounting": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/team-search/club-reps": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/team-search/club-rep/{clubRepRegId}/library": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/team-search/club-registrations": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/team-search/payment-methods": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/teams/{teamId}/tournaments": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/teams/{teamId}/tournaments/{tournamentJobId}/match": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/third-party-access/overview": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Timeslot/readiness": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/Timeslot/{agegroupId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/uniform-upload/template": {
+  "verdict": "FILE",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/usage-analysis/scope": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/usage-analysis/clients": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/usage-analysis/users-by-role": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/usage-analysis/public-requests-by-route": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/usage-analysis/user-requests-by-route": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/usage-analysis/users-by-role-over-time": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/usage-analysis/registrations-over-time": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/usage-analysis/paid-registrations-by-day": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/usage-analysis/third-party-exports": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/uslax-membership/candidates": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/uslax-rankings/seasons": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/uslax-rankings/age-groups": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/uslax-rankings/registered-age-groups": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/uslax-rankings/age-group-teams/{agegroupId}": {
+  "verdict": "ORDER",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/uslax-rankings/align": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/uslax-rankings/export-csv": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/Validation/ValidateUSALacrosseID": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/Validation/uslax": {
+  "verdict": "SAME",
+  "pg": 400,
+  "ss": 400
+ },
+ "/api/view-schedule/filter-options": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/view-schedule/capabilities": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/view-schedule/team-results/{teamId}": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/view-schedule/club-teams/{teamId}": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/view-schedule/field-info/{fieldId}": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/view-schedule/brackets/by-game/{gid}": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/view-schedule/brackets/by-team/{teamId}": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/view-schedule/standings/by-game/{gid}": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/view-schedule/standings/by-team/{teamId}": {
+  "verdict": "SAME",
+  "pg": 500,
+  "ss": 500
+ },
+ "/api/widget-dashboard": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/metrics": {
+  "verdict": "BODY",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/registration-trend": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/player-trend": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/team-trend": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/agegroup-distribution": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/event-contact": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/year-over-year": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/feeder-pace": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/my-widgets": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/available-widgets": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/public/{jobPath}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/public/{jobPath}/event-contact": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/job-reg-counts-dollars": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/usage-stats-per-job": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-dashboard/teams-app-usage": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-editor/job-types": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-editor/roles": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-editor/categories": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-editor/widgets": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-editor/job-by-path/{jobPath}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-editor/job-overrides/{jobId}": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ },
+ "/api/widget-editor/export-sql": {
+  "verdict": "SAME",
+  "pg": 200,
+  "ss": 200
+ }
+}
