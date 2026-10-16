@@ -19,7 +19,9 @@ param(
     [switch]$Merge,
     [switch]$Verify,
     # With -Verify: record this sweep as the new baseline (after reviewing an expected change).
-    [switch]$WriteBaseline
+    [switch]$WriteBaseline,
+    # With -Verify: skip the pg-migrate refresh (Postgres data already current, no schema change).
+    [switch]$SkipMigrate
 )
 
 $ErrorActionPreference = 'Stop'
@@ -99,11 +101,13 @@ try {
     }
 
     if ($Verify) {
-        Step 'Refresh Postgres from SQL Server (pg-migrate)'
-        dotnet run --project (Join-Path $repo 'tools\pg-migrate') -c Release
-        if ($LASTEXITCODE -ne 0) { Fail 'pg-migrate reported problems (tsicv5)' }
-        dotnet run --project (Join-Path $repo 'tools\pg-migrate') -c Release -- --source 'Server=.\SS2016;Database=TSICLogs;Trusted_Connection=True;TrustServerCertificate=True' --target 'Host=localhost;Port=5432;Database=tsiclogs;Username=postgres' --tables all
-        if ($LASTEXITCODE -ne 0) { Fail 'pg-migrate reported problems (tsiclogs)' }
+        if (-not $SkipMigrate) {
+            Step 'Refresh Postgres from SQL Server (pg-migrate)'
+            dotnet run --project (Join-Path $repo 'tools\pg-migrate') -c Release
+            if ($LASTEXITCODE -ne 0) { Fail 'pg-migrate reported problems (tsicv5)' }
+            dotnet run --project (Join-Path $repo 'tools\pg-migrate') -c Release -- --source 'Server=.\SS2016;Database=TSICLogs;Trusted_Connection=True;TrustServerCertificate=True' --target 'Host=localhost;Port=5432;Database=tsiclogs;Username=postgres' --tables all
+            if ($LASTEXITCODE -ne 0) { Fail 'pg-migrate reported problems (tsiclogs)' }
+        }
 
         Step 'A/B equivalence (rewritten repository methods, both databases)'
         dotnet run --project (Join-Path $repo 'tools\pg-ab\equivalence') -c Release

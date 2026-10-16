@@ -25,8 +25,8 @@ The preview **fetches origin first**. Local `master` goes stale; always compare 
 
 `-Merge` makes a local merge commit (never pushed), then builds and runs the tests.
 `-Verify` refreshes Postgres from SQL Server with `tools/pg-migrate` (this **drops and recreates
-the local `tsicv5`/`tsiclogs` Postgres databases**, so stop any F5 session running on Postgres first),
-then runs both A/B checks:
+the local `tsicv5`/`tsiclogs` Postgres databases**, so stop any F5 session running on Postgres first;
+add `-SkipMigrate` to re-check without refreshing), then runs both A/B checks:
 
 - `tools/pg-ab/equivalence`: every repository method the port rewrote, run on both databases.
   Must report `0 differing`.
@@ -61,7 +61,9 @@ Then add a case for it to `tools/pg-ab/equivalence` so it stays covered.
   Decision pending: trim in pg-migrate.
 - **Sort order**: ties come back in a different order; Postgres does not ignore hyphens and
   apostrophes when sorting. 20-odd endpoints show `ORDER`.
-- **Files**: Excel/PDF exports differ in size (embedded timestamps).
+- **Files and HTML error pages** are compared by status only: their bytes carry timestamps and
+  stack traces that change every run. Same for the `-- Generated:` line in export scripts.
+- **Order is not stable run to run** for ties, so the baseline comparison treats `ORDER` as `SAME`.
 - **`Rescheduler/affected-count`, `recipient-count`**: 500 on SQL Server without dates
   (`SqlDateTime overflow`, a master bug); 200 on Postgres.
 

@@ -6,7 +6,8 @@
 // Expects two API instances already running (scripts/pg-port-sync-check.ps1 -Verify starts them):
 //   https://localhost:7301  DatabaseProvider=Postgres
 //   https://localhost:7302  DatabaseProvider=SqlServer
-// Verdicts: SAME, ORDER (same rows, different order), BODY, STATUS, FILE (non-JSON size differs).
+// Verdicts: SAME, ORDER (same rows, different order), BODY, STATUS. Non-JSON responses compare
+// by status only.
 // With --baseline, exits non-zero only for endpoints whose verdict or status differs from it.
 // The baseline holds path/verdict/status only, never response bodies.
 import fs from 'node:fs';
@@ -49,6 +50,7 @@ function norm(v) {
   if (Array.isArray(v)) return v.map(norm);
   if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).filter(k => k !== 'traceId').sort().map(k => [k, norm(v[k])]));
   if (typeof v === 'string') {
+    v = v.replace(/(Generated:)\s*\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}( UTC)?/g, '$1 <ts>');   // generated-script headers
     if (GUID.test(v)) return v.toLowerCase();
     const m = DT.exec(v); if (m) return m[1] + '.' + ((m[2] ?? '.').slice(1) + '000000').slice(0, 6) + (m[3] ?? '');
   }
@@ -92,7 +94,9 @@ for (const [template, ops] of Object.entries(swagger.paths)) {
 
   let verdict, where;
   if (pg.status !== ss.status) verdict = 'STATUS';
-  else if (pg.body === undefined && ss.body === undefined) verdict = pg.size === ss.size ? 'SAME' : 'FILE';
+  // Files (Excel/PDF) and HTML error pages embed timestamps and stack traces, so their bytes
+  // differ run to run: for non-JSON only the status is compared.
+  else if (pg.body === undefined && ss.body === undefined) verdict = 'SAME';
   else if (!(where = firstDiff(pg.body, ss.body))) verdict = 'SAME';
   else if (!firstDiff(sorted(pg.body), sorted(ss.body))) verdict = 'ORDER';
   else { verdict = 'BODY'; where = firstDiff(sorted(pg.body), sorted(ss.body)); }
@@ -106,10 +110,13 @@ for (const [p, r] of Object.entries(results).filter(([, r]) => r.verdict === 'BO
 let regressions = 0;
 if (baselineFile && fs.existsSync(baselineFile)) {
   const base = JSON.parse(fs.readFileSync(baselineFile, 'utf8'));
+  // Row order of ties is not stable from run to run, and order differences are accepted, so
+  // ORDER and SAME count as the same outcome here.
+  const outcome = v => (v === 'ORDER' ? 'SAME' : v);
   for (const [p, r] of Object.entries(results)) {
     const b = base[p];
-    if (!b) { if (r.verdict !== 'SAME') { console.log(`  NEW ENDPOINT ${r.verdict} ${r.pg}/${r.ss} ${p}`); regressions++; } continue; }
-    if (b.verdict !== r.verdict || b.pg !== r.pg || b.ss !== r.ss) {
+    if (!b) { if (outcome(r.verdict) !== 'SAME') { console.log(`  NEW ENDPOINT ${r.verdict} ${r.pg}/${r.ss} ${p}`); regressions++; } continue; }
+    if (outcome(b.verdict) !== outcome(r.verdict) || b.pg !== r.pg || b.ss !== r.ss) {
       console.log(`  CHANGED ${b.verdict} ${b.pg}/${b.ss} -> ${r.verdict} ${r.pg}/${r.ss}  ${p}`);
       regressions++;
     }

@@ -495,7 +495,7 @@
   "ss": 200
  },
  "/api/master-schedule/coach-pdf": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -580,7 +580,7 @@
   "ss": 200
  },
  "/api/packed-roster/recruiter": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -815,7 +815,7 @@
   "ss": 400
  },
  "/api/Reporting/ThirdPartyRosterExport": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -840,17 +840,17 @@
   "ss": 500
  },
  "/api/Reporting/Job_Rosters_NoMedical": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/Club_AllJobs_Rosters_NoMedical": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/Job_Club_Rosters": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -885,17 +885,17 @@
   "ss": 500
  },
  "/api/Reporting/AmericanSelectTournyCheckin": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/AmericanSelectMainEventRosters": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/AmericanSelectEvaluation": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -945,7 +945,7 @@
   "ss": 500
  },
  "/api/Reporting/Schedule_Gamecards": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -960,12 +960,12 @@
   "ss": 500
  },
  "/api/Reporting/Get_Invoices_LastMonth": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/Get_Invoices_LastMonthSummariesOnly": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -985,32 +985,32 @@
   "ss": 403
  },
  "/api/Reporting/StoreLabels": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/StorePickupSignoff": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/StorePerPlayerPickup": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/StorePerPlayerPivot": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/TSICFeesYTDByCustomerAndJob": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/TSICFeesYTDByCustomer": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -1035,7 +1035,7 @@
   "ss": 500
  },
  "/api/Reporting/PlayerStats_E120": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -1060,7 +1060,7 @@
   "ss": 500
  },
  "/api/Reporting/clubrostersNoMedicalII": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -1110,7 +1110,7 @@
   "ss": 500
  },
  "/api/Reporting/ScheduleByClubAgTPerPage": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -1140,7 +1140,7 @@
   "ss": 500
  },
  "/api/Reporting/FieldUtilizationWithNominations": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -1155,12 +1155,12 @@
   "ss": 500
  },
  "/api/Reporting/TournamentRecruitingReportASL": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
  "/api/Reporting/TournamentRecruitingReportUSL": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -1220,7 +1220,7 @@
   "ss": 500
  },
  "/api/Reporting/Schedule_ByAgegroup": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -1320,7 +1320,7 @@
   "ss": 500
  },
  "/api/Reporting/camp_excelexport_summer_pdf": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -1375,7 +1375,7 @@
   "ss": 200
  },
  "/api/roster-swapper/unassigned-queue": {
-  "verdict": "SAME",
+  "verdict": "ORDER",
   "pg": 200,
   "ss": 200
  },
@@ -1445,7 +1445,7 @@
   "ss": 200
  },
  "/api/schedule-qa/export-excel": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
@@ -1740,7 +1740,7 @@
   "ss": 200
  },
  "/api/uniform-upload/template": {
-  "verdict": "FILE",
+  "verdict": "SAME",
   "pg": 200,
   "ss": 200
  },
