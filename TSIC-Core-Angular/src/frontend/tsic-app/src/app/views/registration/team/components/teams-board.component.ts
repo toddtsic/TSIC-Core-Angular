@@ -179,6 +179,16 @@ type BoardSide = 'lib' | 'reg';
                             (click)="remove.emit(t)">
                       <i class="bi bi-trash" aria-hidden="true"></i>
                     </button>
+                  } @else if (canRemove()) {
+                    <!-- AR-160: Delete is on but this team has payments — show the trash locked, like the
+                         pencil, so a rep can tell "not this team" from "no delete here". Explains only;
+                         it never emits remove. -->
+                    <button type="button" class="btn-icon is-locked" aria-disabled="true"
+                            [attr.aria-label]="t.teamName + ' cannot be removed: ' + paidLockReason"
+                            [attr.title]="paidLockReason"
+                            (click)="explainLock(paidLockReason)">
+                      <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
                   }
                 </span>
                 <span class="reg-lop"><span class="visually-hidden">Level of play </span>{{ formatLop(t.levelOfPlay) || '—' }}</span>
@@ -255,6 +265,8 @@ export class TeamsBoardComponent {
     readonly canRegister = input(false);
     /** The director's own remove toggle (unpaid rows); the mistake-undo is separate. */
     readonly canRemove = input(false);
+    /** Why a paid team shows a locked trash when the director allows delete (AR-160). */
+    readonly paidLockReason = 'This team has payments recorded, so it can\'t be removed. Contact the director for changes.';
     /** Non-null = the pencil is locked, with this reason. */
     readonly renameLockReason = input<string | null>(null);
     readonly actionInProgress = input(false);

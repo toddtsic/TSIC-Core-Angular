@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
 import { FamilyService } from '@infrastructure/services/family.service';
@@ -18,7 +18,7 @@ import { environment } from '@environments/environment';
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
-        <h5 class="mb-1 fw-semibold">Add Player</h5>
+        <h5 class="mb-1 fw-semibold">{{ editingIndex() !== null ? 'Edit Player' : 'Add Player' }}</h5>
 
         <!-- Children list -->
         <div class="mb-4">
@@ -93,7 +93,7 @@ import { environment } from '@environments/environment';
         </div>
 
         <!-- Add child form -->
-        <div class="card border-0 mb-3" [class.form-editing]="editingIndex() !== null"
+        <div #formCard class="card border-0 mb-3" [class.form-editing]="editingIndex() !== null"
              [class.bg-body-tertiary]="editingIndex() === null">
           <div class="card-body">
             <form [formGroup]="form" (ngSubmit)="addChild()" class="row g-3">
@@ -108,9 +108,22 @@ import { environment } from '@environments/environment';
                   </div>
                 </div>
               }
+              <!-- AR-148: a registered player's identity is locked server-side (FamilyService.UpdateChild).
+                   Say so up front and make the three fields READONLY — never .disable(): a disabled
+                   control drops out of form.value, the save would send blanks, and the server would
+                   refuse even a contact-only edit as an identity change. -->
+              @if (identityLocked()) {
+                <div class="col-12">
+                  <div class="identity-note">
+                    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                    Name, gender and date of birth can't be changed once a player is registered. To correct them, contact the event director.
+                  </div>
+                </div>
+              }
               <div class="col-12 col-md-3">
                 <label class="field-label" for="v2-childFirst">First name</label>
                 <input id="v2-childFirst" type="text" formControlName="firstName" class="field-input"
+                       [readonly]="identityLocked()"
                        [class.is-required]="!form.controls.firstName.value?.trim()"
                        [class.is-invalid]="submitted() && form.controls.firstName.invalid" />
                 @if (submitted() && form.controls.firstName.errors?.['required']) { <div class="field-error">Required</div> }
@@ -118,23 +131,30 @@ import { environment } from '@environments/environment';
               <div class="col-12 col-md-3">
                 <label class="field-label" for="v2-childLast">Last name</label>
                 <input id="v2-childLast" type="text" formControlName="lastName" class="field-input"
+                       [readonly]="identityLocked()"
                        [class.is-required]="!form.controls.lastName.value?.trim()"
                        [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
                 @if (submitted() && form.controls.lastName.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12 col-md-3">
                 <label class="field-label" for="v2-childGender">Gender</label>
-                <select id="v2-childGender" formControlName="gender" class="field-input field-select"
-                        [class.is-required]="!form.controls.gender.value"
-                        [class.is-invalid]="submitted() && form.controls.gender.invalid">
-                  <option value="" disabled>Select</option>
-                  @for (g of genderOptions; track g.value) { <option [value]="g.value">{{ g.label }}</option> }
-                </select>
+                <!-- A <select> has no readonly: show the stored value as text; the control stays bound. -->
+                @if (identityLocked()) {
+                  <input id="v2-childGender" type="text" class="field-input" readonly [value]="genderLabel()" />
+                } @else {
+                  <select id="v2-childGender" formControlName="gender" class="field-input field-select"
+                          [class.is-required]="!form.controls.gender.value"
+                          [class.is-invalid]="submitted() && form.controls.gender.invalid">
+                    <option value="" disabled>Select</option>
+                    @for (g of genderOptions; track g.value) { <option [value]="g.value">{{ g.label }}</option> }
+                  </select>
+                }
                 @if (submitted() && form.controls.gender.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12 col-md-3">
                 <label class="field-label" for="v2-childDob">Date of birth</label>
                 <input id="v2-childDob" type="date" formControlName="dob" class="field-input"
+                       [readonly]="identityLocked()"
                        [attr.min]="minDob" [attr.max]="maxDob"
                        [class.is-required]="!form.controls.dob.value"
                        [class.is-invalid]="submitted() && form.controls.dob.invalid" />
@@ -194,6 +214,20 @@ import { environment } from '@environments/environment';
           color: var(--bs-danger);
           background: rgba(var(--bs-danger-rgb), 0.08);
         }
+      }
+
+      /* AR-148: read-only identity fields on a registered player — same look as a disabled field */
+      .field-input[readonly] {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .identity-note {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
       }
 
       .icon-locked {
@@ -296,6 +330,7 @@ export class ChildrenStepComponent {
     private readonly fb = inject(FormBuilder);
     private readonly fieldData = inject(FormFieldDataService);
     private readonly familyApi = inject(FamilyService);
+    private readonly injector = inject(Injector);
     readonly state = inject(FamilyStateService);
     readonly removing = signal<number | null>(null);
 
@@ -357,6 +392,27 @@ export class ChildrenStepComponent {
         if (i === null) return null;
         return this.state.children()[i]?.userId ?? null;
     });
+
+    /**
+     * AR-148: editing a SAVED player who has a registration anywhere — the server refuses name,
+     * gender and DOB changes for them, so the form shows those read-only instead of refusing on Save.
+     * Same flag as the row's "cannot remove" lock.
+     */
+    readonly identityLocked = computed(() => {
+        const i = this.editingIndex();
+        if (i === null) return false;
+        const c = this.state.children()[i];
+        return !!c?.userId && c.hasRegistrations === true;
+    });
+
+    /** Read-only gender text for a locked player (the select can't be readonly). */
+    readonly genderLabel = computed(() => {
+        const i = this.editingIndex();
+        const g = i === null ? '' : (this.state.children()[i]?.gender ?? '');
+        return this.genderOptions.find(o => o.value === g)?.label ?? g;
+    });
+
+    private readonly formCard = viewChild<ElementRef<HTMLElement>>('formCard');
 
     readonly form = this.fb.group({
         firstName: ['', [Validators.required]],
@@ -475,6 +531,13 @@ export class ChildrenStepComponent {
         });
         this.editingIndex.set(index);
         this.submitted.set(false);
+        // AR-148: the form sits below the player list — bring it into view, or the pencil looks dead.
+        // After the render: the photo block and note insert on edit, and a scroll started before
+        // that re-layout stops short.
+        afterNextRender(() => {
+            const reduce = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+            this.formCard()?.nativeElement.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+        }, { injector: this.injector });
     }
 
     cancelEdit(): void {

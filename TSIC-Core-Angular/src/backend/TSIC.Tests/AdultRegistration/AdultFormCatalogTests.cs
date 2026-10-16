@@ -109,24 +109,20 @@ public class AdultFormCatalogTests
 
     // ── (b) BuildRoleSet — coach block ───────────────────────────────────────
 
-    [Fact(DisplayName = "AC1 without USLax: coach is a single optional Special Requests, no sportAssnId")]
+    [Fact(DisplayName = "AC1 without USLax: coach has no fields at all (no free-text note, AR-164)")]
     public void BuildRoleSet_AC1_NoUsLax()
     {
         var coach = AdultFormCatalog.BuildRoleSet("AC1", AdultUsLaxMode.None).UnassignedAdult.Fields;
 
-        coach.Should().ContainSingle();
-        coach[0].Name.Should().Be("specialRequests");
-        coach[0].InputType.Should().Be("TEXTAREA");
-        (coach[0].Validation?.Required ?? false).Should().BeFalse();
-        coach.Should().NotContain(f => f.Name == "sportAssnId");
+        coach.Should().BeEmpty();
     }
 
-    [Fact(DisplayName = "AC1 with USLax: required sportAssnId (7-12) prepended, then Special Requests")]
+    [Fact(DisplayName = "AC1 with USLax: required sportAssnId (7-12) is the only field")]
     public void BuildRoleSet_AC1_UsLax()
     {
         var coach = AdultFormCatalog.BuildRoleSet("AC1", AdultUsLaxMode.Required).UnassignedAdult.Fields;
 
-        coach.Select(f => f.Name).Should().Equal("sportAssnId", "specialRequests");
+        coach.Select(f => f.Name).Should().Equal("sportAssnId");
         coach[0].Order.Should().Be(1);
         coach[0].InputType.Should().Be("TEXT");
         coach[0].Validation!.Required.Should().BeTrue();
@@ -134,50 +130,48 @@ public class AdultFormCatalogTests
         coach[0].Validation!.MaxLength.Should().Be(12);
     }
 
-    [Fact(DisplayName = "AC2 without USLax: four apparel SELECTs (inline options + ListSizes_* DataSource) then Special Requests")]
+    [Fact(DisplayName = "AC2 without USLax: four apparel SELECTs (inline options + ListSizes_* DataSource)")]
     public void BuildRoleSet_AC2_NoUsLax()
     {
         var coach = AdultFormCatalog.BuildRoleSet("AC2", AdultUsLaxMode.None).UnassignedAdult.Fields;
 
-        coach.Select(f => f.Name).Should().Equal("jerseySize", "shortsSize", "sweatpants", "shoes", "specialRequests");
+        coach.Select(f => f.Name).Should().Equal("jerseySize", "shortsSize", "sweatpants", "shoes");
 
-        var apparel = coach.Where(f => f.Name != "specialRequests").ToList();
-        apparel.Should().OnlyContain(f => f.InputType == "SELECT");
-        apparel.Should().OnlyContain(f => f.Options != null && f.Options.Count > 0);
-        apparel.Should().OnlyContain(f => f.Validation != null && f.Validation.Required);
-        apparel.Should().OnlyContain(f => f.DataSource != null && f.DataSource!.StartsWith("ListSizes_"));
+        coach.Should().OnlyContain(f => f.InputType == "SELECT");
+        coach.Should().OnlyContain(f => f.Options != null && f.Options.Count > 0);
+        coach.Should().OnlyContain(f => f.Validation != null && f.Validation.Required);
+        coach.Should().OnlyContain(f => f.DataSource != null && f.DataSource!.StartsWith("ListSizes_"));
         coach.Should().NotContain(f => f.Name == "sportAssnId");
     }
 
-    [Fact(DisplayName = "AC2 with USLax: sportAssnId first, then the four apparel sizes, then Special Requests")]
+    [Fact(DisplayName = "AC2 with USLax: sportAssnId first, then the four apparel sizes")]
     public void BuildRoleSet_AC2_UsLax()
     {
         var coach = AdultFormCatalog.BuildRoleSet("AC2", AdultUsLaxMode.Required).UnassignedAdult.Fields;
-        coach.Select(f => f.Name).Should().Equal("sportAssnId", "jerseySize", "shortsSize", "sweatpants", "shoes", "specialRequests");
+        coach.Select(f => f.Name).Should().Equal("sportAssnId", "jerseySize", "shortsSize", "sweatpants", "shoes");
     }
 
-    [Fact(DisplayName = "AC3 without USLax: shirt + shoe SELECTs ONLY (no shorts/waist) then Special Requests")]
+    [Fact(DisplayName = "AC3 without USLax: shirt + shoe SELECTs ONLY (no shorts/waist)")]
     public void BuildRoleSet_AC3_NoUsLax()
     {
         var coach = AdultFormCatalog.BuildRoleSet("AC3", AdultUsLaxMode.None).UnassignedAdult.Fields;
 
         // The whole point of AC3: jersey + shoe only — NOT shorts/waist (that would be AC2 over-collecting).
-        coach.Select(f => f.Name).Should().Equal("jerseySize", "shoes", "specialRequests");
+        coach.Select(f => f.Name).Should().Equal("jerseySize", "shoes");
 
-        var apparel = coach.Where(f => f.Name != "specialRequests").ToList();
-        apparel.Should().OnlyContain(f => f.InputType == "SELECT");
-        apparel.Should().OnlyContain(f => f.Options != null && f.Options.Count > 0);
-        apparel.Should().OnlyContain(f => f.Validation != null && f.Validation.Required);
-        apparel.Select(f => f.DataSource).Should().Equal("ListSizes_CoachJersey", "ListSizes_CoachShoes");
+        coach.Should().OnlyContain(f => f.InputType == "SELECT");
+        coach.Should().OnlyContain(f => f.Options != null && f.Options.Count > 0);
+        coach.Should().OnlyContain(f => f.Validation != null && f.Validation.Required);
+        coach.Select(f => f.DataSource).Should().Equal("ListSizes_CoachJersey", "ListSizes_CoachShoes");
         coach.Should().NotContain(f => f.Name == "shortsSize" || f.Name == "sweatpants");
         coach.Should().NotContain(f => f.Name == "sportAssnId");
     }
 
-    [Fact(DisplayName = "AC3 with USLax: sportAssnId first, then shirt + shoe, then Special Requests")]
+    [Fact(DisplayName = "AC3 with USLax: sportAssnId first, then shirt + shoe")]
     public void BuildRoleSet_AC3_UsLax()
     {
         var coach = AdultFormCatalog.BuildRoleSet("AC3", AdultUsLaxMode.Required).UnassignedAdult.Fields;
-        coach.Select(f => f.Name).Should().Equal("sportAssnId", "jerseySize", "shoes", "specialRequests");
+        coach.Select(f => f.Name).Should().Equal("sportAssnId", "jerseySize", "shoes");
     }
 
     [Theory(DisplayName = "sportAssnId appears in the coach block for any USLax mode except None")]

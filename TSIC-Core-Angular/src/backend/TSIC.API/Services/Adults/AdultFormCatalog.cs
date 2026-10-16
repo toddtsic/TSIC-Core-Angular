@@ -204,18 +204,8 @@ public static class AdultFormCatalog
             fields.Add(Size("shoes", "Shoes", "Shoe Size", CoachShoesKey, ShoeSizes, order++));
         }
 
-        // Special Requests: matches the current UnassignedAdult fallback — an OPTIONAL free-text note (the
-        // team-request multi-select is the primary team-preference mechanism in the new system).
-        fields.Add(new ProfileMetadataField
-        {
-            Name = "specialRequests",
-            DbColumn = "SpecialRequests",
-            DisplayName = "Anything else the director should know?",
-            InputType = "TEXTAREA",
-            Order = order,
-            Visibility = "public"
-        });
-
+        // No free-text note, matching the UnassignedAdult fallback: the team-request multi-select is the
+        // coach's team preference, and anything else goes to the director by email (AR-164).
         return new ProfileMetadata { Fields = fields };
     }
 

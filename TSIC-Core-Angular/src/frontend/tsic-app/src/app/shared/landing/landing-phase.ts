@@ -10,7 +10,6 @@ import type { JobPulseDto } from '@core/api';
  * Bulletins band (which CTAs to surface), so the two can never drift apart.
  */
 export type EventPhase =
-	| 'superseded'       // a live later-year sibling exists — page redirects to it
 	| 'concluded'        // the backend's eventConcluded answer — the ONLY source of "event is over"
 	| 'inSeason'         // schedule published AND the first game day has arrived
 	| 'preEvent'         // schedule published, first game still in the future
@@ -25,7 +24,6 @@ export type EventPhase =
  * lets a finished event ignore a Register toggle a director left on.
  */
 export const CTAS_BY_PHASE: Record<EventPhase, ReadonlySet<string>> = {
-	superseded: new Set(),
 	preview: new Set(),
 	planned: new Set(['store']),
 	// A finished event keeps exactly one piece of unfinished business: MONEY OWED. The rest are
@@ -83,7 +81,9 @@ export function isPlayerRegistrationEffectivelyOpen(p: JobPulseDto | null): bool
  */
 export function derivePhase(p: JobPulseDto | null, now: Date): EventPhase {
 	if (!p) return 'preview';
-	if (p.supersededByLaterEvent) return 'superseded';
+	// Supersession is not a display phase (AR-147): a site with a live later-year sibling shows
+	// its natural phase. The server already closes its door — every create flag in the pulse is
+	// false — so no Register CTA can surface here.
 	// Concluded is the SERVER's call (pulse.eventConcluded) — computed once on the server clock
 	// over the published-lastGameDate → EventEndDate → ExpiryUsers hierarchy, the SAME predicate
 	// the write authority enforces. The FE consumes the bit rather than recomputing from raw

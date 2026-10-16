@@ -135,7 +135,10 @@
 
 .rp__rep-links {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	// Same cap as .rp__sections below (AR-121): the track MAX is the 3-up width, not 1fr, so a
+	// rep with only one or two badges keeps third-width badges instead of stretching them
+	// across the card. Three or more fill the row exactly as before.
+	grid-template-columns: repeat(auto-fit, minmax(220px, calc((100% - 2 * var(--space-2)) / 3)));
 	gap: var(--space-2);
 }
 

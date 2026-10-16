@@ -51,7 +51,7 @@ public class AdultProfileMaterializationTests
 
         var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(json, CaseInsensitive)!;
         set.UnassignedAdult.Fields.Should().Contain(f => f.Name == "jerseySize");
-        set.UnassignedAdult.Fields.Should().Contain(f => f.Name == "specialRequests");
+        set.UnassignedAdult.Fields.Should().NotContain(f => f.Name == "specialRequests");   // AR-164: no coach note
         set.Referee.Fields.Should().NotBeEmpty();
         set.Recruiter.Fields.Should().NotBeEmpty();
 
@@ -76,7 +76,7 @@ public class AdultProfileMaterializationTests
 
         var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(json, CaseInsensitive)!;
         var names = set.UnassignedAdult.Fields.Select(f => f.Name).ToList();
-        names.Should().Contain(new[] { "jerseySize", "shoes", "specialRequests" });
+        names.Should().Equal("jerseySize", "shoes");
         names.Should().NotContain(new[] { "shortsSize", "sweatpants" });   // the over-collection bug this fixes
 
         // Only the two referenced size sets are seeded — not the full apparel four.

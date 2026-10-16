@@ -36,8 +36,7 @@ interface StatusView {
  * open registration. Intent belongs to the person who holds it.
  *
  * Self-hides in every other phase — the Game-Day / Registration panels own those,
- * and a site with nothing configured correctly shows no band at all. `superseded`
- * is handled separately (the landing redirects to the live later-year event).
+ * and a site with nothing configured correctly shows no band at all.
  */
 @Component({
 	selector: 'app-event-status',
