@@ -71,7 +71,11 @@ public class FieldRepository : IFieldRepository
             // NOT excluded here. Available Fields is the whole reusable field bank, and these
             // rows are addresses: a customer runs several events out of one address, so the row
             // already attached to one of their jobs is worth seeing when setting up the next.
-            .Where(f => f.FName == null || !EF.Functions.Like(f.FName, "[0-9]%-%")); // Exclude numbered fields (e.g. "1-Field A")
+            // Exclude numbered fields (e.g. "1-Field A"): a digit first, a hyphen after it. Written
+            // without LIKE '[0-9]%-%' — a character class is SQL Server-only; Postgres LIKE would
+            // read it literally and exclude nothing.
+            .Where(f => f.FName == null
+                        || !("0123456789".Contains(f.FName.Substring(0, 1)) && f.FName.Substring(1).Contains("-")));
 
         if (!isSuperUser)
         {

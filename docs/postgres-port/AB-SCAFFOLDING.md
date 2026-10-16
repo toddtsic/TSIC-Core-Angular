@@ -30,7 +30,8 @@ listed here and marked in code with `PG-AB`. **Cutover = delete every item below
 - `tools/pg-migrate/`: schema and data migration
 - `SqlDbContext.Postgres.cs`: maps scaffolded SQL Server store types to Postgres types
 - `Npgsql.EnableLegacyTimestampBehavior` switch in `Program.cs`
-- Provider-neutral rewrites: `EF.Functions` date calls; `jobPath` collation
+- Provider-neutral rewrites: `EF.Functions` date calls; `jobPath` collation;
+  `FieldRepository` numbered-field filter (was `LIKE '[0-9]%-%'`, a SQL Server-only character class)
 
 ## Raw-SQL sites (step 2)
 
