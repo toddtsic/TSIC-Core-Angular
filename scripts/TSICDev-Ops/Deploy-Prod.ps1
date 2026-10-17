@@ -1,14 +1,15 @@
 # =============================================================================
-# Build-Package-PROD.ps1 -- build the PRODUCTION payload on TSIC-OVH-DEV
+# Deploy-Prod.ps1 -- build + publish the PRODUCTION package on TSIC-OVH-DEV
+#                    (the deploy itself happens on PHOENIX: Pull-Deploy, then Go.ps1)
 # =============================================================================
 # Run in a PowerShell on TSIC-OVH-DEV:
 #
-#   .\scripts\TSICDev-Ops\Build-Package-PROD.ps1                  # master, normal build
-#   .\scripts\TSICDev-Ops\Build-Package-PROD.ps1 -SkipApi         # Angular only
-#   .\scripts\TSICDev-Ops\Build-Package-PROD.ps1 -SkipAngular     # API only
+#   .\scripts\TSICDev-Ops\Deploy-Prod.ps1                  # master, normal build
+#   .\scripts\TSICDev-Ops\Deploy-Prod.ps1 -SkipApi         # Angular only
+#   .\scripts\TSICDev-Ops\Deploy-Prod.ps1 -SkipAngular     # API only
 #
 #   # Comparison build: an older commit, checked out elsewhere, with a given stamp
-#   .\scripts\TSICDev-Ops\Build-Package-PROD.ps1 -SourceRoot <worktree> -BuildStamp <stamp>
+#   .\scripts\TSICDev-Ops\Deploy-Prod.ps1 -SourceRoot <worktree> -BuildStamp <stamp>
 #
 # WHAT IT DOES: the build half of scripts\1-Build-And-Deploy-Prod.ps1 (the
 # SEDONA script), Steps 1 and 2, copied line for line -- same dotnet restore /

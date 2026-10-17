@@ -19,6 +19,11 @@ PowerShell. Every script is safe to re-run: it changes only what differs.
 
 Then, from `..\TSICDev-Ops`: `Restore-Databases.ps1`, then `Deploy-Dev.ps1`.
 
+Production deploy: `..\TSICDev-Ops\Deploy-Prod.ps1` here (build + publish to
+`C:\TSIC\Phoenix\deploy`), then on PHOENIX in `E:\TSIC-Incoming`:
+`.\Pull-Deploy.ps1`, `.\Pull-Deploy.ps1 -Stage <stamp>`, and `Go.ps1` as always.
+Fallback: SEDONA's `scripts\1-Build-And-Deploy-Prod.ps1`, unchanged.
+
 ## Checking a built box
 
 Every script takes `-CheckOnly`: it reports what it **would** change and changes
