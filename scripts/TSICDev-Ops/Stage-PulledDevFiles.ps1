@@ -123,8 +123,8 @@ try {
         @{ From = 'IIS-Config-Prod\_config.ps1';                         To = $DeployRoot }
         @{ From = 'IIS-Config-Prod\_deploy-common.ps1';                  To = $DeployRoot }
     )
-    # The two pull scripts themselves: refreshed in E:\TSIC-Incoming (never IIS-Config-Prod).
-    foreach ($self in 'Pull-DevFiles.ps1', 'Stage-PulledDevFiles.ps1') {
+    # The PHOENIX scripts themselves: refreshed in E:\TSIC-Incoming (never IIS-Config-Prod).
+    foreach ($self in 'Pull-DevFiles.ps1', 'Stage-PulledDevFiles.ps1', 'Deploy-FromDev.ps1') {
         if (Test-Path -LiteralPath (Join-Path $pkg $self)) { $scriptPushes += @{ From = $self; To = $IncomingDir } }
     }
     foreach ($push in $scriptPushes) {

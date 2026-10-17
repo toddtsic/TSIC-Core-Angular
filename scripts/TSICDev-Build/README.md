@@ -21,7 +21,8 @@ Then, from `..\TSICDev-Ops`: `Restore-Databases.ps1`, then `Deploy-Dev.ps1`.
 
 Production deploy: `..\TSICDev-Ops\Deploy-Prod.ps1` here (build + publish to
 `C:\TSIC\Phoenix\deploy`), then on PHOENIX in `E:\TSIC-Incoming`:
-`.\Pull-DevFiles.ps1`, then `.\Stage-PulledDevFiles.ps1`, then `Go.ps1` as always.
+`.\Deploy-FromDev.ps1` (pull, stage, `[y/N]` prompt, then the usual `Go.ps1`) --
+or the steps by hand: `.\Pull-DevFiles.ps1`, `.\Stage-PulledDevFiles.ps1`, `Go.ps1`.
 Fallback: SEDONA's `scripts\1-Build-And-Deploy-Prod.ps1`, unchanged.
 
 ## Checking a built box

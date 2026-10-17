@@ -15,6 +15,10 @@
 # build-info.json. Then records the stamp in E:\TSIC-Incoming\last-pulled.txt --
 # the ONE thing Stage-PulledDevFiles.ps1 reads to know what to stage.
 #
+# Safe to re-run: if the latest package is already here (say the deploy was
+# declined at Deploy-FromDev's prompt), it is re-verified from disk instead of
+# downloaded again. A pull that fails part-way removes its unfinished folder.
+#
 # Built by scripts\TSICDev-Ops\Deploy-Prod.ps1 on TSIC-OVH-DEV. Lives in the
 # repo at scripts\TSICDev-Ops\ and on PHOENIX in E:\TSIC-Incoming -- never in
 # IIS-Config-Prod. Fallback: RDP to SEDONA, 1-Build-And-Deploy-Prod.ps1.
@@ -48,6 +52,7 @@ if ($RehearsalRoot) {
 }
 
 $ok = $false
+$createdDest = $null
 
 # Runs sftp with a batch file. Native stderr must not become a terminating error
 # under Windows PowerShell 5.1, so EAP is relaxed for the call only.
@@ -93,27 +98,41 @@ try {
     Write-Host "  Latest package: $name" -ForegroundColor Green
 
     $dest = Join-Path $IncomingDir $stamp
+    $pkg  = Join-Path $dest 'package'
     if (Test-Path -LiteralPath $dest) {
-        throw "$stamp was already pulled ($dest). To stage it: .\Stage-PulledDevFiles.ps1   To pull it again: delete that folder first."
+        # Pulled before (e.g. the deploy was declined at the prompt). No download --
+        # but nothing is trusted from disk either: the stored zip is re-hashed and
+        # the payloads re-checked below, exactly as for a fresh pull.
+        Write-Host ""
+        Write-Host "Step 2: Already pulled - re-verifying the copy in $dest..." -ForegroundColor Yellow
+        $zipLocal = Join-Path $dest $name
+        if (-not (Test-Path -LiteralPath $zipLocal) -or -not (Test-Path -LiteralPath "$zipLocal.sha256") -or -not (Test-Path -LiteralPath $pkg)) {
+            throw "$dest is incomplete. Delete that folder and run .\Pull-DevFiles.ps1 again."
+        }
+        $want = ((Get-Content -LiteralPath "$zipLocal.sha256" -Raw).Trim() -split '\s+')[0]
+        $have = (Get-FileHash -LiteralPath $zipLocal -Algorithm SHA256).Hash
+        if ($have -ne $want) { throw "stored package fails its SHA-256 ($have, expected $want). Delete $dest and pull again." }
+        Write-Host "  SHA-256 verified: $have" -ForegroundColor Green
+        Remove-Item -LiteralPath $tmp -Recurse -Force
+    } else {
+        Write-Host ""
+        Write-Host "Step 2: Downloading package + checksum..." -ForegroundColor Yellow
+        Invoke-OvhSftp @("get /deploy/$name `"$t/$name`"", "get /deploy/$name.sha256 `"$t/$name.sha256`"")
+        $want = ((Get-Content -LiteralPath (Join-Path $tmp "$name.sha256") -Raw).Trim() -split '\s+')[0]
+        $have = (Get-FileHash -LiteralPath (Join-Path $tmp $name) -Algorithm SHA256).Hash
+        if ($have -ne $want) { throw "SHA-256 MISMATCH - expected $want, downloaded file is $have. Nothing was unpacked." }
+        Write-Host "  SHA-256 verified: $have" -ForegroundColor Green
+
+        Write-Host ""
+        Write-Host "Step 3: Unpacking into $dest..." -ForegroundColor Yellow
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        New-Item -ItemType Directory -Path $dest | Out-Null
+        $createdDest = $dest     # removed again if anything below fails
+        [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $tmp $name), $pkg)
+        Move-Item -LiteralPath (Join-Path $tmp $name) -Destination $dest
+        Move-Item -LiteralPath (Join-Path $tmp "$name.sha256") -Destination $dest
+        Remove-Item -LiteralPath $tmp -Recurse -Force
     }
-
-    Write-Host ""
-    Write-Host "Step 2: Downloading package + checksum..." -ForegroundColor Yellow
-    Invoke-OvhSftp @("get /deploy/$name `"$t/$name`"", "get /deploy/$name.sha256 `"$t/$name.sha256`"")
-    $want = ((Get-Content -LiteralPath (Join-Path $tmp "$name.sha256") -Raw).Trim() -split '\s+')[0]
-    $have = (Get-FileHash -LiteralPath (Join-Path $tmp $name) -Algorithm SHA256).Hash
-    if ($have -ne $want) { throw "SHA-256 MISMATCH - expected $want, downloaded file is $have. Nothing was unpacked." }
-    Write-Host "  SHA-256 verified: $have" -ForegroundColor Green
-
-    Write-Host ""
-    Write-Host "Step 3: Unpacking into $dest..." -ForegroundColor Yellow
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $pkg = Join-Path $dest 'package'
-    New-Item -ItemType Directory -Path $dest | Out-Null
-    [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $tmp $name), $pkg)
-    Move-Item -LiteralPath (Join-Path $tmp $name) -Destination $dest
-    Move-Item -LiteralPath (Join-Path $tmp "$name.sha256") -Destination $dest
-    Remove-Item -LiteralPath $tmp -Recurse -Force
 
     $biFile = Join-Path $pkg 'build-info.json'
     if (-not (Test-Path -LiteralPath $biFile)) { throw "no build-info.json - not a TSIC production package." }
@@ -166,6 +185,12 @@ try {
 } catch {
     Write-Host ""
     Write-Host "FAILED: $($_.Exception.Message)" -ForegroundColor Red
+    # A package folder this run created but did not finish verifying is removed,
+    # so it can never be mistaken later for a verified pull.
+    if ($createdDest -and (Test-Path -LiteralPath $createdDest)) {
+        Remove-Item -LiteralPath $createdDest -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "  Removed the incomplete $createdDest." -ForegroundColor Yellow
+    }
     Write-Host "  E:\Websites was NOT touched." -ForegroundColor Yellow
     Write-Host ""
     exit 1

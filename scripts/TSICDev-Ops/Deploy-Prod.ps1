@@ -302,7 +302,7 @@ $deployScripts = @(
 # package ROOT, so Stage-PulledDevFiles.ps1 refreshes both in E:\TSIC-Incoming.
 # They are not IIS-Config-Prod files: that folder gets exactly the four SEDONA
 # puts there.
-$PullScripts = @('Pull-DevFiles.ps1', 'Stage-PulledDevFiles.ps1')
+$PullScripts = @('Pull-DevFiles.ps1', 'Stage-PulledDevFiles.ps1', 'Deploy-FromDev.ps1')
 foreach ($ps in $PullScripts) {
     $rel = "scripts\TSICDev-Ops\$ps"
     if (Test-Path -LiteralPath (Join-Path $SourceRoot $rel)) { $deployScripts += @{ From = $rel; To = $ps } }
@@ -321,6 +321,7 @@ $buildInfo = [ordered]@{
     format     = 1
     buildStamp = $BuildStamp
     gitHash    = $GitHash
+    gitSubject = @(Invoke-SourceGit log -1 --format=%s HEAD)[0]   # shown at Deploy-FromDev's prompt
     api        = (-not $SkipApi)
     angular    = (-not $SkipAngular)
     comparison = $isComparison
