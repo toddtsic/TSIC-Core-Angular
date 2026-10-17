@@ -435,6 +435,23 @@ if ($isComparison) {
         }
         $Published = $true
     }
+
+    # --- Housekeeping: this box keeps the 5 newest builds and packages -----------
+    # (C:\TSIC\Phoenix\deploy prunes itself above.) Never this run's own build,
+    # and only after everything above succeeded.
+    $keep = 5
+    $oldBuilds = @(Get-ChildItem -LiteralPath (Split-Path $OutDir -Parent) -Directory |
+                   Where-Object { $_.Name -match '^v\d{6}\.\d{4}\.[0-9a-f]+$' -and $_.FullName -ne $OutDir } |
+                   Sort-Object LastWriteTime -Descending | Select-Object -Skip ($keep - 1))
+    foreach ($o in $oldBuilds) { Remove-Item -LiteralPath $o.FullName -Recurse -Force; Write-Host "  Pruned old build: $($o.Name)" -ForegroundColor DarkGray }
+    $oldPkgs = @(Get-ChildItem -LiteralPath $PackageDir -Filter 'tsic-prod-*.zip' -File |
+                 Where-Object { $_.FullName -ne $PackagePath } |
+                 Sort-Object LastWriteTime -Descending | Select-Object -Skip ($keep - 1))
+    foreach ($o in $oldPkgs) {
+        Remove-Item -LiteralPath $o.FullName -Force
+        Remove-Item -LiteralPath "$($o.FullName).sha256" -Force -ErrorAction SilentlyContinue
+        Write-Host "  Pruned old package: $($o.Name)" -ForegroundColor DarkGray
+    }
 }
 
 Write-Host ""
