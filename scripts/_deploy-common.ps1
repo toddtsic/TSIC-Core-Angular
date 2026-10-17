@@ -166,7 +166,19 @@ function Assert-TsicSafeTarget {
     #    makes mirroring over a running legacy site structurally impossible.
     #    An EMPTY folder is exempt: no live site is empty, and a first deploy
     #    into a freshly-created site folder is legitimate.
-    $isEmpty = -not @(Get-ChildItem -LiteralPath $actual -Force -ErrorAction SilentlyContinue).Count
+    #
+    #    "Empty" also covers a prepared-but-never-deployed site: nothing at its
+    #    top level except this site's excluded runtime folders (logs, keys,
+    #    App_Data for the API), and not one FILE anywhere beneath. Setup has to
+    #    create those folders before the first deploy (the pool needs Modify on
+    #    them and cannot create them itself), and the mirror never touches them.
+    #    A live site always holds files, so this cannot admit one.
+    $entries = @(Get-ChildItem -LiteralPath $actual -Force -ErrorAction SilentlyContinue)
+    $runtimeDirs = @((Get-TsicExclusions -Site $Site).Dirs)
+    $onlyEmptyRuntimeDirs = ($entries.Count -gt 0) -and
+        (@($entries | Where-Object { -not $_.PSIsContainer -or $runtimeDirs -notcontains $_.Name }).Count -eq 0) -and
+        (@(Get-ChildItem -LiteralPath $actual -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer }).Count -eq 0)
+    $isEmpty = ($entries.Count -eq 0) -or $onlyEmptyRuntimeDirs
     if (-not $isEmpty) {
         $fingerprint = Join-Path $actual $info.Fingerprint
         if (-not (Test-Path -LiteralPath $fingerprint)) {
@@ -463,8 +475,11 @@ function Test-TsicBackupSpace {
     $driveLetter = (Split-Path $BackupsPath -Qualifier).TrimEnd(':')
     $freeGB = [math]::Round((Get-PSDrive $driveLetter).Free / 1GB, 1)
 
-    $bytes  = (Get-ChildItem -LiteralPath $Source -Recurse -Force -ErrorAction SilentlyContinue |
-               Measure-Object -Property Length -Sum).Sum
+    # Files only: folders have no Length, and a prepared-but-never-deployed site
+    # (only empty runtime folders) would otherwise make Measure-Object throw.
+    $files  = @(Get-ChildItem -LiteralPath $Source -Recurse -Force -ErrorAction SilentlyContinue |
+                Where-Object { -not $_.PSIsContainer })
+    $bytes  = if ($files.Count) { ($files | Measure-Object -Property Length -Sum).Sum } else { 0 }
     $sizeGB = [math]::Round(($bytes / 1GB), 2)
     $needGB = $sizeGB + 1
 
