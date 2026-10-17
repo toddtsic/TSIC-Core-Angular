@@ -48,8 +48,9 @@
 # with its own files, exactly as SEDONA built it on the day.
 #
 # Source rules:
-#   default -SourceRoot (this repo): must be on master, not behind origin, with no
-#     uncommitted change in the app source -- the same rule as Deploy-Dev.ps1.
+#   default -SourceRoot (this repo): must be on master, exactly in step with origin
+#     (not behind, and no unpushed commits -- prod runs only code that is on
+#     GitHub), with no uncommitted change in the app source.
 #   other -SourceRoot (a comparison worktree): no uncommitted change in the app
 #     source; any commit. The run is labelled COMPARISON BUILD.
 #
@@ -126,6 +127,10 @@ if (-not $isComparison) {
     Invoke-SourceGit fetch --quiet origin $TSICDev.DeployBranch | Out-Null
     $behind = [int]@(Invoke-SourceGit rev-list --count "HEAD..origin/$($TSICDev.DeployBranch)")[0]
     if ($behind -gt 0) { throw "local $($TSICDev.DeployBranch) is $behind commit(s) behind origin: git pull" }
+    # Prod runs only code that is on GitHub: a commit that exists only on this box
+    # could not be rebuilt anywhere else -- not even by the SEDONA fallback.
+    $ahead = [int]@(Invoke-SourceGit rev-list --count "origin/$($TSICDev.DeployBranch)..HEAD")[0]
+    if ($ahead -gt 0) { throw "local $($TSICDev.DeployBranch) has $ahead commit(s) not pushed to origin. Push first: git push origin $($TSICDev.DeployBranch)" }
 }
 $GitHash = @(Invoke-SourceGit rev-parse --short HEAD)[0]
 
