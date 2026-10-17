@@ -11,9 +11,10 @@
 #   dev-api\logs, keys,              dev-api pool MODIFY: runtime logs, the Data
 #     App_Data\AdnMonthEnd           Protection key ring, and the ADN month-end cache
 #                                    (the import rewrites + deletes it, so Modify)
-#   TSIC-STATICS\BannerFiles,        dev-api pool MODIFY: user uploads land here;
-#     RegFileUploads,                inheritance carries it into RegFileUploads\MedForms
-#     Headshots-AllRegistrants       and \VaccineCards
+#   TSIC-STATICS-DEV\BannerFiles,    dev-api pool MODIFY: user uploads land here.
+#     RegFileUploads,                The four FileStorage:* folders the API reads and
+#     Headshots-AllRegistrants,      writes. RegFileUploads stays EMPTY on this box
+#     Store-Sku-Images               (no med forms / vaccine cards here, Todd 10-17).
 #   C:\Websites\Backups              Deploy-Dev.ps1's pre-deploy snapshots (admin only)
 #
 # Only adds missing grants; never removes anything.
@@ -29,7 +30,7 @@ $ErrorActionPreference = 'Stop'
 
 $Pool = $TSICDev.ApiPoolUser
 $ApiWritable     = @('logs', 'keys', 'App_Data\AdnMonthEnd') | ForEach-Object { Join-Path $TSICDev.ApiPath $_ }
-$StaticsWritable = @('BannerFiles', 'RegFileUploads', 'Headshots-AllRegistrants') | ForEach-Object { Join-Path $TSICDev.StaticsDir $_ }
+$StaticsWritable = @('BannerFiles', 'RegFileUploads', 'Headshots-AllRegistrants', 'Store-Sku-Images') | ForEach-Object { Join-Path $TSICDev.StaticsDir $_ }
 
 try {
     Assert-TSICDevBox

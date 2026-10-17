@@ -6,13 +6,30 @@ namespace TSIC.Domain.Constants
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S1075:Refactor your code not to use hardcoded absolute paths or URIs.", Justification = "Defaults are config-backed fallbacks; environments should override via env vars.")]
     public static class TsicConstants
     {
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S1075:Refactor your code not to use hardcoded absolute paths or URIs.", Justification = "Fallback only; the API sets the real value from appsettings at startup.")]
+        private static string _baseUrlStatics = "https://statics.teamsportsinfo.com/";
+
         /// <summary>
-        /// Base URL for static assets (images, logos, etc.).
-        /// Override via TSIC_BASEURL_STATICS environment variable.
+        /// Base URL for static assets (images, logos, etc.), always ending in "/".
+        ///
+        /// Set ONCE at startup from appsettings TsicSettings:StaticsBaseUrl (Program.cs calls
+        /// <see cref="UseStaticsBaseUrl"/>), so appsettings is the one place the statics address
+        /// is configured. This used to read the TSIC_BASEURL_STATICS environment variable -- a
+        /// second setting for the same address, so an environment could set one, miss the other,
+        /// and quietly serve some links from another environment's statics. The fallback above only
+        /// serves code that runs without the API host (unit tests).
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S1075:Refactor your code not to use hardcoded absolute paths or URIs.", Justification = "Defaults are config-backed fallbacks; environments should override via env vars.")]
-        public static string BaseUrlStatics =>
-            System.Environment.GetEnvironmentVariable("TSIC_BASEURL_STATICS") ?? "https://statics.teamsportsinfo.com/";
+        public static string BaseUrlStatics => _baseUrlStatics;
+
+        /// <summary>
+        /// Startup only: sets <see cref="BaseUrlStatics"/> from TsicSettings:StaticsBaseUrl.
+        /// </summary>
+        public static void UseStaticsBaseUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                throw new ArgumentException("TsicSettings:StaticsBaseUrl is empty.", nameof(url));
+            _baseUrlStatics = url.TrimEnd('/') + "/";
+        }
 
         /// <summary>
         /// Base URL for Crystal Reports API.

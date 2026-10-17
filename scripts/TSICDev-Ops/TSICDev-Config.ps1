@@ -36,7 +36,13 @@ $TSICDev = @{
     AppPool        = 'dev-app'
     WebsitesDir    = 'C:\Websites'
     WebBackupsDir  = 'C:\Websites\Backups'    # pre-deploy snapshots, 3 kept per site
-    StaticsDir     = 'C:\Websites\TSIC-STATICS'
+    # Staging's OWN statics (iDrive copy of prod's, minus RegFileUploads and the
+    # pruned folders), served as devstatics. NOT C:\Websites\TSIC-STATICS: that
+    # path is reserved for the DR mirror of PHOENIX's statics, which nothing on
+    # Staging may ever write to.
+    StaticsDir     = 'C:\Websites\TSIC-STATICS-DEV'
+    StaticsSite    = 'dev-statics'            # site name = pool name
+    StaticsHost    = 'devstatics.teamsportsinfo.com'
     ApiHost        = 'devapi.teamsportsinfo.com'
     AppHost        = 'dev.teamsportsinfo.com'
     CertSubject    = 'CN=*.teamsportsinfo.com'

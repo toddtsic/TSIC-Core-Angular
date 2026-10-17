@@ -2,7 +2,7 @@
     envName: 'staging',
     production: true,
     apiUrl: 'https://devapi.teamsportsinfo.com/api',
-    staticsUrl: 'https://statics.teamsportsinfo.com',
+    staticsUrl: 'https://devstatics.teamsportsinfo.com',
     testUsLaxNumber: null as string | null,
     buildVersion: 'dev',
 };

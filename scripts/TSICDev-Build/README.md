@@ -14,6 +14,7 @@ PowerShell. Every script is safe to re-run: it changes only what differs.
 | 07 | `07-Create-SqlLogin.ps1` | SQL login for the `dev-api` pool |
 | 08 | `08-Setup-Phoenix-Sftp.ps1` | sshd, `phoenix` SFTP account, chroot, keys |
 | 09 | `09-Install-Seq.ps1 [-TemplatesDir <dir>]` | ARR proxy, Seq service, `Seq` site for seq.teamsportsinfo.com, retention (asks for the Seq admin password) |
+| 10 | `10-Create-Statics-Site.ps1` | `dev-statics` site for devstatics.teamsportsinfo.com over `C:\Websites\TSIC-STATICS-DEV` (needs the iDrive statics restore first; uses prod's own web.config rules) |
 | -- | `Apply-Dev-Secrets.ps1` | secrets + `ASPNETCORE_ENVIRONMENT` on `dev-api` (from `app-pool-secrets.ps1`) |
 
 Then, from `..\TSICDev-Ops`: `Restore-Databases.ps1`, then `Deploy-Dev.ps1`.

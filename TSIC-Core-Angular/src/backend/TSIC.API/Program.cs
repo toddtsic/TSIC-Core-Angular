@@ -217,6 +217,10 @@ builder.Services.AddScoped<IStoreImageService, StoreImageService>();
 // TsicSettings (default customer for ADN credential defaults)
 builder.Services.Configure<TsicSettings>(
     builder.Configuration.GetSection(TsicSettings.SectionName));
+// The statics address has ONE source, TsicSettings:StaticsBaseUrl. Code that builds statics
+// links without DI (repository projections, JobTokens) reads it via TsicConstants.BaseUrlStatics.
+TsicConstants.UseStaticsBaseUrl(
+    builder.Configuration[$"{TsicSettings.SectionName}:StaticsBaseUrl"] ?? new TsicSettings().StaticsBaseUrl);
 
 // Anthropic AI Compose (email drafting via Claude Haiku)
 builder.Services.Configure<AnthropicSettings>(
@@ -1130,6 +1134,14 @@ builder.Host.UseSerilog();
     bootLog.Information(
         "[STARTUP-CONFIG] frontend: baseUrl={Url}",
         cfg["FrontendSettings:BaseUrl"] ?? "(unset)");
+
+    // Which statics host this environment links to, and where its uploads land. Staging must
+    // read devstatics + TSIC-STATICS-DEV; prod's address here on a dev box means dev pages
+    // are showing (and dev uploads are missing from) prod's statics.
+    bootLog.Information(
+        "[STARTUP-CONFIG] statics: baseUrl={Url} bannerFilesPath={BannerPath}",
+        TsicConstants.BaseUrlStatics,
+        cfg["FileStorage:BannerFilesPath"] ?? "(unset)");
 
     bootLog.Information(
         "[STARTUP-CONFIG] seq: serverUrl={Url}",
