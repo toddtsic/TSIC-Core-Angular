@@ -1,6 +1,7 @@
 # =============================================================================
 # Deploy-Prod.ps1 -- build + publish the PRODUCTION package on TSIC-OVH-DEV
-#                    (the deploy itself happens on PHOENIX: Pull-Deploy, then Go.ps1)
+#                    (the deploy itself happens on PHOENIX: Pull-DevFiles,
+#                    Stage-PulledDevFiles, then Go.ps1)
 # =============================================================================
 # Run in a PowerShell on TSIC-OVH-DEV:
 #
@@ -297,12 +298,14 @@ $deployScripts = @(
     @{ From = 'scripts\IIS-Config-Prod\Deployment\Recycle-After-Deploy.ps1'; To = 'IIS-Config-Prod\Deployment\Recycle-After-Deploy.ps1' }
     @{ From = 'scripts\IIS-Config-Prod\Deployment\Rollback-Deploy.ps1';      To = 'IIS-Config-Prod\Deployment\Rollback-Deploy.ps1' }
 )
-# Pull-Deploy.ps1 rides along too (when the commit has it), at the package ROOT,
-# so -Stage on PHOENIX refreshes its own copy in E:\TSIC-Incoming. It is not an
-# IIS-Config-Prod file: that folder gets exactly the four SEDONA puts there.
-$pullScript = 'scripts\TSICDev-Ops\Pull-Deploy.ps1'
-if (Test-Path -LiteralPath (Join-Path $SourceRoot $pullScript)) {
-    $deployScripts += @{ From = $pullScript; To = 'Pull-Deploy.ps1' }
+# The two PHOENIX pull scripts ride along too (when the commit has them), at the
+# package ROOT, so Stage-PulledDevFiles.ps1 refreshes both in E:\TSIC-Incoming.
+# They are not IIS-Config-Prod files: that folder gets exactly the four SEDONA
+# puts there.
+$PullScripts = @('Pull-DevFiles.ps1', 'Stage-PulledDevFiles.ps1')
+foreach ($ps in $PullScripts) {
+    $rel = "scripts\TSICDev-Ops\$ps"
+    if (Test-Path -LiteralPath (Join-Path $SourceRoot $rel)) { $deployScripts += @{ From = $rel; To = $ps } }
 }
 foreach ($d in $deployScripts) {
     $src = Join-Path $SourceRoot $d.From
@@ -359,7 +362,9 @@ if ($isComparison) {
 
     $roots = @('IIS-Config-Prod') + @(if (!$SkipApi) { $ApiSite }) + @(if (!$SkipAngular) { $AngularSite })
     $files = @(Get-Item -LiteralPath (Join-Path $OutDir 'build-info.json'))
-    if (Test-Path -LiteralPath (Join-Path $OutDir 'Pull-Deploy.ps1')) { $files += Get-Item -LiteralPath (Join-Path $OutDir 'Pull-Deploy.ps1') }
+    foreach ($ps in $PullScripts) {
+        if (Test-Path -LiteralPath (Join-Path $OutDir $ps)) { $files += Get-Item -LiteralPath (Join-Path $OutDir $ps) }
+    }
     foreach ($r in $roots) { $files += @(Get-ChildItem -LiteralPath (Join-Path $OutDir $r) -Recurse -File -Force) }
 
     $zip = [IO.Compression.ZipFile]::Open($PackagePath, [IO.Compression.ZipArchiveMode]::Create)
@@ -393,15 +398,19 @@ if ($isComparison) {
         $landed = (Get-FileHash -LiteralPath (Join-Path $drop $PackageName) -Algorithm SHA256).Hash
         if ($landed -ne $PackageHash) { throw "the copy in $drop does not match the package (hash $landed). latest.txt NOT changed." }
 
-        # A loose copy of Pull-Deploy.ps1 (same file as inside the package), so a
-        # PHOENIX without it can bootstrap with one sftp get:
-        #   get /deploy/Pull-Deploy.ps1 E:/TSIC-Incoming/Pull-Deploy.ps1
-        $pullLoose = Join-Path $OutDir 'Pull-Deploy.ps1'
-        if (Test-Path -LiteralPath $pullLoose) {
-            Copy-Item -LiteralPath $pullLoose -Destination (Join-Path $drop 'Pull-Deploy.ps1.tmp') -Force
-            Move-Item -LiteralPath (Join-Path $drop 'Pull-Deploy.ps1.tmp') -Destination (Join-Path $drop 'Pull-Deploy.ps1') -Force
-            Write-Host "  Pull-Deploy.ps1 (loose copy, for bootstrapping PHOENIX)" -ForegroundColor Green
+        # Loose copies of the two pull scripts (the same files the package carries),
+        # so a PHOENIX without them can bootstrap with one sftp get each into
+        # E:\TSIC-Incoming. Temp name, then rename: never half-written.
+        foreach ($ps in $PullScripts) {
+            $loose = Join-Path $OutDir $ps
+            if (Test-Path -LiteralPath $loose) {
+                Copy-Item -LiteralPath $loose -Destination (Join-Path $drop "$ps.tmp") -Force
+                Move-Item -LiteralPath (Join-Path $drop "$ps.tmp") -Destination (Join-Path $drop $ps) -Force
+                Write-Host "  $ps (loose copy, for bootstrapping PHOENIX)" -ForegroundColor Green
+            }
         }
+        $staleLoose = Join-Path $drop 'Pull-Deploy.ps1'      # superseded by the two above
+        if (Test-Path -LiteralPath $staleLoose) { Remove-Item -LiteralPath $staleLoose -Force }
 
         # The pointer moves LAST, and atomically: write a temp file, then rename.
         $tmp = Join-Path $drop 'latest.txt.tmp'
