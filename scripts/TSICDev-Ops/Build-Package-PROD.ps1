@@ -392,6 +392,16 @@ if ($isComparison) {
         $landed = (Get-FileHash -LiteralPath (Join-Path $drop $PackageName) -Algorithm SHA256).Hash
         if ($landed -ne $PackageHash) { throw "the copy in $drop does not match the package (hash $landed). latest.txt NOT changed." }
 
+        # A loose copy of Pull-Deploy.ps1 (same file as inside the package), so a
+        # PHOENIX without it can bootstrap with one sftp get:
+        #   get /deploy/Pull-Deploy.ps1 E:/TSIC-Incoming/Pull-Deploy.ps1
+        $pullLoose = Join-Path $OutDir 'Pull-Deploy.ps1'
+        if (Test-Path -LiteralPath $pullLoose) {
+            Copy-Item -LiteralPath $pullLoose -Destination (Join-Path $drop 'Pull-Deploy.ps1.tmp') -Force
+            Move-Item -LiteralPath (Join-Path $drop 'Pull-Deploy.ps1.tmp') -Destination (Join-Path $drop 'Pull-Deploy.ps1') -Force
+            Write-Host "  Pull-Deploy.ps1 (loose copy, for bootstrapping PHOENIX)" -ForegroundColor Green
+        }
+
         # The pointer moves LAST, and atomically: write a temp file, then rename.
         $tmp = Join-Path $drop 'latest.txt.tmp'
         [IO.File]::WriteAllText($tmp, "$PackageName`n", (New-Object System.Text.ASCIIEncoding))
