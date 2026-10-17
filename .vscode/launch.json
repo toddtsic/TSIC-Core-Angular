@@ -5,6 +5,7 @@
       "name": "Launch Chrome (Angular)",
       "type": "chrome",
       "request": "launch",
+      "runtimeArgs": ["--do-not-de-elevate"],
       "url": "https://localhost:4200",
       "webRoot": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app",
       "preLaunchTask": "Wait API then Start Angular"
@@ -52,6 +53,7 @@
       "name": "Angular UI: Chrome Debug",
       "type": "chrome",
       "request": "launch",
+      "runtimeArgs": ["--do-not-de-elevate"],
       "url": "https://localhost:4200",
       "webRoot": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app/src",
       "sourceMapPathOverrides": {
